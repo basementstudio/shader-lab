@@ -76,7 +76,7 @@ export class MediaPass extends PassNode {
   override updateParams(params: LayerParameterValues): void {
     this.fitModeUniform.value = params.fitMode === "contain" ? 1 : 0
     this.scaleUniform.value =
-      typeof params.scale === "number" ? Math.max(params.scale, 0.01) : 1
+      typeof params.scale === "number" ? 1 / Math.max(params.scale, 0.01) : 1
 
     if (Array.isArray(params.offset) && params.offset.length === 2) {
       this.offsetXUniform.value = params.offset[0] ?? 0

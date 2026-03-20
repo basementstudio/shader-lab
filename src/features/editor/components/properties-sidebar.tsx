@@ -3,7 +3,6 @@
 import { AnimatePresence, motion, useReducedMotion } from "motion/react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { getLayerDefinition } from "@/features/editor/config/layer-registry"
-import { cn } from "@/shared/lib/cn"
 import type {
   AnimatedPropertyBinding,
   BlendMode,
@@ -14,6 +13,7 @@ import type {
   SelectParameterDefinition,
   TextParameterDefinition,
 } from "@/features/editor/types"
+import { cn } from "@/shared/lib/cn"
 import { ColorPicker } from "@/shared/ui/color-picker"
 import { GlassPanel } from "@/shared/ui/glass-panel"
 import { IconButton } from "@/shared/ui/icon-button"
@@ -25,8 +25,10 @@ import { XYPad } from "@/shared/ui/xy-pad"
 import { useAssetStore } from "@/store/assetStore"
 import { useEditorStore } from "@/store/editorStore"
 import { useLayerStore } from "@/store/layerStore"
-import { useTimelineStore } from "@/store/timelineStore"
-import { createLayerPropertyBinding } from "@/store/timelineStore"
+import {
+  createLayerPropertyBinding,
+  useTimelineStore,
+} from "@/store/timelineStore"
 import s from "./properties-sidebar.module.css"
 
 const blendModeOptions = [
@@ -48,7 +50,7 @@ const DEFAULT_PARAM_GROUP = "Settings"
 
 function getSelectedAsset(
   assetById: Map<string, EditorAsset>,
-  assetId: string | null,
+  assetId: string | null
 ): EditorAsset | null {
   if (!assetId) {
     return null
@@ -90,7 +92,7 @@ function toTextValue(value: ParameterValue, fallback: string): string {
 function resolveParamValue(
   params: Record<string, ParameterValue>,
   definitions: ParameterDefinition[],
-  key: string,
+  key: string
 ): ParameterValue | undefined {
   const explicitValue = params[key]
   if (explicitValue !== undefined) {
@@ -104,19 +106,26 @@ function resolveParamValue(
 function isParamVisible(
   definition: ParameterDefinition,
   params: Record<string, ParameterValue>,
-  definitions: ParameterDefinition[],
+  definitions: ParameterDefinition[]
 ): boolean {
   if (!definition.visibleWhen) {
     return true
   }
 
-  const controllingValue = resolveParamValue(params, definitions, definition.visibleWhen.key)
+  const controllingValue = resolveParamValue(
+    params,
+    definitions,
+    definition.visibleWhen.key
+  )
 
   if ("equals" in definition.visibleWhen) {
     return controllingValue === definition.visibleWhen.equals
   }
 
-  return typeof controllingValue === "number" && controllingValue >= definition.visibleWhen.gte
+  return (
+    typeof controllingValue === "number" &&
+    controllingValue >= definition.visibleWhen.gte
+  )
 }
 
 type ParamGroup = {
@@ -151,7 +160,7 @@ function groupVisibleParams(params: ParameterDefinition[]): ParamGroup[] {
 }
 
 function createParamTimelineBinding(
-  definition: ParameterDefinition,
+  definition: ParameterDefinition
 ): AnimatedPropertyBinding | null {
   if (definition.type === "text") {
     return null
@@ -183,7 +192,11 @@ type TimelineKeyframeControl = {
   binding: AnimatedPropertyBinding | null
   hasTrack: boolean
   layerId: string
-  onKeyframe: (binding: AnimatedPropertyBinding, layerId: string, value: ParameterValue) => void
+  onKeyframe: (
+    binding: AnimatedPropertyBinding,
+    layerId: string,
+    value: ParameterValue
+  ) => void
   reduceMotion: boolean
   timelinePanelOpen: boolean
   value: ParameterValue
@@ -212,42 +225,58 @@ function TimelineKeyframeButton({
     return null
   }
 
+  let animation: { opacity: number; scale?: number }
+
+  if (control.timelinePanelOpen) {
+    animation = control.reduceMotion
+      ? { opacity: 1 }
+      : { opacity: 1, scale: 1 }
+  } else {
+    animation = control.reduceMotion
+      ? { opacity: 0 }
+      : { opacity: 0, scale: 0.82 }
+  }
+
   return (
-    <AnimatePresence initial={false}>
-      {control.timelinePanelOpen ? (
-        <motion.span
-          animate={control.reduceMotion ? { opacity: 1 } : { opacity: 1, scale: 1 }}
-          className={s.fieldActionWrap}
-          exit={control.reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.82 }}
-          initial={control.reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.82 }}
-          transition={
-            control.reduceMotion
-              ? { duration: 0.12, ease: "easeOut" }
-              : { damping: 20, mass: 0.5, stiffness: 420, type: "spring" }
+    <span className={s.fieldActionSlot}>
+      <motion.span
+        animate={animation}
+        className={s.fieldActionWrap}
+        initial={false}
+        transition={
+          control.reduceMotion
+            ? { duration: 0.12, ease: "easeOut" }
+            : { damping: 20, mass: 0.5, stiffness: 420, type: "spring" }
+        }
+      >
+        <IconButton
+          aria-hidden={!control.timelinePanelOpen}
+          aria-label={`Create keyframe for ${control.binding.label}`}
+          className={cn(
+            s.timelineKeyframeButton,
+            control.hasTrack && s.timelineKeyframeButtonActive
+          )}
+          disabled={!control.timelinePanelOpen}
+          onClick={() =>
+            control.onKeyframe(
+              control.binding as AnimatedPropertyBinding,
+              control.layerId,
+              control.value
+            )
           }
+          tabIndex={control.timelinePanelOpen ? 0 : -1}
+          variant="ghost"
         >
-          <IconButton
-            aria-label={`Create keyframe for ${control.binding.label}`}
-            className={cn(
-              s.timelineKeyframeButton,
-              control.hasTrack && s.timelineKeyframeButtonActive,
-            )}
-            onClick={() =>
-              control.onKeyframe(control.binding as AnimatedPropertyBinding, control.layerId, control.value)
-            }
-            variant={control.hasTrack ? "active" : "default"}
-          >
-            <RhombusIcon />
-          </IconButton>
-        </motion.span>
-      ) : null}
-    </AnimatePresence>
+          <RhombusIcon />
+        </IconButton>
+      </motion.span>
+    </span>
   )
 }
 
 function renderFieldLabel(
   label: string,
-  control: TimelineKeyframeControl | null,
+  control: TimelineKeyframeControl | null
 ) {
   return (
     <span className={s.fieldLabelRow}>
@@ -296,7 +325,11 @@ function SelectedLayerPropertiesContent({
   layerSubtitle: string
   layerType: string
   onToggleParamGroup: (groupId: string) => void
-  onTimelineKeyframe: (binding: AnimatedPropertyBinding, layerId: string, value: ParameterValue) => void
+  onTimelineKeyframe: (
+    binding: AnimatedPropertyBinding,
+    layerId: string,
+    value: ParameterValue
+  ) => void
   opacity: number
   reduceMotion: boolean
   saturation: number
@@ -310,7 +343,10 @@ function SelectedLayerPropertiesContent({
   values: Record<string, ParameterValue>
   visibleParams: ParameterDefinition[]
 }) {
-  const groupedParams = useMemo(() => groupVisibleParams(visibleParams), [visibleParams])
+  const groupedParams = useMemo(
+    () => groupVisibleParams(visibleParams),
+    [visibleParams]
+  )
   const showGroupedParams =
     groupedParams.length > 1 || groupedParams[0]?.label !== DEFAULT_PARAM_GROUP
 
@@ -322,13 +358,18 @@ function SelectedLayerPropertiesContent({
   const hasTrack = useCallback(
     (binding: AnimatedPropertyBinding) =>
       timelineTracks.some(
-        (track) => track.layerId === layerId && JSON.stringify(track.binding) === JSON.stringify(binding),
+        (track) =>
+          track.layerId === layerId &&
+          JSON.stringify(track.binding) === JSON.stringify(binding)
       ),
-    [layerId, timelineTracks],
+    [layerId, timelineTracks]
   )
 
   const buildTimelineControl = useCallback(
-    (binding: AnimatedPropertyBinding | null, value: ParameterValue): TimelineKeyframeControl | null => {
+    (
+      binding: AnimatedPropertyBinding | null,
+      value: ParameterValue
+    ): TimelineKeyframeControl | null => {
       if (!binding) {
         return null
       }
@@ -343,7 +384,7 @@ function SelectedLayerPropertiesContent({
         value,
       }
     },
-    [hasTrack, layerId, onTimelineKeyframe, reduceMotion, timelinePanelOpen],
+    [hasTrack, layerId, onTimelineKeyframe, reduceMotion, timelinePanelOpen]
   )
 
   return (
@@ -368,7 +409,11 @@ function SelectedLayerPropertiesContent({
 
       <div className={s.content}>
         <section className={s.section}>
-          <Typography className={s.sectionTitle} tone="secondary" variant="overline">
+          <Typography
+            className={s.sectionTitle}
+            tone="secondary"
+            variant="overline"
+          >
             General
           </Typography>
 
@@ -376,7 +421,7 @@ function SelectedLayerPropertiesContent({
             <Slider
               label={renderFieldLabel(
                 "Opacity",
-                buildTimelineControl(opacityBinding, opacity),
+                buildTimelineControl(opacityBinding, opacity)
               )}
               max={100}
               min={0}
@@ -386,7 +431,11 @@ function SelectedLayerPropertiesContent({
             />
 
             <div className={s.inlineField}>
-              <Typography className={s.fieldLabel} tone="secondary" variant="label">
+              <Typography
+                className={s.fieldLabel}
+                tone="secondary"
+                variant="label"
+              >
                 Blend
               </Typography>
               <Select
@@ -402,7 +451,11 @@ function SelectedLayerPropertiesContent({
             </div>
 
             <div className={s.inlineField}>
-              <Typography className={s.fieldLabel} tone="secondary" variant="label">
+              <Typography
+                className={s.fieldLabel}
+                tone="secondary"
+                variant="label"
+              >
                 Mode
               </Typography>
               <Select
@@ -418,7 +471,10 @@ function SelectedLayerPropertiesContent({
             </div>
 
             <Slider
-              label={renderFieldLabel("Hue", buildTimelineControl(hueBinding, hue))}
+              label={renderFieldLabel(
+                "Hue",
+                buildTimelineControl(hueBinding, hue)
+              )}
               max={180}
               min={-180}
               onValueChange={(value) => setLayerHue(layerId, value)}
@@ -428,21 +484,28 @@ function SelectedLayerPropertiesContent({
             <Slider
               label={renderFieldLabel(
                 "Saturation",
-                buildTimelineControl(saturationBinding, saturation),
+                buildTimelineControl(saturationBinding, saturation)
               )}
               max={2}
               min={0}
               onValueChange={(value) => setLayerSaturation(layerId, value)}
               step={0.01}
               value={saturation}
-              valueFormatOptions={{ maximumFractionDigits: 2, minimumFractionDigits: 2 }}
+              valueFormatOptions={{
+                maximumFractionDigits: 2,
+                minimumFractionDigits: 2,
+              }}
             />
           </div>
         </section>
 
         {visibleParams.length > 0 ? (
           <section className={s.section}>
-            <Typography className={s.sectionTitle} tone="secondary" variant="overline">
+            <Typography
+              className={s.sectionTitle}
+              tone="secondary"
+              variant="overline"
+            >
               {definitionName}
             </Typography>
 
@@ -463,7 +526,11 @@ function SelectedLayerPropertiesContent({
                         >
                           <div className={s.groupHeading}>
                             <span
-                              className={isExpanded ? s.groupChevronExpanded : s.groupChevron}
+                              className={
+                                isExpanded
+                                  ? s.groupChevronExpanded
+                                  : s.groupChevron
+                              }
                               aria-hidden="true"
                             />
                             <Typography tone="secondary" variant="overline">
@@ -518,9 +585,13 @@ function SelectedLayerPropertiesContent({
                                   onChange={updateLayerParam}
                                   onTimelineKeyframe={onTimelineKeyframe}
                                   reduceMotion={reduceMotion}
-                                  timelineBinding={createParamTimelineBinding(param)}
+                                  timelineBinding={createParamTimelineBinding(
+                                    param
+                                  )}
                                   timelinePanelOpen={timelinePanelOpen}
-                                  value={values[param.key] ?? param.defaultValue}
+                                  value={
+                                    values[param.key] ?? param.defaultValue
+                                  }
                                 />
                               ))}
                             </div>
@@ -557,7 +628,9 @@ function SelectedLayerPropertiesContent({
 
 export function PropertiesSidebar() {
   const reduceMotion = useReducedMotion() ?? false
-  const [expandedParamGroups, setExpandedParamGroups] = useState<Record<string, boolean>>({})
+  const [expandedParamGroups, setExpandedParamGroups] = useState<
+    Record<string, boolean>
+  >({})
   const [panelHeight, setPanelHeight] = useState<number | null>(null)
   const viewResizeObserverRef = useRef<ResizeObserver | null>(null)
   const rightSidebarVisible = useEditorStore((state) => state.sidebars.right)
@@ -566,10 +639,12 @@ export function PropertiesSidebar() {
   const selectedLayer = useLayerStore((state) =>
     selectedLayerId
       ? (state.layers.find((layer) => layer.id === selectedLayerId) ?? null)
-      : null,
+      : null
   )
   const setLayerBlendMode = useLayerStore((state) => state.setLayerBlendMode)
-  const setLayerCompositeMode = useLayerStore((state) => state.setLayerCompositeMode)
+  const setLayerCompositeMode = useLayerStore(
+    (state) => state.setLayerCompositeMode
+  )
   const setLayerHue = useLayerStore((state) => state.setLayerHue)
   const setLayerOpacity = useLayerStore((state) => state.setLayerOpacity)
   const setLayerSaturation = useLayerStore((state) => state.setLayerSaturation)
@@ -579,18 +654,22 @@ export function PropertiesSidebar() {
 
   const assetById = useMemo(
     () => new Map(assets.map((asset) => [asset.id, asset])),
-    [assets],
+    [assets]
   )
 
   const selectedAsset = selectedLayer
     ? getSelectedAsset(assetById, selectedLayer.assetId)
     : null
-  const selectedDefinition = selectedLayer ? getLayerDefinition(selectedLayer.type) : null
+  const selectedDefinition = selectedLayer
+    ? getLayerDefinition(selectedLayer.type)
+    : null
   let selectedVisibleParams: ParameterDefinition[] = []
 
   if (selectedLayer && selectedDefinition) {
     selectedVisibleParams = selectedDefinition.params.filter((param) =>
-      isParamVisible(param, selectedLayer.params, [...selectedDefinition.params]),
+      isParamVisible(param, selectedLayer.params, [
+        ...selectedDefinition.params,
+      ])
     )
   }
 
@@ -676,14 +755,18 @@ export function PropertiesSidebar() {
   }, [])
 
   const handleTimelineKeyframe = useCallback(
-    (binding: AnimatedPropertyBinding, layerId: string, value: ParameterValue) => {
+    (
+      binding: AnimatedPropertyBinding,
+      layerId: string,
+      value: ParameterValue
+    ) => {
       upsertKeyframe({
         binding,
         layerId,
         value,
       })
     },
-    [upsertKeyframe],
+    [upsertKeyframe]
   )
 
   return (
@@ -694,7 +777,9 @@ export function PropertiesSidebar() {
             <SelectedLayerPropertiesContent
               blendMode={selectedLayer.blendMode}
               compositeMode={selectedLayer.compositeMode}
-              definitionName={selectedDefinition?.defaultName ?? selectedLayer.type}
+              definitionName={
+                selectedDefinition?.defaultName ?? selectedLayer.type
+              }
               expandedParamGroups={expandedParamGroups}
               hue={selectedLayer.hue}
               layerId={selectedLayer.id}
@@ -743,7 +828,9 @@ export function PropertiesSidebar() {
                 <SelectedLayerPropertiesContent
                   blendMode={selectedLayer.blendMode}
                   compositeMode={selectedLayer.compositeMode}
-                  definitionName={selectedDefinition?.defaultName ?? selectedLayer.type}
+                  definitionName={
+                    selectedDefinition?.defaultName ?? selectedLayer.type
+                  }
                   expandedParamGroups={expandedParamGroups}
                   hue={selectedLayer.hue}
                   layerId={selectedLayer.id}
@@ -799,7 +886,11 @@ function ParameterField({
   definition: ParameterDefinition
   layerId: string
   onChange: (id: string, key: string, value: ParameterValue) => void
-  onTimelineKeyframe: (binding: AnimatedPropertyBinding, layerId: string, value: ParameterValue) => void
+  onTimelineKeyframe: (
+    binding: AnimatedPropertyBinding,
+    layerId: string,
+    value: ParameterValue
+  ) => void
   reduceMotion: boolean
   timelineBinding: AnimatedPropertyBinding | null
   timelinePanelOpen: boolean
@@ -812,7 +903,7 @@ function ParameterField({
         hasTrack: timelineTracks.some(
           (track) =>
             track.layerId === layerId &&
-            JSON.stringify(track.binding) === JSON.stringify(timelineBinding),
+            JSON.stringify(track.binding) === JSON.stringify(timelineBinding)
         ),
         layerId,
         onKeyframe: onTimelineKeyframe,
@@ -829,10 +920,15 @@ function ParameterField({
           label={renderFieldLabel(definition.label, timelineControl)}
           max={definition.max ?? 100}
           min={definition.min ?? 0}
-          onValueChange={(nextValue) => onChange(layerId, definition.key, nextValue)}
+          onValueChange={(nextValue) =>
+            onChange(layerId, definition.key, nextValue)
+          }
           step={definition.step ?? 0.01}
           value={toNumberValue(value, definition.defaultValue)}
-          valueFormatOptions={{ maximumFractionDigits: 2, minimumFractionDigits: 0 }}
+          valueFormatOptions={{
+            maximumFractionDigits: 2,
+            minimumFractionDigits: 0,
+          }}
         />
       )
 
@@ -864,7 +960,9 @@ function ParameterField({
           <Toggle
             checked={toBooleanValue(value)}
             className={s.toggleWrap ?? ""}
-            onCheckedChange={(nextValue) => onChange(layerId, definition.key, nextValue)}
+            onCheckedChange={(nextValue) =>
+              onChange(layerId, definition.key, nextValue)
+            }
           />
         </div>
       )
@@ -876,7 +974,9 @@ function ParameterField({
             {renderFieldLabel(definition.label, timelineControl)}
           </Typography>
           <ColorPicker
-            onValueChange={(nextValue) => onChange(layerId, definition.key, nextValue)}
+            onValueChange={(nextValue) =>
+              onChange(layerId, definition.key, nextValue)
+            }
             value={toColorValue(value)}
           />
         </div>
@@ -888,7 +988,9 @@ function ParameterField({
           label={renderFieldLabel(definition.label, timelineControl)}
           max={definition.max ?? 1}
           min={definition.min ?? -1}
-          onValueChange={(nextValue) => onChange(layerId, definition.key, nextValue)}
+          onValueChange={(nextValue) =>
+            onChange(layerId, definition.key, nextValue)
+          }
           step={definition.step ?? 0.01}
           value={toVec2Value(value)}
         />
@@ -904,7 +1006,9 @@ function ParameterField({
           <input
             className={s.textInput}
             maxLength={(definition as TextParameterDefinition).maxLength}
-            onChange={(event) => onChange(layerId, definition.key, event.currentTarget.value)}
+            onChange={(event) =>
+              onChange(layerId, definition.key, event.currentTarget.value)
+            }
             spellCheck={false}
             type="text"
             value={toTextValue(value, definition.defaultValue)}

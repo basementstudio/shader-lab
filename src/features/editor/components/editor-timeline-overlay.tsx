@@ -97,6 +97,18 @@ function hexToRgbChannels(value: string): string {
   return `${red} ${green} ${blue}`
 }
 
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) {
+    return false
+  }
+
+  if (target.isContentEditable) {
+    return true
+  }
+
+  return ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)
+}
+
 function getPropertyId(binding: AnimatedPropertyBinding): string {
   if (binding.kind === "layer") {
     return `layer:${binding.property}`
@@ -400,6 +412,7 @@ export function EditorTimelineOverlay() {
     (state) => state.setTrackInterpolation
   )
   const setKeyframeTime = useTimelineStore((state) => state.setKeyframeTime)
+  const removeKeyframe = useTimelineStore((state) => state.removeKeyframe)
   const stop = useTimelineStore((state) => state.stop)
   const togglePlaying = useTimelineStore((state) => state.togglePlaying)
 
@@ -491,6 +504,17 @@ export function EditorTimelineOverlay() {
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (
+        (event.key === "Backspace" || event.key === "Delete") &&
+        selectedTrackId &&
+        selectedKeyframeId &&
+        !isEditableTarget(event.target)
+      ) {
+        event.preventDefault()
+        removeKeyframe(selectedTrackId, selectedKeyframeId)
+        return
+      }
+
       if (event.key === "Escape") {
         closeTimelinePanel()
       }
@@ -501,7 +525,13 @@ export function EditorTimelineOverlay() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown)
     }
-  }, [closeTimelinePanel, timelinePanelOpen])
+  }, [
+    closeTimelinePanel,
+    removeKeyframe,
+    selectedKeyframeId,
+    selectedTrackId,
+    timelinePanelOpen,
+  ])
 
   const getTimeFromClientX = useEffectEvent((clientX: number) => {
     const surface = scrubSurfaceRef.current

@@ -1115,16 +1115,6 @@ const crtParams = [
     type: "number",
   },
   {
-    defaultValue: 0.01,
-    group: "Noise",
-    key: "staticIntensity",
-    label: "Static",
-    max: 0.5,
-    min: 0,
-    step: 0.01,
-    type: "number",
-  },
-  {
     defaultValue: 0.13,
     group: "Noise",
     key: "glitchIntensity",

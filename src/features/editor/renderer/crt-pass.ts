@@ -42,7 +42,6 @@ export class CrtPass extends PassNode {
   private readonly chromaticAberrationUniform: Node
   private readonly vignetteIntensityUniform: Node
   private readonly flickerIntensityUniform: Node
-  private readonly staticIntensityUniform: Node
   private readonly glitchIntensityUniform: Node
   private readonly glitchSpeedUniform: Node
   private readonly widthUniform: Node
@@ -63,7 +62,6 @@ export class CrtPass extends PassNode {
     this.chromaticAberrationUniform = uniform(2)
     this.vignetteIntensityUniform = uniform(0.45)
     this.flickerIntensityUniform = uniform(0.2)
-    this.staticIntensityUniform = uniform(0.01)
     this.glitchIntensityUniform = uniform(0.13)
     this.glitchSpeedUniform = uniform(5)
     this.widthUniform = uniform(1)
@@ -99,7 +97,6 @@ export class CrtPass extends PassNode {
   override needsContinuousRender(): boolean {
     return (
       (this.flickerIntensityUniform.value as number) > 0 ||
-      (this.staticIntensityUniform.value as number) > 0 ||
       (this.glitchIntensityUniform.value as number) > 0
     )
   }
@@ -125,10 +122,6 @@ export class CrtPass extends PassNode {
       typeof params.flickerIntensity === "number"
         ? Math.max(0, Math.min(0.2, params.flickerIntensity))
         : 0.03
-    this.staticIntensityUniform.value =
-      typeof params.staticIntensity === "number"
-        ? Math.max(0, Math.min(0.5, params.staticIntensity))
-        : 0.05
     this.glitchIntensityUniform.value =
       typeof params.glitchIntensity === "number" ? clamp01(params.glitchIntensity) : 0
     this.glitchSpeedUniform.value =
@@ -198,20 +191,16 @@ export class CrtPass extends PassNode {
     const distSq = dot(centered, centered)
     const distortedUv = renderTargetUv.add(centered.mul(distSq).mul(this.barrelDistortionUniform))
 
-    // 2. Scan jitter (glitch)
-    const glitchNoiseCoord = vec3(
-      float(0),
-      floor(distortedUv.y.mul(this.heightUniform).div(float(8))),
-      this.timeUniform.mul(this.glitchSpeedUniform),
-    )
-    const glitchNoise = simplexNoise3d(glitchNoiseCoord)
-    const glitchThreshold = float(1).sub(this.glitchIntensityUniform.mul(float(0.5)))
-    const glitchOffset = select(
-      glitchNoise.greaterThan(glitchThreshold),
-      glitchNoise.mul(this.glitchIntensityUniform).mul(float(0.02)),
-      float(0),
-    )
-    const glitchedUv = vec2(distortedUv.x.add(glitchOffset), distortedUv.y)
+    // 2. H-sync drift (glitch) — smooth sine wave affecting every scanline
+    // Low-freq sine along Y creates smooth undulation across all rows.
+    // A second slower sine modulates amplitude so the drift pulses in and out.
+    const timeDrift = this.timeUniform.mul(this.glitchSpeedUniform)
+    const rowPhase = distortedUv.y.mul(float(3.0)).add(timeDrift.mul(float(0.7)))
+    const drift = sin(rowPhase)
+      .mul(sin(timeDrift.mul(float(0.3))))
+      .mul(this.glitchIntensityUniform)
+      .mul(float(0.01))
+    const glitchedUv = vec2(distortedUv.x.add(drift), distortedUv.y)
 
     // 3. Pixelation
     const cellCoord = floor(glitchedUv.mul(dims).div(this.cellSizeUniform))
@@ -251,12 +240,6 @@ export class CrtPass extends PassNode {
     const flickerNoise = simplexNoise3d(vec3(float(0), float(0), this.timeUniform.mul(float(8))))
     const flicker = float(1).add(flickerNoise.mul(this.flickerIntensityUniform))
     color = color.mul(flicker)
-
-    // 9. Static
-    const staticNoise = simplexNoise3d(
-      vec3(renderTargetUv.mul(dims), this.timeUniform.mul(float(60))),
-    )
-    color = color.add(staticNoise.sub(float(0.5)).mul(this.staticIntensityUniform))
 
     // Clamp final color
     color = clamp(color, vec3(float(0), float(0), float(0)), vec3(float(1), float(1), float(1)))

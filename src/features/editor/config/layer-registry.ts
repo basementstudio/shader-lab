@@ -991,9 +991,18 @@ const pixelationParams = [
 
 const pixelSortingParams = [
   {
-    defaultValue: 0.55,
+    defaultValue: 0.25,
     key: "threshold",
     label: "Threshold",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+  },
+  {
+    defaultValue: 1,
+    key: "upperThreshold",
+    label: "Upper Threshold",
     max: 1,
     min: 0,
     step: 0.01,
@@ -1021,7 +1030,13 @@ const pixelSortingParams = [
     type: "select",
   },
   {
-    defaultValue: 0.5,
+    defaultValue: false,
+    key: "reverse",
+    label: "Reverse",
+    type: "boolean",
+  },
+  {
+    defaultValue: 0.3,
     key: "range",
     label: "Range",
     max: 1,

@@ -53,6 +53,7 @@ declare module "three/tsl" {
     add(value: unknown): TSLNode
     addAssign(value: unknown): TSLNode
     and(value: unknown): TSLNode
+    or(value: unknown): TSLNode
     assign(value: unknown): TSLNode
     clamp(min?: unknown, max?: unknown): TSLNode
     div(value: unknown): TSLNode

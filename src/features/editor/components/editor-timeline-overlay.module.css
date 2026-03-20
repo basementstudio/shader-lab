@@ -123,7 +123,7 @@
 
 .panelHeader {
   border-bottom: 1px solid var(--ds-border-divider);
-  padding: 8px 8px 0px 8px;
+  padding: 8px 8px 8px 8px;
   transition: border-color 160ms var(--ease-out-cubic);
 }
 

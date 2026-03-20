@@ -34,6 +34,7 @@ export async function createWebGPURenderer(
         pipeline = new PipelineManager(renderer, frame.viewportSize)
       }
 
+      pipeline.updateLogicalSize(frame.logicalSize)
       pipeline.syncLayers([...frame.layers].reverse())
       pipeline.render(frame.clock.time, frame.clock.delta)
     },

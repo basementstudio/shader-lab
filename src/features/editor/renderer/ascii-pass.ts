@@ -6,7 +6,6 @@ import {
   floor,
   mix,
   mod,
-  screenSize,
   select,
   texture as tslTexture,
   type TSLNode,
@@ -82,6 +81,8 @@ export class AsciiPass extends PassNode {
   private readonly invertUniform: Node
   private readonly monoBlueUniform: Node
   private readonly monoGreenUniform: Node
+  private readonly logicalHeightUniform: Node
+  private readonly logicalWidthUniform: Node
   private readonly monoRedUniform: Node
   private readonly numCharsUniform: Node
   private readonly placeholder: THREE.Texture
@@ -100,6 +101,8 @@ export class AsciiPass extends PassNode {
     this.bloomSoftnessUniform = uniform(0.35)
     this.bloomThresholdUniform = uniform(0.6)
     this.cellSizeUniform = uniform(12)
+    this.logicalWidthUniform = uniform(1)
+    this.logicalHeightUniform = uniform(1)
     this.numCharsUniform = uniform(DEFAULT_ASCII_CHARS.length)
     this.colorModeUniform = uniform(1)
     this.monoRedUniform = uniform(0.96)
@@ -203,6 +206,11 @@ export class AsciiPass extends PassNode {
     super.dispose()
   }
 
+  override updateLogicalSize(width: number, height: number): void {
+    this.logicalWidthUniform.value = Math.max(1, width)
+    this.logicalHeightUniform.value = Math.max(1, height)
+  }
+
   protected override buildEffectNode(): Node {
     if (!(this.cellSizeUniform && this.numCharsUniform && this.placeholder)) {
       return this.inputNode
@@ -214,10 +222,13 @@ export class AsciiPass extends PassNode {
     this.atlasTextureNodes = []
 
     const renderTargetUv = vec2(uv().x, float(1).sub(uv().y))
-    const normalizedCellSize = vec2(this.cellSizeUniform, this.cellSizeUniform).div(screenSize)
+    const logicalScreenSize = vec2(this.logicalWidthUniform, this.logicalHeightUniform)
+    const normalizedCellSize = vec2(this.cellSizeUniform, this.cellSizeUniform).div(
+      logicalScreenSize,
+    )
     const sampleAscii = (sampleUv: Node) => {
       const safeUv = clamp(sampleUv, vec2(float(0), float(0)), vec2(float(1), float(1)))
-      const screenPixel = floor(safeUv.mul(screenSize))
+      const screenPixel = floor(safeUv.mul(logicalScreenSize))
       const cellCenterUv = floor(safeUv.div(normalizedCellSize))
         .add(vec2(0.5, 0.5))
         .mul(normalizedCellSize)

@@ -318,7 +318,7 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
   setLayerAsset: (id, assetId) => {
     set((state) => ({
       layers: state.layers.map((layer) =>
-        layer.id === id ? { ...layer, assetId } : layer,
+        layer.id === id ? { ...layer, assetId, runtimeError: null } : layer,
       ),
     }))
   },

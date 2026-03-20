@@ -74,6 +74,10 @@ const addLayerOptions = [
 ] as const satisfies readonly { label: ReactNode; value: AddLayerAction }[]
 
 function getLayerSecondaryText(layer: EditorLayer, asset: EditorAsset | null): string {
+  if (layer.runtimeError) {
+    return layer.runtimeError
+  }
+
   if (layer.type === "image" || layer.type === "video" || layer.type === "model") {
     return asset?.fileName ?? "No asset selected"
   }

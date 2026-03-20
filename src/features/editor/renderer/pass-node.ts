@@ -107,6 +107,10 @@ export class PassNode {
     // Default pass has no resize-dependent uniforms.
   }
 
+  updateLogicalSize(_width: number, _height: number): void {
+    // Default pass has no logical-size-dependent uniforms.
+  }
+
   needsContinuousRender(): boolean {
     return false
   }

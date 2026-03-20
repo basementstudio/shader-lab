@@ -56,6 +56,8 @@ export class PipelineManager {
   private dirty = true
   private width: number
   private height: number
+  private logicalWidth: number
+  private logicalHeight: number
   private rtA: THREE.WebGLRenderTarget
   private rtB: THREE.WebGLRenderTarget
 
@@ -63,6 +65,8 @@ export class PipelineManager {
     this.renderer = renderer
     this.width = Math.max(1, size.width)
     this.height = Math.max(1, size.height)
+    this.logicalWidth = this.width
+    this.logicalHeight = this.height
 
     this.baseScene = new THREE.Scene()
     this.baseCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
@@ -109,6 +113,7 @@ export class PipelineManager {
       if (!pass) {
         pass = this.createPass(renderableLayer.layer)
         pass.resize(this.width, this.height)
+        pass.updateLogicalSize(this.logicalWidth, this.logicalHeight)
         this.passMap.set(layerId, pass)
         this.dirty = true
       }
@@ -174,6 +179,24 @@ export class PipelineManager {
 
     for (const pass of this.passMap.values()) {
       pass.resize(this.width, this.height)
+    }
+
+    this.dirty = true
+  }
+
+  updateLogicalSize(size: Size): void {
+    const nextWidth = Math.max(1, size.width)
+    const nextHeight = Math.max(1, size.height)
+
+    if (nextWidth === this.logicalWidth && nextHeight === this.logicalHeight) {
+      return
+    }
+
+    this.logicalWidth = nextWidth
+    this.logicalHeight = nextHeight
+
+    for (const pass of this.passMap.values()) {
+      pass.updateLogicalSize(this.logicalWidth, this.logicalHeight)
     }
 
     this.dirty = true

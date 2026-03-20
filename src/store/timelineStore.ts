@@ -37,6 +37,12 @@ export interface TimelineStoreActions {
     binding: AnimatedPropertyBinding,
   ) => TimelineTrack | null
   pruneTracks: (layers: EditorLayer[]) => void
+  replaceState: (
+    nextState: Pick<
+      TimelineStateSnapshot,
+      "currentTime" | "duration" | "isPlaying" | "loop" | "selectedKeyframeId" | "selectedTrackId" | "tracks"
+    >,
+  ) => void
   removeKeyframe: (trackId: string, keyframeId: string) => void
   setCurrentTime: (time: number) => void
   setDuration: (duration: number) => void
@@ -162,6 +168,10 @@ function cloneTrack(track: TimelineTrack): TimelineTrack {
       value: cloneParameterValue(keyframe.value),
     })),
   }
+}
+
+function cloneTracks(tracks: TimelineTrack[]): TimelineTrack[] {
+  return tracks.map(cloneTrack)
 }
 
 export const useTimelineStore = create<TimelineStore>((set, get) => ({
@@ -546,5 +556,17 @@ export const useTimelineStore = create<TimelineStore>((set, get) => ({
         (track) => track.layerId === layerId && bindingEquals(track.binding, binding),
       ) ?? null
     )
+  },
+
+  replaceState: (nextState) => {
+    set({
+      currentTime: clampTime(nextState.currentTime, nextState.duration),
+      duration: clampDuration(nextState.duration),
+      isPlaying: nextState.isPlaying,
+      loop: nextState.loop,
+      selectedKeyframeId: nextState.selectedKeyframeId,
+      selectedTrackId: nextState.selectedTrackId,
+      tracks: cloneTracks(nextState.tracks),
+    })
   },
 }))

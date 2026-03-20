@@ -26,6 +26,7 @@ export interface RenderableLayerPass {
 export interface RendererFrame {
   clock: ProjectClock
   layers: RenderableLayerPass[]
+  logicalSize: Size
   outputSize: Size
   pixelRatio: number
   viewportSize: Size
@@ -43,6 +44,7 @@ type BuildRendererFrameInput = {
   clockTime?: number
   delta: number
   layers: EditorLayer[]
+  logicalSize?: Size
   outputSize: Size
   pixelRatio: number
   timeline: TimelineStateSnapshot
@@ -97,6 +99,7 @@ export function buildRendererFrame(input: BuildRendererFrameInput): RendererFram
   return {
     clock: createProjectClock(input.timeline, input.delta, input.clockTime),
     layers,
+    logicalSize: input.logicalSize ?? input.viewportSize,
     outputSize: input.outputSize,
     pixelRatio: input.pixelRatio,
     viewportSize: input.viewportSize,

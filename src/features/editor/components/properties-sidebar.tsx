@@ -168,6 +168,7 @@ function SelectedLayerPropertiesContent({
   layerId,
   layerKind,
   layerName,
+  layerRuntimeError,
   layerSubtitle,
   layerType,
   onToggleParamGroup,
@@ -192,6 +193,7 @@ function SelectedLayerPropertiesContent({
   layerId: string
   layerKind: string
   layerName: string
+  layerRuntimeError: string | null
   layerSubtitle: string
   layerType: string
   onToggleParamGroup: (groupId: string) => void
@@ -224,6 +226,11 @@ function SelectedLayerPropertiesContent({
         <Typography tone="muted" variant="monoXs">
           {layerSubtitle || layerType}
         </Typography>
+        {layerRuntimeError ? (
+          <Typography tone="muted" variant="caption">
+            {layerRuntimeError}
+          </Typography>
+        ) : null}
       </div>
 
       <div className={s.content}>
@@ -533,6 +540,7 @@ export function PropertiesSidebar() {
               layerId={selectedLayer.id}
               layerKind={selectedLayer.type}
               layerName={selectedLayer.name}
+              layerRuntimeError={selectedLayer.runtimeError}
               layerSubtitle={selectedAsset?.fileName ?? selectedLayer.type}
               layerType={selectedLayer.type}
               onToggleParamGroup={handleToggleParamGroup}
@@ -579,6 +587,7 @@ export function PropertiesSidebar() {
                   layerId={selectedLayer.id}
                   layerKind={selectedLayer.type}
                   layerName={selectedLayer.name}
+                  layerRuntimeError={selectedLayer.runtimeError}
                   layerSubtitle={selectedAsset?.fileName ?? selectedLayer.type}
                   layerType={selectedLayer.type}
                   onToggleParamGroup={handleToggleParamGroup}

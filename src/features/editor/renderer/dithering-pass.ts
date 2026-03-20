@@ -5,7 +5,6 @@ import {
   floor,
   max,
   mix,
-  screenSize,
   texture as tslTexture,
   type TSLNode,
   uniform,
@@ -48,6 +47,8 @@ export class DitheringPass extends PassNode {
   private readonly highlightGreenUniform: Node
   private readonly highlightRedUniform: Node
   private readonly levelsUniform: Node
+  private readonly logicalHeightUniform: Node
+  private readonly logicalWidthUniform: Node
   private readonly matrixSizeUniform: Node
   private readonly pixelSizeUniform: Node
   private readonly shadowBlueUniform: Node
@@ -68,6 +69,8 @@ export class DitheringPass extends PassNode {
     this.currentTexture = this.textures.bayer4
     this.biasUniform = uniform(0.25)
     this.levelsUniform = uniform(4)
+    this.logicalWidthUniform = uniform(1)
+    this.logicalHeightUniform = uniform(1)
     this.matrixSizeUniform = uniform(4)
     this.pixelSizeUniform = uniform(1)
     this.spreadUniform = uniform(0.5)
@@ -168,6 +171,11 @@ export class DitheringPass extends PassNode {
     super.dispose()
   }
 
+  override updateLogicalSize(width: number, height: number): void {
+    this.logicalWidthUniform.value = Math.max(1, width)
+    this.logicalHeightUniform.value = Math.max(1, height)
+  }
+
   protected override buildEffectNode(): Node {
     if (!(this.levelsUniform && this.matrixSizeUniform)) {
       return this.inputNode
@@ -175,8 +183,8 @@ export class DitheringPass extends PassNode {
 
     const pixelSize = max(this.pixelSizeUniform, float(1))
     const renderTargetUv = vec2(uv().x, float(1).sub(uv().y))
-    const logicalWidth = max(screenSize.x.div(pixelSize), float(1))
-    const logicalHeight = max(screenSize.y.div(pixelSize), float(1))
+    const logicalWidth = max(this.logicalWidthUniform.div(pixelSize), float(1))
+    const logicalHeight = max(this.logicalHeightUniform.div(pixelSize), float(1))
     const snappedUv = vec2(
       floor(renderTargetUv.x.mul(logicalWidth)).add(0.5).div(logicalWidth),
       floor(renderTargetUv.y.mul(logicalHeight)).add(0.5).div(logicalHeight),

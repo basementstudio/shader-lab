@@ -251,6 +251,7 @@ export interface EditorStateSnapshot {
     right: boolean
   }
   theme: "dark" | "light"
+  timelinePanelOpen: boolean
   webgpuError: string | null
   webgpuStatus: WebGPUStatus
   zoom: number

@@ -9,8 +9,10 @@ import { DEFAULT_CANVAS_SIZE } from "@/features/editor/utils/layers"
 export interface EditorStoreState extends EditorStateSnapshot {}
 
 export interface EditorStoreActions {
+  closeTimelinePanel: () => void
   enterImmersiveCanvas: () => void
   exitImmersiveCanvas: () => void
+  openTimelinePanel: () => void
   resetView: () => void
   setCanvasSize: (width: number, height: number) => void
   setFps: (fps: number) => void
@@ -20,8 +22,10 @@ export interface EditorStoreActions {
   setRenderScale: (scale: RenderScale) => void
   setSidebarOpen: (side: "left" | "right", open: boolean) => void
   setTheme: (theme: "dark" | "light") => void
+  setTimelinePanelOpen: (open: boolean) => void
   setWebGPUStatus: (status: WebGPUStatus, error?: string | null) => void
   setZoom: (zoom: number) => void
+  toggleTimelinePanel: () => void
   toggleSidebar: (side: "left" | "right") => void
 }
 
@@ -50,6 +54,7 @@ export const useEditorStore = create<EditorStore>((set) => ({
     right: true,
   },
   theme: "dark",
+  timelinePanelOpen: false,
   webgpuError: null,
   webgpuStatus: "idle",
   zoom: 1,
@@ -109,9 +114,34 @@ export const useEditorStore = create<EditorStore>((set) => ({
   },
 
   setImmersiveCanvas: (immersiveCanvas) => {
-    set({
+    set((state) => ({
       immersiveCanvas,
+      timelinePanelOpen: immersiveCanvas ? false : state.timelinePanelOpen,
+    }))
+  },
+
+  setTimelinePanelOpen: (timelinePanelOpen) => {
+    set({
+      timelinePanelOpen,
     })
+  },
+
+  openTimelinePanel: () => {
+    set({
+      timelinePanelOpen: true,
+    })
+  },
+
+  closeTimelinePanel: () => {
+    set({
+      timelinePanelOpen: false,
+    })
+  },
+
+  toggleTimelinePanel: () => {
+    set((state) => ({
+      timelinePanelOpen: !state.timelinePanelOpen,
+    }))
   },
 
   enterImmersiveCanvas: () => {
@@ -122,6 +152,7 @@ export const useEditorStore = create<EditorStore>((set) => ({
         left: false,
         right: false,
       },
+      timelinePanelOpen: false,
     }))
   },
 
@@ -133,6 +164,7 @@ export const useEditorStore = create<EditorStore>((set) => ({
         left: true,
         right: true,
       },
+      timelinePanelOpen: false,
     }))
   },
 

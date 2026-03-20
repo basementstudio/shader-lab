@@ -58,6 +58,7 @@ declare module "three/tsl" {
     div(value: unknown): TSLNode
     equal(value: unknown): TSLNode
     fract(): TSLNode
+    length(): TSLNode
     greaterThan(value: unknown): TSLNode
     greaterThanEqual(value: unknown): TSLNode
     lessThan(value: unknown): TSLNode
@@ -70,6 +71,10 @@ declare module "three/tsl" {
     sub(value: unknown): TSLNode
     toVar(): TSLNode
   }
+
+  export function attribute(name: string, type: string): TSLNode
+  export const pointUV: TSLNode
+  export const positionLocal: TSLNode
 
   export const EPSILON: TSLNode
   export const PI: TSLNode

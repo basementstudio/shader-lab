@@ -23,7 +23,7 @@ import { useEditorStore } from "@/store/editorStore"
 import { useLayerStore } from "@/store/layerStore"
 import s from "./layer-sidebar.module.css"
 
-type AddLayerAction = "ascii" | "dithering" | "gradient" | "image" | "video"
+type AddLayerAction = "ascii" | "dithering" | "gradient" | "image" | "particle-grid" | "video"
 type LayerAction = "delete" | "reset"
 
 const addLayerOptions = [
@@ -71,6 +71,15 @@ const addLayerOptions = [
       </span>
     ),
     value: "dithering",
+  },
+  {
+    label: (
+      <span className={s.menuButton}>
+        <Sparkle size={14} weight="regular" />
+        Particle Grid
+      </span>
+    ),
+    value: "particle-grid",
   },
 ] as const satisfies readonly { label: ReactNode; value: AddLayerAction }[]
 
@@ -213,6 +222,8 @@ export function LayerSidebar() {
       handleAddGradient()
     } else if (action === "ascii") {
       handleAddAscii()
+    } else if (action === "particle-grid") {
+      addLayer("particle-grid")
     } else {
       handleAddDithering()
     }

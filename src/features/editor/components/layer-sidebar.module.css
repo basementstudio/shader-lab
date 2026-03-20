@@ -215,7 +215,11 @@
 }
 
 .thumbnail {
-  background: linear-gradient(135deg, rgb(255 255 255 / 0.07), rgb(255 255 255 / 0.03));
+  background: linear-gradient(
+    135deg,
+    rgb(255 255 255 / 0.07),
+    rgb(255 255 255 / 0.03)
+  );
   border-radius: var(--ds-radius-thumb);
   border: 1px solid rgb(255 255 255 / 0.06);
   height: 28px;
@@ -236,7 +240,12 @@
 }
 
 .thumbnailEffect::after {
-  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.18), transparent);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgb(255 255 255 / 0.18),
+    transparent
+  );
   content: "";
   inset: 0;
   opacity: 0.35;

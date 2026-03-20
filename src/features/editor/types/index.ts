@@ -8,6 +8,7 @@ export const EFFECT_LAYER_TYPES = [
   "ascii",
   "dithering",
   "halftone",
+  "particle-grid",
   "pixelation",
   "pixel-sorting",
   "blur",

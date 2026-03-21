@@ -1053,7 +1053,7 @@ const crtParams = [
     label: "Cell Size",
     max: 32,
     min: 2,
-    step: 1,
+    step: 2,
     type: "number",
   },
   {

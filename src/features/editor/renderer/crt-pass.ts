@@ -191,42 +191,60 @@ export class CrtPass extends PassNode {
     const distSq = dot(centered, centered)
     const distortedUv = renderTargetUv.add(centered.mul(distSq).mul(this.barrelDistortionUniform))
 
-    // 2. H-sync drift (glitch) — smooth sine wave affecting every scanline
-    // Low-freq sine along Y creates smooth undulation across all rows.
-    // A second slower sine modulates amplitude so the drift pulses in and out.
-    const timeDrift = this.timeUniform.mul(this.glitchSpeedUniform)
-    const rowPhase = distortedUv.y.mul(float(3.0)).add(timeDrift.mul(float(0.7)))
-    const drift = sin(rowPhase)
-      .mul(sin(timeDrift.mul(float(0.3))))
-      .mul(this.glitchIntensityUniform)
-      .mul(float(0.01))
-    const glitchedUv = vec2(distortedUv.x.add(drift), distortedUv.y)
-
-    // 3. Pixelation
-    const cellCoord = floor(glitchedUv.mul(dims).div(this.cellSizeUniform))
+    // 2. Pixelation — cell grid from barrel-distorted UV (stable, no glitch)
+    const cellCoord = floor(distortedUv.mul(dims).div(this.cellSizeUniform))
     const snappedUv = cellCoord.add(vec2(0.5, 0.5)).mul(this.cellSizeUniform).div(dims)
 
-    // 4. Chromatic aberration
-    const dirFromCenter = snappedUv.sub(vec2(0.5, 0.5)).mul(this.chromaticAberrationUniform).div(dims)
-    const rSample = this.trackSourceTextureNode(snappedUv.sub(dirFromCenter))
-    const gSample = this.trackSourceTextureNode(snappedUv)
-    const bSample = this.trackSourceTextureNode(snappedUv.add(dirFromCenter))
-    let color = vec3(float(rSample.r), float(gSample.g), float(bSample.b))
+    // 3. H-sync drift (glitch) — shifts source data, not the phosphor grid
+    const row = floor(distortedUv.y.mul(this.heightUniform))
+    const timeDrift = this.timeUniform.mul(this.glitchSpeedUniform)
+    const drift = simplexNoise3d(vec3(float(0), row.mul(float(0.1)), timeDrift))
+      .mul(this.glitchIntensityUniform)
+      .mul(float(0.005))
+    const samplingUv = vec2(snappedUv.x.add(drift), snappedUv.y)
 
-    // 5. RGB shadow mask
-    const subPixel = mod(floor(glitchedUv.x.mul(this.widthUniform).div(this.cellSizeUniform)), float(3))
-    const maskDim = float(1).sub(this.maskIntensityUniform)
-    const maskR = select(subPixel.lessThan(float(0.5)), float(1), maskDim)
-    const maskG = select(
-      subPixel.greaterThan(float(0.5)).and(subPixel.lessThan(float(1.5))),
-      float(1),
-      maskDim,
+    // 4. Chromatic aberration — sample source at glitched UV
+    const dirFromCenter = samplingUv.sub(vec2(0.5, 0.5)).mul(this.chromaticAberrationUniform).div(dims)
+    const rSample = this.trackSourceTextureNode(samplingUv.sub(dirFromCenter))
+    const gSample = this.trackSourceTextureNode(samplingUv)
+    const bSample = this.trackSourceTextureNode(samplingUv.add(dirFromCenter))
+    const srcR = float(rSample.r)
+    const srcG = float(gSample.g)
+    const srcB = float(bSample.b)
+
+    // 5. RGB phosphor sub-pixels (procedural slot mask)
+    // Each cell = 1 CRT pixel containing 3 sub-pixels (R, G, B) side by side.
+    // Each sub-pixel is cellSize/3 wide × cellSize tall → rectangular (taller than wide).
+    // Sub-pixels emit ONLY their channel color — like real phosphors.
+    const screenPixel = renderTargetUv.mul(dims)
+    const cellY = floor(screenPixel.y.div(this.cellSizeUniform))
+
+    // Stagger: shift by half a cell on odd rows (slot mask pattern)
+    const isOddRow = mod(cellY, float(2)).greaterThan(float(0.5))
+    const staggeredPixelX = select(isOddRow, screenPixel.x.add(this.cellSizeUniform.mul(float(0.5))), screenPixel.x)
+
+    // Sub-pixel index (0=R, 1=G, 2=B) and gap detection
+    const subPixelPos = staggeredPixelX.mul(float(3)).div(this.cellSizeUniform)
+    const subPixelIdx = mod(floor(subPixelPos), float(3))
+    const subPixelFrac = mod(subPixelPos, float(1))
+    const inGap = subPixelFrac.greaterThan(float(0.85))
+
+    // Each phosphor emits ONLY its channel color
+    const phosphorR = select(subPixelIdx.lessThan(float(0.5)), srcR, float(0))
+    const phosphorG = select(
+      subPixelIdx.greaterThan(float(0.5)).and(subPixelIdx.lessThan(float(1.5))),
+      srcG,
+      float(0),
     )
-    const maskB = select(subPixel.greaterThan(float(1.5)), float(1), maskDim)
-    color = color.mul(vec3(maskR, maskG, maskB))
+    const phosphorB = select(subPixelIdx.greaterThan(float(1.5)), srcB, float(0))
 
-    // 6. Scanlines
-    const scanline = sin(glitchedUv.y.mul(this.heightUniform).div(this.cellSizeUniform).mul(float(Math.PI)))
+    // Black matrix: gaps between sub-pixels
+    const gapDim = float(1).sub(this.maskIntensityUniform)
+    const gapMul = select(inGap, gapDim, float(1))
+    let color = vec3(phosphorR, phosphorG, phosphorB).mul(gapMul)
+
+    // 6. Scanlines (horizontal gaps between rows)
+    const scanline = sin(screenPixel.y.div(this.cellSizeUniform).mul(float(Math.PI)))
       .mul(float(0.5))
       .add(float(0.5))
     color = color.mul(mix(float(1), scanline, this.scanlineIntensityUniform))

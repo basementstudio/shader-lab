@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next"
-import { APP_BASE_URL } from "@/shared/constants/app"
+import { APP_BASE_URL } from "@/lib/app"
 
 export default function sitemap(): MetadataRoute.Sitemap {
   return [

@@ -1,12 +1,15 @@
-import { EditorCanvasViewport } from "@/features/editor/components/editor-canvas-viewport"
-import { EditorTimelineOverlay } from "@/features/editor/components/editor-timeline-overlay"
-import { EditorTopBar } from "@/features/editor/components/editor-topbar"
-import { LayerSidebar } from "@/features/editor/components/layer-sidebar"
-import { PropertiesSidebar } from "@/features/editor/components/properties-sidebar"
+import { EditorCanvasViewport } from "@/components/editor/editor-canvas-viewport"
+import { EditorTimelineOverlay } from "@/components/editor/editor-timeline-overlay"
+import { EditorTopBar } from "@/components/editor/editor-topbar"
+import { LayerSidebar } from "@/components/editor/layer-sidebar"
+import { PropertiesSidebar } from "@/components/editor/properties-sidebar"
 
 export default function HomePage() {
   return (
-    <main className="relative h-screen w-screen overflow-hidden bg-[var(--ds-color-canvas)]">
+    <main
+      id="main-content"
+      className="relative h-screen w-screen overflow-hidden bg-[var(--ds-color-canvas)]"
+    >
       <EditorCanvasViewport />
       <EditorTimelineOverlay />
       <EditorTopBar />

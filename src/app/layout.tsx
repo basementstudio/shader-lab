@@ -1,17 +1,15 @@
 import type { Metadata, Viewport } from "next"
 import { Geist } from "next/font/google"
 import { type PropsWithChildren, Suspense } from "react"
-import { Link } from "@/shared/ui/link"
 import {
   APP_BASE_URL,
   APP_DEFAULT_TITLE,
   APP_DESCRIPTION,
   APP_NAME,
   APP_TITLE_TEMPLATE,
-} from "@/shared/constants/app"
-import { cn } from "@/shared/lib/cn"
-import { themes } from "@/shared/styles/colors"
-import { fontsVariable } from "@/shared/styles/fonts"
+} from "@/lib/app"
+import { cn } from "@/lib/cn"
+import { fontsVariable } from "@/lib/fonts"
 import "@/app/globals.css"
 
 const geist = Geist({
@@ -74,7 +72,7 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   colorScheme: "normal",
-  themeColor: themes.dark.primary,
+  themeColor: "#080808",
 }
 
 export default function RootLayout({ children }: PropsWithChildren) {
@@ -87,12 +85,12 @@ export default function RootLayout({ children }: PropsWithChildren) {
     >
       <body>
         <Suspense fallback={null}>
-          <Link
+          <a
             href="#main-content"
             className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-9999 focus:rounded focus:bg-black focus:px-4 focus:py-2 focus:text-white focus:outline-none focus:ring-2 focus:ring-white"
           >
             Skip to main content
-          </Link>
+          </a>
         </Suspense>
         {children}
       </body>

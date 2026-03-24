@@ -1,12 +1,12 @@
 import type { CSSProperties } from "react"
-import { Button } from "@/shared/ui/button"
-import { cn } from "@/shared/lib/cn"
-import { GlassPanel } from "@/shared/ui/glass-panel"
-import { IconButton } from "@/shared/ui/icon-button"
-import { Select } from "@/shared/ui/select"
-import { Slider } from "@/shared/ui/slider"
-import { Toggle } from "@/shared/ui/toggle"
-import { Typography } from "@/shared/ui/typography"
+import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/cn"
+import { GlassPanel } from "@/components/ui/glass-panel"
+import { IconButton } from "@/components/ui/icon-button"
+import { Select } from "@/components/ui/select"
+import { Slider } from "@/components/ui/slider"
+import { Toggle } from "@/components/ui/toggle"
+import { Typography } from "@/components/ui/typography"
 
 const typeSamples = [
   {

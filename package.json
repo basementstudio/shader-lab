@@ -4,10 +4,14 @@
   "version": "0.1.0",
   "private": true,
   "packageManager": "bun@1.3.5",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "analyze": "cross-env ANALYZE=true bun run build",
     "analyze:experimental": "next experimental-analyze",
     "build": "bun run setup:styles && next build",
+    "build:runtime": "bun run --cwd packages/shader-lab-react build",
     "dev": "bun ./src/scripts/dev.ts",
     "dev:https": "bun ./src/scripts/dev.ts --https",
     "dev:inspect": "bun ./src/scripts/dev.ts --inspect",
@@ -20,10 +24,12 @@
     "start": "next start",
     "test": "bun test",
     "typecheck": "tsgo --noEmit",
+    "typecheck:runtime": "bun run --cwd packages/shader-lab-react typecheck",
     "typecheck:compare": "bun run typecheck:tsc && bun run typecheck",
     "typecheck:tsc": "tsc --noEmit --incremental false"
   },
   "dependencies": {
+    "@shader-lab/react": "workspace:*",
     "@base-ui/react": "^1.3.0",
     "@phosphor-icons/react": "^2.1.10",
     "class-variance-authority": "^0.7.1",

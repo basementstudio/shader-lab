@@ -6,6 +6,7 @@
       "dependencies": {
         "@base-ui/react": "^1.3.0",
         "@phosphor-icons/react": "^2.1.10",
+        "@shader-lab/react": "workspace:*",
         "class-variance-authority": "^0.7.1",
         "motion": "^12.38.0",
         "next": "16.1.4",
@@ -36,6 +37,15 @@
         "postcss-preset-env": "^10.6.1",
         "tailwindcss": "^4.1.18",
         "typescript": "^5.9.3",
+      },
+    },
+    "packages/shader-lab-react": {
+      "name": "@shader-lab/react",
+      "version": "0.0.0",
+      "peerDependencies": {
+        "react": "^19.0.0",
+        "react-dom": "^19.0.0",
+        "three": "^0.183.0",
       },
     },
   },
@@ -474,6 +484,8 @@
     "@phosphor-icons/react": ["@phosphor-icons/react@2.1.10", "", { "peerDependencies": { "react": ">= 16.8", "react-dom": ">= 16.8" } }, "sha512-vt8Tvq8GLjheAZZYa+YG/pW7HDbov8El/MANW8pOAz4eGxrwhnbfrQZq0Cp4q8zBEu8NIhHdnr+r8thnfRSNYA=="],
 
     "@polka/url": ["@polka/url@1.0.0-next.29", "", {}, "sha512-wwQAWhWSuHaag8c4q/KN/vCoeOJYshAIvMQwD4GpSb3OiZklFfvAgmj0VCBBImRpuF/aFgIRzllXlVX93Jevww=="],
+
+    "@shader-lab/react": ["@shader-lab/react@workspace:packages/shader-lab-react"],
 
     "@svgr/babel-plugin-add-jsx-attribute": ["@svgr/babel-plugin-add-jsx-attribute@8.0.0", "", { "peerDependencies": { "@babel/core": "^7.0.0-0" } }, "sha512-b9MIk7yhdS1pMCZM8VeNfUlSKVRhsHZNMl5O9SfaX0l0t5wjdgu4IDzGB8bpnGBBOjGST3rRFVsaaEtI4W6f7g=="],
 

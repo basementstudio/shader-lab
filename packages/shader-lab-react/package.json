@@ -1,0 +1,27 @@
+{
+  "name": "@shader-lab/react",
+  "version": "0.0.0",
+  "description": "Portable React runtime for Shader Lab exports.",
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "src"
+  ],
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "three": "^0.183.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "lint": "biome lint src --max-diagnostics=200",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}

@@ -69,4 +69,5 @@ next-env.d.ts
 # local design docs
 DESIGN_SYSTEM.md
 PLAN.md
+PACKAGE_PLAN.md
 SESSIONS.md

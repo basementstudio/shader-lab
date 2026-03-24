@@ -1,6 +1,7 @@
 "use client"
 
 import {
+  CopyIcon,
   FileArrowDownIcon,
   FolderIcon,
   UploadSimpleIcon,
@@ -13,6 +14,7 @@ import {
   type ReactNode,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react"
@@ -33,6 +35,11 @@ import {
   buildLabProjectFile,
   parseLabProjectFile,
 } from "@/features/editor/utils/project-file"
+import {
+  buildShaderExportConfig,
+  validateShaderExportSupport,
+} from "@/features/editor/utils/shader-export"
+import { generateShaderExportSnippet } from "@/features/editor/utils/shader-export-snippet"
 import { cn } from "@/shared/lib/cn"
 import { Button } from "@/shared/ui/button"
 import { GlassPanel } from "@/shared/ui/glass-panel"
@@ -46,7 +53,7 @@ import {
 } from "@/store"
 import s from "./editor-export-dialog.module.css"
 
-type ExportTab = "image" | "project" | "video"
+type ExportTab = "image" | "project" | "shader" | "video"
 
 const QUALITY_LABELS: Record<ExportQualityPreset, string> = {
   draft: "Draft",
@@ -81,6 +88,11 @@ export function EditorExportDialog({
 }: EditorExportDialogProps) {
   const reduceMotion = useReducedMotion() ?? false
   const compositionSize = useEditorStore((state) => state.canvasSize)
+  const assets = useAssetStore((state) => state.assets)
+  const layers = useLayerStore((state) => state.layers)
+  const timelineDuration = useTimelineStore((state) => state.duration)
+  const timelineLoop = useTimelineStore((state) => state.loop)
+  const timelineTracks = useTimelineStore((state) => state.tracks)
   const [activeTab, setActiveTab] = useState<ExportTab>("image")
   const [mounted, setMounted] = useState(false)
   const [isDraggingImport, setIsDraggingImport] = useState(false)
@@ -111,11 +123,42 @@ export function EditorExportDialog({
   const [videoDuration, setVideoDuration] = useState(6)
   const [videoFps, setVideoFps] = useState(30)
   const [videoFormat, setVideoFormat] = useState<VideoExportFormat>("webm")
+  const [isCopyingShader, setIsCopyingShader] = useState(false)
   const importInputRef = useRef<HTMLInputElement | null>(null)
   const measureRef = useRef<HTMLDivElement | null>(null)
 
   const mp4Supported = Boolean(getSupportedVideoMimeType("mp4"))
   const webmSupported = Boolean(getSupportedVideoMimeType("webm"))
+  const shaderExportIssues = useMemo(
+    () => validateShaderExportSupport(layers, assets),
+    [assets, layers],
+  )
+  const shaderSnippet = useMemo(() => {
+    if (shaderExportIssues.length > 0) {
+      return null
+    }
+
+    return generateShaderExportSnippet(
+      buildShaderExportConfig({
+        assets,
+        composition: compositionSize,
+        layers,
+        timeline: {
+          duration: timelineDuration,
+          loop: timelineLoop,
+          tracks: timelineTracks,
+        },
+      }),
+    )
+  }, [
+    assets,
+    compositionSize,
+    layers,
+    shaderExportIssues,
+    timelineDuration,
+    timelineLoop,
+    timelineTracks,
+  ])
 
   useEffect(() => {
     setMounted(true)
@@ -335,6 +378,30 @@ export function EditorExportDialog({
     }
   }
 
+  async function handleShaderCopy() {
+    clearFeedback()
+
+    if (!shaderSnippet) {
+      setErrorMessage(
+        shaderExportIssues[0]?.message ?? "Shader export is not available for this project.",
+      )
+      return
+    }
+
+    setIsCopyingShader(true)
+
+    try {
+      await copyToClipboard(shaderSnippet)
+      setStatusMessage("Shader snippet copied to clipboard.")
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Could not copy shader snippet.",
+      )
+    } finally {
+      setIsCopyingShader(false)
+    }
+  }
+
   function handleImportChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
     event.currentTarget.value = ""
@@ -424,7 +491,7 @@ export function EditorExportDialog({
                 </div>
 
                 <div className={s.tabRow}>
-                  {(["image", "video", "project"] as const).map((tab) => (
+                  {(["image", "video", "shader", "project"] as const).map((tab) => (
                     <button
                       className={cn(
                         s.tabButton,
@@ -506,6 +573,14 @@ export function EditorExportDialog({
                           onImportDrop={handleDrop}
                         />
                       ) : null}
+                      {activeTab === "shader" ? (
+                        <ShaderTabContent
+                          isCopying={isCopyingShader}
+                          issues={shaderExportIssues}
+                          onCopy={handleShaderCopy}
+                          snippet={shaderSnippet}
+                        />
+                      ) : null}
                     </div>
                   </div>
 
@@ -569,6 +644,14 @@ export function EditorExportDialog({
                               importInputRef.current?.click()
                             }
                             onImportDrop={handleDrop}
+                          />
+                        ) : null}
+                        {activeTab === "shader" ? (
+                          <ShaderTabContent
+                            isCopying={isCopyingShader}
+                            issues={shaderExportIssues}
+                            onCopy={handleShaderCopy}
+                            snippet={shaderSnippet}
                           />
                         ) : null}
                       </motion.div>
@@ -868,6 +951,50 @@ function ProjectTabContent({
   )
 }
 
+function ShaderTabContent({
+  isCopying,
+  issues,
+  onCopy,
+  snippet,
+}: {
+  isCopying: boolean
+  issues: { layerId?: string; message: string }[]
+  onCopy: () => Promise<void>
+  snippet: string | null
+}) {
+  const canCopy = Boolean(snippet) && issues.length === 0
+
+  return (
+    <section className={s.sectionStack}>
+      <Typography className={s.note} tone="muted" variant="caption">
+        Install with <code className={s.inlineCode}>bun add @shader-lab/react</code>,
+        then paste this component into your React app.
+      </Typography>
+
+      {issues.length > 0 ? (
+        <div className={s.issueList}>
+          {issues.map((issue) => (
+            <Typography key={`${issue.layerId ?? "global"}:${issue.message}`} variant="caption">
+              {issue.message}
+            </Typography>
+          ))}
+        </div>
+      ) : null}
+
+      <FieldLabel label="Snippet">
+        <pre className={s.codeBlock}>
+          <code>{snippet ?? "// Shader export is blocked for this project."}</code>
+        </pre>
+      </FieldLabel>
+
+      <Button disabled={!canCopy || isCopying} onClick={() => void onCopy()}>
+        <CopyIcon size={16} weight="bold" />
+        {isCopying ? "Copying..." : "Copy snippet"}
+      </Button>
+    </section>
+  )
+}
+
 function FieldLabel({
   children,
   label,
@@ -1012,4 +1139,12 @@ function downloadBlob(blob: Blob, fileName: string) {
   window.setTimeout(() => {
     URL.revokeObjectURL(url)
   }, 0)
+}
+
+async function copyToClipboard(value: string) {
+  if (typeof navigator === "undefined" || !navigator.clipboard?.writeText) {
+    throw new Error("Clipboard access is not available in this browser.")
+  }
+
+  await navigator.clipboard.writeText(value)
 }

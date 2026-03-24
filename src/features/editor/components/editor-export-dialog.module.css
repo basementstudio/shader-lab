@@ -186,6 +186,40 @@
   line-height: 14px;
 }
 
+.inlineCode {
+  background-color: rgb(255 255 255 / 0.06);
+  border: 1px solid rgb(255 255 255 / 0.09);
+  border-radius: 6px;
+  font-family: var(--ds-font-mono);
+  font-size: 11px;
+  padding: 1px 5px;
+}
+
+.issueList {
+  background-color: rgb(255 74 74 / 0.06);
+  border: 1px solid rgb(255 74 74 / 0.14);
+  border-radius: var(--ds-radius-panel);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+}
+
+.codeBlock {
+  background-color: rgb(255 255 255 / 0.04);
+  border: 1px solid var(--ds-border-divider);
+  border-radius: var(--ds-radius-panel);
+  font-family: var(--ds-font-mono);
+  font-size: 11px;
+  line-height: 1.55;
+  margin: 0;
+  max-height: 280px;
+  overflow: auto;
+  padding: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .dropZone {
   align-items: center;
   background-color: var(--ds-color-surface-subtle);

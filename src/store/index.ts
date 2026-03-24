@@ -3,29 +3,29 @@ export {
   type AssetStore,
   type AssetStoreActions,
   type AssetStoreState,
-} from "./assetStore"
+} from "./asset-store"
 export {
   useEditorStore,
   type EditorStore,
   type EditorStoreActions,
   type EditorStoreState,
-} from "./editorStore"
+} from "./editor-store"
 export {
   useHistoryStore,
   registerHistoryShortcuts,
   type HistoryStore,
   type HistoryStoreActions,
   type HistoryStoreState,
-} from "./historyStore"
+} from "./history-store"
 export {
   useLayerStore,
   type LayerStore,
   type LayerStoreActions,
   type LayerStoreState,
-} from "./layerStore"
+} from "./layer-store"
 export {
   useTimelineStore,
   type TimelineStore,
   type TimelineStoreActions,
   type TimelineStoreState,
-} from "./timelineStore"
+} from "./timeline-store"

@@ -44,6 +44,11 @@ export function XYPad({
   const style = useMemo(
     () =>
       ({
+        "--xy-pad-display-x":
+          "clamp(var(--xy-pad-handle-margin), var(--xy-pad-x), calc(100% - var(--xy-pad-handle-margin)))",
+        "--xy-pad-display-y":
+          "clamp(var(--xy-pad-handle-margin), var(--xy-pad-y), calc(100% - var(--xy-pad-handle-margin)))",
+        "--xy-pad-handle-margin": "14px",
         "--xy-pad-x": `${((clamp(value[0], min, max) - min) / range) * 100}%`,
         "--xy-pad-y": `${(1 - (clamp(value[1], min, max) - min) / range) * 100}%`,
       }) as CSSProperties,

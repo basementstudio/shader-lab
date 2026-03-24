@@ -32,7 +32,6 @@ import { Typography } from "@/components/ui/typography"
 import { useAssetStore } from "@/store/asset-store"
 import { useEditorStore } from "@/store/editor-store"
 import { useLayerStore } from "@/store/layer-store"
-import s from "./layer-sidebar.module.css"
 
 type AddLayerAction =
   | "ascii"
@@ -48,10 +47,14 @@ type AddLayerAction =
   | "video"
 type LayerAction = "delete" | "reset"
 
+const menuButtonClassName = "inline-flex items-center gap-[var(--ds-space-2)]"
+const thumbnailBaseClassName =
+  "relative h-7 w-7 overflow-hidden rounded-[var(--ds-radius-thumb)] border border-white/6 bg-[linear-gradient(135deg,rgb(255_255_255_/_0.07),rgb(255_255_255_/_0.03))]"
+
 const addLayerOptions = [
   {
     label: (
-      <span className={s.menuButton}>
+      <span className={menuButtonClassName}>
         <ImageSquare size={14} weight="regular" />
         Image
       </span>
@@ -60,7 +63,7 @@ const addLayerOptions = [
   },
   {
     label: (
-      <span className={s.menuButton}>
+      <span className={menuButtonClassName}>
         <ImageSquare size={14} weight="regular" />
         Video
       </span>
@@ -69,7 +72,7 @@ const addLayerOptions = [
   },
   {
     label: (
-      <span className={s.menuButton}>
+      <span className={menuButtonClassName}>
         <Camera size={14} weight="regular" />
         Live Camera
       </span>
@@ -78,7 +81,7 @@ const addLayerOptions = [
   },
   {
     label: (
-      <span className={s.menuButton}>
+      <span className={menuButtonClassName}>
         <Sparkle size={14} weight="regular" />
         Mesh Gradient
       </span>
@@ -87,7 +90,7 @@ const addLayerOptions = [
   },
   {
     label: (
-      <span className={s.menuButton}>
+      <span className={menuButtonClassName}>
         <Sparkle size={14} weight="regular" />
         Custom Shader
       </span>
@@ -96,7 +99,7 @@ const addLayerOptions = [
   },
   {
     label: (
-      <span className={s.menuButton}>
+      <span className={menuButtonClassName}>
         <Sparkle size={14} weight="regular" />
         ASCII
       </span>
@@ -105,7 +108,7 @@ const addLayerOptions = [
   },
   {
     label: (
-      <span className={s.menuButton}>
+      <span className={menuButtonClassName}>
         <Sparkle size={14} weight="regular" />
         CRT
       </span>
@@ -114,7 +117,7 @@ const addLayerOptions = [
   },
   {
     label: (
-      <span className={s.menuButton}>
+      <span className={menuButtonClassName}>
         <Sparkle size={14} weight="regular" />
         Dithering
       </span>
@@ -123,7 +126,7 @@ const addLayerOptions = [
   },
   {
     label: (
-      <span className={s.menuButton}>
+      <span className={menuButtonClassName}>
         <Sparkle size={14} weight="regular" />
         Halftone
       </span>
@@ -132,7 +135,7 @@ const addLayerOptions = [
   },
   {
     label: (
-      <span className={s.menuButton}>
+      <span className={menuButtonClassName}>
         <Sparkle size={14} weight="regular" />
         Particle Grid
       </span>
@@ -141,7 +144,7 @@ const addLayerOptions = [
   },
   {
     label: (
-      <span className={s.menuButton}>
+      <span className={menuButtonClassName}>
         <Sparkle size={14} weight="regular" />
         Pixel Sorting
       </span>
@@ -186,14 +189,23 @@ function getThumbnailClassName(
   asset: EditorAsset | null
 ): string {
   if (asset?.kind === "image" || asset?.kind === "video") {
-    return cn(s.thumbnail, s.thumbnailImage)
+    return cn(
+      thumbnailBaseClassName,
+      "bg-cover bg-center"
+    )
   }
 
   if (layer.type === "model") {
-    return cn(s.thumbnail, s.thumbnailModel)
+    return cn(
+      thumbnailBaseClassName,
+      "bg-[radial-gradient(circle_at_30%_30%,rgb(255_255_255_/_0.18),transparent_45%),linear-gradient(135deg,rgb(255_255_255_/_0.08),rgb(255_255_255_/_0.02))]"
+    )
   }
 
-  return cn(s.thumbnail, s.thumbnailEffect)
+  return cn(
+    thumbnailBaseClassName,
+    "bg-[linear-gradient(135deg,rgb(255_255_255_/_0.1),rgb(255_255_255_/_0.03)),linear-gradient(180deg,rgb(255_255_255_/_0.05),transparent)] after:absolute after:inset-0 after:bg-[linear-gradient(90deg,transparent,rgb(255_255_255_/_0.18),transparent)] after:opacity-[0.35] after:content-['']"
+  )
 }
 
 function getExpectedAssetKind(layer: EditorLayer): AssetKind | null {
@@ -458,7 +470,12 @@ export function LayerSidebar() {
   }
 
   return (
-    <aside className={cn(s.root, !leftSidebarVisible && s.rootHidden)}>
+    <aside
+      className={cn(
+        "pointer-events-none absolute top-[76px] left-4 z-20 w-[284px] translate-x-0 transition-[opacity,transform] duration-[220ms,260ms] ease-[ease-out,cubic-bezier(0.22,1,0.36,1)]",
+        !leftSidebarVisible && "-translate-x-[18px] opacity-0"
+      )}
+    >
       <input
         accept="image/png,image/jpeg,image/webp,image/gif"
         className="hidden"
@@ -480,15 +497,21 @@ export function LayerSidebar() {
         type="file"
       />
 
-      <GlassPanel className={s.panel} variant="panel">
-        <div className={s.header}>
-          <Typography className={s.title} tone="secondary" variant="overline">
+      <GlassPanel
+        className={cn(
+          "pointer-events-auto relative flex flex-col gap-[var(--ds-space-1)] p-0",
+          !leftSidebarVisible && "pointer-events-none"
+        )}
+        variant="panel"
+      >
+        <div className="flex min-h-11 items-center justify-between border-b border-[var(--ds-border-divider)] pr-3 pl-[var(--ds-space-4)]">
+          <Typography className="uppercase" tone="secondary" variant="overline">
             Layers
           </Typography>
-          <div className={s.headerActions}>
+          <div className="inline-flex items-center gap-1.5">
             <IconButton
               aria-label="Enter immersive canvas mode"
-              className={s.immersiveButton}
+              className="pointer-events-auto"
               onClick={enterImmersiveCanvas}
               variant="ghost"
             >
@@ -496,20 +519,19 @@ export function LayerSidebar() {
             </IconButton>
             <Select
               key={addLayerSelectKey}
-              className={s.addLayerSelect ?? ""}
-              iconClassName={s.addLayerIcon ?? ""}
+              className="pointer-events-auto"
               onValueChange={(value) => handleAddLayer(value as AddLayerAction)}
               options={addLayerOptions}
               placeholder={<Plus size={14} weight="bold" />}
-              popupClassName={s.addLayerPopup ?? ""}
+              popupClassName="min-w-[152px]"
               triggerAriaLabel="Add layer"
-              triggerClassName={s.addLayerTrigger ?? ""}
-              valueClassName={s.addLayerValue ?? ""}
+              triggerVariant="icon"
+              valueClassName="inline-flex items-center justify-center leading-none [&_svg]:h-[14px] [&_svg]:w-[14px]"
             />
           </div>
         </div>
 
-        <ul className={s.scrollArea}>
+        <ul className="flex max-h-[min(52vh,480px)] flex-col gap-0.5 overflow-y-auto p-1">
           {layers.map((layer) => {
             const asset = layer.assetId
               ? (assetsById.get(layer.assetId) ?? null)
@@ -530,11 +552,11 @@ export function LayerSidebar() {
             return (
               <li
                 className={cn(
-                  s.row,
-                  !layer.locked && s.rowInteractive,
-                  isSelected && s.rowSelected,
-                  isDragging && s.rowDragging,
-                  isDropTarget && s.rowDropTarget
+                  "grid min-h-11 grid-cols-[minmax(0,1fr)_28px_28px] items-center gap-[var(--ds-space-2)] rounded-[var(--ds-radius-control)] border border-transparent px-2 py-[6px] transition-[background-color,border-color,transform] duration-160 ease-[var(--ease-out-cubic)]",
+                  !layer.locked && "cursor-pointer hover:bg-[var(--ds-color-surface-subtle)] hover:border-[var(--ds-border-subtle)]",
+                  isSelected && "bg-[var(--ds-color-surface-active)] border-[var(--ds-border-active)]",
+                  isDragging && "opacity-55",
+                  isDropTarget && "border-[var(--ds-border-hover)] shadow-[inset_0_0_0_1px_rgb(255_255_255_/_0.03)]"
                 )}
                 draggable={!layer.locked}
                 key={layer.id}
@@ -563,12 +585,15 @@ export function LayerSidebar() {
                 }}
               >
                 <button
-                  className={s.rowButton}
+                  className="grid min-w-0 grid-cols-[14px_28px_minmax(0,1fr)] items-center gap-[var(--ds-space-2)] bg-transparent p-0 text-left text-inherit"
                   onClick={() => selectLayer(layer.id)}
                   type="button"
                 >
                   <span
-                    className={cn(s.handle, layer.locked && s.handleLocked)}
+                    className={cn(
+                      "inline-flex h-[14px] w-[14px] items-center justify-center text-[var(--ds-color-text-muted)]",
+                      layer.locked && "text-[var(--ds-color-text-disabled)]"
+                    )}
                   >
                     <DotsSixVerticalIcon size={14} weight="bold" />
                   </span>
@@ -582,12 +607,15 @@ export function LayerSidebar() {
                     }
                   />
 
-                  <div className={s.labelStack}>
-                    <Typography className={s.truncate} variant="label">
+                  <div className="flex min-w-0 flex-col gap-0.5">
+                    <Typography
+                      className="overflow-hidden text-ellipsis whitespace-nowrap"
+                      variant="label"
+                    >
                       {layer.name}
                     </Typography>
                     <Typography
-                      className={s.truncate}
+                      className="overflow-hidden text-ellipsis whitespace-nowrap"
                       tone="muted"
                       variant="monoXs"
                     >
@@ -598,8 +626,6 @@ export function LayerSidebar() {
 
                 <Select
                   key={`${layer.id}:${layerActionSelectKeys[layer.id] ?? 0}`}
-                  className={s.rowActionSelect ?? ""}
-                  iconClassName={s.rowActionIcon ?? ""}
                   onValueChange={(value) =>
                     handleLayerAction(layer.id, value as LayerAction)
                   }
@@ -607,10 +633,10 @@ export function LayerSidebar() {
                   placeholder={
                     <DotsThreeVerticalIcon size={14} weight="bold" />
                   }
-                  popupClassName={s.rowActionPopup ?? ""}
+                  popupClassName="min-w-[152px]"
                   triggerAriaLabel={`Layer actions for ${layer.name}`}
-                  triggerClassName={s.rowActionTrigger ?? ""}
-                  valueClassName={s.rowActionValue ?? ""}
+                  triggerVariant="icon"
+                  valueClassName="inline-flex items-center justify-center leading-none text-[var(--ds-color-text-tertiary)] [&_svg]:h-[14px] [&_svg]:w-[14px]"
                 />
 
                 {hasMissingAsset ? (

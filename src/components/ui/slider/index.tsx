@@ -11,7 +11,6 @@ import {
   useState,
 } from "react"
 import { cn } from "@/lib/cn"
-import s from "./slider.module.css"
 
 type SliderProps = Omit<BaseSlider.Root.Props<number>, "children" | "className"> & {
   className?: string
@@ -137,7 +136,7 @@ export function Slider({
 
   return (
     <BaseSlider.Root
-      className={cn(s.root, className)}
+      className={cn("flex w-full flex-col gap-[var(--ds-space-2)]", className)}
       data-visual-dragging={isVisualDragging ? "" : undefined}
       defaultValue={defaultValue}
       locale={locale}
@@ -148,9 +147,15 @@ export function Slider({
       value={value}
       {...props}
     >
-      <div className={s.header}>
-        {label ? <BaseSlider.Label className={s.label}>{label}</BaseSlider.Label> : <span />}
-        <BaseSlider.Value className={s.value}>
+      <div className="flex items-center justify-between gap-[var(--ds-space-3)]">
+        {label ? (
+          <BaseSlider.Label className="text-[11px] leading-[14px] font-normal text-white/45">
+            {label}
+          </BaseSlider.Label>
+        ) : (
+          <span />
+        )}
+        <BaseSlider.Value className="shrink-0 text-right font-[var(--ds-font-mono)] text-[11px] leading-[14px] text-[var(--ds-color-text-secondary)]">
           {(formattedValues, values) => {
             const rawValue = values[0] ?? 0
             const formattedValue =
@@ -164,15 +169,22 @@ export function Slider({
       </div>
 
       <BaseSlider.Control
-        className={s.control}
+        className="relative flex min-h-5 w-full cursor-pointer items-center touch-none data-[disabled]:cursor-not-allowed"
         onPointerDownCapture={handlePointerDown}
         ref={controlRef}
       >
-        <BaseSlider.Track className={s.track}>
-          <BaseSlider.Indicator className={s.indicator} />
+        <BaseSlider.Track className="relative h-1 flex-1 rounded-[2px] bg-white/10">
+          <BaseSlider.Indicator className="h-full rounded-[2px] bg-white/25" />
         </BaseSlider.Track>
-        <BaseSlider.Thumb className={s.thumb}>
-          <span className={s.thumbVisual} />
+        <BaseSlider.Thumb className="relative h-3 w-4 overflow-visible transition-[transform,outline-offset] duration-120 ease-[var(--ease-out-cubic)] active:scale-[0.96] data-[dragging]:scale-[0.96] focus-visible:outline-none data-[disabled]:opacity-45">
+          <span
+            className="block h-full w-full rounded-[var(--ds-radius-thumb)] border-2 border-white/15 bg-white/85 shadow-[var(--ds-shadow-knob)] transition-[background-color,box-shadow,transform] duration-[160ms,160ms,260ms] ease-[var(--ease-out-cubic),var(--ease-out-cubic),cubic-bezier(0.34,1.56,0.64,1)] will-change-transform hover:bg-white/92 focus-visible:shadow-[var(--ds-shadow-knob),0_0_0_3px_rgb(255_255_255_/_0.12)]"
+            style={{
+              transform:
+                "translateX(var(--slider-pull-x)) scaleX(var(--slider-pull-scale-x)) scaleY(var(--slider-pull-scale-y))",
+              transformOrigin: "center",
+            }}
+          />
         </BaseSlider.Thumb>
       </BaseSlider.Control>
     </BaseSlider.Root>

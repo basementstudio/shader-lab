@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { createPortal } from "react-dom"
 import { cn } from "@/lib/cn"
 import { GlassPanel } from "@/components/ui/glass-panel"
-import s from "./color-picker.module.css"
 
 type HsvColor = {
   h: number
@@ -276,33 +275,38 @@ export function ColorPicker({ className, onValueChange, value }: ColorPickerProp
   } as CSSProperties
 
   return (
-    <div className={cn(s.root, className)}>
+    <div className={cn("w-[132px]", className)}>
       <button
-        className={s.trigger}
+        className="grid min-h-8 w-full grid-cols-[24px_minmax(0,1fr)] items-center gap-2 rounded-[var(--ds-radius-control)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-2 pt-1 pr-2 pb-1 pl-1 text-[var(--ds-color-text-secondary)] transition-[background-color,border-color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:bg-white/8 hover:border-[var(--ds-border-hover)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--ds-border-active)] data-[open]:bg-white/8 data-[open]:border-[var(--ds-border-active)]"
         data-open={isOpen ? "" : undefined}
         onClick={() => setIsOpen((current) => !current)}
         ref={triggerRef}
         type="button"
       >
-        <span className={s.swatch} style={{ backgroundColor: inputValue }} />
-        <span className={s.value}>{inputValue}</span>
+        <span
+          className="h-6 w-6 rounded-[var(--ds-radius-thumb)] border border-white/8 shadow-[inset_0_0_0_1px_rgb(0_0_0_/_0.12)]"
+          style={{ backgroundColor: inputValue }}
+        />
+        <span className="overflow-hidden text-ellipsis whitespace-nowrap text-left font-[var(--ds-font-mono)] text-[11px] leading-[14px] uppercase">
+          {inputValue}
+        </span>
       </button>
 
       {isOpen
         ? createPortal(
             <div data-color-picker-popup="" style={popupStyle}>
-              <GlassPanel className={s.popup} variant="panel">
+              <GlassPanel className="flex w-[208px] flex-col gap-3 p-3" variant="panel">
                 <div
-                  className={s.surface}
+                  className="relative h-[132px] w-full cursor-crosshair overflow-hidden rounded-[10px] select-none"
                   onPointerDown={handleSurfacePointerDown}
                   onPointerMove={handleSurfacePointerMove}
                   ref={surfaceRef}
                   style={{ backgroundColor: hueColor }}
                 >
-                  <div className={s.surfaceWhite} />
-                  <div className={s.surfaceBlack} />
+                  <div className="absolute inset-0 bg-[linear-gradient(90deg,#fff,rgb(255_255_255_/_0%))]" />
+                  <div className="absolute inset-0 bg-[linear-gradient(0deg,#000,rgb(0_0_0_/_0%))]" />
                   <div
-                    className={s.surfaceHandle}
+                    className="absolute h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white/95 shadow-[0_0_0_1px_rgb(0_0_0_/_0.35),0_2px_6px_rgb(0_0_0_/_0.3)]"
                     style={{
                       left: `${color.s * 100}%`,
                       top: `${(1 - color.v) * 100}%`,
@@ -311,20 +315,20 @@ export function ColorPicker({ className, onValueChange, value }: ColorPickerProp
                 </div>
 
                 <div
-                  className={s.hue}
+                  className="relative h-3 w-full cursor-ew-resize rounded-full select-none bg-[linear-gradient(90deg,#ff0000_0%,#ffff00_16.66%,#00ff00_33.33%,#00ffff_50%,#0000ff_66.66%,#ff00ff_83.33%,#ff0000_100%)]"
                   onPointerDown={handleHuePointerDown}
                   onPointerMove={handleHuePointerMove}
                   ref={hueRef}
                 >
                   <div
-                    className={s.hueHandle}
+                    className="absolute top-1/2 h-4 w-[10px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/96 shadow-[0_0_0_1px_rgb(0_0_0_/_0.28),0_1px_4px_rgb(0_0_0_/_0.3)]"
                     style={{ left: `${(color.h / 360) * 100}%` }}
                   />
                 </div>
 
-                <div className={s.footer}>
+                <div className="grid grid-cols-[1fr_auto] items-center gap-2">
                   <input
-                    className={s.input}
+                    className="min-h-[30px] w-full rounded-[var(--ds-radius-control)] border border-[var(--ds-border-divider)] bg-white/4 px-[10px] font-[var(--ds-font-mono)] text-[11px] leading-[14px] text-[var(--ds-color-text-secondary)] uppercase outline-none focus:border-[var(--ds-border-active)]"
                     onChange={(event) => {
                       const nextValue = event.target.value.toUpperCase()
                       setInputValue(nextValue)
@@ -340,7 +344,9 @@ export function ColorPicker({ className, onValueChange, value }: ColorPickerProp
                     type="text"
                     value={inputValue}
                   />
-                  <span className={s.meta}>HEX</span>
+                  <span className="text-right font-[var(--ds-font-mono)] text-[10px] leading-3 text-[var(--ds-color-text-muted)] uppercase">
+                    HEX
+                  </span>
                 </div>
               </GlassPanel>
             </div>,

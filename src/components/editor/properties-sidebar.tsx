@@ -18,7 +18,6 @@ import {
   createLayerPropertyBinding,
   useTimelineStore,
 } from "@/store/timeline-store"
-import s from "./properties-sidebar.module.css"
 import {
   EmptyPropertiesContent,
   SelectedLayerPropertiesContent,
@@ -358,9 +357,17 @@ export function PropertiesSidebar() {
     : null
 
   return (
-    <aside className={cn(s.root, !rightSidebarVisible && s.rootHidden)}>
-      <div aria-hidden="true" className={s.measureWrap}>
-        <div className={s.measureView} ref={bindMeasuredView}>
+    <aside
+      className={cn(
+        "pointer-events-none absolute top-[76px] right-4 z-20 w-[300px] translate-x-0 transition-[opacity,transform] duration-[220ms,260ms] ease-[ease-out,cubic-bezier(0.22,1,0.36,1)]",
+        !rightSidebarVisible && "translate-x-[18px] opacity-0"
+      )}
+    >
+      <div
+        aria-hidden="true"
+        className="pointer-events-none invisible absolute top-0 left-0 -z-1 w-full"
+      >
+        <div className="w-full" ref={bindMeasuredView}>
           {selectedLayerContentProps ? (
             <SelectedLayerPropertiesContent {...selectedLayerContentProps} />
           ) : (
@@ -370,17 +377,23 @@ export function PropertiesSidebar() {
       </div>
 
       <motion.div
-        className={s.panelWrap}
+        className={cn(
+          "pointer-events-auto overflow-hidden rounded-[var(--ds-radius-panel)]",
+          !rightSidebarVisible && "pointer-events-none"
+        )}
         initial={false}
         {...(panelHeight === null ? {} : { animate: { height: panelHeight } })}
         transition={heightTransition}
       >
-        <GlassPanel className={s.panel} variant="panel">
+        <GlassPanel
+          className="flex h-full min-h-0 flex-col gap-0 p-0"
+          variant="panel"
+        >
           <AnimatePresence initial={false} mode="wait">
             {selectedLayerContentProps ? (
               <motion.div
                 animate={enterAnimation}
-                className={s.layerView}
+                className="flex h-full min-h-0 flex-col"
                 exit={exitAnimation}
                 initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
                 key={selectedLayerContentProps.layerId}
@@ -392,7 +405,7 @@ export function PropertiesSidebar() {
             ) : (
               <motion.div
                 animate={enterAnimation}
-                className={s.layerView}
+                className="flex h-full min-h-0 flex-col"
                 exit={exitAnimation}
                 initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
                 key="empty"

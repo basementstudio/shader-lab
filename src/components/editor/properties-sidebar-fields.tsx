@@ -18,7 +18,6 @@ import { Typography } from "@/components/ui/typography"
 import { XYPad } from "@/components/ui/xy-pad"
 import { useLayerStore } from "@/store/layer-store"
 import { useTimelineStore } from "@/store/timeline-store"
-import s from "./properties-sidebar.module.css"
 import {
   hasTrackForBinding,
   toBooleanValue,
@@ -76,10 +75,10 @@ function TimelineKeyframeButton({
   }
 
   return (
-    <span className={s.fieldActionSlot}>
+    <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center">
       <motion.span
         animate={animation}
-        className={s.fieldActionWrap}
+        className="inline-flex shrink-0"
         initial={false}
         transition={
           control.reduceMotion
@@ -91,8 +90,8 @@ function TimelineKeyframeButton({
           aria-hidden={!control.timelinePanelOpen}
           aria-label={`Create keyframe for ${control.binding.label}`}
           className={cn(
-            s.timelineKeyframeButton,
-            control.hasTrack && s.timelineKeyframeButtonActive
+            "h-6 w-6 [&_svg]:h-3 [&_svg]:w-3",
+            control.hasTrack && "text-[rgb(200_220_255_/_0.92)]"
           )}
           disabled={!control.timelinePanelOpen}
           onClick={() =>
@@ -126,7 +125,7 @@ function renderFieldLabelStack(
         minWidth: 0,
       }}
     >
-      <Typography className={s.fieldLabel} tone="secondary" variant="label">
+      <Typography className="min-w-0" tone="secondary" variant="label">
         {renderFieldLabel(label, control)}
       </Typography>
       {description ? (
@@ -207,7 +206,7 @@ export function renderFieldLabel(
   control: TimelineKeyframeControl | null
 ) {
   return (
-    <span className={s.fieldLabelRow}>
+    <span className="inline-flex min-w-0 w-full items-center justify-between gap-2">
       <span>{label}</span>
       <TimelineKeyframeButton control={control} />
     </span>
@@ -286,7 +285,7 @@ export function ParameterField({
     case "select":
       return (
         <div
-          className={s.inlineField}
+          className="grid items-center gap-[10px] [grid-template-columns:minmax(0,1fr)_132px]"
           style={definition.description ? { alignItems: "start" } : undefined}
         >
           {renderFieldLabelStack(
@@ -295,13 +294,14 @@ export function ParameterField({
             timelineControl
           )}
           <Select
-            className={s.select ?? ""}
+            className="w-[132px]"
             onValueChange={(nextValue) => {
               if (nextValue) {
                 onChange(layerId, definition.key, nextValue)
               }
             }}
             options={(definition as SelectParameterDefinition).options}
+            triggerClassName="w-[132px]"
             value={typeof value === "string" ? value : definition.defaultValue}
           />
         </div>
@@ -310,7 +310,7 @@ export function ParameterField({
     case "boolean":
       return (
         <div
-          className={s.inlineFieldCompact}
+          className="grid items-center gap-[10px] [grid-template-columns:minmax(0,1fr)_auto]"
           style={definition.description ? { alignItems: "start" } : undefined}
         >
           {renderFieldLabelStack(
@@ -320,7 +320,7 @@ export function ParameterField({
           )}
           <Toggle
             checked={toBooleanValue(value)}
-            className={s.toggleWrap ?? ""}
+            className="justify-self-end"
             onCheckedChange={(nextValue) =>
               onChange(layerId, definition.key, nextValue)
             }
@@ -331,7 +331,7 @@ export function ParameterField({
     case "color":
       return (
         <div
-          className={s.inlineField}
+          className="grid items-center gap-[10px] [grid-template-columns:minmax(0,1fr)_132px]"
           style={definition.description ? { alignItems: "start" } : undefined}
         >
           {renderFieldLabelStack(
@@ -364,14 +364,14 @@ export function ParameterField({
 
     case "text":
       return (
-        <label className={s.textField}>
+        <label className="flex flex-col gap-2">
           {renderFieldLabelStack(
             fieldLabel,
             definition.description,
             timelineControl
           )}
           <input
-            className={s.textInput}
+            className="min-h-9 appearance-none rounded-[var(--ds-radius-control)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-[10px] py-2 font-[var(--ds-font-mono)] text-[12px] leading-4 text-[var(--ds-color-text-primary)] outline-none transition-[border-color,background-color] duration-120 ease-[ease] focus:border-[var(--ds-color-text-secondary)] placeholder:text-[var(--ds-color-text-muted)]"
             maxLength={(definition as TextParameterDefinition).maxLength}
             onChange={(event) =>
               onChange(layerId, definition.key, event.currentTarget.value)

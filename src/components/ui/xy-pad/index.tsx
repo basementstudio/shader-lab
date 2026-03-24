@@ -2,7 +2,6 @@
 
 import { type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode, useMemo, useRef } from "react"
 import { cn } from "@/lib/cn"
-import s from "./xy-pad.module.css"
 
 type XYPadProps = {
   className?: string
@@ -109,20 +108,22 @@ export function XYPad({
   }
 
   return (
-    <div className={cn(s.root, className)}>
-      <div className={s.header}>
-        <div className={s.labelWrap}>
-          {label ? <span className={s.label}>{label}</span> : <span />}
-          <span className={s.axisTag}>X/Y</span>
+    <div className={cn("flex w-full flex-col gap-[var(--ds-space-2)]", className)}>
+      <div className="flex items-center justify-between gap-[var(--ds-space-3)]">
+        <div className="inline-flex min-w-0 items-center gap-2">
+          {label ? <span className="text-[11px] leading-[14px] font-normal text-white/45">{label}</span> : <span />}
+          <span className="inline-flex min-h-[18px] items-center rounded-full border border-white/8 bg-white/6 px-1.5 font-[var(--ds-font-mono)] text-[10px] leading-3 text-[var(--ds-color-text-muted)]">
+            X/Y
+          </span>
         </div>
-        <span className={s.value}>
+        <span className="shrink-0 text-right font-[var(--ds-font-mono)] text-[11px] leading-[14px] text-[var(--ds-color-text-secondary)]">
           {formatValue(value[0])}, {formatValue(value[1])}
         </span>
       </div>
 
       <button
         aria-label={typeof label === "string" ? label : "XY pad"}
-        className={s.surface}
+        className="relative h-[156px] w-full cursor-crosshair overflow-hidden rounded-[calc(var(--ds-radius-control)+2px)] border border-white/8 bg-[radial-gradient(circle_at_center,rgb(255_255_255_/_0.05),transparent_58%),linear-gradient(180deg,rgb(255_255_255_/_0.04),rgb(255_255_255_/_0.01))] shadow-[inset_0_1px_0_rgb(255_255_255_/_0.04)] touch-none focus-visible:outline-none focus-visible:shadow-[inset_0_1px_0_rgb(255_255_255_/_0.04),0_0_0_3px_rgb(255_255_255_/_0.12)] active:[&_.xy-handle]:scale-90"
         onKeyDown={handleKeyDown}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
@@ -130,11 +131,23 @@ export function XYPad({
         style={style}
         type="button"
       >
-        <div className={s.grid} />
-        <div className={s.crosshairX} />
-        <div className={s.crosshairY} />
-        <div className={s.handle}>
-          <span className={s.handleCore} />
+        <div className="absolute inset-0 bg-[linear-gradient(rgb(255_255_255_/_0.06)_1px,transparent_1px),linear-gradient(90deg,rgb(255_255_255_/_0.06)_1px,transparent_1px)] bg-center bg-[length:25%_25%]" />
+        <div
+          className="pointer-events-none absolute inset-x-0 h-px bg-[linear-gradient(90deg,transparent,rgb(255_255_255_/_0.28),transparent)] transition-[top] duration-[220ms] ease-[cubic-bezier(0.34,1.56,0.64,1)]"
+          style={{ top: "var(--xy-pad-display-y)" }}
+        />
+        <div
+          className="pointer-events-none absolute top-0 bottom-0 w-px bg-[linear-gradient(180deg,transparent,rgb(255_255_255_/_0.28),transparent)] transition-[left] duration-[220ms] ease-[cubic-bezier(0.34,1.56,0.64,1)]"
+          style={{ left: "var(--xy-pad-display-x)" }}
+        />
+        <div
+          className="xy-handle pointer-events-none absolute h-[22px] w-[22px] -translate-x-1/2 -translate-y-1/2 transition-[left,top,transform] duration-[260ms,260ms,120ms] ease-[cubic-bezier(0.34,1.56,0.64,1),cubic-bezier(0.34,1.56,0.64,1),var(--ease-out-cubic)] will-change-[left,top,transform]"
+          style={{
+            left: "var(--xy-pad-display-x)",
+            top: "var(--xy-pad-display-y)",
+          }}
+        >
+          <span className="block h-full w-full rounded-full border-2 border-white/14 bg-[radial-gradient(circle_at_30%_30%,rgb(255_255_255_/_0.95),rgb(255_255_255_/_0.76)),linear-gradient(180deg,rgb(255_255_255_/_0.2),rgb(255_255_255_/_0.06))] shadow-[0_10px_20px_rgb(0_0_0_/_0.26),0_0_0_6px_rgb(255_255_255_/_0.05)] transition-[background-color,box-shadow] duration-160 ease-[var(--ease-out-cubic)]" />
         </div>
       </button>
     </div>

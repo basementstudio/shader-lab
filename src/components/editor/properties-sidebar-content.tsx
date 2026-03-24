@@ -13,13 +13,13 @@ import type {
   ParameterDefinition,
   ParameterValue,
 } from "@/types/editor"
+import { cn } from "@/lib/cn"
 import { Button } from "@/components/ui/button"
 import { IconButton } from "@/components/ui/icon-button"
 import { Select } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
 import { Typography } from "@/components/ui/typography"
 import { useTimelineStore } from "@/store/timeline-store"
-import s from "./properties-sidebar.module.css"
 import {
   ParameterField,
   renderFieldLabel,
@@ -37,7 +37,7 @@ import {
 
 export function EmptyPropertiesContent() {
   return (
-    <div className={s.emptyState}>
+    <div className="flex flex-col gap-1.5 p-4">
       <Typography tone="secondary" variant="overline">
         Properties
       </Typography>
@@ -104,22 +104,22 @@ function CustomShaderSection({
   )
 
   return (
-    <section className={s.section}>
+    <section className="flex flex-col gap-3 border-t border-[var(--ds-border-divider)] px-4 pt-[14px] pb-4 first:border-t-0">
       <Typography
-        className={s.sectionTitle}
+        className="uppercase"
         tone="secondary"
         variant="overline"
       >
         Shader
       </Typography>
 
-      <div className={s.fieldStack}>
-        <label className={s.textField}>
-          <Typography className={s.fieldLabel} tone="secondary" variant="label">
+      <div className="flex flex-col gap-[10px]">
+        <label className="flex flex-col gap-2">
+          <Typography className="min-w-0" tone="secondary" variant="label">
             Entry Export
           </Typography>
           <input
-            className={s.textInput}
+            className="min-h-9 appearance-none rounded-[var(--ds-radius-control)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-[10px] py-2 font-[var(--ds-font-mono)] text-[12px] leading-4 text-[var(--ds-color-text-primary)] outline-none transition-[border-color,background-color] duration-120 ease-[ease] focus:border-[var(--ds-color-text-secondary)] placeholder:text-[var(--ds-color-text-muted)]"
             onChange={(event) => {
               setDraftEntryExport(event.currentTarget.value)
               setFormatError(null)
@@ -130,12 +130,12 @@ function CustomShaderSection({
           />
         </label>
 
-        <label className={s.textField}>
-          <Typography className={s.fieldLabel} tone="secondary" variant="label">
+        <label className="flex flex-col gap-2">
+          <Typography className="min-w-0" tone="secondary" variant="label">
             Sketch Source
           </Typography>
           <textarea
-            className={s.shaderTextarea}
+            className="min-h-[280px] w-full resize-y appearance-none rounded-[var(--ds-radius-control)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-3 py-[10px] font-[var(--ds-font-mono)] text-[12px] leading-[18px] text-[var(--ds-color-text-primary)] outline-none transition-[border-color,background-color] duration-120 ease-[ease] focus:border-[var(--ds-color-text-secondary)]"
             onChange={(event) => {
               setDraftSource(event.currentTarget.value)
               setFormatError(null)
@@ -145,8 +145,8 @@ function CustomShaderSection({
           />
         </label>
 
-        <div className={s.shaderToolbar}>
-          <div className={s.shaderToolbarActions}>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="inline-flex items-center gap-2">
             <Button
               disabled={!isDirty}
               onClick={() => commitShader()}
@@ -159,7 +159,7 @@ function CustomShaderSection({
 
           <IconButton
             aria-label="Format sketch source"
-            className={s.shaderFormatButton}
+            className="shrink-0"
             onClick={() => {
               void formatCustomShaderSource({
                 fileName: "custom-shader.ts",
@@ -320,12 +320,14 @@ export function SelectedLayerPropertiesContent({
 
   return (
     <>
-      <div className={s.header}>
-        <div className={s.kindRow}>
+      <div className="flex flex-col gap-1.5 border-b border-[var(--ds-border-divider)] px-4 pt-[14px] pb-3">
+        <div className="flex items-center justify-between gap-2">
           <Typography tone="secondary" variant="overline">
             Properties
           </Typography>
-          <span className={s.kindBadge}>{formatLayerKind(layerKind)}</span>
+          <span className="inline-flex min-h-5 items-center rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-active)] px-[7px] font-[var(--ds-font-mono)] text-[10px] leading-3 text-[var(--ds-color-text-secondary)] capitalize">
+            {formatLayerKind(layerKind)}
+          </span>
         </div>
         <Typography variant="title">{layerName}</Typography>
         {layerSubtitle ? (
@@ -340,17 +342,17 @@ export function SelectedLayerPropertiesContent({
         ) : null}
       </div>
 
-      <div className={s.content}>
-        <section className={s.section}>
+      <div className="flex min-h-0 max-h-[min(62vh,620px)] flex-col gap-0 overflow-y-auto">
+        <section className="flex flex-col gap-3 border-t border-[var(--ds-border-divider)] px-4 pt-[14px] pb-4 first:border-t-0">
           <Typography
-            className={s.sectionTitle}
+            className="uppercase"
             tone="secondary"
             variant="overline"
           >
             General
           </Typography>
 
-          <div className={s.fieldStack}>
+          <div className="flex flex-col gap-[10px]">
             <Slider
               label={renderFieldLabel(
                 "Opacity",
@@ -363,42 +365,44 @@ export function SelectedLayerPropertiesContent({
               valueSuffix="%"
             />
 
-            <div className={s.inlineField}>
+            <div className="grid items-center gap-[10px] [grid-template-columns:minmax(0,1fr)_132px]">
               <Typography
-                className={s.fieldLabel}
+                className="min-w-0"
                 tone="secondary"
                 variant="label"
               >
                 Blend
               </Typography>
               <Select
-                className={s.select ?? ""}
+                className="w-[132px]"
                 onValueChange={(value) => {
                   if (value) {
                     setLayerBlendMode(layerId, value as BlendMode)
                   }
                 }}
                 options={blendModeOptions}
+                triggerClassName="w-[132px]"
                 value={blendMode}
               />
             </div>
 
-            <div className={s.inlineField}>
+            <div className="grid items-center gap-[10px] [grid-template-columns:minmax(0,1fr)_132px]">
               <Typography
-                className={s.fieldLabel}
+                className="min-w-0"
                 tone="secondary"
                 variant="label"
               >
                 Mode
               </Typography>
               <Select
-                className={s.select ?? ""}
+                className="w-[132px]"
                 onValueChange={(value) => {
                   if (value) {
                     setLayerCompositeMode(layerId, value as LayerCompositeMode)
                   }
                 }}
                 options={compositeModeOptions}
+                triggerClassName="w-[132px]"
                 value={compositeMode}
               />
             </div>
@@ -441,10 +445,10 @@ export function SelectedLayerPropertiesContent({
         ) : null}
 
         {visibleParams.length > 0 ? (
-          <section className={s.section}>
+          <section className="flex flex-col gap-3 border-t border-[var(--ds-border-divider)] px-4 pt-[14px] pb-4 first:border-t-0">
             {!showGroupedParams && (
               <Typography
-                className={s.sectionTitle}
+                className="uppercase"
                 tone="secondary"
                 variant="overline"
               >
@@ -453,28 +457,29 @@ export function SelectedLayerPropertiesContent({
             )}
 
             {showGroupedParams ? (
-              <div className={s.groupStack}>
+              <div className="flex flex-col gap-3">
                 {groupedParams.map((group) => {
                   const groupKey = `${layerId}:${group.id}`
                   const isExpanded = expandedParamGroups[groupKey] ?? true
 
                   return (
-                    <div className={s.paramGroup} key={group.id}>
+                    <div className="flex flex-col gap-[10px]" key={group.id}>
                       {group.collapsible ? (
                         <button
                           aria-expanded={isExpanded}
-                          className={s.groupToggle}
+                          className="inline-flex min-h-0 cursor-pointer items-center bg-transparent p-0 text-left text-inherit transition-[background-color,color,transform] duration-120 ease-[ease] hover:text-[var(--ds-color-text-primary)] active:scale-[0.99]"
                           onClick={() => onToggleParamGroup(groupKey)}
                           type="button"
                         >
-                          <div className={s.groupHeading}>
+                          <div className="inline-flex min-w-0 items-center gap-2">
                             <span
                               aria-hidden="true"
-                              className={
+                              className={cn(
+                                "inline-block h-[7px] w-[7px] shrink-0 border-r-[1.5px] border-b-[1.5px] border-[var(--ds-color-text-secondary)] transition-transform duration-180 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
                                 isExpanded
-                                  ? s.groupChevronExpanded
-                                  : s.groupChevron
-                              }
+                                  ? "translate-x-[-1px] translate-y-[-1px] rotate-[-135deg]"
+                                  : "translate-y-[-1px] rotate-45"
+                              )}
                             />
                             <Typography tone="secondary" variant="overline">
                               {group.label}
@@ -482,7 +487,7 @@ export function SelectedLayerPropertiesContent({
                           </div>
                         </button>
                       ) : (
-                        <div className={s.groupHeadingStatic}>
+                        <div className="inline-flex min-w-0 items-center gap-2 px-[2px]">
                           <Typography tone="secondary" variant="overline">
                             {group.label}
                           </Typography>
@@ -497,7 +502,6 @@ export function SelectedLayerPropertiesContent({
                                 ? { opacity: 1 }
                                 : { height: "auto", opacity: 1 }
                             }
-                            className={s.groupBodyWrap}
                             exit={
                               reduceMotion
                                 ? { opacity: 0 }
@@ -516,10 +520,10 @@ export function SelectedLayerPropertiesContent({
                                     mass: 0.85,
                                     stiffness: 360,
                                     type: "spring",
-                                  }
+                                }
                             }
                           >
-                            <div className={s.fieldStack}>
+                            <div className="flex flex-col gap-[10px]">
                               {group.params.map((param) => (
                                 <ParameterField
                                   definition={param}
@@ -546,7 +550,7 @@ export function SelectedLayerPropertiesContent({
                 })}
               </div>
             ) : (
-              <div className={s.fieldStack}>
+              <div className="flex flex-col gap-[10px]">
                 {visibleParams.map((param) => (
                   <ParameterField
                     definition={param}

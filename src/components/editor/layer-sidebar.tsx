@@ -35,6 +35,7 @@ import { useLayerStore } from "@/store/layer-store"
 
 type AddLayerAction =
   | "ascii"
+  | "pattern"
   | "crt"
   | "custom-shader"
   | "dithering"
@@ -105,6 +106,15 @@ const addLayerOptions = [
       </span>
     ),
     value: "ascii",
+  },
+  {
+    label: (
+      <span className={menuButtonClassName}>
+        <Sparkle size={14} weight="regular" />
+        Pattern
+      </span>
+    ),
+    value: "pattern",
   },
   {
     label: (
@@ -344,6 +354,8 @@ export function LayerSidebar() {
       handleAddCustomShader()
     } else if (action === "ascii") {
       handleAddAscii()
+    } else if (action === "pattern") {
+      addLayer("pattern")
     } else if (action === "crt") {
       addLayer("crt")
     } else if (action === "halftone") {

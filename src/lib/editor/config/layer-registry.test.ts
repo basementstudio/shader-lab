@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test"
 import { isParamVisible } from "@/components/editor/properties-sidebar-utils"
 import { getLayerDefinition } from "@/lib/editor/config/layer-registry"
 import { buildParameterValues } from "@/lib/editor/parameter-schema"
+import { PATTERN_PRESET_SOURCES } from "@/renderer/pattern-atlas"
 
 describe("CRT layer registry", () => {
   it("provides the new CRT defaults without migration", () => {
@@ -128,5 +129,113 @@ describe("CRT layer registry", () => {
     expect(isParamVisible(sourceCode!, params, [...definition.params])).toBe(
       false
     )
+  })
+
+  it("provides pattern defaults and conditional field visibility", () => {
+    const definition = getLayerDefinition("pattern")
+    const params = buildParameterValues(definition.params)
+    const monoColor = definition.params.find((param) => param.key === "monoColor")
+    const bgOpacity = definition.params.find((param) => param.key === "bgOpacity")
+    const bloomEnabled = definition.params.find((param) => param.key === "bloomEnabled")
+    const bloomIntensity = definition.params.find((param) => param.key === "bloomIntensity")
+
+    expect(params.cellSize).toBe(12)
+    expect(params.preset).toBe("bars")
+    expect(params.colorMode).toBe("source")
+    expect(params.monoColor).toBe("#f5f5f0")
+    expect(params.bgOpacity).toBe(0)
+    expect(params.invert).toBe(false)
+    expect(params.customColorCount).toBe(4)
+    expect(params.customLuminanceBias).toBe(0)
+    expect(params.customBgColor).toBe("#F5F5F0")
+    expect(params.customColor1).toBe("#0d1014")
+    expect(params.customColor2).toBe("#4d5057")
+    expect(params.customColor3).toBe("#969aa2")
+    expect(params.customColor4).toBe("#e1e2de")
+    expect(params.bloomEnabled).toBe(false)
+    expect(params.bloomIntensity).toBe(1.25)
+    expect(monoColor).not.toBeUndefined()
+    expect(bgOpacity).not.toBeUndefined()
+    expect(bloomEnabled).not.toBeUndefined()
+    expect(bloomIntensity).not.toBeUndefined()
+    const customColorCount = definition.params.find(
+      (param) => param.key === "customColorCount"
+    )
+    const customColor3 = definition.params.find((param) => param.key === "customColor3")
+    expect(customColorCount).not.toBeUndefined()
+    expect(customColor3).not.toBeUndefined()
+    expect(isParamVisible(monoColor!, params, [...definition.params])).toBe(false)
+    expect(isParamVisible(bgOpacity!, params, [...definition.params])).toBe(true)
+    expect(isParamVisible(bloomIntensity!, params, [...definition.params])).toBe(false)
+    expect(
+      isParamVisible(customColorCount!, params, [...definition.params])
+    ).toBe(false)
+    expect(
+      isParamVisible(
+        monoColor!,
+        { ...params, colorMode: "monochrome" },
+        [...definition.params]
+      )
+    ).toBe(true)
+    expect(
+      isParamVisible(
+        bgOpacity!,
+        { ...params, colorMode: "quantized" },
+        [...definition.params]
+      )
+    ).toBe(false)
+    expect(
+      isParamVisible(
+        customColorCount!,
+        { ...params, colorMode: "custom" },
+        [...definition.params]
+      )
+    ).toBe(true)
+    expect(
+      isParamVisible(
+        customColor3!,
+        { ...params, colorMode: "custom", customColorCount: 3 },
+        [...definition.params]
+      )
+    ).toBe(true)
+    expect(
+      isParamVisible(
+        customColor3!,
+        { ...params, colorMode: "custom", customColorCount: 2 },
+        [...definition.params]
+      )
+    ).toBe(false)
+    expect(
+      isParamVisible(
+        bloomIntensity!,
+        { ...params, bloomEnabled: true },
+        [...definition.params]
+      )
+    ).toBe(true)
+  })
+
+  it("keeps pattern preset SVG ordering stable", () => {
+    expect(PATTERN_PRESET_SOURCES.bars).toEqual([
+      "/assets/patterns/bars/1.svg",
+      "/assets/patterns/bars/2.svg",
+      "/assets/patterns/bars/3.svg",
+      "/assets/patterns/bars/4.svg",
+      "/assets/patterns/bars/5.svg",
+      "/assets/patterns/bars/6.svg",
+    ])
+    expect(PATTERN_PRESET_SOURCES.candles).toEqual([
+      "/assets/patterns/candles/1.svg",
+      "/assets/patterns/candles/2.svg",
+      "/assets/patterns/candles/3.svg",
+      "/assets/patterns/candles/4.svg",
+    ])
+    expect(PATTERN_PRESET_SOURCES.shapes).toEqual([
+      "/assets/patterns/shapes/1.svg",
+      "/assets/patterns/shapes/2.svg",
+      "/assets/patterns/shapes/3.svg",
+      "/assets/patterns/shapes/4.svg",
+      "/assets/patterns/shapes/5.svg",
+      "/assets/patterns/shapes/6.svg",
+    ])
   })
 })

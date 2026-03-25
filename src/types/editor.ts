@@ -13,6 +13,7 @@ export type SourceLayerType = (typeof SOURCE_LAYER_TYPES)[number]
 
 export const EFFECT_LAYER_TYPES = [
   "ascii",
+  "pattern",
   "crt",
   "dithering",
   "halftone",

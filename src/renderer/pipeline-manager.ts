@@ -7,6 +7,7 @@ import { LivePass } from "@/renderer/live-pass"
 import { MediaPass } from "@/renderer/media-pass"
 import type { PassNode } from "@/renderer/pass-node"
 import { createPassNode } from "@/renderer/pass-node-factory"
+import { TextPass } from "@/renderer/text-pass"
 import type { EditorLayer, Size } from "@/types/editor"
 import { parameterValuesSignature } from "@/lib/editor/parameter-schema"
 
@@ -323,6 +324,10 @@ export class PipelineManager {
 
     if (layer.kind === "source" && layer.type === "gradient") {
       return new GradientPass(layer.id)
+    }
+
+    if (layer.kind === "source" && layer.type === "text") {
+      return new TextPass(layer.id)
     }
 
     if (layer.kind === "source" && layer.type === "custom-shader") {

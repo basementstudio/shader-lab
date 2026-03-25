@@ -1,16 +1,17 @@
 "use client"
 
 import {
-  Camera,
+  CameraIcon,
   DotsSixVerticalIcon,
   DotsThreeVerticalIcon,
-  Eye,
-  EyeSlash,
+  EyeIcon,
+  EyeSlashIcon,
   FolderIcon,
-  ImageSquare,
+  ImageSquareIcon,
   Plus,
   SidebarSimpleIcon,
-  Sparkle,
+  SparkleIcon,
+  TextTIcon,
 } from "@phosphor-icons/react"
 import {
   type ChangeEvent,
@@ -19,19 +20,15 @@ import {
   useRef,
   useState,
 } from "react"
-import type {
-  AssetKind,
-  EditorAsset,
-  EditorLayer,
-} from "@/types/editor"
-import { cn } from "@/lib/cn"
 import { GlassPanel } from "@/components/ui/glass-panel"
 import { IconButton } from "@/components/ui/icon-button"
 import { Select } from "@/components/ui/select"
 import { Typography } from "@/components/ui/typography"
+import { cn } from "@/lib/cn"
 import { useAssetStore } from "@/store/asset-store"
 import { useEditorStore } from "@/store/editor-store"
 import { useLayerStore } from "@/store/layer-store"
+import type { AssetKind, EditorAsset, EditorLayer } from "@/types/editor"
 
 type AddLayerAction =
   | "ascii"
@@ -40,9 +37,11 @@ type AddLayerAction =
   | "custom-shader"
   | "dithering"
   | "gradient"
+  | "ink"
   | "halftone"
   | "image"
   | "live"
+  | "text"
   | "particle-grid"
   | "pixel-sorting"
   | "video"
@@ -56,7 +55,7 @@ const addLayerOptions = [
   {
     label: (
       <span className={menuButtonClassName}>
-        <ImageSquare size={14} weight="regular" />
+        <ImageSquareIcon size={14} weight="regular" />
         Image
       </span>
     ),
@@ -65,7 +64,7 @@ const addLayerOptions = [
   {
     label: (
       <span className={menuButtonClassName}>
-        <ImageSquare size={14} weight="regular" />
+        <ImageSquareIcon size={14} weight="regular" />
         Video
       </span>
     ),
@@ -74,8 +73,8 @@ const addLayerOptions = [
   {
     label: (
       <span className={menuButtonClassName}>
-        <Camera size={14} weight="regular" />
-        Live Camera
+        <CameraIcon size={14} weight="regular" />
+        Live CameraIcon
       </span>
     ),
     value: "live",
@@ -83,7 +82,16 @@ const addLayerOptions = [
   {
     label: (
       <span className={menuButtonClassName}>
-        <Sparkle size={14} weight="regular" />
+        <TextTIcon size={14} weight="regular" />
+        Text
+      </span>
+    ),
+    value: "text",
+  },
+  {
+    label: (
+      <span className={menuButtonClassName}>
+        <SparkleIcon size={14} weight="regular" />
         Mesh Gradient
       </span>
     ),
@@ -92,7 +100,16 @@ const addLayerOptions = [
   {
     label: (
       <span className={menuButtonClassName}>
-        <Sparkle size={14} weight="regular" />
+        <SparkleIcon size={14} weight="regular" />
+        Ink
+      </span>
+    ),
+    value: "ink",
+  },
+  {
+    label: (
+      <span className={menuButtonClassName}>
+        <SparkleIcon size={14} weight="regular" />
         Custom Shader
       </span>
     ),
@@ -101,7 +118,7 @@ const addLayerOptions = [
   {
     label: (
       <span className={menuButtonClassName}>
-        <Sparkle size={14} weight="regular" />
+        <SparkleIcon size={14} weight="regular" />
         ASCII
       </span>
     ),
@@ -110,7 +127,7 @@ const addLayerOptions = [
   {
     label: (
       <span className={menuButtonClassName}>
-        <Sparkle size={14} weight="regular" />
+        <SparkleIcon size={14} weight="regular" />
         Pattern
       </span>
     ),
@@ -119,7 +136,7 @@ const addLayerOptions = [
   {
     label: (
       <span className={menuButtonClassName}>
-        <Sparkle size={14} weight="regular" />
+        <SparkleIcon size={14} weight="regular" />
         CRT
       </span>
     ),
@@ -128,7 +145,7 @@ const addLayerOptions = [
   {
     label: (
       <span className={menuButtonClassName}>
-        <Sparkle size={14} weight="regular" />
+        <SparkleIcon size={14} weight="regular" />
         Dithering
       </span>
     ),
@@ -137,7 +154,7 @@ const addLayerOptions = [
   {
     label: (
       <span className={menuButtonClassName}>
-        <Sparkle size={14} weight="regular" />
+        <SparkleIcon size={14} weight="regular" />
         Halftone
       </span>
     ),
@@ -146,7 +163,7 @@ const addLayerOptions = [
   {
     label: (
       <span className={menuButtonClassName}>
-        <Sparkle size={14} weight="regular" />
+        <SparkleIcon size={14} weight="regular" />
         Particle Grid
       </span>
     ),
@@ -155,7 +172,7 @@ const addLayerOptions = [
   {
     label: (
       <span className={menuButtonClassName}>
-        <Sparkle size={14} weight="regular" />
+        <SparkleIcon size={14} weight="regular" />
         Pixel Sorting
       </span>
     ),
@@ -191,6 +208,13 @@ function getLayerSecondaryText(
     )
   }
 
+  if (layer.type === "text") {
+    return (
+      (typeof layer.params.text === "string" && layer.params.text.trim()) ||
+      "text"
+    )
+  }
+
   return layer.type.replaceAll("-", " ")
 }
 
@@ -199,10 +223,7 @@ function getThumbnailClassName(
   asset: EditorAsset | null
 ): string {
   if (asset?.kind === "image" || asset?.kind === "video") {
-    return cn(
-      thumbnailBaseClassName,
-      "bg-cover bg-center"
-    )
+    return cn(thumbnailBaseClassName, "bg-cover bg-center")
   }
 
   if (layer.type === "model") {
@@ -350,6 +371,10 @@ export function LayerSidebar() {
       addLayer("live")
     } else if (action === "gradient") {
       handleAddGradient()
+    } else if (action === "text") {
+      addLayer("text")
+    } else if (action === "ink") {
+      addLayer("ink")
     } else if (action === "custom-shader") {
       handleAddCustomShader()
     } else if (action === "ascii") {
@@ -565,10 +590,13 @@ export function LayerSidebar() {
               <li
                 className={cn(
                   "grid min-h-11 grid-cols-[minmax(0,1fr)_28px_28px] items-center gap-[var(--ds-space-2)] rounded-[var(--ds-radius-control)] border border-transparent px-2 py-[6px] transition-[background-color,border-color,transform] duration-160 ease-[var(--ease-out-cubic)]",
-                  !layer.locked && "cursor-pointer hover:bg-[var(--ds-color-surface-subtle)] hover:border-[var(--ds-border-subtle)]",
-                  isSelected && "bg-[var(--ds-color-surface-active)] border-[var(--ds-border-active)]",
+                  !layer.locked &&
+                    "cursor-pointer hover:bg-[var(--ds-color-surface-subtle)] hover:border-[var(--ds-border-subtle)]",
+                  isSelected &&
+                    "bg-[var(--ds-color-surface-active)] border-[var(--ds-border-active)]",
                   isDragging && "opacity-55",
-                  isDropTarget && "border-[var(--ds-border-hover)] shadow-[inset_0_0_0_1px_rgb(255_255_255_/_0.03)]"
+                  isDropTarget &&
+                    "border-[var(--ds-border-hover)] shadow-[inset_0_0_0_1px_rgb(255_255_255_/_0.03)]"
                 )}
                 draggable={!layer.locked}
                 key={layer.id}
@@ -672,9 +700,9 @@ export function LayerSidebar() {
                     variant="ghost"
                   >
                     {layer.visible ? (
-                      <Eye size={14} weight="regular" />
+                      <EyeIcon size={14} weight="regular" />
                     ) : (
-                      <EyeSlash size={14} weight="regular" />
+                      <EyeSlashIcon size={14} weight="regular" />
                     )}
                   </IconButton>
                 )}

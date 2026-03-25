@@ -11,6 +11,7 @@ import {
   PlusIcon,
   SidebarSimpleIcon,
   SparkleIcon,
+  TextTIcon,
 } from "@phosphor-icons/react"
 import { Reorder, useDragControls } from "motion/react"
 import {
@@ -39,9 +40,12 @@ type AddLayerAction =
   | "gradient"
   | "halftone"
   | "image"
+  | "ink"
   | "live"
   | "particle-grid"
+  | "pattern"
   | "pixel-sorting"
+  | "text"
   | "video"
 type LayerAction = "delete" | "reset"
 
@@ -80,11 +84,29 @@ const addLayerOptions = [
   {
     label: (
       <span className={menuButtonClassName}>
+        <TextTIcon size={14} weight="regular" />
+        Text
+      </span>
+    ),
+    value: "text",
+  },
+  {
+    label: (
+      <span className={menuButtonClassName}>
         <SparkleIcon size={14} weight="regular" />
         Mesh Gradient
       </span>
     ),
     value: "gradient",
+  },
+  {
+    label: (
+      <span className={menuButtonClassName}>
+        <SparkleIcon size={14} weight="regular" />
+        Ink
+      </span>
+    ),
+    value: "ink",
   },
   {
     label: (
@@ -103,6 +125,15 @@ const addLayerOptions = [
       </span>
     ),
     value: "ascii",
+  },
+  {
+    label: (
+      <span className={menuButtonClassName}>
+        <SparkleIcon size={14} weight="regular" />
+        Pattern
+      </span>
+    ),
+    value: "pattern",
   },
   {
     label: (
@@ -176,6 +207,13 @@ function getLayerSecondaryText(
       (typeof layer.params.sourceFileName === "string" &&
         layer.params.sourceFileName) ||
       "custom shader"
+    )
+  }
+
+  if (layer.type === "text") {
+    return (
+      (typeof layer.params.text === "string" && layer.params.text.trim()) ||
+      "text"
     )
   }
 
@@ -477,12 +515,18 @@ export function LayerSidebar() {
       handleVideoPick()
     } else if (action === "live") {
       addLayer("live")
+    } else if (action === "text") {
+      addLayer("text")
     } else if (action === "gradient") {
       handleAddGradient()
+    } else if (action === "ink") {
+      addLayer("ink")
     } else if (action === "custom-shader") {
       handleAddCustomShader()
     } else if (action === "ascii") {
       handleAddAscii()
+    } else if (action === "pattern") {
+      addLayer("pattern")
     } else if (action === "crt") {
       addLayer("crt")
     } else if (action === "halftone") {

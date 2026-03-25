@@ -8,9 +8,9 @@ import {
   EyeSlashIcon,
   FolderIcon,
   ImageSquareIcon,
-  Plus,
+  PlusIcon,
   SidebarSimpleIcon,
-  Sparkle,
+  SparkleIcon,
 } from "@phosphor-icons/react"
 import { Reorder, useDragControls } from "motion/react"
 import {
@@ -80,7 +80,7 @@ const addLayerOptions = [
   {
     label: (
       <span className={menuButtonClassName}>
-        <Sparkle size={14} weight="regular" />
+        <SparkleIcon size={14} weight="regular" />
         Mesh Gradient
       </span>
     ),
@@ -89,7 +89,7 @@ const addLayerOptions = [
   {
     label: (
       <span className={menuButtonClassName}>
-        <Sparkle size={14} weight="regular" />
+        <SparkleIcon size={14} weight="regular" />
         Custom Shader
       </span>
     ),
@@ -98,7 +98,7 @@ const addLayerOptions = [
   {
     label: (
       <span className={menuButtonClassName}>
-        <Sparkle size={14} weight="regular" />
+        <SparkleIcon size={14} weight="regular" />
         ASCII
       </span>
     ),
@@ -107,7 +107,7 @@ const addLayerOptions = [
   {
     label: (
       <span className={menuButtonClassName}>
-        <Sparkle size={14} weight="regular" />
+        <SparkleIcon size={14} weight="regular" />
         CRT
       </span>
     ),
@@ -116,7 +116,7 @@ const addLayerOptions = [
   {
     label: (
       <span className={menuButtonClassName}>
-        <Sparkle size={14} weight="regular" />
+        <SparkleIcon size={14} weight="regular" />
         Dithering
       </span>
     ),
@@ -125,7 +125,7 @@ const addLayerOptions = [
   {
     label: (
       <span className={menuButtonClassName}>
-        <Sparkle size={14} weight="regular" />
+        <SparkleIcon size={14} weight="regular" />
         Halftone
       </span>
     ),
@@ -134,7 +134,7 @@ const addLayerOptions = [
   {
     label: (
       <span className={menuButtonClassName}>
-        <Sparkle size={14} weight="regular" />
+        <SparkleIcon size={14} weight="regular" />
         Particle Grid
       </span>
     ),
@@ -143,7 +143,7 @@ const addLayerOptions = [
   {
     label: (
       <span className={menuButtonClassName}>
-        <Sparkle size={14} weight="regular" />
+        <SparkleIcon size={14} weight="regular" />
         Pixel Sorting
       </span>
     ),
@@ -650,7 +650,7 @@ export function LayerSidebar() {
               className="pointer-events-auto"
               onValueChange={(value) => handleAddLayer(value as AddLayerAction)}
               options={addLayerOptions}
-              placeholder={<Plus size={14} weight="bold" />}
+              placeholder={<PlusIcon size={14} weight="bold" />}
               popupClassName="min-w-[152px]"
               triggerAriaLabel="Add layer"
               triggerVariant="icon"

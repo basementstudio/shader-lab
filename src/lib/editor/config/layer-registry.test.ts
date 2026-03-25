@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test"
 import { isParamVisible } from "@/components/editor/properties-sidebar-utils"
 import { getLayerDefinition } from "@/lib/editor/config/layer-registry"
 import { buildParameterValues } from "@/lib/editor/parameter-schema"
+import { validateSvgBadgeSource } from "@/renderer/model-svg"
 import { PATTERN_PRESET_SOURCES } from "@/renderer/pattern-atlas"
 
 describe("CRT layer registry", () => {
@@ -134,10 +135,18 @@ describe("CRT layer registry", () => {
   it("provides pattern defaults and conditional field visibility", () => {
     const definition = getLayerDefinition("pattern")
     const params = buildParameterValues(definition.params)
-    const monoColor = definition.params.find((param) => param.key === "monoColor")
-    const bgOpacity = definition.params.find((param) => param.key === "bgOpacity")
-    const bloomEnabled = definition.params.find((param) => param.key === "bloomEnabled")
-    const bloomIntensity = definition.params.find((param) => param.key === "bloomIntensity")
+    const monoColor = definition.params.find(
+      (param) => param.key === "monoColor"
+    )
+    const bgOpacity = definition.params.find(
+      (param) => param.key === "bgOpacity"
+    )
+    const bloomEnabled = definition.params.find(
+      (param) => param.key === "bloomEnabled"
+    )
+    const bloomIntensity = definition.params.find(
+      (param) => param.key === "bloomIntensity"
+    )
 
     expect(params.cellSize).toBe(12)
     expect(params.preset).toBe("bars")
@@ -161,35 +170,37 @@ describe("CRT layer registry", () => {
     const customColorCount = definition.params.find(
       (param) => param.key === "customColorCount"
     )
-    const customColor3 = definition.params.find((param) => param.key === "customColor3")
+    const customColor3 = definition.params.find(
+      (param) => param.key === "customColor3"
+    )
     expect(customColorCount).not.toBeUndefined()
     expect(customColor3).not.toBeUndefined()
-    expect(isParamVisible(monoColor!, params, [...definition.params])).toBe(false)
-    expect(isParamVisible(bgOpacity!, params, [...definition.params])).toBe(true)
-    expect(isParamVisible(bloomIntensity!, params, [...definition.params])).toBe(false)
+    expect(isParamVisible(monoColor!, params, [...definition.params])).toBe(
+      false
+    )
+    expect(isParamVisible(bgOpacity!, params, [...definition.params])).toBe(
+      true
+    )
+    expect(
+      isParamVisible(bloomIntensity!, params, [...definition.params])
+    ).toBe(false)
     expect(
       isParamVisible(customColorCount!, params, [...definition.params])
     ).toBe(false)
     expect(
-      isParamVisible(
-        monoColor!,
-        { ...params, colorMode: "monochrome" },
-        [...definition.params]
-      )
+      isParamVisible(monoColor!, { ...params, colorMode: "monochrome" }, [
+        ...definition.params,
+      ])
     ).toBe(true)
     expect(
-      isParamVisible(
-        bgOpacity!,
-        { ...params, colorMode: "quantized" },
-        [...definition.params]
-      )
+      isParamVisible(bgOpacity!, { ...params, colorMode: "quantized" }, [
+        ...definition.params,
+      ])
     ).toBe(false)
     expect(
-      isParamVisible(
-        customColorCount!,
-        { ...params, colorMode: "custom" },
-        [...definition.params]
-      )
+      isParamVisible(customColorCount!, { ...params, colorMode: "custom" }, [
+        ...definition.params,
+      ])
     ).toBe(true)
     expect(
       isParamVisible(
@@ -206,11 +217,9 @@ describe("CRT layer registry", () => {
       )
     ).toBe(false)
     expect(
-      isParamVisible(
-        bloomIntensity!,
-        { ...params, bloomEnabled: true },
-        [...definition.params]
-      )
+      isParamVisible(bloomIntensity!, { ...params, bloomEnabled: true }, [
+        ...definition.params,
+      ])
     ).toBe(true)
   })
 
@@ -250,6 +259,72 @@ describe("CRT layer registry", () => {
     expect(params.letterSpacing).toBe(-0.05)
     expect(params.textColor).toBe("#ffffff")
     expect(params.backgroundColor).toBe("#000000")
+  })
+
+  it("provides model layer defaults and hides internal SVG source fields", () => {
+    const definition = getLayerDefinition("model")
+    const params = buildParameterValues(definition.params)
+    const svgSource = definition.params.find(
+      (param) => param.key === "svgSource"
+    )
+    const badgeThickness = definition.params.find(
+      (param) => param.key === "badgeThickness"
+    )
+    const backgroundColor = definition.params.find(
+      (param) => param.key === "backgroundColor"
+    )
+
+    expect(params.geometrySource).toBe("model")
+    expect(params.animationNames).toBe("[]")
+    expect(params.animationPlaying).toBe(true)
+    expect(params.animationLoop).toBe(true)
+    expect(params.animationSpeed).toBe(1)
+    expect(params.backgroundMode).toBe("transparent")
+    expect(params.environment).toBe("studio")
+    expect(params.materialMode).toBe("custom")
+    expect(params.materialPreset).toBe("metal")
+    expect(params.materialColor).toBe("#c9a24f")
+    expect(params.badgeThickness).toBe(0.18)
+    expect(svgSource).not.toBeUndefined()
+    expect(badgeThickness).not.toBeUndefined()
+    expect(backgroundColor).not.toBeUndefined()
+    expect(isParamVisible(svgSource!, params, [...definition.params])).toBe(
+      false
+    )
+    expect(
+      isParamVisible(backgroundColor!, params, [...definition.params])
+    ).toBe(false)
+    expect(
+      isParamVisible(badgeThickness!, params, [...definition.params])
+    ).toBe(false)
+    expect(
+      isParamVisible(
+        badgeThickness!,
+        { ...params, geometrySource: "svg-badge" },
+        [...definition.params]
+      )
+    ).toBe(true)
+    expect(
+      isParamVisible(backgroundColor!, { ...params, backgroundMode: "solid" }, [
+        ...definition.params,
+      ])
+    ).toBe(true)
+  })
+
+  it("accepts a simple single-path SVG badge source", () => {
+    expect(() =>
+      validateSvgBadgeSource(
+        `<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><path fill="#000" d="M32 6L56 32L32 58L8 32Z"/></svg>`
+      )
+    ).not.toThrow()
+  })
+
+  it("rejects complex multi-path SVG badge input", () => {
+    expect(() =>
+      validateSvgBadgeSource(
+        `<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><path fill="#000" d="M8 8H28V28H8Z"/><path fill="#000" d="M36 36H56V56H36Z"/></svg>`
+      )
+    ).toThrow("SVG badge v1 supports a single filled shape.")
   })
 
   it("provides ink effect defaults", () => {

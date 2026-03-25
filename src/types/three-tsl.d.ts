@@ -53,8 +53,12 @@ declare module "three/tsl" {
     www: TSLNode
     wyz: TSLNode
 
+    abs(): TSLNode
     add(value: unknown): TSLNode
     addAssign(value: unknown): TSLNode
+    cross(value: unknown): TSLNode
+    dFdx(): TSLNode
+    dFdy(): TSLNode
     and(value: unknown): TSLNode
     or(value: unknown): TSLNode
     assign(value: unknown): TSLNode
@@ -77,8 +81,16 @@ declare module "three/tsl" {
   }
 
   export function attribute(name: string, type: string): TSLNode
+  export const faceDirection: TSLNode
+  export const normalGeometry: TSLNode
+  export const normalLocal: TSLNode
+  export const normalView: TSLNode
+  export const normalWorld: TSLNode
   export const pointUV: TSLNode
   export const positionLocal: TSLNode
+  export const positionView: TSLNode
+  export const positionViewDirection: TSLNode
+  export const transformedNormalView: TSLNode
 
   export const EPSILON: TSLNode
   export const PI: TSLNode
@@ -115,7 +127,10 @@ declare module "three/tsl" {
   export function mix(left: unknown, right: unknown, factor: unknown): TSLNode
   export function mod(left: unknown, right: unknown): TSLNode
   export function mul(left: unknown, right: unknown): TSLNode
+  export function normalize(value: unknown): TSLNode
+  export function oneMinus(value: unknown): TSLNode
   export const screenSize: TSLNode
+  export function saturate(value: unknown): TSLNode
   export function select(
     condition: unknown,
     whenTrue: unknown,
@@ -130,6 +145,7 @@ declare module "three/tsl" {
   ): TSLNode
   export function sqrt(value: unknown): TSLNode
   export function pow(base: unknown, exponent: unknown): TSLNode
+  export function reflect(incident: unknown, normal: unknown): TSLNode
   export function step(edge: unknown, value: unknown): TSLNode
   export function sub(left: unknown, right: unknown): TSLNode
   export function texture(value: unknown, uv?: unknown): TSLNode

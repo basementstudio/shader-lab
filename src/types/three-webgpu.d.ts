@@ -4,6 +4,7 @@ declare module "three/webgpu" {
   import type {
     Camera,
     ColorRepresentation,
+    Color,
     Material,
     Scene,
     TypedArray,
@@ -14,6 +15,50 @@ declare module "three/webgpu" {
 
   export class MeshBasicNodeMaterial extends Material {
     colorNode: TSLNode | null
+    opacityNode: TSLNode | null
+    positionNode: TSLNode | null
+  }
+
+  export class MeshStandardNodeMaterial extends Material {
+    color: Color
+    colorNode: TSLNode | null
+    envMapIntensity: number
+    metalness: number
+    metalnessNode: TSLNode | null
+    normalNode: TSLNode | null
+    opacityNode: TSLNode | null
+    positionNode: TSLNode | null
+    roughness: number
+    roughnessNode: TSLNode | null
+  }
+
+  export class MeshPhysicalNodeMaterial extends MeshStandardNodeMaterial {
+    anisotropyNode: TSLNode | null
+    clearcoatNode: TSLNode | null
+    clearcoatRoughness: number
+    clearcoatRoughnessNode: TSLNode | null
+    emissiveNode: TSLNode | null
+    specularColor: Color
+    specularColorNode: TSLNode | null
+    specularIntensity: number
+    specularIntensityNode: TSLNode | null
+  }
+
+  export class MeshPhongNodeMaterial extends Material {
+    color: Color
+    colorNode: TSLNode | null
+    normalNode: TSLNode | null
+    opacityNode: TSLNode | null
+    positionNode: TSLNode | null
+    shininess: number
+    shininessNode: TSLNode | null
+    specularNode: TSLNode | null
+  }
+
+  export class MeshToonNodeMaterial extends Material {
+    color: Color
+    colorNode: TSLNode | null
+    normalNode: TSLNode | null
     opacityNode: TSLNode | null
     positionNode: TSLNode | null
   }
@@ -48,4 +93,6 @@ declare module "three/webgpu" {
     setRenderTarget(target: WebGLRenderTarget | null): void
     setSize(width: number, height: number, updateStyle?: boolean): void
   }
+
+  export { PMREMGenerator } from "three"
 }

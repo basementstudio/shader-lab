@@ -25,6 +25,7 @@ import {
   toNumberValue,
   toTextValue,
   toVec2Value,
+  toVec3Value,
 } from "./properties-sidebar-utils"
 
 export type TimelineKeyframeControl = {
@@ -382,6 +383,50 @@ export function ParameterField({
           />
         </label>
       )
+
+    case "vec3": {
+      const [x, y, z] = toVec3Value(value)
+      const values = [x, y, z] as const
+
+      return (
+        <div className="flex flex-col gap-2">
+          {renderFieldLabelStack(
+            fieldLabel,
+            definition.description,
+            timelineControl
+          )}
+          <div className="flex flex-col gap-2">
+            {(["X", "Y", "Z"] as const).map((axis, index) => {
+              const axisValue = values[index]
+
+              return (
+                <Slider
+                  key={axis}
+                  label={axis}
+                  max={definition.max ?? 1}
+                  min={definition.min ?? -1}
+                  onValueChange={(nextAxis) => {
+                    const current = [x, y, z]
+                    current[index] = nextAxis
+                    onChange(
+                      layerId,
+                      definition.key,
+                      current as [number, number, number]
+                    )
+                  }}
+                  step={definition.step ?? 0.01}
+                  value={axisValue}
+                  valueFormatOptions={{
+                    maximumFractionDigits: 2,
+                    minimumFractionDigits: 0,
+                  }}
+                />
+              )
+            })}
+          </div>
+        </div>
+      )
+    }
 
     default:
       return null

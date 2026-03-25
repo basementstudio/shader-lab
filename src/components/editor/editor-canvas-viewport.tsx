@@ -2,13 +2,20 @@
 
 import { useEffect } from "react"
 import { useEditorRenderer } from "@/hooks/use-editor-renderer"
+import {
+  applyZoomAtPoint,
+  clampZoom,
+  getWheelZoomFactor,
+} from "@/lib/editor/view-transform"
 import { useEditorStore } from "@/store/editor-store"
-import { applyZoomAtPoint, clampZoom, getWheelZoomFactor } from "@/lib/editor/view-transform"
 
 export function EditorCanvasViewport() {
-  const { canvasRef, fallbackMessage, isReady, viewportRef } = useEditorRenderer()
+  const { canvasRef, fallbackMessage, isReady, viewportRef } =
+    useEditorRenderer()
   const immersiveCanvas = useEditorStore((state) => state.immersiveCanvas)
-  const exitImmersiveCanvas = useEditorStore((state) => state.exitImmersiveCanvas)
+  const exitImmersiveCanvas = useEditorStore(
+    (state) => state.exitImmersiveCanvas
+  )
   const panOffset = useEditorStore((state) => state.panOffset)
   const webgpuStatus = useEditorStore((state) => state.webgpuStatus)
   const zoom = useEditorStore((state) => state.zoom)
@@ -55,7 +62,12 @@ export function EditorCanvasViewport() {
         y: event.clientY - rect.top - rect.height / 2,
       }
       const nextZoom = clampZoom(state.zoom * getWheelZoomFactor(event.deltaY))
-      const nextState = applyZoomAtPoint(state.zoom, state.panOffset, pointer, nextZoom)
+      const nextState = applyZoomAtPoint(
+        state.zoom,
+        state.panOffset,
+        pointer,
+        nextZoom
+      )
 
       state.setZoom(nextState.zoom)
       state.setPan(nextState.panOffset.x, nextState.panOffset.y)
@@ -71,10 +83,18 @@ export function EditorCanvasViewport() {
   return (
     <>
       <div ref={viewportRef} className="absolute inset-0 overflow-hidden">
-        <div className="absolute inset-0" style={{ transform: `translate3d(${panOffset.x}px, ${panOffset.y}px, 0)` }}>
+        <div
+          className="absolute inset-0"
+          style={{
+            transform: `translate3d(${panOffset.x}px, ${panOffset.y}px, 0)`,
+          }}
+        >
           <div
             className="absolute inset-0"
-            style={{ transform: `scale(${zoom})`, transformOrigin: "center center" }}
+            style={{
+              transform: `scale(${zoom})`,
+              transformOrigin: "center center",
+            }}
           >
             <canvas
               data-editor-canvas="true"

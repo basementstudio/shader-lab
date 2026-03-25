@@ -315,8 +315,14 @@ export function PropertiesSidebar() {
         layerRuntimeError: selectedLayer.runtimeError,
         layerSubtitle:
           selectedAsset?.fileName ??
+          (selectedLayer.type === "model" &&
+          typeof selectedLayer.params.svgFileName === "string" &&
+          selectedLayer.params.svgFileName
+            ? selectedLayer.params.svgFileName
+            : null) ??
           (selectedLayer.type === "custom-shader" &&
-          typeof selectedLayer.params.sourceFileName === "string"
+          typeof selectedLayer.params.sourceFileName === "string" &&
+          selectedLayer.params.sourceFileName
             ? selectedLayer.params.sourceFileName
             : ""),
         layerType: selectedLayer.type,

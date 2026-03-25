@@ -60,7 +60,7 @@ export class PassNode {
     inputTexture: THREE.Texture,
     outputTarget: THREE.WebGLRenderTarget,
     time: number,
-    delta: number,
+    delta: number
   ): void {
     this.inputNode.value = inputTexture
     this.beforeRender(time, delta)
@@ -145,65 +145,101 @@ export class PassNode {
       this.inputNode,
       adjustedEffectNode,
       this.opacityUniform,
-      this.compositeMode,
+      this.compositeMode
     ) as Node
   }
 
   private applySharedColorAdjustments(sourceNode: Node): Node {
+    if (!sourceNode) {
+      return vec4(vec3(float(0), float(0), float(0)), float(0))
+    }
+
     const sourceColor = vec3(
       float(sourceNode.r),
       float(sourceNode.g),
-      float(sourceNode.b),
+      float(sourceNode.b)
     )
     const luma = float(sourceColor.x)
       .mul(float(0.2126))
       .add(float(sourceColor.y).mul(float(0.7152)))
       .add(float(sourceColor.z).mul(float(0.0722)))
-    const saturated = mix(vec3(luma, luma, luma), sourceColor, this.saturationUniform)
+    const saturated = mix(
+      vec3(luma, luma, luma),
+      sourceColor,
+      this.saturationUniform
+    )
     const hueCos = float(cos(this.hueUniform))
     const hueSin = float(sin(this.hueUniform))
     const rotated = vec3(
       float(saturated.x)
-        .mul(float(0.213).add(hueCos.mul(float(0.787))).sub(hueSin.mul(float(0.213))))
+        .mul(
+          float(0.213)
+            .add(hueCos.mul(float(0.787)))
+            .sub(hueSin.mul(float(0.213)))
+        )
         .add(
           float(saturated.y).mul(
-            float(0.715).sub(hueCos.mul(float(0.715))).sub(hueSin.mul(float(0.715))),
-          ),
+            float(0.715)
+              .sub(hueCos.mul(float(0.715)))
+              .sub(hueSin.mul(float(0.715)))
+          )
         )
         .add(
           float(saturated.z).mul(
-            float(0.072).sub(hueCos.mul(float(0.072))).add(hueSin.mul(float(0.928))),
-          ),
+            float(0.072)
+              .sub(hueCos.mul(float(0.072)))
+              .add(hueSin.mul(float(0.928)))
+          )
         ),
       float(saturated.x)
-        .mul(float(0.213).sub(hueCos.mul(float(0.213))).add(hueSin.mul(float(0.143))))
+        .mul(
+          float(0.213)
+            .sub(hueCos.mul(float(0.213)))
+            .add(hueSin.mul(float(0.143)))
+        )
         .add(
           float(saturated.y).mul(
-            float(0.715).add(hueCos.mul(float(0.285))).add(hueSin.mul(float(0.14))),
-          ),
+            float(0.715)
+              .add(hueCos.mul(float(0.285)))
+              .add(hueSin.mul(float(0.14)))
+          )
         )
         .add(
           float(saturated.z).mul(
-            float(0.072).sub(hueCos.mul(float(0.072))).sub(hueSin.mul(float(0.283))),
-          ),
+            float(0.072)
+              .sub(hueCos.mul(float(0.072)))
+              .sub(hueSin.mul(float(0.283)))
+          )
         ),
       float(saturated.x)
-        .mul(float(0.213).sub(hueCos.mul(float(0.213))).sub(hueSin.mul(float(0.787))))
+        .mul(
+          float(0.213)
+            .sub(hueCos.mul(float(0.213)))
+            .sub(hueSin.mul(float(0.787)))
+        )
         .add(
           float(saturated.y).mul(
-            float(0.715).sub(hueCos.mul(float(0.715))).add(hueSin.mul(float(0.715))),
-          ),
+            float(0.715)
+              .sub(hueCos.mul(float(0.715)))
+              .add(hueSin.mul(float(0.715)))
+          )
         )
         .add(
           float(saturated.z).mul(
-            float(0.072).add(hueCos.mul(float(0.928))).add(hueSin.mul(float(0.072))),
-          ),
-        ),
+            float(0.072)
+              .add(hueCos.mul(float(0.928)))
+              .add(hueSin.mul(float(0.072)))
+          )
+        )
     )
 
     return vec4(
-      clamp(rotated, vec3(float(0), float(0), float(0)), vec3(float(1), float(1), float(1))),
-      float(1),
+      clamp(
+        rotated,
+        vec3(float(0), float(0), float(0)),
+        vec3(float(1), float(1), float(1))
+      ),
+      float(sourceNode.a)
     )
   }
 }

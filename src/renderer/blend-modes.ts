@@ -30,7 +30,7 @@ function screen(base: Node, blend: Node): Node {
 function overlay(base: Node, blend: Node): Node {
   const dark = float(2).mul(base).mul(blend)
   const light = float(1).sub(
-    float(2).mul(float(1).sub(base)).mul(float(1).sub(blend)),
+    float(2).mul(float(1).sub(base)).mul(float(1).sub(blend))
   )
 
   return select(base.lessThan(float(0.5)), dark, light)
@@ -45,14 +45,22 @@ function lighten(base: Node, blend: Node): Node {
 }
 
 function colorDodge(base: Node, blend: Node): Node {
-  return clamp(base.div(max(float(1).sub(blend), float(1e-6))), vec3(0), vec3(1))
+  return clamp(
+    base.div(max(float(1).sub(blend), float(1e-6))),
+    vec3(0),
+    vec3(1)
+  )
 }
 
 function colorBurn(base: Node, blend: Node): Node {
   return clamp(
-    float(1).sub(float(1).sub(base).div(max(blend, float(1e-6)))),
+    float(1).sub(
+      float(1)
+        .sub(base)
+        .div(max(blend, float(1e-6)))
+    ),
     vec3(0),
-    vec3(1),
+    vec3(1)
   )
 }
 
@@ -62,10 +70,15 @@ function hardLight(base: Node, blend: Node): Node {
 
 function softLight(base: Node, blend: Node): Node {
   const darkResult = base.sub(
-    float(1).sub(float(2).mul(blend)).mul(base).mul(float(1).sub(base)),
+    float(1).sub(float(2).mul(blend)).mul(base).mul(float(1).sub(base))
   )
   const twoBlendMinusOne = float(2).mul(blend).sub(float(1))
-  const dLow = float(16).mul(base).sub(float(12)).mul(base).add(float(4)).mul(base)
+  const dLow = float(16)
+    .mul(base)
+    .sub(float(12))
+    .mul(base)
+    .add(float(4))
+    .mul(base)
   const dHigh = sqrt(base)
   const d = select(base.lessThanEqual(float(0.25)), dLow, dHigh)
   const lightResult = base.add(twoBlendMinusOne.mul(d.sub(base)))
@@ -97,7 +110,11 @@ function clipColor(color: Node): Node {
   const excess = maxAfterLow.sub(float(1))
   const highClipped = lowAdjusted
     .sub(luma)
-    .mul(float(1).sub(luma).div(max(excess, float(1e-6))))
+    .mul(
+      float(1)
+        .sub(luma)
+        .div(max(excess, float(1e-6)))
+    )
     .add(luma)
 
   return select(maxAfterLow.greaterThan(float(1)), highClipped, lowAdjusted)
@@ -108,7 +125,9 @@ function setLum(color: Node, nextLum: Node): Node {
 }
 
 function sat(color: Node): Node {
-  return max(color.x, max(color.y, color.z)).sub(min(color.x, min(color.y, color.z)))
+  return max(color.x, max(color.y, color.z)).sub(
+    min(color.x, min(color.y, color.z))
+  )
 }
 
 function setSat(color: Node, nextSat: Node): Node {
@@ -118,21 +137,37 @@ function setSat(color: Node, nextSat: Node): Node {
   const colorMin = min(red, min(green, blue))
   const colorMax = max(red, max(green, blue))
   const delta = colorMax.sub(colorMin)
-  const scale = select(delta.greaterThan(float(0)), nextSat.div(delta), float(0))
+  const scale = select(
+    delta.greaterThan(float(0)),
+    nextSat.div(delta),
+    float(0)
+  )
   const redOut = select(
     red.lessThanEqual(colorMin),
     float(0),
-    select(red.greaterThanEqual(colorMax), nextSat, red.sub(colorMin).mul(scale)),
+    select(
+      red.greaterThanEqual(colorMax),
+      nextSat,
+      red.sub(colorMin).mul(scale)
+    )
   )
   const greenOut = select(
     green.lessThanEqual(colorMin),
     float(0),
-    select(green.greaterThanEqual(colorMax), nextSat, green.sub(colorMin).mul(scale)),
+    select(
+      green.greaterThanEqual(colorMax),
+      nextSat,
+      green.sub(colorMin).mul(scale)
+    )
   )
   const blueOut = select(
     blue.lessThanEqual(colorMin),
     float(0),
-    select(blue.greaterThanEqual(colorMax), nextSat, blue.sub(colorMin).mul(scale)),
+    select(
+      blue.greaterThanEqual(colorMax),
+      nextSat,
+      blue.sub(colorMin).mul(scale)
+    )
   )
 
   return vec3(redOut, greenOut, blueOut)
@@ -159,11 +194,14 @@ export function buildBlendNode(
   base: Node,
   blend: Node,
   opacity: Node,
-  compositeMode: "filter" | "mask" = "filter",
+  compositeMode: "filter" | "mask" = "filter"
 ): Node {
   const baseRgb = base.rgb
   const blendRgb = blend.rgb
   const normalizedOpacity = float(clamp(opacity, float(0), float(1)))
+  const effectiveOpacity = normalizedOpacity.mul(
+    clamp(blend.a, float(0), float(1))
+  )
 
   let composited: Node
 
@@ -219,11 +257,15 @@ export function buildBlendNode(
   }
 
   if (compositeMode === "filter") {
-    return vec4(mix(baseRgb, composited, normalizedOpacity), float(1))
+    return vec4(mix(baseRgb, composited, effectiveOpacity), float(1))
   }
 
   const maskLuma = float(dot(blendRgb, vec3(0.2126, 0.7152, 0.0722)))
-  const maskStrength = mix(float(1), clamp(maskLuma, float(0), float(1)), normalizedOpacity)
+  const maskStrength = mix(
+    float(1),
+    clamp(maskLuma, float(0), float(1)),
+    effectiveOpacity
+  )
 
   return vec4(baseRgb.mul(maskStrength), float(1))
 }

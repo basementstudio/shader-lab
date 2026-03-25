@@ -10,6 +10,7 @@ import {
   ImageSquareIcon,
   PlusIcon,
   SidebarSimpleIcon,
+  SphereIcon,
   SparkleIcon,
   TextTIcon,
 } from "@phosphor-icons/react"
@@ -42,6 +43,7 @@ type AddLayerAction =
   | "image"
   | "ink"
   | "live"
+  | "model"
   | "particle-grid"
   | "pattern"
   | "pixel-sorting"
@@ -76,7 +78,7 @@ const addLayerOptions = [
     label: (
       <span className={menuButtonClassName}>
         <CameraIcon size={14} weight="regular" />
-        Live CameraIcon
+        Live Camera
       </span>
     ),
     value: "live",
@@ -89,6 +91,15 @@ const addLayerOptions = [
       </span>
     ),
     value: "text",
+  },
+  {
+    label: (
+      <span className={menuButtonClassName}>
+        <SphereIcon size={14} weight="regular" />
+        3D Model
+      </span>
+    ),
+    value: "model",
   },
   {
     label: (
@@ -373,7 +384,13 @@ function LayerListItem({
                 ? { backgroundImage: `url("${asset.url}")` }
                 : undefined
             }
-          />
+          >
+            {layer.type === "model" ? (
+              <span className="absolute inset-0 inline-flex items-center justify-center text-[rgb(255_255_255_/_0.78)]">
+                <SphereIcon size={14} weight="fill" />
+              </span>
+            ) : null}
+          </div>
 
           <div className="flex min-w-0 flex-col gap-0.5">
             <Typography
@@ -517,6 +534,8 @@ export function LayerSidebar() {
       addLayer("live")
     } else if (action === "text") {
       addLayer("text")
+    } else if (action === "model") {
+      addLayer("model")
     } else if (action === "gradient") {
       handleAddGradient()
     } else if (action === "ink") {

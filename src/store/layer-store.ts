@@ -57,6 +57,29 @@ export interface LayerStoreActions {
 
 export type LayerStore = LayerStoreState & LayerStoreActions
 
+function getModelMaterialPresetDefaults(
+  preset: string
+): Record<string, ParameterValue> | null {
+  switch (preset) {
+    case "plastic":
+      return {
+        brilliance: 0.72,
+        materialColor: "#ff6f4d",
+        metalness: 0,
+        roughness: 0.18,
+      }
+    case "metal":
+      return {
+        brilliance: 1.0,
+        materialColor: "#c9a24f",
+        metalness: 1,
+        roughness: 0.04,
+      }
+    default:
+      return null
+  }
+}
+
 function getGradientNoiseDefaults(noiseType: string): {
   warpAmount: number
   warpScale: number
@@ -528,7 +551,22 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
   setLayerAsset: (id, assetId) => {
     set((state) => ({
       layers: state.layers.map((layer) =>
-        layer.id === id ? { ...layer, assetId, runtimeError: null } : layer
+        layer.id === id
+          ? {
+              ...layer,
+              assetId,
+              params:
+                layer.type === "model" &&
+                assetId &&
+                layer.params.geometrySource === "model"
+                  ? {
+                      ...layer.params,
+                      materialMode: "source",
+                    }
+                  : layer.params,
+              runtimeError: null,
+            }
+          : layer
       ),
     }))
   },
@@ -600,6 +638,18 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
 
           if (defaults) {
             Object.assign(nextParams, defaults)
+          }
+        }
+
+        if (
+          layer.type === "model" &&
+          key === "materialPreset" &&
+          typeof value === "string"
+        ) {
+          const presetDefaults = getModelMaterialPresetDefaults(value)
+
+          if (presetDefaults) {
+            Object.assign(nextParams, presetDefaults)
           }
         }
 

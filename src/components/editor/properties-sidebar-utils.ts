@@ -74,6 +74,12 @@ export function toVec2Value(value: ParameterValue): [number, number] {
     : [0, 0]
 }
 
+export function toVec3Value(value: ParameterValue): [number, number, number] {
+  return Array.isArray(value) && value.length === 3
+    ? [value[0] ?? 0, value[1] ?? 0, value[2] ?? 0]
+    : [0, 0, 0]
+}
+
 export function toNumberValue(value: ParameterValue, fallback = 0): number {
   return typeof value === "number" ? value : fallback
 }
@@ -125,7 +131,9 @@ export function isParamVisible(
   )
 }
 
-export function groupVisibleParams(params: ParameterDefinition[]): ParamGroup[] {
+export function groupVisibleParams(
+  params: ParameterDefinition[]
+): ParamGroup[] {
   const groups = new Map<string, ParamGroup>()
 
   for (const param of params) {

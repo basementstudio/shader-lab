@@ -5,13 +5,14 @@ import { CustomShaderPass } from "@/renderer/custom-shader-pass"
 import { GradientPass } from "@/renderer/gradient-pass"
 import { LivePass } from "@/renderer/live-pass"
 import { MediaPass } from "@/renderer/media-pass"
+import { ModelPass } from "@/renderer/model-pass"
 import type { PassNode } from "@/renderer/pass-node"
 import { createPassNode } from "@/renderer/pass-node-factory"
 import { TextPass } from "@/renderer/text-pass"
 import type { EditorLayer, Size } from "@/types/editor"
 import { parameterValuesSignature } from "@/lib/editor/parameter-schema"
 
-type LayerPassNode = LivePass | MediaPass | PassNode
+type LayerPassNode = LivePass | MediaPass | ModelPass | PassNode
 
 const RENDER_TARGET_OPTIONS = {
   depthBuffer: false,
@@ -308,6 +309,10 @@ export class PipelineManager {
           })
       }
     }
+
+    if (pass instanceof ModelPass) {
+      pass.setSourceAsset(renderableLayer.asset)
+    }
   }
 
   private createPass(layer: EditorLayer): LayerPassNode {
@@ -336,6 +341,10 @@ export class PipelineManager {
 
     if (layer.kind === "source" && layer.type === "live") {
       return new LivePass(layer.id)
+    }
+
+    if (layer.kind === "model" && layer.type === "model") {
+      return new ModelPass(layer.id)
     }
 
     throw new Error(`Unsupported layer type in current scope: ${layer.type}`)

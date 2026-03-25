@@ -2,9 +2,19 @@
 
 import { TextAlignRightIcon } from "@phosphor-icons/react"
 import { AnimatePresence, motion } from "motion/react"
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { Button } from "@/components/ui/button"
+import { IconButton } from "@/components/ui/icon-button"
+import { Select } from "@/components/ui/select"
+import { Slider } from "@/components/ui/slider"
+import { Toggle } from "@/components/ui/toggle"
+import { Typography } from "@/components/ui/typography"
+import { cn } from "@/lib/cn"
 import { CUSTOM_SHADER_ENTRY_EXPORT } from "@/lib/editor/custom-shader/shared"
 import { formatCustomShaderSource } from "@/renderer/custom-shader-runtime"
+import { useAssetStore } from "@/store/asset-store"
+import { useLayerStore } from "@/store/layer-store"
+import { useTimelineStore } from "@/store/timeline-store"
 import type {
   AnimatedPropertyBinding,
   BlendMode,
@@ -13,13 +23,6 @@ import type {
   ParameterDefinition,
   ParameterValue,
 } from "@/types/editor"
-import { cn } from "@/lib/cn"
-import { Button } from "@/components/ui/button"
-import { IconButton } from "@/components/ui/icon-button"
-import { Select } from "@/components/ui/select"
-import { Slider } from "@/components/ui/slider"
-import { Typography } from "@/components/ui/typography"
-import { useTimelineStore } from "@/store/timeline-store"
 import {
   ParameterField,
   renderFieldLabel,
@@ -105,11 +108,7 @@ function CustomShaderSection({
 
   return (
     <section className="flex flex-col gap-3 border-t border-[var(--ds-border-divider)] px-4 pt-[14px] pb-4 first:border-t-0">
-      <Typography
-        className="uppercase"
-        tone="secondary"
-        variant="overline"
-      >
+      <Typography className="uppercase" tone="secondary" variant="overline">
         Shader
       </Typography>
 
@@ -197,6 +196,289 @@ function CustomShaderSection({
   )
 }
 
+function ModelLayerSection({
+  layerId,
+  updateLayerParam,
+  values,
+}: {
+  layerId: string
+  updateLayerParam: (id: string, key: string, value: ParameterValue) => void
+  values: Record<string, ParameterValue>
+}) {
+  const modelInputRef = useRef<HTMLInputElement | null>(null)
+  const svgInputRef = useRef<HTMLInputElement | null>(null)
+  const geometrySource =
+    values.geometrySource === "svg-badge" ? "svg-badge" : "model"
+  const svgFileName =
+    typeof values.svgFileName === "string" ? values.svgFileName : ""
+  const svgSourceRevision =
+    typeof values.svgSourceRevision === "number" ? values.svgSourceRevision : 0
+  const badgeThickness =
+    typeof values.badgeThickness === "number" ? values.badgeThickness : 0.18
+  const layerAssetId = useLayerStore(
+    (state) =>
+      state.layers.find((layer) => layer.id === layerId)?.assetId ?? null
+  )
+  const currentAsset = useAssetStore(
+    (state) => state.assets.find((asset) => asset.id === layerAssetId) ?? null
+  )
+  const loadAsset = useAssetStore((state) => state.loadAsset)
+  const setLayerAsset = useLayerStore((state) => state.setLayerAsset)
+  const animationNames = useMemo(() => {
+    if (typeof values.animationNames !== "string") {
+      return [] as string[]
+    }
+
+    try {
+      const parsed = JSON.parse(values.animationNames)
+      return Array.isArray(parsed)
+        ? parsed.filter((entry): entry is string => typeof entry === "string")
+        : []
+    } catch {
+      return []
+    }
+  }, [values.animationNames])
+  const activeAnimation =
+    typeof values.activeAnimation === "string" ? values.activeAnimation : ""
+  const animationPlaying = values.animationPlaying !== false
+  const animationLoop = values.animationLoop !== false
+  const animationSpeed =
+    typeof values.animationSpeed === "number" ? values.animationSpeed : 1
+
+  return (
+    <section className="flex flex-col gap-3 border-t border-[var(--ds-border-divider)] px-4 pt-[14px] pb-4 first:border-t-0">
+      <Typography className="uppercase" tone="secondary" variant="overline">
+        Source
+      </Typography>
+
+      <div className="flex flex-col gap-[10px]">
+        <div className="grid items-center gap-[10px] [grid-template-columns:minmax(0,1fr)_132px]">
+          <Typography className="min-w-0" tone="secondary" variant="label">
+            Geometry
+          </Typography>
+          <Select
+            className="w-[132px]"
+            onValueChange={(value) => {
+              if (!value) {
+                return
+              }
+
+              updateLayerParam(layerId, "geometrySource", value)
+            }}
+            options={[
+              { label: "3D Model", value: "model" },
+              { label: "SVG Badge", value: "svg-badge" },
+            ]}
+            triggerClassName="w-[132px]"
+            value={geometrySource}
+          />
+        </div>
+
+        {geometrySource === "svg-badge" ? (
+          <>
+            <input
+              accept=".svg,image/svg+xml"
+              className="hidden"
+              onChange={(event) => {
+                const file = event.currentTarget.files?.[0]
+
+                if (!file) {
+                  return
+                }
+
+                void file.text().then((content) => {
+                  updateLayerParam(layerId, "svgSource", content)
+                  updateLayerParam(layerId, "svgFileName", file.name)
+                  updateLayerParam(
+                    layerId,
+                    "svgSourceRevision",
+                    svgSourceRevision + 1
+                  )
+                })
+
+                event.currentTarget.value = ""
+              }}
+              ref={svgInputRef}
+              type="file"
+            />
+
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <Button
+                onClick={() => svgInputRef.current?.click()}
+                size="compact"
+                variant="primary"
+              >
+                {svgFileName ? "Replace SVG" : "Upload SVG"}
+              </Button>
+
+              {svgFileName ? (
+                <Button
+                  onClick={() => {
+                    updateLayerParam(layerId, "svgSource", "")
+                    updateLayerParam(layerId, "svgFileName", "")
+                    updateLayerParam(
+                      layerId,
+                      "svgSourceRevision",
+                      svgSourceRevision + 1
+                    )
+                  }}
+                  size="compact"
+                  variant="ghost"
+                >
+                  Clear
+                </Button>
+              ) : null}
+            </div>
+
+            <Typography tone="muted" variant="caption">
+              {svgFileName || "Single filled-shape SVGs work best in v1."}
+            </Typography>
+
+            <Slider
+              label="Coin Thickness"
+              max={0.75}
+              min={0.04}
+              onValueChange={(value) =>
+                updateLayerParam(layerId, "badgeThickness", value)
+              }
+              step={0.01}
+              value={badgeThickness}
+              valueFormatOptions={{
+                maximumFractionDigits: 2,
+                minimumFractionDigits: 2,
+              }}
+            />
+          </>
+        ) : (
+          <>
+            <input
+              accept=".glb,.gltf,model/gltf-binary,model/gltf+json,application/octet-stream"
+              className="hidden"
+              onChange={(event) => {
+                const file = event.currentTarget.files?.[0]
+
+                if (!file) {
+                  return
+                }
+
+                void loadAsset(file)
+                  .then((asset) => {
+                    setLayerAsset(layerId, asset.id)
+                  })
+                  .catch(() => {
+                    // Ignore store error here; the renderer will surface a runtime error if needed.
+                  })
+
+                event.currentTarget.value = ""
+              }}
+              ref={modelInputRef}
+              type="file"
+            />
+
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <Button
+                onClick={() => modelInputRef.current?.click()}
+                size="compact"
+                variant="primary"
+              >
+                {currentAsset ? "Replace Model" : "Upload Model"}
+              </Button>
+
+              {currentAsset ? (
+                <Button
+                  onClick={() => setLayerAsset(layerId, null)}
+                  size="compact"
+                  variant="ghost"
+                >
+                  Clear
+                </Button>
+              ) : null}
+            </div>
+
+            <Typography tone="muted" variant="caption">
+              {currentAsset?.fileName ||
+                "Upload a GLB or GLTF asset for this layer."}
+            </Typography>
+          </>
+        )}
+
+        {geometrySource === "model" && animationNames.length > 0 ? (
+          <div className="flex flex-col gap-[10px] border-t border-[var(--ds-border-divider)] pt-3">
+            <Typography
+              className="uppercase"
+              tone="secondary"
+              variant="overline"
+            >
+              Animation
+            </Typography>
+
+            <div className="grid items-center gap-[10px] [grid-template-columns:minmax(0,1fr)_132px]">
+              <Typography className="min-w-0" tone="secondary" variant="label">
+                Clip
+              </Typography>
+              <Select
+                className="w-[132px]"
+                onValueChange={(value) => {
+                  if (value) {
+                    updateLayerParam(layerId, "activeAnimation", value)
+                  }
+                }}
+                options={animationNames.map((name) => ({
+                  label: name,
+                  value: name,
+                }))}
+                triggerClassName="w-[132px]"
+                value={activeAnimation || animationNames[0] || ""}
+              />
+            </div>
+
+            <div className="grid items-center gap-[10px] [grid-template-columns:minmax(0,1fr)_auto]">
+              <Typography className="min-w-0" tone="secondary" variant="label">
+                Play
+              </Typography>
+              <Toggle
+                checked={animationPlaying}
+                className="justify-self-end"
+                onCheckedChange={(checked) =>
+                  updateLayerParam(layerId, "animationPlaying", checked)
+                }
+              />
+            </div>
+
+            <div className="grid items-center gap-[10px] [grid-template-columns:minmax(0,1fr)_auto]">
+              <Typography className="min-w-0" tone="secondary" variant="label">
+                Loop
+              </Typography>
+              <Toggle
+                checked={animationLoop}
+                className="justify-self-end"
+                onCheckedChange={(checked) =>
+                  updateLayerParam(layerId, "animationLoop", checked)
+                }
+              />
+            </div>
+
+            <Slider
+              label="Animation Speed"
+              max={4}
+              min={0}
+              onValueChange={(value) =>
+                updateLayerParam(layerId, "animationSpeed", value)
+              }
+              step={0.01}
+              value={animationSpeed}
+              valueFormatOptions={{
+                maximumFractionDigits: 2,
+                minimumFractionDigits: 0,
+              }}
+            />
+          </div>
+        ) : null}
+      </div>
+    </section>
+  )
+}
+
 export function SelectedLayerPropertiesContent({
   blendMode,
   compositeMode,
@@ -254,9 +536,17 @@ export function SelectedLayerPropertiesContent({
   values: Record<string, ParameterValue>
   visibleParams: ParameterDefinition[]
 }) {
+  const filteredVisibleParams = useMemo(() => {
+    if (layerType !== "model") {
+      return visibleParams
+    }
+
+    return visibleParams.filter((param) => param.key !== "badgeThickness")
+  }, [layerType, visibleParams])
+
   const groupedParams = useMemo(
-    () => groupVisibleParams(visibleParams),
-    [visibleParams]
+    () => groupVisibleParams(filteredVisibleParams),
+    [filteredVisibleParams]
   )
   const showGroupedParams =
     groupedParams.length > 1 || groupedParams[0]?.label !== DEFAULT_PARAM_GROUP
@@ -344,11 +634,7 @@ export function SelectedLayerPropertiesContent({
 
       <div className="flex min-h-0 max-h-[min(62vh,620px)] flex-col gap-0 overflow-y-auto">
         <section className="flex flex-col gap-3 border-t border-[var(--ds-border-divider)] px-4 pt-[14px] pb-4 first:border-t-0">
-          <Typography
-            className="uppercase"
-            tone="secondary"
-            variant="overline"
-          >
+          <Typography className="uppercase" tone="secondary" variant="overline">
             General
           </Typography>
 
@@ -366,11 +652,7 @@ export function SelectedLayerPropertiesContent({
             />
 
             <div className="grid items-center gap-[10px] [grid-template-columns:minmax(0,1fr)_132px]">
-              <Typography
-                className="min-w-0"
-                tone="secondary"
-                variant="label"
-              >
+              <Typography className="min-w-0" tone="secondary" variant="label">
                 Blend
               </Typography>
               <Select
@@ -387,11 +669,7 @@ export function SelectedLayerPropertiesContent({
             </div>
 
             <div className="grid items-center gap-[10px] [grid-template-columns:minmax(0,1fr)_132px]">
-              <Typography
-                className="min-w-0"
-                tone="secondary"
-                variant="label"
-              >
+              <Typography className="min-w-0" tone="secondary" variant="label">
                 Mode
               </Typography>
               <Select
@@ -444,7 +722,15 @@ export function SelectedLayerPropertiesContent({
           />
         ) : null}
 
-        {visibleParams.length > 0 ? (
+        {layerType === "model" ? (
+          <ModelLayerSection
+            layerId={layerId}
+            updateLayerParam={updateLayerParam}
+            values={values}
+          />
+        ) : null}
+
+        {filteredVisibleParams.length > 0 ? (
           <section className="flex flex-col gap-3 border-t border-[var(--ds-border-divider)] px-4 pt-[14px] pb-4 first:border-t-0">
             {!showGroupedParams && (
               <Typography
@@ -520,7 +806,7 @@ export function SelectedLayerPropertiesContent({
                                     mass: 0.85,
                                     stiffness: 360,
                                     type: "spring",
-                                }
+                                  }
                             }
                           >
                             <div className="flex flex-col gap-[10px]">
@@ -551,7 +837,7 @@ export function SelectedLayerPropertiesContent({
               </div>
             ) : (
               <div className="flex flex-col gap-[10px]">
-                {visibleParams.map((param) => (
+                {filteredVisibleParams.map((param) => (
                   <ParameterField
                     definition={param}
                     key={param.key}

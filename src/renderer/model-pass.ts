@@ -1,11 +1,12 @@
 import * as THREE from "three/webgpu"
-import { float, texture as tslTexture, type TSLNode, uv, vec2 } from "three/tsl"
+import { float, texture as tslTexture, type TSLNode, uniform, uv, vec2 } from "three/tsl"
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js"
-import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js"
+import { HDRLoader } from "three/examples/jsm/loaders/HDRLoader.js"
 import { clone as cloneSkeleton } from "three/examples/jsm/utils/SkeletonUtils.js"
 import type { RenderableLayerPass } from "@/renderer/contracts"
 import {
   buildCustomModelMaterial,
+  type LiquidMaterialState,
   type ModelMaterialState,
 } from "@/renderer/model-materials"
 import { buildSvgBadgeGeometry } from "@/renderer/model-svg"
@@ -20,7 +21,7 @@ import {
 type Node = TSLNode
 type BackgroundMode = "solid" | "transparent"
 type GeometrySource = "model" | "svg-badge"
-type MaterialPreset = "metal" | "plastic"
+type MaterialPreset = "liquid" | "metal" | "plastic"
 type MaterialMode = "custom" | "source"
 
 const MODEL_RT_OPTIONS = {
@@ -34,7 +35,7 @@ const MODEL_RT_OPTIONS = {
 } as const
 
 const loader = new GLTFLoader()
-const rgbeLoader = new RGBELoader()
+const hdrLoader = new HDRLoader()
 
 const HDRI_CDN_BASE =
   "https://raw.githack.com/pmndrs/drei-assets/456060a26bbeb8fdf79326f224b6d99b8bcce736/hdri/"
@@ -85,10 +86,17 @@ function resolveMaterialPreset(preset: string): {
         metalness: 0,
         roughness: 0.18,
       }
+    case "liquid":
+      return {
+        brilliance: 1.0,
+        color: "#c0c0c0",
+        metalness: 1,
+        roughness: 0.1,
+      }
     default:
       return {
         brilliance: 1.0,
-        color: "#c9a24f",
+        color: "#FAFAFA",
         metalness: 1,
         roughness: 0.04,
       }
@@ -104,7 +112,9 @@ function normalizeBackgroundMode(value: unknown): BackgroundMode {
 }
 
 function normalizeMaterialPreset(value: unknown): MaterialPreset {
-  return value === "plastic" ? "plastic" : "metal"
+  if (value === "plastic") return "plastic"
+  if (value === "liquid") return "liquid"
+  return "metal"
 }
 
 function normalizeMaterialMode(value: unknown): MaterialMode {
@@ -201,6 +211,7 @@ export class ModelPass extends PassNode {
   private activeObject: THREE.Object3D | null = null
   private currentHdriPreset = ""
   private hdriLoadingPreset = ""
+  private readonly liquidTimeNode: TSLNode = uniform(0.0)
   private width = 1
   private height = 1
   private rebuildRequestId = 0
@@ -272,7 +283,8 @@ export class ModelPass extends PassNode {
     )
     this.currentContinuousRender =
       params.autoRotate === true ||
-      (typeof params.floatAmplitude === "number" && params.floatAmplitude > 0)
+      (typeof params.floatAmplitude === "number" && params.floatAmplitude > 0) ||
+      normalizeMaterialPreset(params.materialPreset) === "liquid"
     this.currentEnvironmentStrength =
       typeof params.environmentStrength === "number"
         ? clamp(params.environmentStrength, 0, 2)
@@ -316,6 +328,7 @@ export class ModelPass extends PassNode {
     delta: number
   ): void {
     this.loadHdriIfNeeded(renderer)
+    this.liquidTimeNode.value = time * 1000
     this.updateSceneTransform(time)
 
     if (this.animationMixer && this.shouldAnimateClip()) {
@@ -560,6 +573,7 @@ export class ModelPass extends PassNode {
         typeof p.brilliance === "number" ? p.brilliance : preset.brilliance,
       color:
         typeof p.materialColor === "string" ? p.materialColor : preset.color,
+      envBlur: typeof p.envBlur === "number" ? p.envBlur : 0,
       metalness:
         typeof p.metalness === "number" ? p.metalness : preset.metalness,
       roughness:
@@ -567,10 +581,24 @@ export class ModelPass extends PassNode {
     }
   }
 
+  private buildLiquidState(): LiquidMaterialState {
+    const p = this.currentModelParams
+    return {
+      liquid: typeof p.liquid === "number" ? p.liquid : 0.07,
+      patternBlur: typeof p.patternBlur === "number" ? p.patternBlur : 0.005,
+      patternScale: typeof p.patternScale === "number" ? p.patternScale : 2,
+      refraction: typeof p.refraction === "number" ? p.refraction : 0.015,
+      speed: typeof p.speed === "number" ? p.speed : 0.3,
+      timeNode: this.liquidTimeNode,
+    }
+  }
+
   private buildMaterial(): THREE.Material {
+    const preset = normalizeMaterialPreset(this.currentModelParams.materialPreset)
     return buildCustomModelMaterial(
-      normalizeMaterialPreset(this.currentModelParams.materialPreset),
-      this.buildMaterialState()
+      preset,
+      this.buildMaterialState(),
+      preset === "liquid" ? this.buildLiquidState() : undefined
     )
   }
 
@@ -651,7 +679,7 @@ export class ModelPass extends PassNode {
       return
     }
 
-    void rgbeLoader.loadAsync(url).then((hdrTexture) => {
+    void hdrLoader.loadAsync(url).then((hdrTexture) => {
       const pmremGenerator = new THREE.PMREMGenerator(renderer as unknown as THREE.WebGLRenderer)
       const envMap = pmremGenerator.fromEquirectangular(hdrTexture).texture
       hdrTexture.dispose()

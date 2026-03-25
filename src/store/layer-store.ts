@@ -71,9 +71,21 @@ function getModelMaterialPresetDefaults(
     case "metal":
       return {
         brilliance: 1.0,
-        materialColor: "#c9a24f",
+        materialColor: "#FAFAFA",
         metalness: 1,
         roughness: 0.04,
+      }
+    case "liquid":
+      return {
+        brilliance: 1.0,
+        liquid: 0.07,
+        materialColor: "#c0c0c0",
+        metalness: 1,
+        patternBlur: 0.005,
+        patternScale: 2,
+        refraction: 0.015,
+        roughness: 0.1,
+        speed: 0.3,
       }
     default:
       return null

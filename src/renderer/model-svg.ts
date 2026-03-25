@@ -1,5 +1,6 @@
+import { SVGLoader, type SVGResultPaths } from "three/examples/jsm/loaders/SVGLoader.js"
+import { mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js"
 import * as THREE from "three/webgpu"
-import { SVGLoader } from "three/examples/jsm/loaders/SVGLoader.js"
 
 const MAX_BADGE_PATHS = 1
 
@@ -15,7 +16,7 @@ function getShapesFaceSize(shapes: THREE.Shape[]): number {
   )
 
   for (const shape of shapes) {
-    const points = shape.getPoints(48)
+    const points = shape.getPoints(128)
 
     for (const point of points) {
       bounds.expandByPoint(point)
@@ -33,7 +34,7 @@ function normalizeSvgFileName(fileName: string): string {
   return trimmed || "badge.svg"
 }
 
-function hasVisibleFill(path: any): boolean {
+function hasVisibleFill(path: SVGResultPaths): boolean {
   const style = path.userData?.style
   const fill = style?.fill
 
@@ -100,7 +101,7 @@ export function buildSvgBadgeGeometry(
     bevelSegments: 6,
     bevelSize,
     bevelThickness,
-    curveSegments: 48,
+    curveSegments: 128,
     depth,
     steps: 2,
   })
@@ -125,10 +126,11 @@ export function buildSvgBadgeGeometry(
     1 / normalizedFaceSize,
     1 / normalizedFaceSize
   )
-  geometry.computeVertexNormals()
+  const merged = mergeVertices(geometry)
+  merged.computeVertexNormals()
 
   return {
     fileName: normalizeSvgFileName(fileName),
-    geometry,
+    geometry: merged,
   }
 }

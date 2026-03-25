@@ -1,0 +1,9 @@
+export declare const reinhardTonemap: import("three/src/nodes/TSL.js").FnNode<[], any>;
+export declare const totosTonemap: import("three/src/nodes/TSL.js").FnNode<[], import("three/webgpu").Node<"vec3">>;
+export declare const acesTonemap: import("three/src/nodes/TSL.js").FnNode<[], any>;
+export declare const crossProcessTonemap: import("three/src/nodes/TSL.js").FnNode<[], import("three/webgpu").Node<"vec3">>;
+export declare const bleachBypassTonemap: import("three/src/nodes/TSL.js").FnNode<[], import("three/webgpu").Node<"vec3">>;
+export declare const technicolorTonemap: import("three/src/nodes/TSL.js").FnNode<[], import("three/webgpu").Node<"vec3">>;
+export declare const cinematicTonemap: import("three/src/nodes/TSL.js").FnNode<[], import("three/webgpu").Node<"vec3">>;
+export declare const tanh: import("three/src/nodes/TSL.js").FnNode<[], import("three/webgpu").Node<"float">>;
+export declare const uncharted2Tonemap: import("three/src/nodes/TSL.js").FnNode<[], import("three/webgpu").Node<"vec3">>;

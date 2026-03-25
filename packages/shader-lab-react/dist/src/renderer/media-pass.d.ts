@@ -1,0 +1,32 @@
+import * as THREE from "three/webgpu";
+import { type TSLNode } from "three/tsl";
+import { PassNode } from "@/renderer/pass-node";
+import type { LayerParameterValues } from "@/types/editor";
+type MediaKind = "image" | "video";
+type Node = TSLNode;
+export declare class MediaPass extends PassNode {
+    private readonly canvasAspectUniform;
+    private readonly fitModeUniform;
+    private readonly offsetXUniform;
+    private readonly offsetYUniform;
+    private readonly scaleUniform;
+    private readonly textureAspectUniform;
+    private mediaTextureNode;
+    private readonly placeholder;
+    private currentTexture;
+    private loadedUrl;
+    private videoHandle;
+    private videoTexture;
+    constructor(layerId: string);
+    setMedia(url: string, kind: MediaKind): Promise<void>;
+    clearMedia(): void;
+    updateParams(params: LayerParameterValues): void;
+    render(renderer: THREE.WebGPURenderer, inputTexture: THREE.Texture, outputTarget: THREE.WebGLRenderTarget, time: number, delta: number): void;
+    resize(width: number, height: number): void;
+    needsContinuousRender(): boolean;
+    dispose(): void;
+    protected buildEffectNode(): Node;
+    private releaseCurrentMedia;
+    private setTextureAspect;
+}
+export {};

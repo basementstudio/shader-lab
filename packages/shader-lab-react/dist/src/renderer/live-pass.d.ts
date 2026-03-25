@@ -1,0 +1,31 @@
+import * as THREE from "three/webgpu";
+import { type TSLNode } from "three/tsl";
+import { PassNode } from "@/renderer/pass-node";
+import type { LayerParameterValues } from "@/types/editor";
+type Node = TSLNode;
+export declare class LivePass extends PassNode {
+    private readonly canvasAspectUniform;
+    private readonly fitModeUniform;
+    private readonly mirrorUniform;
+    private readonly offsetXUniform;
+    private readonly offsetYUniform;
+    private readonly scaleUniform;
+    private readonly textureAspectUniform;
+    private mediaTextureNode;
+    private readonly placeholder;
+    private videoElement;
+    private videoTexture;
+    private stream;
+    private activeFacingMode;
+    constructor(layerId: string);
+    startCamera(facingMode: string): Promise<void>;
+    getFacingMode(): string;
+    private stopCamera;
+    updateParams(params: LayerParameterValues): void;
+    render(renderer: THREE.WebGPURenderer, inputTexture: THREE.Texture, outputTarget: THREE.WebGLRenderTarget, time: number, delta: number): void;
+    resize(width: number, height: number): void;
+    needsContinuousRender(): boolean;
+    dispose(): void;
+    protected buildEffectNode(): Node;
+}
+export {};

@@ -1,6 +1,7 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
+    "baseUrl": ".",
     "composite": true,
     "declaration": true,
     "emitDeclarationOnly": true,
@@ -10,7 +11,9 @@
     "moduleResolution": "bundler",
     "noEmit": true,
     "outDir": "./dist",
-    "paths": {},
+    "paths": {
+      "@/*": ["./src/*"]
+    },
     "plugins": [],
     "tsBuildInfoFile": "./tsconfig.tsbuildinfo"
   },

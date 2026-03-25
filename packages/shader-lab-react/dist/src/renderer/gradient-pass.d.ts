@@ -1,0 +1,38 @@
+import { type TSLNode } from "three/tsl";
+import { PassNode } from "@/renderer/pass-node";
+import type { LayerParameterValues } from "@/types/editor";
+type Node = TSLNode;
+export declare class GradientPass extends PassNode {
+    private readonly activePointsUniform;
+    private readonly animateUniform;
+    private readonly aspectUniform;
+    private readonly falloffUniform;
+    private readonly glowStrengthUniform;
+    private readonly glowThresholdUniform;
+    private readonly grainAmountUniform;
+    private readonly motionAmountUniform;
+    private readonly motionSpeedUniform;
+    private readonly pointColorUniforms;
+    private readonly pointPositionUniforms;
+    private readonly pointWeightUniforms;
+    private readonly timeUniform;
+    private readonly vignetteRadiusUniform;
+    private readonly vignetteSoftnessUniform;
+    private readonly vignetteStrengthUniform;
+    private readonly vortexAmountUniform;
+    private readonly warpAmountUniform;
+    private readonly warpBiasUniform;
+    private readonly warpDecayUniform;
+    private readonly warpScaleUniform;
+    private isAnimated;
+    private noiseMode;
+    private tonemapMode;
+    private warpIterations;
+    constructor(layerId: string);
+    updateParams(params: LayerParameterValues): void;
+    resize(width: number, height: number): void;
+    needsContinuousRender(): boolean;
+    protected beforeRender(time: number): void;
+    protected buildEffectNode(): Node;
+}
+export {};

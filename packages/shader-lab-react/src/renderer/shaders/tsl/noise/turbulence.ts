@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { Fn, Loop, abs, float, mat2, sin, vec3 } from "three/tsl"
+import { Fn, float, Loop, sin, vec2 } from "three/tsl"
 
 interface TurbulenceOptions {
   _amp?: number
@@ -9,46 +9,48 @@ interface TurbulenceOptions {
   _speed?: number
 }
 
+const HALF_PI = 1.5707963267948966
+const THETA = 0.9272952180016122
+
 /**
- * Turbulence noise adapted for Three TSL and returned as a vec3 field.
+ * Turbulence based on XorDev's "Turbulent Dark" technique.
+ * Displaces coordinates by layering rotated sine waves at increasing frequencies
+ *
+ * @see https://mini.gmshaders.com/p/turbulence
  */
-export const turbulence = Fn(
-  ([p, time, rawOptions]) => {
-    const options = (rawOptions as TurbulenceOptions | undefined) ?? {}
-    const { _num = 10.0, _amp = 0.7, _speed = 0.3, _freq = 2.0, _exp = 1.4 } = options
-    const ampMul = float(_amp)
-    const speed = float(_speed)
-    const baseFreq = float(_freq)
-    const exp = float(_exp)
-    const uv = p.xy.mul(baseFreq).toVar()
-    const t = time.mul(speed)
+export const turbulence = Fn(([pInput, time, rawOptions]) => {
+  const options = (rawOptions as TurbulenceOptions | undefined) ?? {}
+  const {
+    _num = 10,
+    _amp = 0.7,
+    _speed = 0.3,
+    _freq = 2.0,
+    _exp = 1.4,
+  } = options
 
-    // Use sin(x + pi/2) in place of cos(x) to keep the helper self-contained.
-    const angle = float(1.7)
+  const p = vec2(pInput.xy).toVar()
+  const t = time.mul(float(_speed))
+  const freq = float(_freq).toVar()
+  const angle = float(0.0).toVar()
+  const iter = float(0.0).toVar()
+
+  Loop({ end: _num, start: 0, type: "int" }, () => {
+    const c = sin(angle.add(HALF_PI))
     const s = sin(angle)
-    const c = sin(angle.add(1.57079632679))
-    const rot = mat2(c, s.negate(), s, c)
 
-    const sum = vec3(0).toVar()
-    const amp = float(1).toVar()
-    const f = float(1).toVar()
+    const phase = freq
+      .mul(p.x.mul(s).add(p.y.mul(c)))
+      .add(t)
+      .add(iter)
 
-    Loop({ end: _num, start: 0, type: "int" }, () => {
-      uv.assign(rot.mul(uv))
+    const scale = float(_amp).mul(sin(phase)).div(freq)
+    p.x.addAssign(scale.mul(c))
+    p.y.addAssign(scale.mul(s.negate()))
 
-      const q = uv.mul(f)
-      const n = sin(
-        q.x
-          .add(q.y.mul(1.31))
-          .add(sin(q.y.add(q.x.mul(1.73)).add(t)).mul(1.2))
-          .add(t),
-      )
+    angle.addAssign(THETA)
+    freq.mulAssign(float(_exp))
+    iter.addAssign(1.0)
+  })
 
-      sum.addAssign(vec3(abs(n)).mul(amp))
-      amp.mulAssign(ampMul)
-      f.mulAssign(exp)
-    })
-
-    return sum
-  },
-)
+  return p.sub(pInput.xy)
+})

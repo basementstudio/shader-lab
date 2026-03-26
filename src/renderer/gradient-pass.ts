@@ -391,19 +391,17 @@ export class GradientPass extends PassNode {
               .mul(2)
               .sub(1)
             break
-          case "turbulence":
-            noiseX = turbulence(vec3(warpInput, 0.0), timeOffsetX.mul(20), {
+          case "turbulence": {
+            const disp = turbulence(warpInput, timeOffsetX.mul(20), {
               _amp: 0.7,
               _exp: 1.4,
               _freq: 2,
-              _num: 3,
+              _num: 10,
               _speed: 0.3,
-            }).x
-            noiseY = turbulence(
-              vec3(warpInput.add(vec2(5.4, 8.1)), 0.0),
-              timeOffsetY.mul(20),
-              { _amp: 0.7, _exp: 1.4, _freq: 2, _num: 3, _speed: 0.3 }
-            ).x
+            })
+            noiseX = disp.x
+            noiseY = disp.y
+          }
             break
           default:
             noiseX = simplexNoise3d(vec3(warpInput, timeOffsetX))

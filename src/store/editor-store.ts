@@ -6,10 +6,13 @@ import type {
 } from "@/types/editor"
 import { DEFAULT_CANVAS_SIZE } from "@/lib/editor/layers"
 
-export interface EditorStoreState extends EditorStateSnapshot {}
+export interface EditorStoreState extends EditorStateSnapshot {
+  startupPreviewDismissed: boolean
+}
 
 export interface EditorStoreActions {
   closeTimelinePanel: () => void
+  dismissStartupPreview: () => void
   enterImmersiveCanvas: () => void
   exitImmersiveCanvas: () => void
   openTimelinePanel: () => void
@@ -58,6 +61,17 @@ export const useEditorStore = create<EditorStore>((set) => ({
   webgpuError: null,
   webgpuStatus: "idle",
   zoom: 1,
+  startupPreviewDismissed: false,
+
+  dismissStartupPreview: () => {
+    set((state) =>
+      state.startupPreviewDismissed
+        ? state
+        : {
+            startupPreviewDismissed: true,
+          }
+    )
+  },
 
   setZoom: (zoom) => {
     set({

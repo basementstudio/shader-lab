@@ -5,6 +5,7 @@ export const SOURCE_LAYER_TYPES = [
   "image",
   "video",
   "gradient",
+  "text",
   "fluid",
   "live",
   "custom-shader",
@@ -13,6 +14,8 @@ export type SourceLayerType = (typeof SOURCE_LAYER_TYPES)[number]
 
 export const EFFECT_LAYER_TYPES = [
   "ascii",
+  "ink",
+  "pattern",
   "crt",
   "dithering",
   "halftone",

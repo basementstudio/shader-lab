@@ -2,38 +2,37 @@
 
 import { Reorder, useDragControls } from "motion/react"
 import {
-  Camera,
+  CameraIcon,
   DotsSixVerticalIcon,
   DotsThreeVerticalIcon,
-  Eye,
-  EyeSlash,
+  EyeIcon,
+  EyeSlashIcon,
   FolderIcon,
-  ImageSquare,
-  Plus,
+  ImageSquareIcon,
+  PlusIcon,
   SidebarSimpleIcon,
-  Sparkle,
+  SparkleIcon,
+  TextTIcon,
 } from "@phosphor-icons/react"
+import { Reorder, useDragControls } from "motion/react"
 import {
   type ChangeEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
+  type PointerEvent as ReactPointerEvent,
   useMemo,
   useRef,
   useState,
 } from "react"
-import type {
-  AssetKind,
-  EditorAsset,
-  EditorLayer,
-} from "@/types/editor"
-import { cn } from "@/lib/cn"
 import { GlassPanel } from "@/components/ui/glass-panel"
 import { IconButton } from "@/components/ui/icon-button"
 import { Select } from "@/components/ui/select"
 import { Typography } from "@/components/ui/typography"
+import { cn } from "@/lib/cn"
 import { useAssetStore } from "@/store/asset-store"
 import { useEditorStore } from "@/store/editor-store"
 import { useLayerStore } from "@/store/layer-store"
+import type { AssetKind, EditorAsset, EditorLayer } from "@/types/editor"
 
 type AddLayerAction =
   | "ascii"
@@ -43,9 +42,12 @@ type AddLayerAction =
   | "gradient"
   | "halftone"
   | "image"
+  | "ink"
   | "live"
   | "particle-grid"
+  | "pattern"
   | "pixel-sorting"
+  | "text"
   | "video"
 type LayerAction = "delete" | "reset"
 
@@ -57,7 +59,7 @@ const addLayerOptions = [
   {
     label: (
       <span className={menuButtonClassName}>
-        <ImageSquare size={14} weight="regular" />
+        <ImageSquareIcon size={14} weight="regular" />
         Image
       </span>
     ),
@@ -66,7 +68,7 @@ const addLayerOptions = [
   {
     label: (
       <span className={menuButtonClassName}>
-        <ImageSquare size={14} weight="regular" />
+        <ImageSquareIcon size={14} weight="regular" />
         Video
       </span>
     ),
@@ -75,8 +77,8 @@ const addLayerOptions = [
   {
     label: (
       <span className={menuButtonClassName}>
-        <Camera size={14} weight="regular" />
-        Live Camera
+        <CameraIcon size={14} weight="regular" />
+        Live CameraIcon
       </span>
     ),
     value: "live",
@@ -84,7 +86,16 @@ const addLayerOptions = [
   {
     label: (
       <span className={menuButtonClassName}>
-        <Sparkle size={14} weight="regular" />
+        <TextTIcon size={14} weight="regular" />
+        Text
+      </span>
+    ),
+    value: "text",
+  },
+  {
+    label: (
+      <span className={menuButtonClassName}>
+        <SparkleIcon size={14} weight="regular" />
         Mesh Gradient
       </span>
     ),
@@ -93,7 +104,16 @@ const addLayerOptions = [
   {
     label: (
       <span className={menuButtonClassName}>
-        <Sparkle size={14} weight="regular" />
+        <SparkleIcon size={14} weight="regular" />
+        Ink
+      </span>
+    ),
+    value: "ink",
+  },
+  {
+    label: (
+      <span className={menuButtonClassName}>
+        <SparkleIcon size={14} weight="regular" />
         Custom Shader
       </span>
     ),
@@ -102,7 +122,7 @@ const addLayerOptions = [
   {
     label: (
       <span className={menuButtonClassName}>
-        <Sparkle size={14} weight="regular" />
+        <SparkleIcon size={14} weight="regular" />
         ASCII
       </span>
     ),
@@ -111,7 +131,16 @@ const addLayerOptions = [
   {
     label: (
       <span className={menuButtonClassName}>
-        <Sparkle size={14} weight="regular" />
+        <SparkleIcon size={14} weight="regular" />
+        Pattern
+      </span>
+    ),
+    value: "pattern",
+  },
+  {
+    label: (
+      <span className={menuButtonClassName}>
+        <SparkleIcon size={14} weight="regular" />
         CRT
       </span>
     ),
@@ -120,7 +149,7 @@ const addLayerOptions = [
   {
     label: (
       <span className={menuButtonClassName}>
-        <Sparkle size={14} weight="regular" />
+        <SparkleIcon size={14} weight="regular" />
         Dithering
       </span>
     ),
@@ -129,7 +158,7 @@ const addLayerOptions = [
   {
     label: (
       <span className={menuButtonClassName}>
-        <Sparkle size={14} weight="regular" />
+        <SparkleIcon size={14} weight="regular" />
         Halftone
       </span>
     ),
@@ -138,7 +167,7 @@ const addLayerOptions = [
   {
     label: (
       <span className={menuButtonClassName}>
-        <Sparkle size={14} weight="regular" />
+        <SparkleIcon size={14} weight="regular" />
         Particle Grid
       </span>
     ),
@@ -147,7 +176,7 @@ const addLayerOptions = [
   {
     label: (
       <span className={menuButtonClassName}>
-        <Sparkle size={14} weight="regular" />
+        <SparkleIcon size={14} weight="regular" />
         Pixel Sorting
       </span>
     ),
@@ -183,6 +212,13 @@ function getLayerSecondaryText(
     )
   }
 
+  if (layer.type === "text") {
+    return (
+      (typeof layer.params.text === "string" && layer.params.text.trim()) ||
+      "text"
+    )
+  }
+
   return layer.type.replaceAll("-", " ")
 }
 
@@ -191,10 +227,7 @@ function getThumbnailClassName(
   asset: EditorAsset | null
 ): string {
   if (asset?.kind === "image" || asset?.kind === "video") {
-    return cn(
-      thumbnailBaseClassName,
-      "bg-center bg-cover"
-    )
+    return cn(thumbnailBaseClassName, "bg-center bg-cover")
   }
 
   if (layer.type === "model") {
@@ -306,7 +339,8 @@ function LayerListItem({
         "relative grid min-h-11 grid-cols-[minmax(0,1fr)_28px_28px] items-center gap-[var(--ds-space-2)] rounded-[var(--ds-radius-control)] border border-transparent px-2 py-[6px] transition-[background-color,border-color,box-shadow] duration-160 ease-[var(--ease-out-cubic)]",
         !layer.locked &&
           "cursor-pointer hover:border-[var(--ds-border-subtle)] hover:bg-[var(--ds-color-surface-subtle)]",
-        isSelected && "border-[var(--ds-border-active)] bg-[var(--ds-color-surface-active)]"
+        isSelected &&
+          "border-[var(--ds-border-active)] bg-[var(--ds-color-surface-active)]"
       )}
       drag={layer.locked ? false : "y"}
       dragControls={dragControls}
@@ -393,9 +427,9 @@ function LayerListItem({
           variant="ghost"
         >
           {layer.visible ? (
-            <Eye size={14} weight="regular" />
+            <EyeIcon size={14} weight="regular" />
           ) : (
-            <EyeSlash size={14} weight="regular" />
+            <EyeSlashIcon size={14} weight="regular" />
           )}
         </IconButton>
       )}
@@ -483,12 +517,18 @@ export function LayerSidebar() {
       handleVideoPick()
     } else if (action === "live") {
       addLayer("live")
+    } else if (action === "text") {
+      addLayer("text")
     } else if (action === "gradient") {
       handleAddGradient()
+    } else if (action === "ink") {
+      addLayer("ink")
     } else if (action === "custom-shader") {
       handleAddCustomShader()
     } else if (action === "ascii") {
       handleAddAscii()
+    } else if (action === "pattern") {
+      addLayer("pattern")
     } else if (action === "crt") {
       addLayer("crt")
     } else if (action === "halftone") {
@@ -656,7 +696,7 @@ export function LayerSidebar() {
               className="pointer-events-auto"
               onValueChange={(value) => handleAddLayer(value as AddLayerAction)}
               options={addLayerOptions}
-              placeholder={<Plus size={14} weight="bold" />}
+              placeholder={<PlusIcon size={14} weight="bold" />}
               popupClassName="min-w-[152px]"
               triggerAriaLabel="Add layer"
               triggerVariant="icon"

@@ -1,13 +1,18 @@
+import { getLayerDefinition } from "@/lib/editor/config/layer-registry"
+import {
+  buildParameterValues,
+  cloneParameterValues,
+} from "@/lib/editor/parameter-schema"
+import { evaluateTimelineForLayers } from "@/lib/editor/timeline/evaluate"
+import { createProjectClock } from "@/renderer/project-clock"
 import type {
   EditorAsset,
   EditorLayer,
+  LayerDefinition,
   LayerParameterValues,
   Size,
   TimelineStateSnapshot,
 } from "@/types/editor"
-import { evaluateTimelineForLayers } from "@/lib/editor/timeline/evaluate"
-import { createProjectClock } from "@/renderer/project-clock"
-import { cloneParameterValues } from "@/lib/editor/parameter-schema"
 
 export interface ProjectClock {
   delta: number
@@ -47,20 +52,69 @@ type BuildRendererFrameInput = {
   logicalSize?: Size
   outputSize: Size
   pixelRatio: number
+  startupPreviewDismissed?: boolean
   timeline: TimelineStateSnapshot
   viewportSize: Size
 }
 
-export function buildRendererFrame(input: BuildRendererFrameInput): RendererFrame {
+const STARTUP_PREVIEW_TEXT_LAYER_ID = "__startup-preview-text__"
+const STARTUP_PREVIEW_INK_LAYER_ID = "__startup-preview-ink__"
+
+function buildStartupPreviewLayer(
+  definition: LayerDefinition,
+  id: string
+): EditorLayer {
+  return {
+    assetId: null,
+    blendMode: "normal",
+    compositeMode: "filter",
+    expanded: true,
+    hue: 0,
+    id,
+    kind: definition.kind,
+    locked: false,
+    name: definition.defaultName,
+    opacity: 1,
+    params: buildParameterValues(definition.params),
+    runtimeError: null,
+    saturation: 1,
+    type: definition.type,
+    visible: true,
+  } as EditorLayer
+}
+
+function getStartupPreviewLayers(): EditorLayer[] {
+  return [
+    buildStartupPreviewLayer(
+      getLayerDefinition("ink"),
+      STARTUP_PREVIEW_INK_LAYER_ID
+    ),
+    buildStartupPreviewLayer(
+      getLayerDefinition("text"),
+      STARTUP_PREVIEW_TEXT_LAYER_ID
+    ),
+  ]
+}
+
+export function buildRendererFrame(
+  input: BuildRendererFrameInput
+): RendererFrame {
+  const hasVisibleRealLayers = input.layers.some((layer) => layer.visible)
+  const sourceLayers =
+    !hasVisibleRealLayers && input.startupPreviewDismissed !== true
+      ? getStartupPreviewLayers()
+      : input.layers
   const assetById = new Map(input.assets.map((asset) => [asset.id, asset]))
   const evaluatedLayers = evaluateTimelineForLayers(
-    input.layers,
+    sourceLayers,
     input.timeline.tracks,
-    input.timeline.currentTime,
+    input.timeline.currentTime
   )
-  const evaluatedById = new Map(evaluatedLayers.map((state) => [state.layerId, state]))
+  const evaluatedById = new Map(
+    evaluatedLayers.map((state) => [state.layerId, state])
+  )
 
-  const layers = input.layers
+  const layers = sourceLayers
     .filter((layer) => layer.visible)
     .map((layer) => {
       const evaluation = evaluatedById.get(layer.id)
@@ -71,7 +125,7 @@ export function buildRendererFrame(input: BuildRendererFrameInput): RendererFram
       }
 
       return {
-        asset: layer.assetId ? assetById.get(layer.assetId) ?? null : null,
+        asset: layer.assetId ? (assetById.get(layer.assetId) ?? null) : null,
         layer: {
           ...layer,
           hue:

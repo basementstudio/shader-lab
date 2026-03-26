@@ -1,12 +1,5 @@
 import { create } from "zustand"
 import { getLayerDefinition } from "@/lib/editor/config/layer-registry"
-import type {
-  BlendMode,
-  EditorLayer,
-  LayerCompositeMode,
-  LayerType,
-  ParameterValue,
-} from "@/types/editor"
 import {
   clampLayerAdjustments,
   cloneLayer,
@@ -17,6 +10,14 @@ import {
   cloneParameterValue,
   getParameterDefinition,
 } from "@/lib/editor/parameter-schema"
+import { useEditorStore } from "@/store/editor-store"
+import type {
+  BlendMode,
+  EditorLayer,
+  LayerCompositeMode,
+  LayerType,
+  ParameterValue,
+} from "@/types/editor"
 
 export interface LayerStoreState {
   hoveredLayerId: string | null
@@ -328,6 +329,8 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
         selectedLayerId: nextLayer.id,
       }
     })
+
+    useEditorStore.getState().dismissStartupPreview()
 
     return nextLayer.id
   },

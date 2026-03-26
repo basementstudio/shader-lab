@@ -1,6 +1,4 @@
 "use client"
-
-import { Reorder, useDragControls } from "motion/react"
 import {
   CameraIcon,
   DotsSixVerticalIcon,
@@ -17,7 +15,6 @@ import {
 import { Reorder, useDragControls } from "motion/react"
 import {
   type ChangeEvent,
-  type PointerEvent as ReactPointerEvent,
   type ReactNode,
   type PointerEvent as ReactPointerEvent,
   useMemo,

@@ -37,6 +37,9 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Build package
+        run: bun run --cwd packages/shader-lab-react build
+
       - name: Configure npm for publishing
         run: |
           cat > ~/.npmrc <<'EOF'
@@ -48,7 +51,7 @@ jobs:
         uses: changesets/action@v1
         with:
           version: bun run version-packages
-          publish: bun run release
+          publish: cd packages/shader-lab-react && npm publish --access public
           createGithubReleases: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

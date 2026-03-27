@@ -1,5 +1,5 @@
 {
-  "name": "@shader-lab/react",
+  "name": "@basementstudio/shader-lab",
   "version": "0.0.3",
   "description": "Portable React runtime for Shader Lab exports.",
   "type": "module",
@@ -15,6 +15,9 @@
       "types": "./dist/src/index.d.ts",
       "default": "./dist/src/index.js"
     }
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "dependencies": {
     "typescript": "^5.9.3"

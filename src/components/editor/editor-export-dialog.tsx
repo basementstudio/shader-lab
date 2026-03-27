@@ -19,6 +19,11 @@ import {
   useState,
 } from "react"
 import { createPortal } from "react-dom"
+import { Button } from "@/components/ui/button"
+import { GlassPanel } from "@/components/ui/glass-panel"
+import { IconButton } from "@/components/ui/icon-button"
+import { Typography } from "@/components/ui/typography"
+import { cn } from "@/lib/cn"
 import {
   ASPECT_PRESET_LABELS,
   type ExportAspectPreset,
@@ -40,11 +45,6 @@ import {
   validateShaderExportSupport,
 } from "@/lib/editor/shader-export"
 import { generateShaderExportSnippet } from "@/lib/editor/shader-export-snippet"
-import { cn } from "@/lib/cn"
-import { Button } from "@/components/ui/button"
-import { GlassPanel } from "@/components/ui/glass-panel"
-import { IconButton } from "@/components/ui/icon-button"
-import { Typography } from "@/components/ui/typography"
 import {
   useAssetStore,
   useEditorStore,
@@ -130,7 +130,7 @@ export function EditorExportDialog({
   const webmSupported = Boolean(getSupportedVideoMimeType("webm"))
   const shaderExportIssues = useMemo(
     () => validateShaderExportSupport(layers, assets),
-    [assets, layers],
+    [assets, layers]
   )
   const shaderSnippet = useMemo(() => {
     if (shaderExportIssues.length > 0) {
@@ -147,7 +147,7 @@ export function EditorExportDialog({
           loop: timelineLoop,
           tracks: timelineTracks,
         },
-      }),
+      })
     )
   }, [
     assets,
@@ -382,7 +382,8 @@ export function EditorExportDialog({
 
     if (!shaderSnippet) {
       setErrorMessage(
-        shaderExportIssues[0]?.message ?? "Shader export is not available for this project.",
+        shaderExportIssues[0]?.message ??
+          "Shader export is not available for this project."
       )
       return
     }
@@ -394,7 +395,9 @@ export function EditorExportDialog({
       setStatusMessage("Shader snippet copied to clipboard.")
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "Could not copy shader snippet.",
+        error instanceof Error
+          ? error.message
+          : "Could not copy shader snippet."
       )
     } finally {
       setIsCopyingShader(false)
@@ -490,26 +493,28 @@ export function EditorExportDialog({
                 </div>
 
                 <div className="flex gap-1.5 border-b border-[var(--ds-border-divider)] px-4 py-[10px]">
-                  {(["image", "video", "shader", "project"] as const).map((tab) => (
-                    <button
-                      className={cn(
-                        "inline-flex min-h-7 items-center justify-center rounded-[var(--ds-radius-control)] border border-transparent px-[10px] leading-none transition-[background-color,border-color,color] duration-160 ease-[var(--ease-out-cubic)] hover:bg-[var(--ds-color-surface-subtle)] hover:border-[var(--ds-border-subtle)]",
-                        activeTab === tab &&
-                          "bg-[var(--ds-color-surface-active)] border-[var(--ds-border-active)]"
-                      )}
-                      key={tab}
-                      onClick={() => setNextTab(tab)}
-                      type="button"
-                    >
-                      <Typography
-                        as="span"
-                        tone={activeTab === tab ? "primary" : "tertiary"}
-                        variant="label"
+                  {(["image", "video", "shader", "project"] as const).map(
+                    (tab) => (
+                      <button
+                        className={cn(
+                          "inline-flex min-h-7 items-center justify-center rounded-[var(--ds-radius-control)] border border-transparent px-[10px] leading-none transition-[background-color,border-color,color] duration-160 ease-[var(--ease-out-cubic)] hover:bg-[var(--ds-color-surface-subtle)] hover:border-[var(--ds-border-subtle)]",
+                          activeTab === tab &&
+                            "bg-[var(--ds-color-surface-active)] border-[var(--ds-border-active)]"
+                        )}
+                        key={tab}
+                        onClick={() => setNextTab(tab)}
+                        type="button"
                       >
-                        {tab}
-                      </Typography>
-                    </button>
-                  ))}
+                        <Typography
+                          as="span"
+                          tone={activeTab === tab ? "primary" : "tertiary"}
+                          variant="label"
+                        >
+                          {tab}
+                        </Typography>
+                      </button>
+                    )
+                  )}
                 </div>
 
                 <motion.div
@@ -650,12 +655,12 @@ export function EditorExportDialog({
                           />
                         ) : null}
                         {activeTab === "shader" ? (
-                        <ShaderTabContent
-                          isCopying={isCopyingShader}
-                          issues={shaderExportIssues}
-                          onCopy={handleShaderCopy}
-                          snippet={shaderSnippet}
-                        />
+                          <ShaderTabContent
+                            isCopying={isCopyingShader}
+                            issues={shaderExportIssues}
+                            onCopy={handleShaderCopy}
+                            snippet={shaderSnippet}
+                          />
                         ) : null}
                       </motion.div>
                     </AnimatePresence>
@@ -977,14 +982,20 @@ function ShaderTabContent({
   return (
     <section className="flex flex-col gap-[14px]">
       <Typography className="leading-[14px]" tone="muted" variant="caption">
-        Install with <code className="rounded-[6px] border border-white/9 bg-white/6 px-[5px] py-px font-[var(--ds-font-mono)] text-[11px]">bun add @shader-lab/react</code>,
-        then paste this component into your React app.
+        Install with{" "}
+        <code className="rounded-[6px] border border-white/9 bg-white/6 px-[5px] py-px font-[var(--ds-font-mono)] text-[11px]">
+          bun add @basementstudio/shader-lab three
+        </code>
+        , then paste this component into your React app.
       </Typography>
 
       {issues.length > 0 ? (
         <div className="flex flex-col gap-2 rounded-[var(--ds-radius-panel)] border border-[rgb(255_74_74_/_0.14)] bg-[rgb(255_74_74_/_0.06)] p-3">
           {issues.map((issue) => (
-            <Typography key={`${issue.layerId ?? "global"}:${issue.message}`} variant="caption">
+            <Typography
+              key={`${issue.layerId ?? "global"}:${issue.message}`}
+              variant="caption"
+            >
               {issue.message}
             </Typography>
           ))}
@@ -993,7 +1004,9 @@ function ShaderTabContent({
 
       <FieldLabel label="Snippet">
         <pre className="m-0 max-h-[280px] overflow-auto rounded-[var(--ds-radius-panel)] border border-[var(--ds-border-divider)] bg-white/4 p-3 font-[var(--ds-font-mono)] text-[11px] leading-[1.55] whitespace-pre-wrap break-words">
-          <code>{snippet ?? "// Shader export is blocked for this project."}</code>
+          <code>
+            {snippet ?? "// Shader export is blocked for this project."}
+          </code>
         </pre>
       </FieldLabel>
 

@@ -1,10 +1,10 @@
-# @shader-lab/react
+# @basementstudio/shader-lab
 
 <a href="https://basement.studio"><img alt="basement.studio logo" src="https://img.shields.io/badge/MADE%20BY%20basement.studio-000000.svg?style=for-the-badge&labelColor=000"></a>
-<a href="https://www.npmjs.com/package/@shader-lab/react"><img alt="NPM version" src="https://img.shields.io/npm/v/%40shader-lab%2Freact.svg?style=for-the-badge&labelColor=000000"></a>
+<a href="https://www.npmjs.com/package/@basementstudio/shader-lab"><img alt="NPM version" src="https://img.shields.io/npm/v/%40basementstudio%2Fshader-lab.svg?style=for-the-badge&labelColor=000000"></a>
 <a href="https://basement.studio"><img alt="Website" src="https://img.shields.io/badge/WEBSITE-basement.studio-a6d600.svg?style=for-the-badge&labelColor=000000"></a>
 
-`@shader-lab/react` is a portable React runtime for rendering Shader Lab compositions exported from the editor.
+`@basementstudio/shader-lab` is a portable React runtime for rendering Shader Lab compositions exported from the editor.
 
 ## Overview
 
@@ -16,11 +16,11 @@
 ## Install
 
 ```bash
-npm install @shader-lab/react three
+npm install @basementstudio/shader-lab three
 ```
 
 ```bash
-bun add @shader-lab/react three
+bun add @basementstudio/shader-lab three
 ```
 
 ## Peer Dependencies
@@ -34,7 +34,7 @@ bun add @shader-lab/react three
 ```tsx
 "use client"
 
-import { ShaderLabComposition, type ShaderLabConfig } from "@shader-lab/react"
+import { ShaderLabComposition, type ShaderLabConfig } from "@basementstudio/shader-lab"
 
 const config: ShaderLabConfig = {
   composition: {
@@ -116,4 +116,4 @@ Listen for runtime errors:
 ## Links
 
 - Website: [basement.studio](https://basement.studio/)
-- npm: [@shader-lab/react](https://www.npmjs.com/package/@shader-lab/react)
+- npm: [@basementstudio/shader-lab](https://www.npmjs.com/package/@basementstudio/shader-lab)

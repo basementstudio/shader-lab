@@ -1,4 +1,4 @@
-import type { ShaderLabConfig } from "@shader-lab/react"
+import type { ShaderLabConfig } from "@basementstudio/shader-lab"
 
 const DEFAULT_COMPONENT_NAME = "ExportedShader"
 
@@ -10,7 +10,7 @@ export function generateShaderExportSnippet(
   const serializedConfig = JSON.stringify(config, null, 2)
 
   return [
-    'import { ShaderLabComposition, type ShaderLabConfig } from "@shader-lab/react"',
+    'import { ShaderLabComposition, type ShaderLabConfig } from "@basementstudio/shader-lab"',
     "",
     `const config: ShaderLabConfig = ${serializedConfig}`,
     "",

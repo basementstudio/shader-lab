@@ -9,7 +9,7 @@ import type {
   ShaderLabParameterValue,
   ShaderLabSketchSource,
   ShaderLabTimelineTrack,
-} from "@shader-lab/react"
+} from "@basementstudio/shader-lab"
 import { CUSTOM_SHADER_INTERNAL_KEYS } from "@/lib/editor/custom-shader/shared"
 import type {
   EditorAsset,

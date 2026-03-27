@@ -4,15 +4,20 @@
   "description": "Portable React runtime for Shader Lab exports.",
   "type": "module",
   "sideEffects": false,
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
   "files": [
     "dist",
-    "src"
+    "assets"
   ],
   "exports": {
     ".": {
-      "types": "./src/index.ts",
-      "default": "./src/index.ts"
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
     }
+  },
+  "dependencies": {
+    "typescript": "^5.9.3"
   },
   "peerDependencies": {
     "react": "^19.0.0",
@@ -20,8 +25,9 @@
     "three": "^0.183.0"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "node ./scripts/prepare-dist.mjs && bun x tsc -p tsconfig.build.json && node ./scripts/fix-esm-specifiers.mjs",
     "lint": "biome lint src --max-diagnostics=200",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "prepack": "bun run build",
+    "typecheck": "bun x tsc -p tsconfig.json --noEmit"
   }
 }

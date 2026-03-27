@@ -1,7 +1,11 @@
 import type {
   ShaderLabAssetSource,
+  ShaderLabBlendMode,
   ShaderLabConfig,
+  ShaderLabCompositeMode,
   ShaderLabLayerConfig,
+  ShaderLabLayerKind,
+  ShaderLabLayerType,
   ShaderLabParameterValue,
   ShaderLabSketchSource,
   ShaderLabTimelineTrack,
@@ -18,9 +22,12 @@ const SUPPORTED_SHADER_EXPORT_LAYER_TYPES = new Set<LayerType>([
   "image",
   "video",
   "gradient",
+  "text",
   "live",
   "custom-shader",
   "ascii",
+  "ink",
+  "pattern",
   "crt",
   "dithering",
   "halftone",
@@ -34,6 +41,29 @@ const UNSUPPORTED_SHADER_EXPORT_LAYER_TYPES = new Set<LayerType>([
   "pixelation",
   "blur",
 ] as const)
+
+type SupportedShaderExportLayerType = Extract<
+  LayerType,
+  | "ascii"
+  | "crt"
+  | "custom-shader"
+  | "dithering"
+  | "gradient"
+  | "halftone"
+  | "image"
+  | "ink"
+  | "live"
+  | "particle-grid"
+  | "pattern"
+  | "pixel-sorting"
+  | "text"
+  | "video"
+>
+
+type SupportedShaderExportLayer = EditorLayer & {
+  kind: ShaderLabLayerKind
+  type: SupportedShaderExportLayerType
+}
 
 export interface ShaderExportValidationIssue {
   layerId?: string
@@ -136,20 +166,22 @@ function toShaderLabLayerConfig(
   layer: EditorLayer,
   asset: EditorAsset | null,
 ): ShaderLabLayerConfig {
-  const sketch = layer.type === "custom-shader" ? getSketchSource(layer) : undefined
-  const assetSource = toShaderLabAssetSource(layer, asset)
+  const supportedLayer = assertSupportedShaderExportLayer(layer)
+  const sketch =
+    supportedLayer.type === "custom-shader" ? getSketchSource(supportedLayer) : undefined
+  const assetSource = toShaderLabAssetSource(supportedLayer, asset)
   const baseLayer: ShaderLabLayerConfig = {
-    blendMode: layer.blendMode,
-    compositeMode: layer.compositeMode,
-    hue: layer.hue,
-    id: layer.id,
-    kind: layer.kind,
-    name: layer.name,
-    opacity: layer.opacity,
-    params: stripEditorOnlyParams(layer),
-    saturation: layer.saturation,
-    type: layer.type,
-    visible: layer.visible,
+    blendMode: supportedLayer.blendMode as ShaderLabBlendMode,
+    compositeMode: supportedLayer.compositeMode as ShaderLabCompositeMode,
+    hue: supportedLayer.hue,
+    id: supportedLayer.id,
+    kind: supportedLayer.kind,
+    name: supportedLayer.name,
+    opacity: supportedLayer.opacity,
+    params: stripEditorOnlyParams(supportedLayer),
+    saturation: supportedLayer.saturation,
+    type: supportedLayer.type as ShaderLabLayerType,
+    visible: supportedLayer.visible,
   }
 
   if (assetSource) {
@@ -161,6 +193,21 @@ function toShaderLabLayerConfig(
   }
 
   return baseLayer
+}
+
+function assertSupportedShaderExportLayer(layer: EditorLayer): SupportedShaderExportLayer {
+  if (
+    layer.kind !== "effect" &&
+    layer.kind !== "source"
+  ) {
+    throw new Error(`Layer "${layer.name}" uses unsupported kind "${layer.kind}".`)
+  }
+
+  if (!SUPPORTED_SHADER_EXPORT_LAYER_TYPES.has(layer.type)) {
+    throw new Error(`Layer "${layer.name}" uses unsupported type "${layer.type}".`)
+  }
+
+  return layer as SupportedShaderExportLayer
 }
 
 function toShaderLabAssetSource(

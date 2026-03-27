@@ -1,4 +1,3 @@
-// @ts-nocheck
 import * as THREE from "three/webgpu"
 import { PipelineManager } from "./pipeline-manager"
 import type { RendererFrame, RuntimeRenderer } from "./contracts"

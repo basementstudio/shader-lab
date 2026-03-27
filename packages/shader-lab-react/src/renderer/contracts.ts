@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { createRuntimeClock } from "../runtime-clock"
 import { resolveEvaluatedLayers } from "../timeline"
 import type { ShaderLabConfig, ShaderLabLayerConfig } from "../types"

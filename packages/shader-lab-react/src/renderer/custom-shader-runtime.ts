@@ -1,7 +1,6 @@
-// @ts-nocheck
 import type { TSLNode } from "three/tsl"
 import * as tsl from "three/tsl"
-import * as shaderUtils from "./shaders/tsl/utils"
+import * as shaderUtils from "./shaders/tsl/utils/index"
 
 type CompiledShaderModule = {
   buildNode: () => TSLNode

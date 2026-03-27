@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { clamp, float, type TSLNode, uniform, vec3, vec4 } from "three/tsl"
 import { CUSTOM_SHADER_ENTRY_EXPORT } from "../lib/editor/custom-shader/shared"
 import { compileCustomShaderModule } from "./custom-shader-runtime"

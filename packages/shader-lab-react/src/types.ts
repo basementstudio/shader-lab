@@ -5,6 +5,50 @@ export type ShaderLabParameterValue =
   | [number, number]
   | [number, number, number]
 
+export type ShaderLabLayerKind = "effect" | "source"
+
+export type ShaderLabSourceLayerType =
+  | "custom-shader"
+  | "gradient"
+  | "image"
+  | "live"
+  | "text"
+  | "video"
+
+export type ShaderLabEffectLayerType =
+  | "ascii"
+  | "crt"
+  | "dithering"
+  | "halftone"
+  | "ink"
+  | "particle-grid"
+  | "pattern"
+  | "pixel-sorting"
+
+export type ShaderLabLayerType =
+  | ShaderLabEffectLayerType
+  | ShaderLabSourceLayerType
+
+export type ShaderLabBlendMode =
+  | "normal"
+  | "multiply"
+  | "screen"
+  | "overlay"
+  | "darken"
+  | "lighten"
+  | "color-dodge"
+  | "color-burn"
+  | "hard-light"
+  | "soft-light"
+  | "difference"
+  | "exclusion"
+  | "hue"
+  | "saturation"
+  | "color"
+  | "luminosity"
+
+export type ShaderLabCompositeMode = "filter" | "mask"
+
 export type ShaderLabAssetSource =
   | {
       fileName?: string
@@ -73,17 +117,17 @@ export interface ShaderLabTimelineConfig {
 
 export interface ShaderLabLayerConfig {
   asset?: ShaderLabAssetSource
-  blendMode: string
-  compositeMode: string
+  blendMode: ShaderLabBlendMode
+  compositeMode: ShaderLabCompositeMode
   hue: number
   id: string
-  kind: string
+  kind: ShaderLabLayerKind
   name: string
   opacity: number
   params: Record<string, ShaderLabParameterValue>
   saturation: number
   sketch?: ShaderLabSketchSource
-  type: string
+  type: ShaderLabLayerType
   visible: boolean
 }
 

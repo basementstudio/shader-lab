@@ -1,6 +1,8 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "noEmit": false
+    "emitDeclarationOnly": false,
+    "noEmit": false,
+    "tsBuildInfoFile": "./tsconfig.build.tsbuildinfo"
   }
 }

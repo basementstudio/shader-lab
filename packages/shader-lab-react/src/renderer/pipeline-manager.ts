@@ -1,14 +1,36 @@
-// @ts-nocheck
 import { float, type TSLNode, texture as tslTexture, uv, vec2 } from "three/tsl"
 import * as THREE from "three/webgpu"
+import { AsciiPass } from "./ascii-pass"
+import { CrtPass } from "./crt-pass"
 import { CustomShaderPass } from "./custom-shader-pass"
+import { DitheringPass } from "./dithering-pass"
 import { GradientPass } from "./gradient-pass"
+import { HalftonePass } from "./halftone-pass"
+import { InkPass } from "./ink-pass"
 import { LivePass } from "./live-pass"
 import { MediaPass } from "./media-pass"
+import { ParticleGridPass } from "./particle-grid-pass"
 import type { PassNode } from "./pass-node"
-import type { ShaderLabLayerConfig } from "../types"
+import { PatternPass } from "./pattern-pass"
+import { PixelSortingPass } from "./pixel-sorting-pass"
+import { TextPass } from "./text-pass"
+import type { ShaderLabCompositeMode, ShaderLabLayerConfig } from "../types"
 
-type LayerPassNode = CustomShaderPass | GradientPass | LivePass | MediaPass | PassNode
+type LayerPassNode =
+  | AsciiPass
+  | CrtPass
+  | CustomShaderPass
+  | DitheringPass
+  | GradientPass
+  | HalftonePass
+  | InkPass
+  | LivePass
+  | MediaPass
+  | ParticleGridPass
+  | PassNode
+  | PatternPass
+  | PixelSortingPass
+  | TextPass
 
 const RENDER_TARGET_OPTIONS = {
   depthBuffer: false,
@@ -253,7 +275,9 @@ export class PipelineManager {
     pass.enabled = layer.visible
     pass.updateOpacity(clampUnit(layer.opacity))
     pass.updateBlendMode(layer.blendMode)
-    pass.updateCompositeMode(layer.compositeMode === "mask" ? "mask" : "filter")
+    const compositeMode: ShaderLabCompositeMode =
+      layer.compositeMode === "mask" ? "mask" : "filter"
+    pass.updateCompositeMode(compositeMode)
     pass.updateLayerColorAdjustments(layer.hue, layer.saturation)
     pass.updateParams(layer.params)
 
@@ -297,12 +321,37 @@ export class PipelineManager {
   }
 
   private createPass(layer: ShaderLabLayerConfig): LayerPassNode {
+    if (layer.kind === "effect") {
+      switch (layer.type) {
+        case "ascii":
+          return new AsciiPass(layer.id)
+        case "crt":
+          return new CrtPass(layer.id)
+        case "dithering":
+          return new DitheringPass(layer.id)
+        case "halftone":
+          return new HalftonePass(layer.id)
+        case "ink":
+          return new InkPass(layer.id)
+        case "particle-grid":
+          return new ParticleGridPass(layer.id)
+        case "pattern":
+          return new PatternPass(layer.id)
+        case "pixel-sorting":
+          return new PixelSortingPass(layer.id)
+      }
+    }
+
     if (layer.kind === "source" && (layer.type === "image" || layer.type === "video")) {
       return new MediaPass(layer.id)
     }
 
     if (layer.kind === "source" && layer.type === "gradient") {
       return new GradientPass(layer.id)
+    }
+
+    if (layer.kind === "source" && layer.type === "text") {
+      return new TextPass(layer.id)
     }
 
     if (layer.kind === "source" && layer.type === "custom-shader") {

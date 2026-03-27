@@ -1,4 +1,3 @@
-// @ts-nocheck
 import * as THREE from "three/webgpu"
 import {
   clamp,

@@ -1,5 +1,11 @@
 # @basementstudio/shader-lab
 
+## 1.0.1
+
+### Patch Changes
+
+- 9a5c8d0: fix workflow
+
 ## 1.0.0
 
 ### Major Changes

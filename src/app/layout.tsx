@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next"
 import { Geist } from "next/font/google"
-import { type PropsWithChildren, Suspense } from "react"
+import type { PropsWithChildren } from "react"
 import {
   APP_BASE_URL,
   APP_DEFAULT_TITLE,
@@ -83,17 +83,7 @@ export default function RootLayout({ children }: PropsWithChildren) {
       className={cn(fontsVariable, geist.variable, geist.className)}
       suppressHydrationWarning
     >
-      <body>
-        <Suspense fallback={null}>
-          <a
-            href="#main-content"
-            className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-9999 focus:rounded focus:bg-black focus:px-4 focus:py-2 focus:text-white focus:outline-none focus:ring-2 focus:ring-white"
-          >
-            Skip to main content
-          </a>
-        </Suspense>
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   )
 }

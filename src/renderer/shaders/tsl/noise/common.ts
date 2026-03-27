@@ -13,7 +13,7 @@ export const mod289 = Fn(([x]) => {
 })
 
 export const fade = Fn(([t]) => {
-  return mul(t, t).mul(t.mul(t.mul(t.mul(t.mul(6.0).sub(15.0).add(10.0)))))
+  return t.mul(t).mul(t).mul(t.mul(t).mul(6.0).sub(t.mul(15.0)).add(10.0))
 })
 
 export const grad4 = Fn(([j, ip]) => {

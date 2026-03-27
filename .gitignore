@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+tmp/
 /.pnp
 .pnp.*
 .turbo
@@ -21,6 +22,8 @@
 
 # TypeScript
 *.tsbuildinfo
+packages/shader-lab-react/dist/
+packages/shader-lab-react/*.tgz
 
 # production
 /build
@@ -69,5 +72,6 @@ next-env.d.ts
 # local design docs
 DESIGN_SYSTEM.md
 PLAN.md
+PACKAGE_PLAN.md
 SESSIONS.md
 PACKAGE_PLAN.md

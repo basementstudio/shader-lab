@@ -1,0 +1,271 @@
+.dialogRoot {
+  inset: 0;
+  position: fixed;
+  z-index: 90;
+}
+
+.backdrop {
+  background: rgb(4 5 7 / 0.56);
+  border: 0;
+  inset: 0;
+  position: absolute;
+  width: 100%;
+}
+
+.dialog {
+  max-height: calc(100vh - 112px);
+  overflow: hidden;
+  padding: 0;
+}
+
+.dialogWrap {
+  inset: 76px auto auto 50%;
+  max-width: min(560px, calc(100vw - 32px));
+  position: absolute;
+  transform: translateX(-50%);
+  width: min(560px, calc(100vw - 32px));
+}
+
+.dialogMotion {
+  width: 100%;
+}
+
+.dialogHeader {
+  align-items: center;
+  border-bottom: 1px solid var(--ds-border-divider);
+  display: flex;
+  justify-content: space-between;
+  padding: 14px 16px 12px;
+}
+
+.dialogTitle {
+  line-height: 20px;
+}
+
+.closeButton {
+  height: 28px;
+  width: 28px;
+}
+
+.tabRow {
+  border-bottom: 1px solid var(--ds-border-divider);
+  display: flex;
+  gap: 6px;
+  padding: 10px 16px;
+}
+
+.tabButton {
+  align-items: center;
+  background-color: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--ds-radius-control);
+  display: inline-flex;
+  justify-content: center;
+  line-height: 1;
+  min-height: 28px;
+  padding: 0 10px;
+  transition:
+    background-color 160ms var(--ease-out-cubic),
+    border-color 160ms var(--ease-out-cubic),
+    color 160ms var(--ease-out-cubic);
+}
+
+.tabButton:hover {
+  background-color: var(--ds-color-surface-subtle);
+  border-color: var(--ds-border-subtle);
+}
+
+.tabButtonActive {
+  background-color: var(--ds-color-surface-active);
+  border-color: var(--ds-border-active);
+}
+
+.dialogBody {
+  overflow: hidden;
+  padding: 14px 16px 16px;
+}
+
+.contentViewport {
+  position: relative;
+}
+
+.measureWrap {
+  inset: 0 auto auto 0;
+  pointer-events: none;
+  position: absolute;
+  visibility: hidden;
+  width: 100%;
+  z-index: -1;
+}
+
+.measureView {
+  width: 100%;
+}
+
+.tabPane {
+  width: 100%;
+}
+
+.sectionStack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fieldLabel {
+  text-transform: uppercase;
+}
+
+.presetRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pillButton {
+  align-items: center;
+  background-color: var(--ds-color-surface-control);
+  border: 1px solid var(--ds-border-divider);
+  border-radius: var(--ds-radius-control);
+  display: inline-flex;
+  justify-content: center;
+  line-height: 1;
+  min-height: 28px;
+  padding: 0 10px;
+  transition:
+    background-color 160ms var(--ease-out-cubic),
+    border-color 160ms var(--ease-out-cubic),
+    color 160ms var(--ease-out-cubic);
+}
+
+.tabButton :global(.type-label),
+.pillButton :global(.type-label) {
+  line-height: 1;
+}
+
+.pillButton:hover:not(:disabled) {
+  background-color: rgb(255 255 255 / 0.08);
+  border-color: var(--ds-border-hover);
+}
+
+.pillButtonActive {
+  background-color: var(--ds-color-surface-active);
+  border-color: var(--ds-border-active);
+}
+
+.pillButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+.inlineGrid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.numberInput {
+  background-color: var(--ds-color-surface-control);
+  border: 1px solid var(--ds-border-divider);
+  border-radius: var(--ds-radius-control);
+  color: var(--ds-color-text-primary);
+  font-family: var(--ds-font-mono);
+  font-size: 12px;
+  line-height: 16px;
+  min-height: 36px;
+  padding: 8px 10px;
+}
+
+.note {
+  line-height: 14px;
+}
+
+.inlineCode {
+  background-color: rgb(255 255 255 / 0.06);
+  border: 1px solid rgb(255 255 255 / 0.09);
+  border-radius: 6px;
+  font-family: var(--ds-font-mono);
+  font-size: 11px;
+  padding: 1px 5px;
+}
+
+.issueList {
+  background-color: rgb(255 74 74 / 0.06);
+  border: 1px solid rgb(255 74 74 / 0.14);
+  border-radius: var(--ds-radius-panel);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+}
+
+.codeBlock {
+  background-color: rgb(255 255 255 / 0.04);
+  border: 1px solid var(--ds-border-divider);
+  border-radius: var(--ds-radius-panel);
+  font-family: var(--ds-font-mono);
+  font-size: 11px;
+  line-height: 1.55;
+  margin: 0;
+  max-height: 280px;
+  overflow: auto;
+  padding: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.dropZone {
+  align-items: center;
+  background-color: var(--ds-color-surface-subtle);
+  border: 1px dashed var(--ds-border-divider);
+  border-radius: var(--ds-radius-panel);
+  display: grid;
+  gap: 12px;
+  grid-template-columns: auto 1fr auto;
+  padding: 14px;
+}
+
+.dropZoneActive {
+  background-color: var(--ds-color-surface-active);
+  border-color: var(--ds-border-hover);
+}
+
+.dropTitle {
+  line-height: 16px;
+}
+
+.dropText {
+  margin-top: 4px;
+}
+
+.errorMessage,
+.statusMessage {
+  border-radius: var(--ds-radius-control);
+  line-height: 14px;
+  margin: 0 16px 16px;
+  padding: 10px 12px;
+}
+
+.errorMessage {
+  background-color: rgb(255 74 74 / 0.08);
+  border: 1px solid rgb(255 74 74 / 0.18);
+  color: rgb(255 191 191 / 0.92);
+}
+
+.statusMessage {
+  background-color: rgb(255 255 255 / 0.06);
+  border: 1px solid rgb(255 255 255 / 0.09);
+}
+
+@media (width < 900px) {
+  .inlineGrid,
+  .dropZone {
+    grid-template-columns: 1fr;
+  }
+}

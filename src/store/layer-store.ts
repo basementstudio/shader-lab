@@ -64,8 +64,23 @@ function getGradientNoiseDefaults(noiseType: string): {
   switch (noiseType) {
     case "perlin":
       return {
+        warpAmount: 0.64,
+        warpScale: 5.56,
+      }
+    case "value":
+      return {
         warpAmount: 0.06,
         warpScale: 0.35,
+      }
+    case "voronoi":
+      return {
+        warpAmount: 0.3,
+        warpScale: 3.0,
+      }
+    case "ridge":
+      return {
+        warpAmount: 0.2,
+        warpScale: 2.0,
       }
     case "turbulence":
       return {

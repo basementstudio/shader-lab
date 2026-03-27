@@ -10,7 +10,7 @@
   "scripts": {
     "analyze": "cross-env ANALYZE=true bun run build",
     "analyze:experimental": "next experimental-analyze",
-    "build": "next build",
+    "build": "bun run build:runtime && next build",
     "build:runtime": "bun run --cwd packages/shader-lab-react build",
     "dev": "next dev",
     "dev:https": "next dev --experimental-https",

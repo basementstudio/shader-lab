@@ -1,5 +1,12 @@
 # @basementstudio/shader-lab
 
+## 1.0.2
+
+### Patch Changes
+
+- b86e1f6: fix
+- 6e5377b: fix package publishing so only @basementstudio/shader-lab is released from the workspace package
+
 ## 1.0.1
 
 ### Patch Changes

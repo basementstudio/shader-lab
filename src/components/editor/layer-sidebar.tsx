@@ -75,7 +75,7 @@ const addLayerOptions = [
     label: (
       <span className={menuButtonClassName}>
         <CameraIcon size={14} weight="regular" />
-        Live CameraIcon
+        Camera
       </span>
     ),
     value: "live",

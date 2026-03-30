@@ -1,5 +1,11 @@
 # @basementstudio/shader-lab
 
+## 1.1.0
+
+### Minor Changes
+
+- 9dbf768: high-level and advanced apis added to support other use cases
+
 ## 1.0.2
 
 ### Patch Changes

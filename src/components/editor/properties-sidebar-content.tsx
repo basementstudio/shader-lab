@@ -3,8 +3,16 @@
 import { TextAlignRightIcon } from "@phosphor-icons/react"
 import { AnimatePresence, motion } from "motion/react"
 import { useCallback, useEffect, useMemo, useState } from "react"
+import { Button } from "@/components/ui/button"
+import { IconButton } from "@/components/ui/icon-button"
+import { Select } from "@/components/ui/select"
+import { Slider } from "@/components/ui/slider"
+import { Toggle } from "@/components/ui/toggle"
+import { Typography } from "@/components/ui/typography"
+import { cn } from "@/lib/cn"
 import { CUSTOM_SHADER_ENTRY_EXPORT } from "@/lib/editor/custom-shader/shared"
 import { formatCustomShaderSource } from "@/renderer/custom-shader-runtime"
+import { useTimelineStore } from "@/store/timeline-store"
 import type {
   AnimatedPropertyBinding,
   BlendMode,
@@ -16,14 +24,6 @@ import type {
   ParameterDefinition,
   ParameterValue,
 } from "@/types/editor"
-import { cn } from "@/lib/cn"
-import { Button } from "@/components/ui/button"
-import { IconButton } from "@/components/ui/icon-button"
-import { Select } from "@/components/ui/select"
-import { Slider } from "@/components/ui/slider"
-import { Toggle } from "@/components/ui/toggle"
-import { Typography } from "@/components/ui/typography"
-import { useTimelineStore } from "@/store/timeline-store"
 import {
   ParameterField,
   renderFieldLabel,
@@ -32,13 +32,13 @@ import {
 import {
   blendModeOptions,
   compositeModeOptions,
-  maskModeOptions,
-  maskSourceOptions,
   createParamTimelineBinding,
   DEFAULT_PARAM_GROUP,
   formatLayerKind,
   groupVisibleParams,
   hasTrackForBinding,
+  maskModeOptions,
+  maskSourceOptions,
 } from "./properties-sidebar-utils"
 
 export function EmptyPropertiesContent() {
@@ -111,11 +111,7 @@ function CustomShaderSection({
 
   return (
     <section className="flex flex-col gap-3 border-t border-[var(--ds-border-divider)] px-4 pt-[14px] pb-4 first:border-t-0">
-      <Typography
-        className="uppercase"
-        tone="secondary"
-        variant="overline"
-      >
+      <Typography className="uppercase" tone="secondary" variant="overline">
         Shader
       </Typography>
 
@@ -354,11 +350,7 @@ export function SelectedLayerPropertiesContent({
 
       <div className="flex min-h-0 max-h-[min(62vh,620px)] flex-col gap-0 overflow-y-auto">
         <section className="flex flex-col gap-3 border-t border-[var(--ds-border-divider)] px-4 pt-[14px] pb-4 first:border-t-0">
-          <Typography
-            className="uppercase"
-            tone="secondary"
-            variant="overline"
-          >
+          <Typography className="uppercase" tone="secondary" variant="overline">
             General
           </Typography>
 
@@ -376,11 +368,7 @@ export function SelectedLayerPropertiesContent({
             />
 
             <div className="grid items-center gap-[10px] [grid-template-columns:minmax(0,1fr)_132px]">
-              <Typography
-                className="min-w-0"
-                tone="secondary"
-                variant="label"
-              >
+              <Typography className="min-w-0" tone="secondary" variant="label">
                 Blend
               </Typography>
               <Select
@@ -397,11 +385,7 @@ export function SelectedLayerPropertiesContent({
             </div>
 
             <div className="grid items-center gap-[10px] [grid-template-columns:minmax(0,1fr)_132px]">
-              <Typography
-                className="min-w-0"
-                tone="secondary"
-                variant="label"
-              >
+              <Typography className="min-w-0" tone="secondary" variant="label">
                 Mode
               </Typography>
               <Select
@@ -431,7 +415,9 @@ export function SelectedLayerPropertiesContent({
                     className="w-[132px]"
                     onValueChange={(value) => {
                       if (value) {
-                        setLayerMaskConfig(layerId, { source: value as MaskSource })
+                        setLayerMaskConfig(layerId, {
+                          source: value as MaskSource,
+                        })
                       }
                     }}
                     options={maskSourceOptions}
@@ -593,7 +579,7 @@ export function SelectedLayerPropertiesContent({
                                     mass: 0.85,
                                     stiffness: 360,
                                     type: "spring",
-                                }
+                                  }
                             }
                           >
                             <div className="flex flex-col gap-[10px]">

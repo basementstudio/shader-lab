@@ -1,16 +1,11 @@
 "use client"
 import {
-  CameraIcon,
   DotsSixVerticalIcon,
   DotsThreeVerticalIcon,
   EyeIcon,
   EyeSlashIcon,
   FolderIcon,
-  ImageSquareIcon,
-  PlusIcon,
   SidebarSimpleIcon,
-  SparkleIcon,
-  TextTIcon,
 } from "@phosphor-icons/react"
 import { Reorder, useDragControls } from "motion/react"
 import {
@@ -21,6 +16,10 @@ import {
   useRef,
   useState,
 } from "react"
+import {
+  type AddLayerAction,
+  LayerPicker,
+} from "@/components/editor/layer-picker"
 import { GlassPanel } from "@/components/ui/glass-panel"
 import { IconButton } from "@/components/ui/icon-button"
 import { Select } from "@/components/ui/select"
@@ -31,225 +30,10 @@ import { useEditorStore } from "@/store/editor-store"
 import { useLayerStore } from "@/store/layer-store"
 import type { AssetKind, EditorAsset, EditorLayer } from "@/types/editor"
 
-type AddLayerAction =
-  | "ascii"
-  | "directional-blur"
-  | "chromatic-aberration"
-  | "crt"
-  | "custom-shader"
-  | "displacement-map"
-  | "dithering"
-  | "edge-detect"
-  | "gradient"
-  | "halftone"
-  | "image"
-  | "ink"
-  | "live"
-  | "particle-grid"
-  | "pixelation"
-  | "pattern"
-  | "pixel-sorting"
-  | "posterize"
-  | "slice"
-  | "text"
-  | "video"
 type LayerAction = "delete" | "reset"
 
-const menuButtonClassName = "inline-flex items-center gap-[var(--ds-space-2)]"
 const thumbnailBaseClassName =
   "relative h-7 w-7 overflow-hidden rounded-[var(--ds-radius-thumb)] border border-white/6 bg-[linear-gradient(135deg,rgb(255_255_255_/_0.07),rgb(255_255_255_/_0.03))]"
-
-const addLayerOptions = [
-  {
-    label: (
-      <span className={menuButtonClassName}>
-        <ImageSquareIcon size={14} weight="regular" />
-        Image
-      </span>
-    ),
-    value: "image",
-  },
-  {
-    label: (
-      <span className={menuButtonClassName}>
-        <ImageSquareIcon size={14} weight="regular" />
-        Video
-      </span>
-    ),
-    value: "video",
-  },
-  {
-    label: (
-      <span className={menuButtonClassName}>
-        <CameraIcon size={14} weight="regular" />
-        Camera
-      </span>
-    ),
-    value: "live",
-  },
-  {
-    label: (
-      <span className={menuButtonClassName}>
-        <TextTIcon size={14} weight="regular" />
-        Text
-      </span>
-    ),
-    value: "text",
-  },
-  {
-    label: (
-      <span className={menuButtonClassName}>
-        <SparkleIcon size={14} weight="regular" />
-        Mesh Gradient
-      </span>
-    ),
-    value: "gradient",
-  },
-  {
-    label: (
-      <span className={menuButtonClassName}>
-        <SparkleIcon size={14} weight="regular" />
-        Ink
-      </span>
-    ),
-    value: "ink",
-  },
-  {
-    label: (
-      <span className={menuButtonClassName}>
-        <SparkleIcon size={14} weight="regular" />
-        Custom Shader
-      </span>
-    ),
-    value: "custom-shader" as const,
-  },
-  {
-    label: (
-      <span className={menuButtonClassName}>
-        <SparkleIcon size={14} weight="regular" />
-        ASCII
-      </span>
-    ),
-    value: "ascii",
-  },
-  {
-    label: (
-      <span className={menuButtonClassName}>
-        <SparkleIcon size={14} weight="regular" />
-        Directional Blur
-      </span>
-    ),
-    value: "directional-blur",
-  },
-  {
-    label: (
-      <span className={menuButtonClassName}>
-        <SparkleIcon size={14} weight="regular" />
-        Pattern
-      </span>
-    ),
-    value: "pattern",
-  },
-  {
-    label: (
-      <span className={menuButtonClassName}>
-        <SparkleIcon size={14} weight="regular" />
-        CRT
-      </span>
-    ),
-    value: "crt",
-  },
-  {
-    label: (
-      <span className={menuButtonClassName}>
-        <SparkleIcon size={14} weight="regular" />
-        Dithering
-      </span>
-    ),
-    value: "dithering",
-  },
-  {
-    label: (
-      <span className={menuButtonClassName}>
-        <SparkleIcon size={14} weight="regular" />
-        Halftone
-      </span>
-    ),
-    value: "halftone",
-  },
-  {
-    label: (
-      <span className={menuButtonClassName}>
-        <SparkleIcon size={14} weight="regular" />
-        Particle Grid
-      </span>
-    ),
-    value: "particle-grid",
-  },
-  {
-    label: (
-      <span className={menuButtonClassName}>
-        <SparkleIcon size={14} weight="regular" />
-        Pixelation
-      </span>
-    ),
-    value: "pixelation",
-  },
-  {
-    label: (
-      <span className={menuButtonClassName}>
-        <SparkleIcon size={14} weight="regular" />
-        Posterize
-      </span>
-    ),
-    value: "posterize",
-  },
-  {
-    label: (
-      <span className={menuButtonClassName}>
-        <SparkleIcon size={14} weight="regular" />
-        Pixel Sorting
-      </span>
-    ),
-    value: "pixel-sorting",
-  },
-  {
-    label: (
-      <span className={menuButtonClassName}>
-        <SparkleIcon size={14} weight="regular" />
-        Slice
-      </span>
-    ),
-    value: "slice",
-  },
-  {
-    label: (
-      <span className={menuButtonClassName}>
-        <SparkleIcon size={14} weight="regular" />
-        Edge Detect
-      </span>
-    ),
-    value: "edge-detect",
-  },
-  {
-    label: (
-      <span className={menuButtonClassName}>
-        <SparkleIcon size={14} weight="regular" />
-        Displacement Map
-      </span>
-    ),
-    value: "displacement-map",
-  },
-  {
-    label: (
-      <span className={menuButtonClassName}>
-        <SparkleIcon size={14} weight="regular" />
-        Chromatic Aberration
-      </span>
-    ),
-    value: "chromatic-aberration",
-  },
-] as const satisfies readonly { label: ReactNode; value: AddLayerAction }[]
 
 function getLayerSecondaryText(
   layer: EditorLayer,
@@ -512,7 +296,6 @@ export function LayerSidebar() {
     layerId: string
   } | null>(null)
   const videoInputRef = useRef<HTMLInputElement | null>(null)
-  const [addLayerSelectKey, setAddLayerSelectKey] = useState(0)
   const [layerActionSelectKeys, setLayerActionSelectKeys] = useState<
     Record<string, number>
   >({})
@@ -561,68 +344,14 @@ export function LayerSidebar() {
     videoInputRef.current?.click()
   }
 
-  function handleAddDithering() {
-    addLayer("dithering")
-  }
-
-  function handleAddAscii() {
-    addLayer("ascii")
-  }
-
-  function handleAddGradient() {
-    addLayer("gradient")
-  }
-
-  function handleAddCustomShader() {
-    addLayer("custom-shader")
-  }
-
   function handleAddLayer(action: AddLayerAction) {
     if (action === "image") {
       handleImagePick()
     } else if (action === "video") {
       handleVideoPick()
-    } else if (action === "live") {
-      addLayer("live")
-    } else if (action === "text") {
-      addLayer("text")
-    } else if (action === "gradient") {
-      handleAddGradient()
-    } else if (action === "ink") {
-      addLayer("ink")
-    } else if (action === "custom-shader") {
-      handleAddCustomShader()
-    } else if (action === "ascii") {
-      handleAddAscii()
-    } else if (action === "directional-blur") {
-      addLayer("directional-blur")
-    } else if (action === "pattern") {
-      addLayer("pattern")
-    } else if (action === "crt") {
-      addLayer("crt")
-    } else if (action === "halftone") {
-      addLayer("halftone")
-    } else if (action === "particle-grid") {
-      addLayer("particle-grid")
-    } else if (action === "pixelation") {
-      addLayer("pixelation")
-    } else if (action === "posterize") {
-      addLayer("posterize")
-    } else if (action === "pixel-sorting") {
-      addLayer("pixel-sorting")
-    } else if (action === "slice") {
-      addLayer("slice")
-    } else if (action === "edge-detect") {
-      addLayer("edge-detect")
-    } else if (action === "displacement-map") {
-      addLayer("displacement-map")
-    } else if (action === "chromatic-aberration") {
-      addLayer("chromatic-aberration")
     } else {
-      handleAddDithering()
+      addLayer(action)
     }
-
-    setAddLayerSelectKey((current) => current + 1)
   }
 
   function handleLayerAction(layerId: string, action: LayerAction) {
@@ -772,16 +501,9 @@ export function LayerSidebar() {
             >
               <SidebarSimpleIcon size={14} weight="regular" />
             </IconButton>
-            <Select
-              key={addLayerSelectKey}
+            <LayerPicker
               className="pointer-events-auto"
-              onValueChange={(value) => handleAddLayer(value as AddLayerAction)}
-              options={addLayerOptions}
-              placeholder={<PlusIcon size={14} weight="bold" />}
-              popupClassName="min-w-[152px]"
-              triggerAriaLabel="Add layer"
-              triggerVariant="icon"
-              valueClassName="inline-flex items-center justify-center leading-none [&_svg]:h-[14px] [&_svg]:w-[14px]"
+              onSelect={handleAddLayer}
             />
           </div>
         </div>

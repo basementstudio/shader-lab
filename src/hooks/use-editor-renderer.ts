@@ -135,7 +135,6 @@ export function useEditorRenderer() {
             layers: layerState.layers,
             outputSize: editorState.outputSize,
             pixelRatio: getPixelRatio(),
-            startupPreviewDismissed: editorState.startupPreviewDismissed,
             timeline: timelineState,
             viewportSize: editorState.canvasSize,
           })

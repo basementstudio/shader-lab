@@ -17,6 +17,16 @@
 }
 
 @layer base {
+  @keyframes loader-sweep {
+    0% {
+      transform: translateX(-140%);
+    }
+
+    100% {
+      transform: translateX(360%);
+    }
+  }
+
   *:where(
       :not(
           html,

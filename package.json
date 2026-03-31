@@ -20,7 +20,7 @@
     "lighthouse": "bunx @unlighthouse/cli --site http://localhost:3000",
     "lint": "biome lint --max-diagnostics=200",
     "lint:fix": "biome lint --write --unsafe --max-diagnostics=200",
-    "release": "npm publish --prefix packages/shader-lab-react --access public",
+    "release": "cd packages/shader-lab-react && npm publish --access public",
     "release-canary": "changeset publish --tag canary --no-git-tag",
     "version-canary": "changeset version --snapshot canary",
     "version-packages": "changeset version",

@@ -14,7 +14,7 @@ import {
   vec4,
 } from "three/tsl"
 import { buildBlendNode } from "./blend-modes"
-import type { LayerCompositeMode, LayerParameterValues } from "../types/editor"
+import type { LayerCompositeMode, LayerParameterValues, MaskConfig } from "../types/editor"
 
 type Node = TSLNode
 
@@ -34,6 +34,9 @@ export class PassNode {
   private readonly opacityUniform: Node
   private blendMode = "normal"
   private compositeMode: LayerCompositeMode = "filter"
+  private maskSource: string = "luminance"
+  private maskMode: string = "multiply"
+  private maskInvert = false
 
   constructor(layerId: string) {
     this.layerId = layerId
@@ -94,6 +97,22 @@ export class PassNode {
     return true
   }
 
+  updateMaskConfig(config: MaskConfig): void {
+    const structuralChange =
+      config.source !== this.maskSource ||
+      config.mode !== this.maskMode ||
+      config.invert !== this.maskInvert
+
+    this.maskSource = config.source
+    this.maskMode = config.mode
+    this.maskInvert = config.invert
+
+    if (structuralChange) {
+      this.rebuildColorNode()
+      this.material.needsUpdate = true
+    }
+  }
+
   updateLayerColorAdjustments(hue: number, saturation: number): void {
     this.hueUniform.value = (hue * Math.PI) / 180
     this.saturationUniform.value = Math.max(0, saturation)
@@ -146,6 +165,13 @@ export class PassNode {
       adjustedEffectNode,
       this.opacityUniform,
       this.compositeMode,
+      this.compositeMode === "mask"
+        ? {
+            invert: this.maskInvert,
+            mode: this.maskMode,
+            source: this.maskSource,
+          }
+        : undefined,
     ) as Node
   }
 

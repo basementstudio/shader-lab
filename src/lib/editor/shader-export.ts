@@ -181,6 +181,7 @@ function toShaderLabLayerConfig(
   const baseLayer: ShaderLabLayerConfig = {
     blendMode: supportedLayer.blendMode as ShaderLabBlendMode,
     compositeMode: supportedLayer.compositeMode as ShaderLabCompositeMode,
+    maskConfig: supportedLayer.maskConfig,
     hue: supportedLayer.hue,
     id: supportedLayer.id,
     kind: supportedLayer.kind,

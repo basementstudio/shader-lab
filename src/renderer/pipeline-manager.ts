@@ -39,6 +39,9 @@ function createLayerSignature(layer: RenderableLayerPass): string {
       layer.layer.saturation.toFixed(4),
       layer.layer.blendMode,
       layer.layer.compositeMode,
+      layer.layer.maskConfig.source,
+      layer.layer.maskConfig.mode,
+      layer.layer.maskConfig.invert ? "1" : "0",
       typeof layer.params.sourceRevision === "number"
         ? String(layer.params.sourceRevision)
         : "0",
@@ -66,6 +69,9 @@ function createLayerSignature(layer: RenderableLayerPass): string {
     layer.layer.saturation.toFixed(4),
     layer.layer.blendMode,
     layer.layer.compositeMode,
+    layer.layer.maskConfig.source,
+    layer.layer.maskConfig.mode,
+    layer.layer.maskConfig.invert ? "1" : "0",
     parameterValuesSignature(layer.params),
   ].join("|")
 }
@@ -266,6 +272,7 @@ export class PipelineManager {
     pass.updateOpacity(clampUnit(renderableLayer.layer.opacity))
     pass.updateBlendMode(renderableLayer.layer.blendMode)
     pass.updateCompositeMode(renderableLayer.layer.compositeMode)
+    pass.updateMaskConfig(renderableLayer.layer.maskConfig)
     pass.updateLayerColorAdjustments(
       renderableLayer.layer.hue,
       renderableLayer.layer.saturation

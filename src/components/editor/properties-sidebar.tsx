@@ -48,6 +48,9 @@ export function PropertiesSidebar() {
   const setLayerCompositeMode = useLayerStore(
     (state) => state.setLayerCompositeMode
   )
+  const setLayerMaskConfig = useLayerStore(
+    (state) => state.setLayerMaskConfig
+  )
   const setLayerHue = useLayerStore((state) => state.setLayerHue)
   const setLayerOpacity = useLayerStore((state) => state.setLayerOpacity)
   const setLayerSaturation = useLayerStore((state) => state.setLayerSaturation)
@@ -306,6 +309,8 @@ export function PropertiesSidebar() {
     ? {
         blendMode: selectedLayer.blendMode,
         compositeMode: selectedLayer.compositeMode,
+        maskConfig: selectedLayer.maskConfig,
+        setLayerMaskConfig,
         definitionName: selectedDefinition?.defaultName ?? selectedLayer.type,
         expandedParamGroups,
         hue: displayedLayerState?.hue ?? selectedLayer.hue,

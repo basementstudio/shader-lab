@@ -1,5 +1,6 @@
 import { create } from "zustand"
 import { advanceProjectTimeline } from "@/renderer/project-clock"
+import { getDefaultProjectTimeline } from "@/lib/editor/default-project"
 import type {
   AnimatedPropertyBinding,
   AnimatableValueType,
@@ -64,6 +65,7 @@ const DEFAULT_DURATION = 6
 const MIN_DURATION = 0.25
 const MAX_DURATION = 120
 const TIME_EPSILON = 1 / 240
+const DEFAULT_PROJECT_TIMELINE = getDefaultProjectTimeline()
 
 function clampDuration(duration: number): number {
   if (!Number.isFinite(duration)) {
@@ -176,12 +178,12 @@ function cloneTracks(tracks: TimelineTrack[]): TimelineTrack[] {
 
 export const useTimelineStore = create<TimelineStore>((set, get) => ({
   currentTime: 0,
-  duration: DEFAULT_DURATION,
+  duration: DEFAULT_PROJECT_TIMELINE.duration,
   isPlaying: false,
-  loop: true,
+  loop: DEFAULT_PROJECT_TIMELINE.loop,
   selectedKeyframeId: null,
   selectedTrackId: null,
-  tracks: [],
+  tracks: DEFAULT_PROJECT_TIMELINE.tracks,
 
   setPlaying: (isPlaying) => {
     set({ isPlaying })

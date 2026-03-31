@@ -1,10 +1,13 @@
 import { create } from "zustand"
+import { getDefaultProjectComposition } from "@/lib/editor/default-project"
 import type {
   EditorStateSnapshot,
   RenderScale,
   WebGPUStatus,
 } from "@/types/editor"
 import { DEFAULT_CANVAS_SIZE } from "@/lib/editor/layers"
+
+const DEFAULT_PROJECT_COMPOSITION = getDefaultProjectComposition()
 
 export interface EditorStoreState extends EditorStateSnapshot {
   startupPreviewDismissed: boolean
@@ -49,7 +52,7 @@ export const useEditorStore = create<EditorStore>((set) => ({
   canvasSize: DEFAULT_CANVAS_SIZE,
   fps: 0,
   immersiveCanvas: false,
-  outputSize: DEFAULT_CANVAS_SIZE,
+  outputSize: DEFAULT_PROJECT_COMPOSITION,
   panOffset: { x: 0, y: 0 },
   renderScale: 1,
   sidebars: {

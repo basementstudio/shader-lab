@@ -10,6 +10,9 @@ import type {
   BlendMode,
   LayerCompositeMode,
   LayerType,
+  MaskConfig,
+  MaskMode,
+  MaskSource,
   ParameterDefinition,
   ParameterValue,
 } from "@/types/editor"
@@ -18,6 +21,7 @@ import { Button } from "@/components/ui/button"
 import { IconButton } from "@/components/ui/icon-button"
 import { Select } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
+import { Toggle } from "@/components/ui/toggle"
 import { Typography } from "@/components/ui/typography"
 import { useTimelineStore } from "@/store/timeline-store"
 import {
@@ -28,6 +32,8 @@ import {
 import {
   blendModeOptions,
   compositeModeOptions,
+  maskModeOptions,
+  maskSourceOptions,
   createParamTimelineBinding,
   DEFAULT_PARAM_GROUP,
   formatLayerKind,
@@ -200,6 +206,8 @@ function CustomShaderSection({
 export function SelectedLayerPropertiesContent({
   blendMode,
   compositeMode,
+  maskConfig,
+  setLayerMaskConfig,
   definitionName,
   expandedParamGroups,
   hue,
@@ -226,6 +234,8 @@ export function SelectedLayerPropertiesContent({
 }: {
   blendMode: BlendMode
   compositeMode: LayerCompositeMode
+  maskConfig: MaskConfig
+  setLayerMaskConfig: (id: string, updates: Partial<MaskConfig>) => void
   definitionName: string
   expandedParamGroups: Record<string, boolean>
   hue: number
@@ -406,6 +416,69 @@ export function SelectedLayerPropertiesContent({
                 value={compositeMode}
               />
             </div>
+
+            {compositeMode === "mask" && (
+              <>
+                <div className="grid items-center gap-[10px] [grid-template-columns:minmax(0,1fr)_132px]">
+                  <Typography
+                    className="min-w-0"
+                    tone="secondary"
+                    variant="label"
+                  >
+                    Source
+                  </Typography>
+                  <Select
+                    className="w-[132px]"
+                    onValueChange={(value) => {
+                      if (value) {
+                        setLayerMaskConfig(layerId, { source: value as MaskSource })
+                      }
+                    }}
+                    options={maskSourceOptions}
+                    triggerClassName="w-[132px]"
+                    value={maskConfig.source}
+                  />
+                </div>
+
+                <div className="grid items-center gap-[10px] [grid-template-columns:minmax(0,1fr)_132px]">
+                  <Typography
+                    className="min-w-0"
+                    tone="secondary"
+                    variant="label"
+                  >
+                    Mask Mode
+                  </Typography>
+                  <Select
+                    className="w-[132px]"
+                    onValueChange={(value) => {
+                      if (value) {
+                        setLayerMaskConfig(layerId, { mode: value as MaskMode })
+                      }
+                    }}
+                    options={maskModeOptions}
+                    triggerClassName="w-[132px]"
+                    value={maskConfig.mode}
+                  />
+                </div>
+
+                <div className="grid items-center gap-[10px] [grid-template-columns:minmax(0,1fr)_132px]">
+                  <Typography
+                    className="min-w-0"
+                    tone="secondary"
+                    variant="label"
+                  >
+                    Invert
+                  </Typography>
+                  <Toggle
+                    checked={maskConfig.invert}
+                    className="justify-self-end"
+                    onCheckedChange={(nextValue) =>
+                      setLayerMaskConfig(layerId, { invert: nextValue })
+                    }
+                  />
+                </div>
+              </>
+            )}
 
             <Slider
               label={renderFieldLabel(

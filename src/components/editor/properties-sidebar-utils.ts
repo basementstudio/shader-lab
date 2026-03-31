@@ -22,6 +22,19 @@ export const compositeModeOptions = [
   { label: "Mask", value: "mask" },
 ] as const
 
+export const maskSourceOptions = [
+  { label: "Luminance", value: "luminance" },
+  { label: "Alpha", value: "alpha" },
+  { label: "Red", value: "red" },
+  { label: "Green", value: "green" },
+  { label: "Blue", value: "blue" },
+] as const
+
+export const maskModeOptions = [
+  { label: "Multiply", value: "multiply" },
+  { label: "Stencil", value: "stencil" },
+] as const
+
 const COLLAPSIBLE_PARAM_GROUPS = new Set(["Points", "Effects"])
 export const DEFAULT_PARAM_GROUP = "Settings"
 

@@ -1,6 +1,6 @@
 {
   "name": "@basementstudio/shader-lab",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Portable React runtime for Shader Lab exports.",
   "type": "module",
   "sideEffects": false,

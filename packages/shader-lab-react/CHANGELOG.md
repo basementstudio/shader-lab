@@ -1,5 +1,11 @@
 # @basementstudio/shader-lab
 
+## 1.1.1
+
+### Patch Changes
+
+- 9803868: masking
+
 ## 1.1.0
 
 ### Minor Changes

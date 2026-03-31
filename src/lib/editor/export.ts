@@ -231,7 +231,7 @@ export async function exportVideo(
       })
 
       cropCanvasToAspect(renderCanvas, outputCanvas, options.aspectPreset, projectState.compositionSize)
-      await wait(Math.max(4, 1000 / options.fps))
+      await wait(4)
     }
 
     recorder.stop()

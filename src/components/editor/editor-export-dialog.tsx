@@ -119,7 +119,7 @@ export function EditorExportDialog({
       "standard"
     )
   )
-  const [videoDuration, setVideoDuration] = useState(6)
+  const [videoDuration, setVideoDuration] = useState(timelineDuration)
   const [videoFps, setVideoFps] = useState(30)
   const [videoFormat, setVideoFormat] = useState<VideoExportFormat>("webm")
   const [isCopyingShader, setIsCopyingShader] = useState(false)
@@ -306,14 +306,13 @@ export function EditorExportDialog({
     setIsWorking(true)
 
     try {
-      const currentTime = useTimelineStore.getState().currentTime
       const blob = await exportVideo(buildRenderProjectState(), {
         aspectPreset: videoAspect,
         duration: Math.max(0.25, videoDuration),
         format: videoFormat,
         fps: Math.max(1, videoFps),
         qualityPreset: videoQuality,
-        startTime: currentTime,
+        startTime: 0,
         width: videoSize.width,
         height: videoSize.height,
       })

@@ -3,9 +3,12 @@ import * as THREE from "three/webgpu"
 import type { ShaderLabCompositeMode, ShaderLabLayerConfig } from "../types"
 import { DEFAULT_MASK_CONFIG } from "../types/editor"
 import { AsciiPass } from "./ascii-pass"
+import { ChromaticAberrationPass } from "./chromatic-aberration-pass"
 import { CrtPass } from "./crt-pass"
 import { CustomShaderPass } from "./custom-shader-pass"
+import { DisplacementMapPass } from "./displacement-map-pass"
 import { DitheringPass } from "./dithering-pass"
+import { EdgeDetectPass } from "./edge-detect-pass"
 import { GradientPass } from "./gradient-pass"
 import { HalftonePass } from "./halftone-pass"
 import { InkPass } from "./ink-pass"
@@ -15,13 +18,17 @@ import { ParticleGridPass } from "./particle-grid-pass"
 import type { PassNode } from "./pass-node"
 import { PatternPass } from "./pattern-pass"
 import { PixelSortingPass } from "./pixel-sorting-pass"
+import { PixelationPass } from "./pixelation-pass"
 import { TextPass } from "./text-pass"
 
 type LayerPassNode =
   | AsciiPass
+  | ChromaticAberrationPass
   | CrtPass
   | CustomShaderPass
+  | DisplacementMapPass
   | DitheringPass
+  | EdgeDetectPass
   | GradientPass
   | HalftonePass
   | InkPass
@@ -30,6 +37,7 @@ type LayerPassNode =
   | ParticleGridPass
   | PassNode
   | PatternPass
+  | PixelationPass
   | PixelSortingPass
   | TextPass
 
@@ -417,8 +425,14 @@ export class PipelineManager {
           return new AsciiPass(layer.id)
         case "crt":
           return new CrtPass(layer.id)
+        case "chromatic-aberration":
+          return new ChromaticAberrationPass(layer.id)
+        case "displacement-map":
+          return new DisplacementMapPass(layer.id)
         case "dithering":
           return new DitheringPass(layer.id)
+        case "edge-detect":
+          return new EdgeDetectPass(layer.id)
         case "halftone":
           return new HalftonePass(layer.id)
         case "ink":
@@ -427,6 +441,8 @@ export class PipelineManager {
           return new ParticleGridPass(layer.id)
         case "pattern":
           return new PatternPass(layer.id)
+        case "pixelation":
+          return new PixelationPass(layer.id)
         case "pixel-sorting":
           return new PixelSortingPass(layer.id)
       }

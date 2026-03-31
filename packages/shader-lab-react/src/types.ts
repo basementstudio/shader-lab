@@ -17,12 +17,16 @@ export type ShaderLabSourceLayerType =
 
 export type ShaderLabEffectLayerType =
   | "ascii"
+  | "chromatic-aberration"
   | "crt"
+  | "displacement-map"
   | "dithering"
+  | "edge-detect"
   | "halftone"
   | "ink"
   | "particle-grid"
   | "pattern"
+  | "pixelation"
   | "pixel-sorting"
 
 export type ShaderLabLayerType =
@@ -49,7 +53,12 @@ export type ShaderLabBlendMode =
 
 export type ShaderLabCompositeMode = "filter" | "mask"
 
-export type ShaderLabMaskSource = "luminance" | "alpha" | "red" | "green" | "blue"
+export type ShaderLabMaskSource =
+  | "luminance"
+  | "alpha"
+  | "red"
+  | "green"
+  | "blue"
 export type ShaderLabMaskMode = "multiply" | "stencil"
 
 export interface ShaderLabMaskConfig {

@@ -33,15 +33,19 @@ import type { AssetKind, EditorAsset, EditorLayer } from "@/types/editor"
 
 type AddLayerAction =
   | "ascii"
+  | "chromatic-aberration"
   | "crt"
   | "custom-shader"
+  | "displacement-map"
   | "dithering"
+  | "edge-detect"
   | "gradient"
   | "halftone"
   | "image"
   | "ink"
   | "live"
   | "particle-grid"
+  | "pixelation"
   | "pattern"
   | "pixel-sorting"
   | "text"
@@ -174,10 +178,46 @@ const addLayerOptions = [
     label: (
       <span className={menuButtonClassName}>
         <SparkleIcon size={14} weight="regular" />
+        Pixelation
+      </span>
+    ),
+    value: "pixelation",
+  },
+  {
+    label: (
+      <span className={menuButtonClassName}>
+        <SparkleIcon size={14} weight="regular" />
         Pixel Sorting
       </span>
     ),
     value: "pixel-sorting",
+  },
+  {
+    label: (
+      <span className={menuButtonClassName}>
+        <SparkleIcon size={14} weight="regular" />
+        Edge Detect
+      </span>
+    ),
+    value: "edge-detect",
+  },
+  {
+    label: (
+      <span className={menuButtonClassName}>
+        <SparkleIcon size={14} weight="regular" />
+        Displacement Map
+      </span>
+    ),
+    value: "displacement-map",
+  },
+  {
+    label: (
+      <span className={menuButtonClassName}>
+        <SparkleIcon size={14} weight="regular" />
+        Chromatic Aberration
+      </span>
+    ),
+    value: "chromatic-aberration",
   },
 ] as const satisfies readonly { label: ReactNode; value: AddLayerAction }[]
 
@@ -532,8 +572,16 @@ export function LayerSidebar() {
       addLayer("halftone")
     } else if (action === "particle-grid") {
       addLayer("particle-grid")
+    } else if (action === "pixelation") {
+      addLayer("pixelation")
     } else if (action === "pixel-sorting") {
       addLayer("pixel-sorting")
+    } else if (action === "edge-detect") {
+      addLayer("edge-detect")
+    } else if (action === "displacement-map") {
+      addLayer("displacement-map")
+    } else if (action === "chromatic-aberration") {
+      addLayer("chromatic-aberration")
     } else {
       handleAddDithering()
     }

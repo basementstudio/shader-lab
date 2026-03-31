@@ -29,16 +29,19 @@ const SUPPORTED_SHADER_EXPORT_LAYER_TYPES = new Set<LayerType>([
   "ink",
   "pattern",
   "crt",
+  "chromatic-aberration",
   "dithering",
+  "displacement-map",
+  "edge-detect",
   "halftone",
   "particle-grid",
   "pixel-sorting",
+  "pixelation",
 ] as const)
 
 const UNSUPPORTED_SHADER_EXPORT_LAYER_TYPES = new Set<LayerType>([
   "fluid",
   "model",
-  "pixelation",
   "blur",
 ] as const)
 
@@ -46,8 +49,11 @@ type SupportedShaderExportLayerType = Extract<
   LayerType,
   | "ascii"
   | "crt"
+  | "chromatic-aberration"
   | "custom-shader"
+  | "displacement-map"
   | "dithering"
+  | "edge-detect"
   | "gradient"
   | "halftone"
   | "image"
@@ -55,6 +61,7 @@ type SupportedShaderExportLayerType = Extract<
   | "live"
   | "particle-grid"
   | "pattern"
+  | "pixelation"
   | "pixel-sorting"
   | "text"
   | "video"

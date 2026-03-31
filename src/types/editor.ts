@@ -23,6 +23,9 @@ export const EFFECT_LAYER_TYPES = [
   "pixelation",
   "pixel-sorting",
   "blur",
+  "edge-detect",
+  "displacement-map",
+  "chromatic-aberration",
 ] as const
 export type EffectLayerType = (typeof EFFECT_LAYER_TYPES)[number]
 

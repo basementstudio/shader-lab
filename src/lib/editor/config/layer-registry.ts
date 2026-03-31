@@ -1951,15 +1951,13 @@ const pixelationParams = [
     type: "number",
   },
   {
-    defaultValue: "square",
-    key: "shape",
-    label: "Shape",
-    options: [
-      { label: "Square", value: "square" },
-      { label: "Circle", value: "circle" },
-      { label: "Diamond", value: "diamond" },
-    ],
-    type: "select",
+    defaultValue: 1,
+    key: "aspectRatio",
+    label: "Aspect Ratio",
+    max: 4,
+    min: 0.25,
+    step: 0.05,
+    type: "number",
   },
 ] as const satisfies ParameterDefinitions
 
@@ -2282,6 +2280,148 @@ const crtParams = [
   },
 ] as const satisfies ParameterDefinitions
 
+const edgeDetectParams = [
+  {
+    defaultValue: 0.1,
+    key: "threshold",
+    label: "Threshold",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+  },
+  {
+    defaultValue: 1,
+    key: "strength",
+    label: "Strength",
+    max: 5,
+    min: 0.1,
+    step: 0.1,
+    type: "number",
+  },
+  {
+    defaultValue: false,
+    key: "invert",
+    label: "Invert",
+    type: "boolean",
+  },
+  {
+    defaultValue: "overlay",
+    key: "colorMode",
+    label: "Color",
+    options: [
+      { label: "Overlay", value: "overlay" },
+      { label: "Mono", value: "mono" },
+      { label: "Source", value: "source" },
+    ],
+    type: "select",
+  },
+  {
+    defaultValue: "#ffffff",
+    key: "lineColor",
+    label: "Line Color",
+    type: "color",
+    visibleWhen: { key: "colorMode", equals: "mono" },
+  },
+  {
+    defaultValue: "#000000",
+    key: "bgColor",
+    label: "Background",
+    type: "color",
+    visibleWhen: { key: "colorMode", equals: "mono" },
+  },
+] as const satisfies ParameterDefinitions
+
+const displacementMapParams = [
+  {
+    defaultValue: 20,
+    key: "strength",
+    label: "Strength",
+    max: 200,
+    min: 0,
+    step: 1,
+    type: "number",
+    unit: "px",
+  },
+  {
+    defaultValue: "both",
+    key: "direction",
+    label: "Direction",
+    options: [
+      { label: "Both", value: "both" },
+      { label: "Horizontal", value: "horizontal" },
+      { label: "Vertical", value: "vertical" },
+    ],
+    type: "select",
+  },
+  {
+    defaultValue: "luminance",
+    key: "channel",
+    label: "Channel",
+    options: [
+      { label: "Luminance", value: "luminance" },
+      { label: "Red", value: "red" },
+      { label: "Green", value: "green" },
+      { label: "Blue", value: "blue" },
+    ],
+    type: "select",
+  },
+  {
+    defaultValue: 0.5,
+    key: "midpoint",
+    label: "Midpoint",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+  },
+] as const satisfies ParameterDefinitions
+
+const chromaticAberrationParams = [
+  {
+    defaultValue: 5,
+    key: "intensity",
+    label: "Intensity",
+    max: 50,
+    min: 0,
+    step: 0.5,
+    type: "number",
+    unit: "px",
+  },
+  {
+    defaultValue: "radial",
+    key: "direction",
+    label: "Direction",
+    options: [
+      { label: "Radial", value: "radial" },
+      { label: "Horizontal", value: "horizontal" },
+      { label: "Vertical", value: "vertical" },
+    ],
+    type: "select",
+  },
+  {
+    defaultValue: [0.5, 0.5],
+    key: "center",
+    label: "Center",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "vec2",
+    visibleWhen: { key: "direction", equals: "radial" },
+  },
+  {
+    defaultValue: 0,
+    key: "angle",
+    label: "Angle",
+    max: 360,
+    min: 0,
+    step: 1,
+    type: "number",
+    unit: "°",
+    visibleWhen: { key: "direction", equals: "horizontal" },
+  },
+] as const satisfies ParameterDefinitions
+
 const blurParams = [
   {
     defaultValue: 8,
@@ -2414,6 +2554,24 @@ const layerDefinitions: Record<LayerType, LayerDefinition> = {
     kind: "source",
     params: videoParams,
     type: "video",
+  },
+  "edge-detect": {
+    defaultName: "Edge Detect",
+    kind: "effect",
+    params: edgeDetectParams,
+    type: "edge-detect",
+  },
+  "displacement-map": {
+    defaultName: "Displacement Map",
+    kind: "effect",
+    params: displacementMapParams,
+    type: "displacement-map",
+  },
+  "chromatic-aberration": {
+    defaultName: "Chromatic Aberration",
+    kind: "effect",
+    params: chromaticAberrationParams,
+    type: "chromatic-aberration",
   },
 }
 

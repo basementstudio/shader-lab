@@ -1,5 +1,11 @@
 # @basementstudio/shader-lab
 
+## 1.1.2
+
+### Patch Changes
+
+- 02e331f: new core layer effects
+
 ## 1.1.1
 
 ### Patch Changes

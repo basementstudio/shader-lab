@@ -54,6 +54,20 @@ export type BlendMode = (typeof BLEND_MODES)[number]
 export const LAYER_COMPOSITE_MODES = ["filter", "mask"] as const
 export type LayerCompositeMode = (typeof LAYER_COMPOSITE_MODES)[number]
 
+export const MASK_SOURCES = ["luminance", "alpha", "red", "green", "blue"] as const
+export type MaskSource = (typeof MASK_SOURCES)[number]
+
+export const MASK_MODES = ["multiply", "stencil"] as const
+export type MaskMode = (typeof MASK_MODES)[number]
+
+export interface MaskConfig {
+  contrast: number
+  invert: boolean
+  mode: MaskMode
+  softness: number
+  source: MaskSource
+}
+
 export const ASSET_KINDS = ["image", "video", "model"] as const
 export type AssetKind = (typeof ASSET_KINDS)[number]
 
@@ -172,6 +186,14 @@ export type LayerFrameAdjustment = {
   saturation: number
 }
 
+export const DEFAULT_MASK_CONFIG: MaskConfig = {
+  contrast: 0,
+  invert: false,
+  mode: "multiply",
+  softness: 0,
+  source: "luminance",
+}
+
 export interface BaseLayer {
   assetId: string | null
   blendMode: BlendMode
@@ -181,6 +203,7 @@ export interface BaseLayer {
   id: string
   kind: LayerKind
   locked: boolean
+  maskConfig: MaskConfig
   name: string
   opacity: number
   params: LayerParameterValues

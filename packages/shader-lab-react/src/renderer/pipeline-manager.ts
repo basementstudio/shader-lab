@@ -1,6 +1,7 @@
 import { float, type TSLNode, texture as tslTexture, uv, vec2 } from "three/tsl"
 import * as THREE from "three/webgpu"
 import type { ShaderLabCompositeMode, ShaderLabLayerConfig } from "../types"
+import { DEFAULT_MASK_CONFIG } from "../types/editor"
 import { AsciiPass } from "./ascii-pass"
 import { CrtPass } from "./crt-pass"
 import { CustomShaderPass } from "./custom-shader-pass"
@@ -68,6 +69,11 @@ function createLayerSignature(layer: ShaderLabLayerConfig): string {
       layer.saturation.toFixed(4),
       layer.blendMode,
       layer.compositeMode,
+      layer.maskConfig?.source ?? "luminance",
+      layer.maskConfig?.mode ?? "multiply",
+      layer.maskConfig?.invert ? "1" : "0",
+      (layer.maskConfig?.contrast ?? 0).toFixed(4),
+      (layer.maskConfig?.softness ?? 0).toFixed(4),
       typeof layer.params.sourceRevision === "number"
         ? String(layer.params.sourceRevision)
         : "0",
@@ -95,6 +101,11 @@ function createLayerSignature(layer: ShaderLabLayerConfig): string {
     layer.saturation.toFixed(4),
     layer.blendMode,
     layer.compositeMode,
+    layer.maskConfig?.source ?? "luminance",
+    layer.maskConfig?.mode ?? "multiply",
+    layer.maskConfig?.invert ? "1" : "0",
+    (layer.maskConfig?.contrast ?? 0).toFixed(4),
+    (layer.maskConfig?.softness ?? 0).toFixed(4),
     parameterValuesSignature(layer.params),
   ].join("|")
 }
@@ -351,6 +362,7 @@ export class PipelineManager {
     const compositeMode: ShaderLabCompositeMode =
       layer.compositeMode === "mask" ? "mask" : "filter"
     pass.updateCompositeMode(compositeMode)
+    pass.updateMaskConfig(layer.maskConfig ?? DEFAULT_MASK_CONFIG)
     pass.updateLayerColorAdjustments(layer.hue, layer.saturation)
     pass.updateParams(layer.params)
 

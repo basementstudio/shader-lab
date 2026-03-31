@@ -49,6 +49,17 @@ export type ShaderLabBlendMode =
 
 export type ShaderLabCompositeMode = "filter" | "mask"
 
+export type ShaderLabMaskSource = "luminance" | "alpha" | "red" | "green" | "blue"
+export type ShaderLabMaskMode = "multiply" | "stencil"
+
+export interface ShaderLabMaskConfig {
+  contrast: number
+  invert: boolean
+  mode: ShaderLabMaskMode
+  softness: number
+  source: ShaderLabMaskSource
+}
+
 export type ShaderLabAssetSource =
   | {
       fileName?: string
@@ -119,6 +130,7 @@ export interface ShaderLabLayerConfig {
   asset?: ShaderLabAssetSource
   blendMode: ShaderLabBlendMode
   compositeMode: ShaderLabCompositeMode
+  maskConfig?: ShaderLabMaskConfig
   hue: number
   id: string
   kind: ShaderLabLayerKind

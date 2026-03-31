@@ -13,6 +13,7 @@ import type {
   Size,
   TimelineStateSnapshot,
 } from "@/types/editor"
+import { DEFAULT_MASK_CONFIG } from "@/types/editor"
 
 export interface ProjectClock {
   delta: number
@@ -73,6 +74,7 @@ function buildStartupPreviewLayer(
     id,
     kind: definition.kind,
     locked: false,
+    maskConfig: { ...DEFAULT_MASK_CONFIG },
     name: definition.defaultName,
     opacity: 1,
     params: buildParameterValues(definition.params),

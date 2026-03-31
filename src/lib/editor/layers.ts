@@ -6,6 +6,7 @@ import type {
   LayerType,
   Size,
 } from "@/types/editor"
+import { DEFAULT_MASK_CONFIG } from "@/types/editor"
 import { buildParameterValues, cloneParameterValues } from "@/lib/editor/parameter-schema"
 
 function clamp(value: number, min: number, max: number): number {
@@ -41,6 +42,7 @@ export function createLayer(type: LayerType, existingCount = 0): EditorLayer {
     id: crypto.randomUUID(),
     kind: definition.kind,
     locked: false,
+    maskConfig: { ...DEFAULT_MASK_CONFIG },
     name: getDefaultLayerName(type, existingCount),
     opacity: 1,
     params: buildParameterValues(definition.params),

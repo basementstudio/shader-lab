@@ -14,7 +14,7 @@ import {
   vec4,
 } from "three/tsl"
 import { buildBlendNode } from "./blend-modes"
-import type { LayerCompositeMode, LayerParameterValues } from "../types/editor"
+import type { LayerCompositeMode, LayerParameterValues, MaskConfig } from "../types/editor"
 
 type Node = TSLNode
 
@@ -32,8 +32,13 @@ export class PassNode {
   protected readonly saturationUniform: Node
 
   private readonly opacityUniform: Node
+  private readonly maskContrastUniform: Node
+  private readonly maskSoftnessUniform: Node
   private blendMode = "normal"
   private compositeMode: LayerCompositeMode = "filter"
+  private maskSource: string = "luminance"
+  private maskMode: string = "multiply"
+  private maskInvert = false
 
   constructor(layerId: string) {
     this.layerId = layerId
@@ -43,6 +48,8 @@ export class PassNode {
     this.opacityUniform = uniform(1)
     this.hueUniform = uniform(0)
     this.saturationUniform = uniform(1)
+    this.maskContrastUniform = uniform(0)
+    this.maskSoftnessUniform = uniform(0)
 
     const placeholder = new THREE.Texture()
     const renderTargetUv = vec2(uv().x, float(1).sub(uv().y))
@@ -92,6 +99,25 @@ export class PassNode {
     this.rebuildColorNode()
     this.material.needsUpdate = true
     return true
+  }
+
+  updateMaskConfig(config: MaskConfig): void {
+    this.maskContrastUniform.value = config.contrast
+    this.maskSoftnessUniform.value = config.softness
+
+    const structuralChange =
+      config.source !== this.maskSource ||
+      config.mode !== this.maskMode ||
+      config.invert !== this.maskInvert
+
+    this.maskSource = config.source
+    this.maskMode = config.mode
+    this.maskInvert = config.invert
+
+    if (structuralChange) {
+      this.rebuildColorNode()
+      this.material.needsUpdate = true
+    }
   }
 
   updateLayerColorAdjustments(hue: number, saturation: number): void {
@@ -146,6 +172,15 @@ export class PassNode {
       adjustedEffectNode,
       this.opacityUniform,
       this.compositeMode,
+      this.compositeMode === "mask"
+        ? {
+            contrast: this.maskContrastUniform,
+            invert: this.maskInvert,
+            mode: this.maskMode,
+            softness: this.maskSoftnessUniform,
+            source: this.maskSource,
+          }
+        : undefined,
     ) as Node
   }
 

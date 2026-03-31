@@ -16,8 +16,10 @@ import type {
   EditorLayer,
   LayerCompositeMode,
   LayerType,
+  MaskConfig,
   ParameterValue,
 } from "@/types/editor"
+import { DEFAULT_MASK_CONFIG } from "@/types/editor"
 
 export interface LayerStoreState {
   hoveredLayerId: string | null
@@ -45,6 +47,7 @@ export interface LayerStoreActions {
   setLayerAsset: (id: string, assetId: string | null) => void
   setLayerBlendMode: (id: string, blendMode: BlendMode) => void
   setLayerCompositeMode: (id: string, compositeMode: LayerCompositeMode) => void
+  setLayerMaskConfig: (id: string, updates: Partial<MaskConfig>) => void
   setLayerExpanded: (id: string, expanded: boolean) => void
   setLayerHue: (id: string, hue: number) => void
   setLayerLocked: (id: string, locked: boolean) => void
@@ -540,6 +543,16 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
     }))
   },
 
+  setLayerMaskConfig: (id, updates) => {
+    set((state) => ({
+      layers: state.layers.map((layer) =>
+        layer.id === id
+          ? { ...layer, maskConfig: { ...layer.maskConfig, ...updates } }
+          : layer
+      ),
+    }))
+  },
+
   setLayerAsset: (id, assetId) => {
     set((state) => ({
       layers: state.layers.map((layer) =>
@@ -652,7 +665,10 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
   replaceState: (layers, selectedLayerId = null, hoveredLayerId = null) => {
     set({
       hoveredLayerId,
-      layers: cloneLayerList(layers),
+      layers: cloneLayerList(layers).map((layer) => ({
+        ...layer,
+        maskConfig: layer.maskConfig ?? { ...DEFAULT_MASK_CONFIG },
+      })),
       selectedLayerId,
     })
   },

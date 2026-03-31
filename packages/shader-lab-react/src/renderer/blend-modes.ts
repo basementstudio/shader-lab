@@ -7,7 +7,9 @@ import {
   min,
   mix,
   select,
+  smoothstep,
   sqrt,
+  step,
   type TSLNode,
   vec3,
   vec4,
@@ -154,12 +156,21 @@ function luminosity(base: Node, blend: Node): Node {
   return setLum(base, lum(blend))
 }
 
+export type MaskNodeConfig = {
+  contrast: Node
+  invert: boolean
+  mode: string
+  softness: Node
+  source: string
+}
+
 export function buildBlendNode(
   mode: string,
   base: Node,
   blend: Node,
   opacity: Node,
   compositeMode: "filter" | "mask" = "filter",
+  maskConfig?: MaskNodeConfig,
 ): Node {
   const baseRgb = base.rgb
   const blendRgb = blend.rgb
@@ -222,8 +233,45 @@ export function buildBlendNode(
     return vec4(mix(baseRgb, composited, normalizedOpacity), float(1))
   }
 
-  const maskLuma = float(dot(blendRgb, vec3(0.2126, 0.7152, 0.0722)))
-  const maskStrength = mix(float(1), clamp(maskLuma, float(0), float(1)), normalizedOpacity)
+  const source = maskConfig?.source ?? "luminance"
+  let maskValue: Node
+  switch (source) {
+    case "alpha":
+      maskValue = float(blend.a)
+      break
+    case "red":
+      maskValue = float(blendRgb.x)
+      break
+    case "green":
+      maskValue = float(blendRgb.y)
+      break
+    case "blue":
+      maskValue = float(blendRgb.z)
+      break
+    default:
+      maskValue = float(dot(blendRgb, vec3(0.2126, 0.7152, 0.0722)))
+      break
+  }
+
+  if (maskConfig) {
+    const contrastLow = clamp(float(0.5).sub(maskConfig.contrast.mul(0.5)), float(0), float(1))
+    const contrastHigh = clamp(float(0.5).add(maskConfig.contrast.mul(0.5)), float(0), float(1))
+    maskValue = smoothstep(contrastLow, contrastHigh, maskValue)
+
+    const softened = smoothstep(float(0), float(1), maskValue)
+    maskValue = mix(maskValue, softened, maskConfig.softness)
+  }
+
+  if (maskConfig?.invert) {
+    maskValue = float(1).sub(maskValue)
+  }
+
+  const maskStrength = mix(float(1), clamp(maskValue, float(0), float(1)), normalizedOpacity)
+
+  const maskMode = maskConfig?.mode ?? "multiply"
+  if (maskMode === "stencil") {
+    return vec4(baseRgb.mul(step(float(0.5), maskStrength)), float(1))
+  }
 
   return vec4(baseRgb.mul(maskStrength), float(1))
 }

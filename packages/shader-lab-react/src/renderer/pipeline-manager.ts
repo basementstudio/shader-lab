@@ -72,8 +72,6 @@ function createLayerSignature(layer: ShaderLabLayerConfig): string {
       layer.maskConfig?.source ?? "luminance",
       layer.maskConfig?.mode ?? "multiply",
       layer.maskConfig?.invert ? "1" : "0",
-      (layer.maskConfig?.contrast ?? 0).toFixed(4),
-      (layer.maskConfig?.softness ?? 0).toFixed(4),
       typeof layer.params.sourceRevision === "number"
         ? String(layer.params.sourceRevision)
         : "0",
@@ -104,8 +102,6 @@ function createLayerSignature(layer: ShaderLabLayerConfig): string {
     layer.maskConfig?.source ?? "luminance",
     layer.maskConfig?.mode ?? "multiply",
     layer.maskConfig?.invert ? "1" : "0",
-    (layer.maskConfig?.contrast ?? 0).toFixed(4),
-    (layer.maskConfig?.softness ?? 0).toFixed(4),
     parameterValuesSignature(layer.params),
   ].join("|")
 }

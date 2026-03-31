@@ -477,28 +477,6 @@ export function SelectedLayerPropertiesContent({
                     }
                   />
                 </div>
-
-                <Slider
-                  label="Contrast"
-                  max={100}
-                  min={-100}
-                  onValueChange={(value) =>
-                    setLayerMaskConfig(layerId, { contrast: value / 100 })
-                  }
-                  value={maskConfig.contrast * 100}
-                  valueSuffix="%"
-                />
-
-                <Slider
-                  label="Softness"
-                  max={100}
-                  min={0}
-                  onValueChange={(value) =>
-                    setLayerMaskConfig(layerId, { softness: value / 100 })
-                  }
-                  value={maskConfig.softness * 100}
-                  valueSuffix="%"
-                />
               </>
             )}
 

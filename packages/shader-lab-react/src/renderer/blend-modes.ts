@@ -7,7 +7,6 @@ import {
   min,
   mix,
   select,
-  smoothstep,
   sqrt,
   step,
   type TSLNode,
@@ -157,10 +156,8 @@ function luminosity(base: Node, blend: Node): Node {
 }
 
 export type MaskNodeConfig = {
-  contrast: Node
   invert: boolean
   mode: string
-  softness: Node
   source: string
 }
 
@@ -251,15 +248,6 @@ export function buildBlendNode(
     default:
       maskValue = float(dot(blendRgb, vec3(0.2126, 0.7152, 0.0722)))
       break
-  }
-
-  if (maskConfig) {
-    const contrastLow = clamp(float(0.5).sub(maskConfig.contrast.mul(0.5)), float(0), float(1))
-    const contrastHigh = clamp(float(0.5).add(maskConfig.contrast.mul(0.5)), float(0), float(1))
-    maskValue = smoothstep(contrastLow, contrastHigh, maskValue)
-
-    const softened = smoothstep(float(0), float(1), maskValue)
-    maskValue = mix(maskValue, softened, maskConfig.softness)
   }
 
   if (maskConfig?.invert) {

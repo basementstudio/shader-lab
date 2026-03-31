@@ -53,10 +53,8 @@ export type ShaderLabMaskSource = "luminance" | "alpha" | "red" | "green" | "blu
 export type ShaderLabMaskMode = "multiply" | "stencil"
 
 export interface ShaderLabMaskConfig {
-  contrast: number
   invert: boolean
   mode: ShaderLabMaskMode
-  softness: number
   source: ShaderLabMaskSource
 }
 

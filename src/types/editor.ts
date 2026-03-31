@@ -61,10 +61,8 @@ export const MASK_MODES = ["multiply", "stencil"] as const
 export type MaskMode = (typeof MASK_MODES)[number]
 
 export interface MaskConfig {
-  contrast: number
   invert: boolean
   mode: MaskMode
-  softness: number
   source: MaskSource
 }
 
@@ -187,10 +185,8 @@ export type LayerFrameAdjustment = {
 }
 
 export const DEFAULT_MASK_CONFIG: MaskConfig = {
-  contrast: 0,
   invert: false,
   mode: "multiply",
-  softness: 0,
   source: "luminance",
 }
 

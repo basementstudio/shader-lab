@@ -1,5 +1,11 @@
 # @basementstudio/shader-lab
 
+## 1.2.2
+
+### Patch Changes
+
+- ad9cd7d: perf improvements: -52% allocation pressure, -37% gpu overhead, -24% cpu per frame
+
 ## 1.2.1
 
 ### Patch Changes

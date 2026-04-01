@@ -54,6 +54,20 @@ type BuildRendererFrameInput = {
   viewportSize: Size
 }
 
+const paramsCloneCache = new WeakMap<
+  LayerParameterValues,
+  LayerParameterValues
+>()
+
+function getCachedClone(params: LayerParameterValues): LayerParameterValues {
+  let cached = paramsCloneCache.get(params)
+  if (!cached) {
+    cached = cloneParameterValues(params)
+    paramsCloneCache.set(params, cached)
+  }
+  return cached
+}
+
 export function buildRendererFrame(
   input: BuildRendererFrameInput
 ): RendererFrame {
@@ -71,11 +85,9 @@ export function buildRendererFrame(
     .filter((layer) => layer.visible)
     .map((layer) => {
       const evaluation = evaluatedById.get(layer.id)
-      const params = cloneParameterValues(layer.params)
-
-      if (evaluation) {
-        Object.assign(params, evaluation.params)
-      }
+      const params = evaluation
+        ? { ...getCachedClone(layer.params), ...evaluation.params }
+        : getCachedClone(layer.params)
 
       return {
         asset: layer.assetId ? (assetById.get(layer.assetId) ?? null) : null,

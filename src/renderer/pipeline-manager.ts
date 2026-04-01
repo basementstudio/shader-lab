@@ -91,7 +91,15 @@ export class PipelineManager {
   private layerSignatures = new Map<string, string>()
   private compilingPasses = new Set<string>()
   private compiledVersions = new Map<string, number>()
+  private cachedActivePasses: LayerPassNode[] = []
+  private activePassesDirty = true
   private dirty = true
+
+  private markDirty(): void {
+    this.dirty = true
+    this.activePassesDirty = true
+  }
+
   private width: number
   private height: number
   private logicalWidth: number
@@ -159,7 +167,7 @@ export class PipelineManager {
       this.layerSignatures.delete(layerId)
       this.compilingPasses.delete(layerId)
       this.compiledVersions.delete(layerId)
-      this.dirty = true
+      this.markDirty()
     }
 
     const orderedPasses: LayerPassNode[] = []
@@ -174,14 +182,14 @@ export class PipelineManager {
         pass.resize(this.width, this.height)
         pass.updateLogicalSize(this.logicalWidth, this.logicalHeight)
         this.passMap.set(layerId, pass)
-        this.dirty = true
+        this.markDirty()
       }
 
       if (this.layerSignatures.get(layerId) !== signature) {
         const versionBefore = pass.getMaterialVersion()
         this.layerSignatures.set(layerId, signature)
         this.applyLayerState(pass, renderableLayer)
-        this.dirty = true
+        this.markDirty()
 
         if (pass.getMaterialVersion() !== versionBefore) {
           this.scheduleCompile(pass)
@@ -196,14 +204,19 @@ export class PipelineManager {
       orderedPasses.some((pass, index) => this.passes[index] !== pass)
     ) {
       this.passes = orderedPasses
-      this.dirty = true
+      this.markDirty()
     }
   }
 
   render(time: number, delta: number): boolean {
-    const activePasses = this.passes.filter(
-      (pass) => pass.enabled && !this.compilingPasses.has(pass.layerId)
-    )
+    if (this.activePassesDirty) {
+      this.cachedActivePasses = this.passes.filter(
+        (pass) => pass.enabled && !this.compilingPasses.has(pass.layerId)
+      )
+      this.activePassesDirty = false
+    }
+
+    const activePasses = this.cachedActivePasses
     const needsContinuousRender = activePasses.some((pass) =>
       pass.needsContinuousRender()
     )
@@ -256,7 +269,7 @@ export class PipelineManager {
       pass.resize(this.width, this.height)
     }
 
-    this.dirty = true
+    this.markDirty()
   }
 
   updateLogicalSize(size: Size): void {
@@ -274,7 +287,7 @@ export class PipelineManager {
       pass.updateLogicalSize(this.logicalWidth, this.logicalHeight)
     }
 
-    this.dirty = true
+    this.markDirty()
   }
 
   updateBackgroundColor(color: string): void {
@@ -284,13 +297,13 @@ export class PipelineManager {
 
     this.currentBackgroundColor = color
     this.baseMaterial.color.set(color)
-    this.dirty = true
+    this.markDirty()
   }
 
   updateSceneConfig(config: SceneConfig): void {
     const changed = this.postProcess.update(config)
     if (changed) {
-      this.dirty = true
+      this.markDirty()
     }
   }
 
@@ -333,10 +346,10 @@ export class PipelineManager {
         void pass
           .setMedia(asset.url, asset.kind)
           .then(() => {
-            this.dirty = true
+            this.markDirty()
           })
           .catch(() => {
-            this.dirty = true
+            this.markDirty()
           })
       } else {
         pass.clearMedia()
@@ -356,10 +369,10 @@ export class PipelineManager {
         void pass
           .startCamera(facingMode)
           .then(() => {
-            this.dirty = true
+            this.markDirty()
           })
           .catch(() => {
-            this.dirty = true
+            this.markDirty()
           })
       }
     }
@@ -381,7 +394,7 @@ export class PipelineManager {
       .then(() => {
         this.compilingPasses.delete(pass.layerId)
         this.compiledVersions.set(pass.layerId, pass.getMaterialVersion())
-        this.dirty = true
+        this.markDirty()
       })
       .catch(() => {
         this.compilingPasses.delete(pass.layerId)

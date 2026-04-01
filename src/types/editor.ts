@@ -381,7 +381,6 @@ export type WebGPUStatus =
 
 export interface EditorStateSnapshot {
   canvasSize: Size
-  fps: number
   immersiveCanvas: boolean
   outputSize: Size
   panOffset: Vector2

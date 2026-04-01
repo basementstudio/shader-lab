@@ -13,6 +13,7 @@ import type { Size } from "@/types/editor"
 import { useAssetStore } from "@/store/asset-store"
 import { useEditorStore } from "@/store/editor-store"
 import { useLayerStore } from "@/store/layer-store"
+import { useMetricsStore } from "@/store/metrics-store"
 import { useTimelineStore } from "@/store/timeline-store"
 
 function getPixelRatio(): number {
@@ -125,7 +126,7 @@ export function useEditorRenderer() {
           }
 
           if (delta > 0) {
-            editorState.setFps(1 / delta)
+            useMetricsStore.getState().setFps(1 / delta)
           }
 
           const frame = buildRendererFrame({

@@ -1,5 +1,11 @@
 # @basementstudio/shader-lab
 
+## 1.2.1
+
+### Patch Changes
+
+- ab760fa: performance improvements
+
 ## 1.2.0
 
 ### Minor Changes

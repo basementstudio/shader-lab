@@ -1,20 +1,25 @@
 import { clamp, float, type TSLNode, uniform, vec3, vec4 } from "three/tsl"
 import { CUSTOM_SHADER_ENTRY_EXPORT } from "../lib/editor/custom-shader/shared"
+import type { LayerParameterValues } from "../types/editor"
 import { compileCustomShaderModule } from "./custom-shader-runtime"
 import { PassNode } from "./pass-node"
-import type { LayerParameterValues } from "../types/editor"
 
 type Node = TSLNode
 type TypedNode = TSLNode & { nodeType?: string | null }
 
 export class CustomShaderPass extends PassNode {
-  private readonly onRuntimeError: ((message: string | null) => void) | undefined
+  private readonly onRuntimeError:
+    | ((message: string | null) => void)
+    | undefined
   private compiledSketch: (() => Node) | null = null
   private compileRequestId = 0
   private lastCompileSignature = ""
   private readonly timeUniform: Node
 
-  constructor(layerId: string, onRuntimeError?: (message: string | null) => void) {
+  constructor(
+    layerId: string,
+    onRuntimeError?: (message: string | null) => void
+  ) {
     super(layerId)
     this.onRuntimeError = onRuntimeError
     this.timeUniform = uniform(0)
@@ -75,7 +80,9 @@ export class CustomShaderPass extends PassNode {
 
         this.compiledSketch = null
         this.onRuntimeError?.(
-          error instanceof Error ? error.message : "Custom shader compilation failed.",
+          error instanceof Error
+            ? error.message
+            : "Custom shader compilation failed."
         )
         this.rebuildEffectNode()
       })
@@ -92,23 +99,26 @@ export class CustomShaderPass extends PassNode {
 
     try {
       const outputNode = this.compiledSketch() as TypedNode
+      const outputAlpha =
+        outputNode.nodeType === "vec4"
+          ? clamp(float(outputNode.a), float(0), float(1))
+          : float(1)
       const clampedRgb = clamp(
-        outputNode.rgb ?? vec3(outputNode),
+        (outputNode.rgb ?? vec3(outputNode)).mul(outputAlpha),
         vec3(float(0), float(0), float(0)),
         vec3(float(1), float(1), float(1))
       )
 
       if (outputNode.nodeType === "vec4") {
-        return vec4(
-          clampedRgb,
-          clamp(float(outputNode.a), float(0), float(1))
-        )
+        return vec4(clampedRgb, outputAlpha)
       }
 
       return vec4(clampedRgb, float(1))
     } catch (error) {
       this.onRuntimeError?.(
-        error instanceof Error ? error.message : "Custom shader execution failed.",
+        error instanceof Error
+          ? error.message
+          : "Custom shader execution failed."
       )
       return vec4(vec3(float(0), float(0), float(0)), float(1))
     }

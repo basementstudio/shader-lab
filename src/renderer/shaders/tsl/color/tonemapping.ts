@@ -1,4 +1,4 @@
-import { Fn, dot, exp, mix, pow, smoothstep, vec3 } from "three/tsl"
+import { dot, exp, Fn, float, mix, pow, smoothstep, vec3 } from "three/tsl"
 
 export const reinhardTonemap = Fn(([color]) => {
   return color.div(color.add(1.0))
@@ -15,18 +15,18 @@ export const totosTonemap = Fn(([color]) => {
   const cool = vec3(
     compressed.x.mul(0.82),
     compressed.y.mul(0.98).add(shadowLift.mul(0.04)),
-    compressed.z.mul(1.24).add(shadowLift.mul(0.08)),
+    compressed.z.mul(1.24).add(shadowLift.mul(0.08))
   )
   const warm = vec3(
     compressed.x.mul(1.14).add(highlightRoll.mul(0.08)),
     compressed.y.mul(1.03).add(highlightRoll.mul(0.03)),
-    compressed.z.mul(0.84),
+    compressed.z.mul(0.84)
   )
   const splitToned = mix(cool, warm, toneMix)
   const curved = vec3(
     pow(splitToned.x, 0.86),
     pow(splitToned.y, 0.95),
-    pow(splitToned.z, 1.12),
+    pow(splitToned.z, 1.12)
   )
   const bleach = mix(curved, vec3(lum), highlightRoll.mul(0.06))
 
@@ -78,9 +78,9 @@ export const cinematicTonemap = Fn(([color]) => {
 })
 
 export const tanh = Fn(([x]) => {
-  const e2x = exp(x.mul(2.0))
+  const tmp = exp(x).toVar()
 
-  return e2x.sub(1.0).div(e2x.add(1.0))
+  return tmp.sub(float(1).div(tmp)).div(tmp.add(float(1).div(tmp)))
 })
 
 export const uncharted2Tonemap = totosTonemap

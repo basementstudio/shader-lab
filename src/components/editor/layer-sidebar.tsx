@@ -10,6 +10,7 @@ import {
 import { Reorder, useDragControls } from "motion/react"
 import {
   type ChangeEvent,
+  memo,
   type ReactNode,
   type PointerEvent as ReactPointerEvent,
   useMemo,
@@ -155,7 +156,15 @@ type LayerListItemProps = {
   onSetLayerVisibility: (layerId: string, visible: boolean) => void
 }
 
-function LayerListItem({
+const LAYER_ACTION_OPTIONS = [
+  { label: "Reset properties", value: "reset" },
+  { label: "Delete layer", value: "delete" },
+] as const satisfies readonly {
+  label: ReactNode
+  value: LayerAction
+}[]
+
+const LayerListItem = memo(function LayerListItem({
   asset,
   hasMissingAsset,
   isSelected,
@@ -167,13 +176,6 @@ function LayerListItem({
   onSetLayerVisibility,
 }: LayerListItemProps) {
   const dragControls = useDragControls()
-  const layerActionOptions = [
-    { label: "Reset properties", value: "reset" },
-    { label: "Delete layer", value: "delete" },
-  ] as const satisfies readonly {
-    label: ReactNode
-    value: LayerAction
-  }[]
 
   function handlePointerDown(event: ReactPointerEvent<HTMLButtonElement>) {
     if (layer.locked) {
@@ -249,7 +251,7 @@ function LayerListItem({
       <Select
         key={`${layer.id}:${layerActionKey}`}
         onValueChange={(value) => onLayerAction(layer.id, value as LayerAction)}
-        options={layerActionOptions}
+        options={LAYER_ACTION_OPTIONS}
         placeholder={<DotsThreeVerticalIcon size={14} weight="bold" />}
         popupClassName="min-w-[152px]"
         triggerAriaLabel={`Layer actions for ${layer.name}`}
@@ -286,7 +288,7 @@ function LayerListItem({
       )}
     </Reorder.Item>
   )
-}
+})
 
 export function LayerSidebar() {
   const imageInputRef = useRef<HTMLInputElement | null>(null)

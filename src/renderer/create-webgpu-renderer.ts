@@ -12,7 +12,7 @@ export async function createWebGPURenderer(
 ): Promise<EditorRenderer> {
   const renderer = new THREE.WebGPURenderer({
     alpha: false,
-    antialias: true,
+    antialias: false,
     canvas,
   })
   let pipeline: PipelineManager | null = null

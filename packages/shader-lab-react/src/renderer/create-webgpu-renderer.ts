@@ -1,6 +1,6 @@
 import * as THREE from "three/webgpu"
-import { PipelineManager } from "./pipeline-manager"
 import type { RendererFrame, RuntimeRenderer } from "./contracts"
+import { PipelineManager } from "./pipeline-manager"
 
 export function browserSupportsWebGPU(): boolean {
   return typeof navigator !== "undefined" && "gpu" in navigator
@@ -8,11 +8,11 @@ export function browserSupportsWebGPU(): boolean {
 
 export async function createWebGPURenderer(
   canvas: HTMLCanvasElement,
-  onRuntimeError?: (message: string | null) => void,
+  onRuntimeError?: (message: string | null) => void
 ): Promise<RuntimeRenderer> {
   const renderer = new THREE.WebGPURenderer({
     alpha: false,
-    antialias: true,
+    antialias: false,
     canvas,
   })
   let pipeline: PipelineManager | null = null
@@ -20,14 +20,18 @@ export async function createWebGPURenderer(
   return {
     async initialize() {
       await renderer.init()
-      ;(renderer as THREE.WebGPURenderer & {
-        outputColorSpace: string
-        toneMapping: number
-      }).outputColorSpace = THREE.LinearSRGBColorSpace
-      ;(renderer as THREE.WebGPURenderer & {
-        outputColorSpace: string
-        toneMapping: number
-      }).toneMapping = THREE.NoToneMapping
+      ;(
+        renderer as THREE.WebGPURenderer & {
+          outputColorSpace: string
+          toneMapping: number
+        }
+      ).outputColorSpace = THREE.LinearSRGBColorSpace
+      ;(
+        renderer as THREE.WebGPURenderer & {
+          outputColorSpace: string
+          toneMapping: number
+        }
+      ).toneMapping = THREE.NoToneMapping
       renderer.setClearColor("#0a0d10", 1)
     },
 
@@ -39,7 +43,11 @@ export async function createWebGPURenderer(
 
     render(frame: RendererFrame) {
       if (!pipeline) {
-        pipeline = new PipelineManager(renderer, frame.viewportSize, onRuntimeError)
+        pipeline = new PipelineManager(
+          renderer,
+          frame.viewportSize,
+          onRuntimeError
+        )
       }
 
       pipeline.updateLogicalSize(frame.logicalSize)

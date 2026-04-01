@@ -43,7 +43,7 @@
     },
     "packages/shader-lab-react": {
       "name": "@basementstudio/shader-lab",
-      "version": "1.0.2",
+      "version": "1.2.1",
       "dependencies": {
         "typescript": "^5.9.3",
       },

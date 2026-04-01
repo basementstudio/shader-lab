@@ -24,7 +24,6 @@ export interface EditorStoreActions {
   openTimelinePanel: () => void
   resetView: () => void
   setCanvasSize: (width: number, height: number) => void
-  setFps: (fps: number) => void
   setImmersiveCanvas: (immersiveCanvas: boolean) => void
   setOutputSize: (width: number, height: number) => void
   setPan: (x: number, y: number) => void
@@ -55,7 +54,6 @@ function clampCanvasDimension(value: number): number {
 
 export const useEditorStore = create<EditorStore>((set) => ({
   canvasSize: DEFAULT_CANVAS_SIZE,
-  fps: 0,
   immersiveCanvas: false,
   outputSize: DEFAULT_PROJECT_COMPOSITION,
   panOffset: { x: 0, y: 0 },
@@ -226,12 +224,6 @@ export const useEditorStore = create<EditorStore>((set) => ({
     set((state) => ({
       sceneConfig: { ...state.sceneConfig, ...updates },
     }))
-  },
-
-  setFps: (fps) => {
-    set({
-      fps,
-    })
   },
 
   setWebGPUStatus: (webgpuStatus, webgpuError = null) => {

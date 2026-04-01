@@ -30,6 +30,7 @@ const SUPPORTED_SHADER_EXPORT_LAYER_TYPES = new Set<LayerType>([
   "ink",
   "pattern",
   "posterize",
+  "threshold",
   "crt",
   "chromatic-aberration",
   "dithering",
@@ -68,6 +69,7 @@ type SupportedShaderExportLayerType = Extract<
   | "pixelation"
   | "pixel-sorting"
   | "posterize"
+  | "threshold"
   | "slice"
   | "text"
   | "video"

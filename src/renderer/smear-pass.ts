@@ -1,27 +1,35 @@
-import * as THREE from "three/webgpu"
 import {
   clamp,
   cos,
+  dot,
   float,
+  fract,
   max,
   min,
+  pow,
   sin,
   smoothstep,
   step,
-  texture as tslTexture,
   type TSLNode,
+  texture as tslTexture,
   uniform,
   uv,
   vec2,
   vec3,
   vec4,
 } from "three/tsl"
+import * as THREE from "three/webgpu"
 import { PassNode } from "@/renderer/pass-node"
 import type { LayerParameterValues } from "@/types/editor"
 
 type Node = TSLNode
 
 const MAX_SAMPLES = 32
+const TWO_PI = Math.PI * 2
+
+function random(coordinate: Node): Node {
+  return fract(sin(dot(coordinate, vec2(12.9898, 78.233))).mul(43758.5453))
+}
 
 export class SmearPass extends PassNode {
   private readonly angleUniform: Node
@@ -104,44 +112,73 @@ export class SmearPass extends PassNode {
     this.sourceTextureNodes = []
 
     const renderTargetUv = vec2(uv().x, float(1).sub(uv().y))
+    const pixelCoord = vec2(
+      renderTargetUv.x.mul(this.widthUniform),
+      renderTargetUv.y.mul(this.heightUniform)
+    )
     const angleRadians = this.angleUniform.mul(Math.PI / 180)
     const cosA = cos(angleRadians)
     const sinA = sin(angleRadians)
-
-    // Project current UV position along the blur direction (0..1 range)
+    const blurDirection = vec2(cosA, sinA)
+    const perpendicularDirection = vec2(sinA.negate(), cosA)
     const projected = renderTargetUv.x.mul(cosA).add(renderTargetUv.y.mul(sinA))
-
-    // Compute blur amount: 0 before start, ramps to 1 at end
     const safeStart = min(this.startUniform, this.endUniform)
     const safeEnd = max(this.startUniform, this.endUniform)
     const blurAmount = smoothstep(safeStart, safeEnd, projected)
-
-    // Blur radius in pixels, scaled by blur amount
     const blurRadius = blurAmount.mul(this.strengthUniform)
-    const blurDirection = vec2(cosA, sinA)
 
-    let accumR = float(0)
-    let accumG = float(0)
-    let accumB = float(0)
-    let weightSum = float(0)
+    const centerSample = this.trackSourceTextureNode(renderTargetUv)
+
+    let accumR = float(centerSample.r)
+    let accumG = float(centerSample.g)
+    let accumB = float(centerSample.b)
+    let weightSum = float(1)
 
     for (let index = 0; index < MAX_SAMPLES; index += 1) {
-      // Spread samples from -0.5 to +0.5
-      const t = index / (MAX_SAMPLES - 1) - 0.5
-      const offset = vec2(
-        blurDirection.x.mul(blurRadius).mul(float(t)).div(this.widthUniform),
-        blurDirection.y.mul(blurRadius).mul(float(t)).div(this.heightUniform)
+      const activeWeight = step(float(index + 0.5), this.samplesUniform)
+      const sampleProgress = float((index + 1) / MAX_SAMPLES)
+      const jitterAngle = random(
+        vec2(
+          pixelCoord.x.add(float(index * 17.13 + 1.7)),
+          pixelCoord.y.add(float(index * 5.71 + 8.3))
+        )
+      ).mul(TWO_PI)
+      const jitterRadius = random(
+        vec2(
+          pixelCoord.y.add(float(index * 11.37 + 3.1)),
+          pixelCoord.x.add(float(index * 7.17 + 13.9))
+        )
+      )
+      const radialWeight = pow(sampleProgress, float(0.82))
+      const axisX = blurDirection.x
+        .mul(cos(jitterAngle))
+        .add(perpendicularDirection.x.mul(sin(jitterAngle).mul(0.65)))
+      const axisY = blurDirection.y
+        .mul(cos(jitterAngle))
+        .add(perpendicularDirection.y.mul(sin(jitterAngle).mul(0.65)))
+      const sampleRadius = blurRadius.mul(
+        radialWeight.mul(0.8).add(jitterRadius.mul(0.35))
       )
       const sampleUv = vec2(
-        clamp(renderTargetUv.x.add(offset.x), float(0), float(1)),
-        clamp(renderTargetUv.y.add(offset.y), float(0), float(1))
+        clamp(
+          renderTargetUv.x.add(axisX.mul(sampleRadius).div(this.widthUniform)),
+          float(0),
+          float(1)
+        ),
+        clamp(
+          renderTargetUv.y.add(axisY.mul(sampleRadius).div(this.heightUniform)),
+          float(0),
+          float(1)
+        )
       )
       const sample = this.trackSourceTextureNode(sampleUv)
-      const activeWeight = step(float(index + 0.5), this.samplesUniform)
-      accumR = accumR.add(float(sample.r).mul(activeWeight))
-      accumG = accumG.add(float(sample.g).mul(activeWeight))
-      accumB = accumB.add(float(sample.b).mul(activeWeight))
-      weightSum = weightSum.add(activeWeight)
+      const sampleWeight = activeWeight.mul(
+        max(float(0.35), float(1.1).sub(radialWeight.mul(0.7)))
+      )
+      accumR = accumR.add(float(sample.r).mul(sampleWeight))
+      accumG = accumG.add(float(sample.g).mul(sampleWeight))
+      accumB = accumB.add(float(sample.b).mul(sampleWeight))
+      weightSum = weightSum.add(sampleWeight)
     }
 
     const safeWeight = max(weightSum, float(1))

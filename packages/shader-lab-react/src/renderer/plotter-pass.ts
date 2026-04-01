@@ -28,7 +28,10 @@ function toColorModeValue(value: unknown): number {
   return value === "source" ? COLOR_MODE_SOURCE : COLOR_MODE_INK
 }
 
-function parseHexColor(hex: unknown, fallback: [number, number, number]): [number, number, number] {
+function parseHexColor(
+  hex: unknown,
+  fallback: [number, number, number]
+): [number, number, number] {
   if (typeof hex !== "string" || !hex.startsWith("#") || hex.length < 7) {
     return fallback
   }
@@ -65,9 +68,9 @@ export class PlotterPass extends PassNode {
   constructor(layerId: string) {
     super(layerId)
     this.colorModeUniform = uniform(COLOR_MODE_INK)
-    this.gapUniform = uniform(40)
+    this.gapUniform = uniform(12)
     this.weightUniform = uniform(1.5)
-    this.angleUniform = uniform(45)
+    this.angleUniform = uniform(90)
     this.crosshatchUniform = uniform(1)
     this.crossAngleUniform = uniform(135)
     this.thresholdUniform = uniform(0.5)
@@ -93,7 +96,7 @@ export class PlotterPass extends PassNode {
     this.gapUniform.value =
       typeof params.gap === "number"
         ? Math.max(10, Math.min(120, params.gap))
-        : 40
+        : 12
     this.weightUniform.value =
       typeof params.weight === "number"
         ? Math.max(0.5, Math.min(5, params.weight))
@@ -101,9 +104,11 @@ export class PlotterPass extends PassNode {
     this.angleUniform.value =
       typeof params.angle === "number"
         ? Math.max(0, Math.min(180, params.angle))
-        : 45
+        : 90
     this.crosshatchUniform.value =
-      typeof params.crosshatch === "boolean" ? (params.crosshatch ? 1 : 0) : 1
+      typeof params.crosshatch === "boolean" && params.crosshatch === false
+        ? 0
+        : 1
     this.crossAngleUniform.value =
       typeof params.crossAngle === "number"
         ? Math.max(0, Math.min(180, params.crossAngle))
@@ -140,7 +145,9 @@ export class PlotterPass extends PassNode {
     const rotX = pixelCoord.x.mul(cosA).add(pixelCoord.y.mul(sinA))
     const rotY = pixelCoord.x.mul(sinA.negate()).add(pixelCoord.y.mul(cosA))
 
-    const wobbleOffset = sin(rotY.mul(float(0.08))).mul(this.wobbleUniform).mul(float(1.5))
+    const wobbleOffset = sin(rotY.mul(float(0.08)))
+      .mul(this.wobbleUniform)
+      .mul(float(1.5))
     const rotXWobbled = rotX.add(wobbleOffset)
 
     const cellPos = fract(rotXWobbled.div(this.gapUniform))
@@ -148,9 +155,17 @@ export class PlotterPass extends PassNode {
 
     const darkness = float(1).sub(luma)
     const effectiveThreshold = darkness.mul(this.thresholdUniform.mul(float(2)))
-    const lineWidth = this.weightUniform.div(this.gapUniform).mul(effectiveThreshold)
+    const lineWidth = this.weightUniform
+      .div(this.gapUniform)
+      .mul(effectiveThreshold)
 
-    return float(1).sub(smoothstep(lineWidth.sub(float(0.02)), lineWidth.add(float(0.02)), distFromCenter))
+    return float(1).sub(
+      smoothstep(
+        lineWidth.sub(float(0.02)),
+        lineWidth.add(float(0.02)),
+        distFromCenter
+      )
+    )
   }
 
   protected override buildEffectNode(): Node {

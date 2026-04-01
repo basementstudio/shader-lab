@@ -16,7 +16,6 @@ export type AddLayerAction =
   | "custom-shader"
   | "displacement-map"
   | "dithering"
-  | "echo"
   | "edge-detect"
   | "fluted-glass"
   | "gradient"
@@ -32,6 +31,7 @@ export type AddLayerAction =
   | "posterize"
   | "slice"
   | "smear"
+  | "threshold"
   | "text"
   | "video"
 
@@ -144,8 +144,17 @@ const EFFECT_ITEMS: readonly EffectItem[] = [
   {
     category: "core",
     description:
+      "Turns the frame into stark black and white with controllable cutoff and grain.",
+    label: "Threshold",
+    previewSrc: "/examples/threshold.webp",
+    value: "threshold",
+  },
+  {
+    category: "core",
+    description:
       "Pen-plotter aesthetic with hatching, crosshatching, and ink simulation.",
     label: "Plotter",
+    previewSrc: "/examples/plotter.webp",
     value: "plotter",
   },
   {
@@ -201,20 +210,15 @@ const EFFECT_ITEMS: readonly EffectItem[] = [
     description:
       "Blur that ramps from sharp to soft across a controllable range.",
     label: "Progressive Blur",
+    previewSrc: "/examples/progressive-blur.webp",
     value: "smear",
-  },
-  {
-    category: "distort",
-    description:
-      "Offset copies with opacity decay for motion trails and afterimages.",
-    label: "Echo",
-    value: "echo",
   },
   {
     category: "distort",
     description:
       "Ribbed lenticular glass distortion with subtle chromatic split.",
     label: "Fluted Glass",
+    previewSrc: "/examples/fluted-glass.webp",
     value: "fluted-glass",
   },
 ] as const
@@ -305,7 +309,7 @@ function EffectCard({
           </div>
         </div>
         <div
-          className={cn("min-w-0 px-2 pb-2 pt-1", item.description && "pr-6")}
+          className={cn("min-w-0 px-2 pt-1 pb-2", item.description && "pr-6")}
         >
           <div className="overflow-hidden text-ellipsis whitespace-nowrap font-[var(--ds-font-mono)] text-[11px] text-[var(--ds-color-text-primary)] leading-[14px]">
             {item.label}
@@ -325,7 +329,7 @@ function SourceButton({
 }) {
   return (
     <button
-      className="inline-flex h-7 items-center justify-center rounded-full border border-white/8 bg-[rgb(255_255_255_/_0.03)] px-3 font-[var(--ds-font-mono)] text-[10px] text-[var(--ds-color-text-secondary)] leading-none whitespace-nowrap transition-[transform,border-color,background-color,color] duration-[180ms] ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-white/14 hover:bg-[rgb(255_255_255_/_0.07)] hover:text-[var(--ds-color-text-primary)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--ds-border-active)] focus-visible:outline-offset-2 active:scale-[0.97]"
+      className="inline-flex h-7 items-center justify-center whitespace-nowrap rounded-full border border-white/8 bg-[rgb(255_255_255_/_0.03)] px-3 font-[var(--ds-font-mono)] text-[10px] text-[var(--ds-color-text-secondary)] leading-none transition-[transform,border-color,background-color,color] duration-[180ms] ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-white/14 hover:bg-[rgb(255_255_255_/_0.07)] hover:text-[var(--ds-color-text-primary)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--ds-border-active)] focus-visible:outline-offset-2 active:scale-[0.97]"
       onClick={() => onSelect(item.value)}
       type="button"
     >
@@ -362,7 +366,7 @@ export function LayerPicker({ className, onSelect }: LayerPickerProps) {
     }
 
     const rect = triggerRef.current.getBoundingClientRect()
-    const sidebarRight = 16 + 284 + 8 // left-4 + w-[284px] + gap
+    const sidebarRight = 16 + 284 + 8
     const left = Math.min(sidebarRight, window.innerWidth - 560 - 16)
 
     setPanelPosition({
@@ -509,7 +513,6 @@ export function LayerPicker({ className, onSelect }: LayerPickerProps) {
                     id={panelId}
                     variant="panel"
                   >
-                    {/* Sources strip */}
                     <div className="border-[var(--ds-border-divider)] border-b px-3 pt-3 pb-2.5">
                       <div className="mb-2 font-[var(--ds-font-mono)] text-[10px] text-[var(--ds-color-text-muted)] uppercase tracking-[0.14em]">
                         Source
@@ -525,7 +528,6 @@ export function LayerPicker({ className, onSelect }: LayerPickerProps) {
                       </div>
                     </div>
 
-                    {/* Effects section */}
                     <div className="flex flex-col">
                       <div className="px-3 pt-2.5 pb-1">
                         <div className="flex items-center gap-1.5">

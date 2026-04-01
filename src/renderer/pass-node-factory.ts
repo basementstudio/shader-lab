@@ -4,7 +4,6 @@ import { CrtPass } from "@/renderer/crt-pass"
 import { DirectionalBlurPass } from "@/renderer/directional-blur-pass"
 import { DisplacementMapPass } from "@/renderer/displacement-map-pass"
 import { DitheringPass } from "@/renderer/dithering-pass"
-import { EchoPass } from "@/renderer/echo-pass"
 import { EdgeDetectPass } from "@/renderer/edge-detect-pass"
 import { FlutedGlassPass } from "@/renderer/fluted-glass-pass"
 import { HalftonePass } from "@/renderer/halftone-pass"
@@ -12,12 +11,13 @@ import { InkPass } from "@/renderer/ink-pass"
 import { ParticleGridPass } from "@/renderer/particle-grid-pass"
 import { PassNode } from "@/renderer/pass-node"
 import { PatternPass } from "@/renderer/pattern-pass"
-import { PlotterPass } from "@/renderer/plotter-pass"
-import { PosterizePass } from "@/renderer/posterize-pass"
 import { PixelSortingPass } from "@/renderer/pixel-sorting-pass"
 import { PixelationPass } from "@/renderer/pixelation-pass"
+import { PlotterPass } from "@/renderer/plotter-pass"
+import { PosterizePass } from "@/renderer/posterize-pass"
 import { SlicePass } from "@/renderer/slice-pass"
 import { SmearPass } from "@/renderer/smear-pass"
+import { ThresholdPass } from "@/renderer/threshold-pass"
 import type { EffectLayerType } from "@/types/editor"
 
 export function createPassNode(
@@ -37,8 +37,6 @@ export function createPassNode(
       return new DisplacementMapPass(layerId)
     case "dithering":
       return new DitheringPass(layerId)
-    case "echo":
-      return new EchoPass(layerId)
     case "edge-detect":
       return new EdgeDetectPass(layerId)
     case "fluted-glass":
@@ -57,6 +55,8 @@ export function createPassNode(
       return new PlotterPass(layerId)
     case "posterize":
       return new PosterizePass(layerId)
+    case "threshold":
+      return new ThresholdPass(layerId)
     case "pixel-sorting":
       return new PixelSortingPass(layerId)
     case "slice":

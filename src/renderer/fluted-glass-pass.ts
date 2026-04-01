@@ -1,16 +1,21 @@
-import * as THREE from "three/webgpu"
 import {
+  abs,
+  clamp,
   cos,
   float,
+  max,
+  mix,
+  pow,
   sin,
-  texture as tslTexture,
   type TSLNode,
+  texture as tslTexture,
   uniform,
   uv,
   vec2,
   vec3,
   vec4,
 } from "three/tsl"
+import * as THREE from "three/webgpu"
 import { PassNode } from "@/renderer/pass-node"
 import type { LayerParameterValues } from "@/types/editor"
 
@@ -85,41 +90,60 @@ export class FlutedGlassPass extends PassNode {
     const angleRadians = this.angleUniform.mul(Math.PI / 180)
     const cosA = cos(angleRadians)
     const sinA = sin(angleRadians)
-
-    // Project UV along rib direction
     const projected = renderTargetUv.x.mul(cosA).add(renderTargetUv.y.mul(sinA))
-    const ribPhase = sin(projected.mul(this.frequencyUniform).mul(Math.PI))
-
-    // Perpendicular direction for displacement
+    const phase = projected.mul(this.frequencyUniform).mul(Math.PI)
+    const ribWave = sin(phase)
+    const ribEnvelope = abs(ribWave)
+    const lensProfile = ribWave.mul(ribEnvelope.mul(0.7).add(0.3))
+    const slope = cos(phase)
     const perpX = sinA.negate()
     const perpY = cosA
-
-    // Base displacement
-    const baseDisp = ribPhase.mul(this.amplitudeUniform)
-
-    // Chromatic split: offset R/G/B by slightly different amounts
-    const splitAmount = this.chromaticSplitUniform.mul(this.amplitudeUniform).mul(float(0.5))
+    const baseDisp = lensProfile.mul(this.amplitudeUniform)
+    const splitAmount = this.chromaticSplitUniform
+      .mul(this.amplitudeUniform)
+      .mul(float(0.35))
+      .mul(pow(ribEnvelope, float(1.35)))
     const dispR = baseDisp.add(splitAmount)
     const dispG = baseDisp
     const dispB = baseDisp.sub(splitAmount)
-
+    const centerUv = vec2(
+      clamp(renderTargetUv.x, float(0), float(1)),
+      clamp(renderTargetUv.y, float(0), float(1))
+    )
     const uvR = vec2(
-      renderTargetUv.x.add(perpX.mul(dispR)),
-      renderTargetUv.y.add(perpY.mul(dispR))
+      clamp(renderTargetUv.x.add(perpX.mul(dispR)), float(0), float(1)),
+      clamp(renderTargetUv.y.add(perpY.mul(dispR)), float(0), float(1))
     )
     const uvG = vec2(
-      renderTargetUv.x.add(perpX.mul(dispG)),
-      renderTargetUv.y.add(perpY.mul(dispG))
+      clamp(renderTargetUv.x.add(perpX.mul(dispG)), float(0), float(1)),
+      clamp(renderTargetUv.y.add(perpY.mul(dispG)), float(0), float(1))
     )
     const uvB = vec2(
-      renderTargetUv.x.add(perpX.mul(dispB)),
-      renderTargetUv.y.add(perpY.mul(dispB))
+      clamp(renderTargetUv.x.add(perpX.mul(dispB)), float(0), float(1)),
+      clamp(renderTargetUv.y.add(perpY.mul(dispB)), float(0), float(1))
     )
-
+    const centerSample = this.trackSourceTextureNode(centerUv)
     const sampleR = this.trackSourceTextureNode(uvR)
     const sampleG = this.trackSourceTextureNode(uvG)
     const sampleB = this.trackSourceTextureNode(uvB)
+    const displacedColor = vec3(sampleR.r, sampleG.g, sampleB.b)
+    const sourceColor = vec3(centerSample.r, centerSample.g, centerSample.b)
+    const glassAmount = clamp(this.amplitudeUniform.mul(22), float(0), float(1))
+    const mixedColor = mix(
+      sourceColor,
+      displacedColor,
+      glassAmount.mul(0.9).add(0.08)
+    )
+    const sheen = pow(max(slope, float(0)), float(4))
+      .mul(glassAmount)
+      .mul(0.1)
+      .mul(ribEnvelope.mul(0.75).add(0.25))
+    const finalColor = clamp(
+      mixedColor.add(vec3(sheen, sheen, sheen)),
+      vec3(0, 0, 0),
+      vec3(1, 1, 1)
+    )
 
-    return vec4(vec3(sampleR.r, sampleG.g, sampleB.b), float(1))
+    return vec4(finalColor, float(1))
   }
 }

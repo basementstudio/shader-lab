@@ -1005,7 +1005,6 @@ const asciiParams = [
     options: [
       { label: "Source", value: "source" },
       { label: "Monochrome", value: "monochrome" },
-      // { label: "Green Terminal", value: "green-terminal" },
     ],
     type: "select",
   },
@@ -2102,6 +2101,42 @@ const posterizeParams = [
   },
 ] as const satisfies ParameterDefinitions
 
+const thresholdParams = [
+  {
+    defaultValue: 0.5,
+    key: "threshold",
+    label: "Threshold",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+  },
+  {
+    defaultValue: 0.02,
+    key: "softness",
+    label: "Softness",
+    max: 0.2,
+    min: 0,
+    step: 0.001,
+    type: "number",
+  },
+  {
+    defaultValue: 0.08,
+    key: "noise",
+    label: "Noise",
+    max: 0.3,
+    min: 0,
+    step: 0.001,
+    type: "number",
+  },
+  {
+    defaultValue: false,
+    key: "invert",
+    label: "Invert",
+    type: "boolean",
+  },
+] as const satisfies ParameterDefinitions
+
 const smearParams = [
   {
     defaultValue: 0,
@@ -2146,45 +2181,6 @@ const smearParams = [
     max: 32,
     min: 4,
     step: 1,
-    type: "number",
-  },
-] as const satisfies ParameterDefinitions
-
-const echoParams = [
-  {
-    defaultValue: 3,
-    key: "copies",
-    label: "Copies",
-    max: 8,
-    min: 1,
-    step: 1,
-    type: "number",
-  },
-  {
-    defaultValue: 0.03,
-    key: "offsetX",
-    label: "Offset X",
-    max: 0.5,
-    min: -0.5,
-    step: 0.001,
-    type: "number",
-  },
-  {
-    defaultValue: 0.02,
-    key: "offsetY",
-    label: "Offset Y",
-    max: 0.5,
-    min: -0.5,
-    step: 0.001,
-    type: "number",
-  },
-  {
-    defaultValue: 0.5,
-    key: "decay",
-    label: "Decay",
-    max: 0.95,
-    min: 0.1,
-    step: 0.01,
     type: "number",
   },
 ] as const satisfies ParameterDefinitions
@@ -2240,7 +2236,7 @@ const plotterParams = [
     type: "select",
   },
   {
-    defaultValue: 40,
+    defaultValue: 12,
     key: "gap",
     label: "Gap",
     max: 120,
@@ -2258,7 +2254,7 @@ const plotterParams = [
     type: "number",
   },
   {
-    defaultValue: 45,
+    defaultValue: 90,
     key: "angle",
     label: "Angle",
     max: 180,
@@ -2896,17 +2892,17 @@ const layerDefinitions: Record<LayerType, LayerDefinition> = {
     params: posterizeParams,
     type: "posterize",
   },
+  threshold: {
+    defaultName: "Threshold",
+    kind: "effect",
+    params: thresholdParams,
+    type: "threshold",
+  },
   smear: {
     defaultName: "Progressive Blur",
     kind: "effect",
     params: smearParams,
     type: "smear",
-  },
-  echo: {
-    defaultName: "Echo",
-    kind: "effect",
-    params: echoParams,
-    type: "echo",
   },
   "fluted-glass": {
     defaultName: "Fluted Glass",

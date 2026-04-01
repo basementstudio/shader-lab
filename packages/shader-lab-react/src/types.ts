@@ -22,7 +22,6 @@ export type ShaderLabEffectLayerType =
   | "crt"
   | "displacement-map"
   | "dithering"
-  | "echo"
   | "edge-detect"
   | "fluted-glass"
   | "halftone"
@@ -35,6 +34,7 @@ export type ShaderLabEffectLayerType =
   | "posterize"
   | "slice"
   | "smear"
+  | "threshold"
 
 export type ShaderLabLayerType =
   | ShaderLabEffectLayerType

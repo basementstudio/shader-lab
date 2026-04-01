@@ -9,7 +9,6 @@ import { CustomShaderPass } from "./custom-shader-pass"
 import { DirectionalBlurPass } from "./directional-blur-pass"
 import { DisplacementMapPass } from "./displacement-map-pass"
 import { DitheringPass } from "./dithering-pass"
-import { EchoPass } from "./echo-pass"
 import { EdgeDetectPass } from "./edge-detect-pass"
 import { FlutedGlassPass } from "./fluted-glass-pass"
 import { GradientPass } from "./gradient-pass"
@@ -20,13 +19,14 @@ import { MediaPass } from "./media-pass"
 import { ParticleGridPass } from "./particle-grid-pass"
 import type { PassNode } from "./pass-node"
 import { PatternPass } from "./pattern-pass"
-import { PlotterPass } from "./plotter-pass"
-import { PosterizePass } from "./posterize-pass"
 import { PixelSortingPass } from "./pixel-sorting-pass"
 import { PixelationPass } from "./pixelation-pass"
+import { PlotterPass } from "./plotter-pass"
+import { PosterizePass } from "./posterize-pass"
 import { SlicePass } from "./slice-pass"
 import { SmearPass } from "./smear-pass"
 import { TextPass } from "./text-pass"
+import { ThresholdPass } from "./threshold-pass"
 
 type LayerPassNode =
   | AsciiPass
@@ -36,7 +36,6 @@ type LayerPassNode =
   | DirectionalBlurPass
   | DisplacementMapPass
   | DitheringPass
-  | EchoPass
   | EdgeDetectPass
   | FlutedGlassPass
   | GradientPass
@@ -53,6 +52,7 @@ type LayerPassNode =
   | PosterizePass
   | SlicePass
   | SmearPass
+  | ThresholdPass
   | TextPass
 
 const RENDER_TARGET_OPTIONS = {
@@ -447,8 +447,6 @@ export class PipelineManager {
           return new DisplacementMapPass(layer.id)
         case "dithering":
           return new DitheringPass(layer.id)
-        case "echo":
-          return new EchoPass(layer.id)
         case "edge-detect":
           return new EdgeDetectPass(layer.id)
         case "fluted-glass":
@@ -467,6 +465,8 @@ export class PipelineManager {
           return new PlotterPass(layer.id)
         case "posterize":
           return new PosterizePass(layer.id)
+        case "threshold":
+          return new ThresholdPass(layer.id)
         case "pixel-sorting":
           return new PixelSortingPass(layer.id)
         case "slice":

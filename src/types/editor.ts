@@ -15,12 +15,12 @@ export type SourceLayerType = (typeof SOURCE_LAYER_TYPES)[number]
 export const EFFECT_LAYER_TYPES = [
   "ascii",
   "directional-blur",
-  "echo",
   "fluted-glass",
   "ink",
   "pattern",
   "plotter",
   "posterize",
+  "threshold",
   "crt",
   "dithering",
   "halftone",
@@ -64,7 +64,13 @@ export type BlendMode = (typeof BLEND_MODES)[number]
 export const LAYER_COMPOSITE_MODES = ["filter", "mask"] as const
 export type LayerCompositeMode = (typeof LAYER_COMPOSITE_MODES)[number]
 
-export const MASK_SOURCES = ["luminance", "alpha", "red", "green", "blue"] as const
+export const MASK_SOURCES = [
+  "luminance",
+  "alpha",
+  "red",
+  "green",
+  "blue",
+] as const
 export type MaskSource = (typeof MASK_SOURCES)[number]
 
 export const MASK_MODES = ["multiply", "stencil"] as const
@@ -324,9 +330,15 @@ export interface SceneConfig {
   contrast: number
   invert: boolean
   channelMixer: {
-    rr: number; rg: number; rb: number
-    gr: number; gg: number; gb: number
-    br: number; bg: number; bb: number
+    rr: number
+    rg: number
+    rb: number
+    gr: number
+    gg: number
+    gb: number
+    br: number
+    bg: number
+    bb: number
   }
   clampMin: number
   clampMax: number
@@ -343,9 +355,15 @@ export const DEFAULT_SCENE_CONFIG: SceneConfig = {
   contrast: 0,
   invert: false,
   channelMixer: {
-    rr: 1, rg: 0, rb: 0,
-    gr: 0, gg: 1, gb: 0,
-    br: 0, bg: 0, bb: 1,
+    rr: 1,
+    rg: 0,
+    rb: 0,
+    gr: 0,
+    gg: 1,
+    gb: 0,
+    br: 0,
+    bg: 0,
+    bb: 1,
   },
   clampMin: 0,
   clampMax: 1,

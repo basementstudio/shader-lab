@@ -1,5 +1,11 @@
 # @basementstudio/shader-lab
 
+## 1.2.0
+
+### Minor Changes
+
+- adbbc04: Add directional blur, posterize, slice effect layers and more to the package
+
 ## 1.1.2
 
 ### Patch Changes

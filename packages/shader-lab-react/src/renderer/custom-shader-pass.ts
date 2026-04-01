@@ -5,6 +5,7 @@ import { PassNode } from "./pass-node"
 import type { LayerParameterValues } from "../types/editor"
 
 type Node = TSLNode
+type TypedNode = TSLNode & { nodeType?: string | null }
 
 export class CustomShaderPass extends PassNode {
   private readonly onRuntimeError: ((message: string | null) => void) | undefined
@@ -90,14 +91,21 @@ export class CustomShaderPass extends PassNode {
     }
 
     try {
-      return vec4(
-        clamp(
-          this.compiledSketch(),
-          vec3(float(0), float(0), float(0)),
-          vec3(float(1), float(1), float(1))
-        ),
-        float(1)
+      const outputNode = this.compiledSketch() as TypedNode
+      const clampedRgb = clamp(
+        outputNode.rgb ?? vec3(outputNode),
+        vec3(float(0), float(0), float(0)),
+        vec3(float(1), float(1), float(1))
       )
+
+      if (outputNode.nodeType === "vec4") {
+        return vec4(
+          clampedRgb,
+          clamp(float(outputNode.a), float(0), float(1))
+        )
+      }
+
+      return vec4(clampedRgb, float(1))
     } catch (error) {
       this.onRuntimeError?.(
         error instanceof Error ? error.message : "Custom shader execution failed.",

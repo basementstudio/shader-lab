@@ -2187,6 +2187,16 @@ const smearParams = [
 
 const flutedGlassParams = [
   {
+    defaultValue: "architectural",
+    key: "preset",
+    label: "Preset",
+    options: [
+      { label: "Architectural", value: "architectural" },
+      { label: "Painterly", value: "painterly" },
+    ],
+    type: "select",
+  },
+  {
     defaultValue: 20,
     key: "frequency",
     label: "Frequency",
@@ -2205,21 +2215,30 @@ const flutedGlassParams = [
     type: "number",
   },
   {
+    defaultValue: 0.28,
+    key: "warp",
+    label: "Warp",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+  },
+  {
+    defaultValue: 0.35,
+    key: "irregularity",
+    label: "Irregularity",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+  },
+  {
     defaultValue: 0,
     key: "angle",
     label: "Angle",
     max: 360,
     min: 0,
     step: 1,
-    type: "number",
-  },
-  {
-    defaultValue: 0.3,
-    key: "chromaticSplit",
-    label: "Chromatic Split",
-    max: 1,
-    min: 0,
-    step: 0.01,
     type: "number",
   },
 ] as const satisfies ParameterDefinitions

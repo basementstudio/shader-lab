@@ -1,4 +1,4 @@
-import { clamp, float, type TSLNode, uniform, vec3, vec4 } from "three/tsl"
+import { clamp, float, pow, type TSLNode, uniform, vec3, vec4 } from "three/tsl"
 import { CUSTOM_SHADER_ENTRY_EXPORT } from "@/lib/editor/custom-shader/shared"
 import { compileCustomShaderModule } from "@/renderer/custom-shader-runtime"
 import { PassNode } from "@/renderer/pass-node"
@@ -105,12 +105,17 @@ export class CustomShaderPass extends PassNode {
         vec3(float(0), float(0), float(0)),
         vec3(float(1), float(1), float(1))
       )
+      const linearizedRgb = vec3(
+        pow(float(clampedRgb.x), float(2.2)),
+        pow(float(clampedRgb.y), float(2.2)),
+        pow(float(clampedRgb.z), float(2.2))
+      )
 
       if (outputNode.nodeType === "vec4") {
-        return vec4(clampedRgb, outputAlpha)
+        return vec4(linearizedRgb, outputAlpha)
       }
 
-      return vec4(clampedRgb, float(1))
+      return vec4(linearizedRgb, float(1))
     } catch (error) {
       useLayerStore
         .getState()

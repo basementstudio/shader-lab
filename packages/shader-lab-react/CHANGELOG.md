@@ -1,5 +1,11 @@
 # @basementstudio/shader-lab
 
+## 1.2.3
+
+### Patch Changes
+
+- 878a432: fix colorspace correction for media (imgs, videos...), per-layer adjustment for custom shaders
+
 ## 1.2.2
 
 ### Patch Changes

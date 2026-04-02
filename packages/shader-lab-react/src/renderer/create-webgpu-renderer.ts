@@ -25,7 +25,7 @@ export async function createWebGPURenderer(
           outputColorSpace: string
           toneMapping: number
         }
-      ).outputColorSpace = THREE.LinearSRGBColorSpace
+      ).outputColorSpace = THREE.SRGBColorSpace
       ;(
         renderer as THREE.WebGPURenderer & {
           outputColorSpace: string

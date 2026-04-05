@@ -14,7 +14,7 @@ import {
 } from "three/tsl"
 import * as THREE from "three/webgpu"
 import type { ShaderLabLayerConfig } from "../types"
-import { PassNode } from "./pass-node"
+import { createPipelinePlaceholder, PassNode } from "./pass-node"
 
 type Node = TSLNode
 
@@ -62,7 +62,7 @@ export class EdgeDetectPass extends PassNode {
 
   constructor(layerId: string) {
     super(layerId)
-    this.placeholder = new THREE.Texture()
+    this.placeholder = createPipelinePlaceholder()
     this.thresholdUniform = uniform(0.1)
     this.strengthUniform = uniform(1)
     this.invertUniform = uniform(0)

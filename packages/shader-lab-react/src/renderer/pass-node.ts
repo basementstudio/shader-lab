@@ -18,6 +18,22 @@ import type { LayerCompositeMode, LayerParameterValues, MaskConfig } from "../ty
 
 type Node = TSLNode
 
+/**
+ * Creates a placeholder texture whose format/type matches the pipeline render
+ * targets (`HalfFloatType`, `RGBAFormat`, nearest filtering, no mipmaps).
+ * Using a matching placeholder avoids a potential Three.js TSL pipeline
+ * recompilation when the real render-target texture is first assigned.
+ */
+export function createPipelinePlaceholder(): THREE.Texture {
+  const tex = new THREE.Texture()
+  tex.type = THREE.HalfFloatType
+  tex.format = THREE.RGBAFormat
+  tex.minFilter = THREE.NearestFilter
+  tex.magFilter = THREE.NearestFilter
+  tex.generateMipmaps = false
+  return tex
+}
+
 export class PassNode {
   readonly layerId: string
 
@@ -48,9 +64,8 @@ export class PassNode {
     this.hueUniform = uniform(0)
     this.saturationUniform = uniform(1)
 
-    const placeholder = new THREE.Texture()
     const renderTargetUv = vec2(uv().x, float(1).sub(uv().y))
-    this.inputNode = tslTexture(placeholder, renderTargetUv)
+    this.inputNode = tslTexture(createPipelinePlaceholder(), renderTargetUv)
     this.effectNode = this.buildEffectNode()
     this.rebuildColorNode()
 

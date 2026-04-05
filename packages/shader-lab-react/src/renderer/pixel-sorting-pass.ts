@@ -15,7 +15,7 @@ import {
   vec3,
   vec4,
 } from "three/tsl"
-import { PassNode } from "./pass-node"
+import { createPipelinePlaceholder, PassNode } from "./pass-node"
 import type { LayerParameterValues } from "../types/editor"
 
 type Node = TSLNode
@@ -59,7 +59,7 @@ export class PixelSortingPass extends PassNode {
     this.modeUniform = uniform(0)
     this.reverseUniform = uniform(0)
 
-    const placeholder = new THREE.Texture()
+    const placeholder = createPipelinePlaceholder()
 
     // Compute pixel coordinates from flipped UVs
     const texUv = vec2(uv().x, float(1).sub(uv().y))
@@ -188,7 +188,7 @@ export class PixelSortingPass extends PassNode {
 
     // Blit node for PassNode pipeline
     const blitUv = vec2(uv().x, float(1).sub(uv().y))
-    this.blitInputNode = tslTexture(new THREE.Texture(), blitUv)
+    this.blitInputNode = tslTexture(createPipelinePlaceholder(), blitUv)
 
     this.rebuildEffectNode()
   }

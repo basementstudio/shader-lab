@@ -17,7 +17,7 @@ import {
   vec4,
 } from "three/tsl"
 import { buildDitherTextures, type DitherTextures } from "./dither-textures"
-import { PassNode } from "./pass-node"
+import { createPipelinePlaceholder, PassNode } from "./pass-node"
 import type { LayerParameterValues } from "../types/editor"
 
 type Node = TSLNode
@@ -78,7 +78,7 @@ export class DitheringPass extends PassNode {
   constructor(layerId: string) {
     super(layerId)
     this.textures = buildDitherTextures()
-    this.placeholder = new THREE.Texture()
+    this.placeholder = createPipelinePlaceholder()
     this.currentTexture = this.textures.bayer4
     this.levelsUniform = uniform(4)
     this.logicalWidthUniform = uniform(1)

@@ -18,9 +18,9 @@ import {
   vec3,
   vec4,
 } from "three/tsl"
-import * as THREE from "three/webgpu"
+import type * as THREE from "three/webgpu"
 import type { LayerParameterValues } from "../types/editor"
-import { PassNode } from "./pass-node"
+import { createPipelinePlaceholder, PassNode } from "./pass-node"
 
 type Node = TSLNode
 
@@ -45,7 +45,7 @@ export class SmearPass extends PassNode {
 
   constructor(layerId: string) {
     super(layerId)
-    this.placeholder = new THREE.Texture()
+    this.placeholder = createPipelinePlaceholder()
     this.angleUniform = uniform(0)
     this.startUniform = uniform(0.25)
     this.endUniform = uniform(0.75)

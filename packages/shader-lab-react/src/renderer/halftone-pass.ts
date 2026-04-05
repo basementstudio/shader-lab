@@ -21,7 +21,7 @@ import {
   vec4,
 } from "three/tsl"
 import * as THREE from "three/webgpu"
-import { PassNode } from "./pass-node"
+import { createPipelinePlaceholder, PassNode } from "./pass-node"
 import { grainTexturePattern } from "./shaders/tsl/patterns/grain-texture-pattern"
 import type { LayerParameterValues } from "../types/editor"
 
@@ -777,7 +777,7 @@ export class HalftonePass extends PassNode {
         const cellSY = sinA.mul(cellRX).add(cosA.mul(cellRY))
         const cellUV = vec2(cellSX, cellSY).div(screenSize)
 
-        const sNode = tslTexture(new THREE.Texture(), cellUV)
+        const sNode = tslTexture(createPipelinePlaceholder(), cellUV)
         this.sampleNodes.push(sNode)
 
         const channelValue = channelExtractor(sNode)

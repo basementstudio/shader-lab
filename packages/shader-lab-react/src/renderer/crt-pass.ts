@@ -23,7 +23,7 @@ import {
   vec4,
 } from "three/tsl"
 import { simplexNoise3d } from "./shaders/tsl/noise/simplex-noise-3d"
-import { PassNode } from "./pass-node"
+import { createPipelinePlaceholder, PassNode } from "./pass-node"
 import type { LayerParameterValues } from "../types/editor"
 
 type Node = TSLNode
@@ -101,7 +101,7 @@ export class CrtPass extends PassNode {
   constructor(layerId: string) {
     super(layerId)
 
-    this.placeholder = new THREE.Texture()
+    this.placeholder = createPipelinePlaceholder()
     this.historyReadTarget = new THREE.WebGLRenderTarget(1, 1, HISTORY_TARGET_OPTIONS)
     this.historyWriteTarget = new THREE.WebGLRenderTarget(1, 1, HISTORY_TARGET_OPTIONS)
 

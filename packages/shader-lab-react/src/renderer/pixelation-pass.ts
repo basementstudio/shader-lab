@@ -8,9 +8,9 @@ import {
   vec2,
   vec4,
 } from "three/tsl"
-import * as THREE from "three/webgpu"
+import type * as THREE from "three/webgpu"
 import type { ShaderLabLayerConfig } from "../types"
-import { PassNode } from "./pass-node"
+import { createPipelinePlaceholder, PassNode } from "./pass-node"
 
 type Node = TSLNode
 
@@ -25,7 +25,7 @@ export class PixelationPass extends PassNode {
 
   constructor(layerId: string) {
     super(layerId)
-    this.placeholder = new THREE.Texture()
+    this.placeholder = createPipelinePlaceholder()
     this.cellSizeUniform = uniform(8)
     this.aspectRatioUniform = uniform(1)
     this.logicalWidthUniform = uniform(1)

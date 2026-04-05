@@ -14,7 +14,7 @@ import {
   vec3,
   vec4,
 } from "three/tsl"
-import { PassNode } from "./pass-node"
+import { createPipelinePlaceholder, PassNode } from "./pass-node"
 import { simplexNoise3d } from "./shaders/tsl/noise/simplex-noise-3d"
 import type { LayerParameterValues } from "../types/editor"
 
@@ -64,7 +64,7 @@ export class ParticleGridPass extends PassNode {
     this.perspCamera.position.set(0, 0, 1.2)
     this.perspCamera.lookAt(0, 0, 0)
 
-    this.placeholder = new THREE.Texture()
+    this.placeholder = createPipelinePlaceholder()
 
     this.internalRT = new THREE.WebGLRenderTarget(1, 1, {
       depthBuffer: true,
@@ -89,7 +89,7 @@ export class ParticleGridPass extends PassNode {
     this.bloomThresholdUniform = uniform(0.6)
 
     const blitUv = vec2(uv().x, float(1).sub(uv().y))
-    this.blitInputNode = tslTexture(new THREE.Texture(), blitUv)
+    this.blitInputNode = tslTexture(createPipelinePlaceholder(), blitUv)
 
     this.rebuildEffectNode()
   }

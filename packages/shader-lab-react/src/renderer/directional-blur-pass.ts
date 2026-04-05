@@ -16,7 +16,7 @@ import {
   vec4,
 } from "three/tsl"
 import type { LayerParameterValues } from "../types/editor"
-import { PassNode } from "./pass-node"
+import { createPipelinePlaceholder, PassNode } from "./pass-node"
 
 type Node = TSLNode
 
@@ -43,7 +43,7 @@ export class DirectionalBlurPass extends PassNode {
 
   constructor(layerId: string) {
     super(layerId)
-    this.placeholder = new THREE.Texture()
+    this.placeholder = createPipelinePlaceholder()
     this.strengthUniform = uniform(18)
     this.samplesUniform = uniform(8)
     this.angleUniform = uniform(0)

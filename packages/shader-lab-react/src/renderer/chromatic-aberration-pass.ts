@@ -13,7 +13,7 @@ import {
 } from "three/tsl"
 import * as THREE from "three/webgpu"
 import type { ShaderLabLayerConfig } from "../types"
-import { PassNode } from "./pass-node"
+import { createPipelinePlaceholder, PassNode } from "./pass-node"
 
 type Node = TSLNode
 
@@ -47,7 +47,7 @@ export class ChromaticAberrationPass extends PassNode {
 
   constructor(layerId: string) {
     super(layerId)
-    this.placeholder = new THREE.Texture()
+    this.placeholder = createPipelinePlaceholder()
     this.intensityUniform = uniform(5)
     this.centerXUniform = uniform(0.5)
     this.centerYUniform = uniform(0.5)

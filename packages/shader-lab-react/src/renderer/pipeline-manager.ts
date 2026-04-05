@@ -17,7 +17,7 @@ import { InkPass } from "./ink-pass"
 import { LivePass } from "./live-pass"
 import { MediaPass } from "./media-pass"
 import { ParticleGridPass } from "./particle-grid-pass"
-import type { PassNode } from "./pass-node"
+import { createPipelinePlaceholder, type PassNode } from "./pass-node"
 import { PatternPass } from "./pattern-pass"
 import { PixelSortingPass } from "./pixel-sorting-pass"
 import { PixelationPass } from "./pixelation-pass"
@@ -187,7 +187,7 @@ export class PipelineManager {
     this.blitScene = new THREE.Scene()
     this.blitCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
     const blitUv = vec2(uv().x, float(1).sub(uv().y))
-    this.blitInputNode = tslTexture(new THREE.Texture(), blitUv)
+    this.blitInputNode = tslTexture(createPipelinePlaceholder(), blitUv)
     this.blitMaterial = new THREE.MeshBasicNodeMaterial()
     this.blitMaterial.colorNode = this.blitInputNode
     const blitMesh = new THREE.Mesh(
@@ -339,8 +339,15 @@ export class PipelineManager {
   }
 
   resize(size: { height: number; width: number }): void {
-    this.width = Math.max(1, size.width)
-    this.height = Math.max(1, size.height)
+    const nextWidth = Math.max(1, size.width)
+    const nextHeight = Math.max(1, size.height)
+
+    if (nextWidth === this.width && nextHeight === this.height) {
+      return
+    }
+
+    this.width = nextWidth
+    this.height = nextHeight
     this.rtA.setSize(this.width, this.height)
     this.rtB.setSize(this.width, this.height)
 

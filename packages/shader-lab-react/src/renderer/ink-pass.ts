@@ -19,7 +19,7 @@ import {
 import * as THREE from "three/webgpu"
 import type { LayerParameterValues } from "../types/editor"
 import { loadImageTexture } from "./media-texture"
-import { PassNode } from "./pass-node"
+import { createPipelinePlaceholder, PassNode } from "./pass-node"
 import { grainTexturePattern } from "./shaders/tsl/patterns/grain-texture-pattern"
 
 type Node = TSLNode
@@ -131,7 +131,7 @@ export class InkPass extends PassNode {
     this.compositeScene = new THREE.Scene()
     this.copyScene = new THREE.Scene()
 
-    this.placeholder = new THREE.Texture()
+    this.placeholder = createPipelinePlaceholder()
     const flippedUv = vec2(uv().x, float(1).sub(uv().y))
     this.blurInputNode = tslTexture(this.placeholder, flippedUv)
     this.crispInputNode = tslTexture(this.placeholder, flippedUv)

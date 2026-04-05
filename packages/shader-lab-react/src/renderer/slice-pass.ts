@@ -1,4 +1,3 @@
-import * as THREE from "three/webgpu"
 import {
   dot,
   float,
@@ -9,16 +8,17 @@ import {
   select,
   sin,
   step,
-  texture as tslTexture,
   type TSLNode,
+  texture as tslTexture,
   uniform,
   uv,
   vec2,
   vec3,
   vec4,
 } from "three/tsl"
+import type * as THREE from "three/webgpu"
 import type { LayerParameterValues } from "../types/editor"
-import { PassNode } from "./pass-node"
+import { createPipelinePlaceholder, PassNode } from "./pass-node"
 
 type Node = TSLNode
 
@@ -59,7 +59,7 @@ export class SlicePass extends PassNode {
 
   constructor(layerId: string) {
     super(layerId)
-    this.placeholder = new THREE.Texture()
+    this.placeholder = createPipelinePlaceholder()
     this.amountUniform = uniform(180)
     this.sliceHeightUniform = uniform(28)
     this.blockWidthUniform = uniform(120)
@@ -150,20 +150,32 @@ export class SlicePass extends PassNode {
     )
     const sliceIndex = floor(pixelCoord.y.div(this.sliceHeightUniform))
     const blockIndex = floor(pixelCoord.x.div(this.blockWidthUniform))
-    const timeBucket = floor(this.timeUniform.mul(this.speedUniform).mul(float(6)))
-    const bandNoise = hash2(sliceIndex.add(float(0.37)), timeBucket.add(float(11.13)))
+    const timeBucket = floor(
+      this.timeUniform.mul(this.speedUniform).mul(float(6))
+    )
+    const bandNoise = hash2(
+      sliceIndex.add(float(0.37)),
+      timeBucket.add(float(11.13))
+    )
     const blockNoise = hash2(
       blockIndex.add(timeBucket.mul(float(0.73))).add(float(2.4)),
       sliceIndex.add(float(19.7))
     )
     const gate = step(float(1).sub(this.densityUniform), blockNoise)
-    const randomDirection = hash2(sliceIndex.add(float(7.2)), timeBucket.add(float(31.4)))
+    const randomDirection = hash2(
+      sliceIndex.add(float(7.2)),
+      timeBucket.add(float(31.4))
+    )
       .mul(float(2))
       .sub(float(1))
     const signedDirection = select(
       this.directionUniform.greaterThan(float(1.5)),
       float(-1),
-      select(this.directionUniform.greaterThan(float(0.5)), float(1), randomDirection)
+      select(
+        this.directionUniform.greaterThan(float(0.5)),
+        float(1),
+        randomDirection
+      )
     )
     const sliceStrength = pow(bandNoise, float(1.35))
       .mul(this.amountUniform)
@@ -179,13 +191,19 @@ export class SlicePass extends PassNode {
     const trailOffsetUv = vec2(offsetUv.x.mul(float(0.35)), float(0))
 
     const redSample = this.trackSourceTextureNode(
-      vec2(renderTargetUv.x.add(offsetUv.x).add(chromaOffsetUv.x), renderTargetUv.y)
+      vec2(
+        renderTargetUv.x.add(offsetUv.x).add(chromaOffsetUv.x),
+        renderTargetUv.y
+      )
     )
     const greenSample = this.trackSourceTextureNode(
       vec2(renderTargetUv.x.add(offsetUv.x), renderTargetUv.y)
     )
     const blueSample = this.trackSourceTextureNode(
-      vec2(renderTargetUv.x.add(offsetUv.x).sub(chromaOffsetUv.x), renderTargetUv.y)
+      vec2(
+        renderTargetUv.x.add(offsetUv.x).sub(chromaOffsetUv.x),
+        renderTargetUv.y
+      )
     )
     const trailSample = this.trackSourceTextureNode(
       vec2(renderTargetUv.x.add(trailOffsetUv.x), renderTargetUv.y)

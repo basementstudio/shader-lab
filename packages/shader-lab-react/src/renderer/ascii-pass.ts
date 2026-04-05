@@ -21,7 +21,7 @@ import {
   type AsciiFontWeight,
   DEFAULT_ASCII_CHARS,
 } from "./ascii-atlas"
-import { PassNode } from "./pass-node"
+import { createPipelinePlaceholder, PassNode } from "./pass-node"
 import type { LayerParameterValues } from "../types/editor"
 
 type Node = TSLNode
@@ -95,7 +95,7 @@ export class AsciiPass extends PassNode {
 
   constructor(layerId: string) {
     super(layerId)
-    this.placeholder = new THREE.Texture()
+    this.placeholder = createPipelinePlaceholder()
     this.bloomIntensityUniform = uniform(1.25)
     this.bloomRadiusUniform = uniform(6)
     this.bloomSoftnessUniform = uniform(0.35)

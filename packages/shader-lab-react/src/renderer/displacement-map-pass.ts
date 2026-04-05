@@ -10,7 +10,7 @@ import {
 } from "three/tsl"
 import * as THREE from "three/webgpu"
 import type { ShaderLabLayerConfig } from "../types"
-import { PassNode } from "./pass-node"
+import { createPipelinePlaceholder, PassNode } from "./pass-node"
 
 type Node = TSLNode
 
@@ -44,7 +44,7 @@ export class DisplacementMapPass extends PassNode {
 
   constructor(layerId: string) {
     super(layerId)
-    this.placeholder = new THREE.Texture()
+    this.placeholder = createPipelinePlaceholder()
     this.strengthUniform = uniform(20)
     this.midpointUniform = uniform(0.5)
     this.widthUniform = uniform(1)

@@ -21,7 +21,7 @@ import {
 } from "three/tsl"
 import * as THREE from "three/webgpu"
 import type { LayerParameterValues } from "../types/editor"
-import { PassNode } from "./pass-node"
+import { createPipelinePlaceholder, PassNode } from "./pass-node"
 import { simplexNoise3d } from "./shaders/tsl/noise/simplex-noise-3d"
 
 type Node = TSLNode
@@ -50,7 +50,7 @@ export class FlutedGlassPass extends PassNode {
 
   constructor(layerId: string) {
     super(layerId)
-    this.placeholder = new THREE.Texture()
+    this.placeholder = createPipelinePlaceholder()
     this.presetUniform = uniform(FLUTED_GLASS_PRESET_ARCHITECTURAL)
     this.frequencyUniform = uniform(20)
     this.amplitudeUniform = uniform(0.02)

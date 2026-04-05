@@ -1,5 +1,11 @@
 # @basementstudio/shader-lab
 
+## 1.2.4
+
+### Patch Changes
+
+- 2e85f79: performance fixes
+
 ## 1.2.3
 
 ### Patch Changes

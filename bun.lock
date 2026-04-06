@@ -12,6 +12,7 @@
         "@react-three/postprocessing": "^3.0.4",
         "class-variance-authority": "^0.7.1",
         "motion": "^12.38.0",
+        "mp4-muxer": "^5.2.2",
         "next": "16.1.4",
         "react": "19.2.4",
         "react-dom": "19.2.4",
@@ -958,6 +959,8 @@
     "motion-dom": ["motion-dom@12.38.0", "", { "dependencies": { "motion-utils": "^12.36.0" } }, "sha512-pdkHLD8QYRp8VfiNLb8xIBJis1byQ9gPT3Jnh2jqfFtAsWUA3dEepDlsWe/xMpO8McV+VdpKVcp+E+TGJEtOoA=="],
 
     "motion-utils": ["motion-utils@12.36.0", "", {}, "sha512-eHWisygbiwVvf6PZ1vhaHCLamvkSbPIeAYxWUuL3a2PD/TROgE7FvfHWTIH4vMl798QLfMw15nRqIaRDXTlYRg=="],
+
+    "mp4-muxer": ["mp4-muxer@5.2.2", "", { "dependencies": { "@types/dom-webcodecs": "^0.1.6", "@types/wicg-file-system-access": "^2020.9.5" } }, "sha512-dhozjTywI0h2qFzeShagt8YYw811fh1XlwiDCE2f6Aeqf6xG2CyuShoSa5E0AZDO8pPF0JOZ3wOmWBNWIGdSpQ=="],
 
     "mri": ["mri@1.2.0", "", {}, "sha512-tzzskb3bG8LvYGFF/mDTpq3jpI6Q9wc3LEmBaghu+DdCssd1FakN7Bc0hVNmEyGq1bq3RgfkCb3cmQLpNPOroA=="],
 

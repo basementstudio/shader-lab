@@ -144,12 +144,14 @@ export function EditorExportDialog({
   const [videoDuration, setVideoDuration] = useState(timelineDuration)
   const [videoFps, setVideoFps] = useState(30)
   const [videoFormat, setVideoFormat] = useState<VideoExportFormat>("webm")
+  const [videoSupport, setVideoSupport] = useState({
+    mp4: false,
+    webm: false,
+  })
   const [isCopyingShader, setIsCopyingShader] = useState(false)
   const importInputRef = useRef<HTMLInputElement | null>(null)
   const measureRef = useRef<HTMLDivElement | null>(null)
 
-  const mp4Supported = Boolean(getSupportedVideoMimeType("mp4"))
-  const webmSupported = Boolean(getSupportedVideoMimeType("webm"))
   const shaderExportIssues = useMemo(
     () => validateShaderExportSupport(layers, assets),
     [assets, layers]
@@ -183,6 +185,28 @@ export function EditorExportDialog({
 
   useEffect(() => {
     setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+
+    void Promise.all([
+      getSupportedVideoMimeType("webm"),
+      getSupportedVideoMimeType("mp4"),
+    ]).then(([webm, mp4]) => {
+      if (cancelled) {
+        return
+      }
+
+      setVideoSupport({
+        mp4: Boolean(mp4),
+        webm: Boolean(webm),
+      })
+    })
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   useEffect(() => {
@@ -330,13 +354,14 @@ export function EditorExportDialog({
     setIsWorking(true)
 
     try {
+      const startTime = useTimelineStore.getState().currentTime
       const blob = await exportVideo(buildRenderProjectState(), {
         aspectPreset: videoAspect,
         duration: Math.max(0.25, videoDuration),
         format: videoFormat,
         fps: Math.max(1, videoFps),
         qualityPreset: videoQuality,
-        startTime: 0,
+        startTime,
         width: videoSize.width,
         height: videoSize.height,
       })
@@ -574,7 +599,7 @@ export function EditorExportDialog({
                       {activeTab === "video" ? (
                         <VideoTabContent
                           isWorking={isWorking}
-                          mp4Supported={mp4Supported}
+                          mp4Supported={videoSupport.mp4}
                           onExport={handleVideoExport}
                           onVideoAspectChange={setVideoAspect}
                           onVideoDurationChange={setVideoDuration}
@@ -589,7 +614,7 @@ export function EditorExportDialog({
                           videoFps={videoFps}
                           videoQuality={videoQuality}
                           videoSize={videoSize}
-                          webmSupported={webmSupported}
+                          webmSupported={videoSupport.webm}
                         />
                       ) : null}
                       {activeTab === "project" ? (
@@ -645,7 +670,7 @@ export function EditorExportDialog({
                         {activeTab === "video" ? (
                           <VideoTabContent
                             isWorking={isWorking}
-                            mp4Supported={mp4Supported}
+                            mp4Supported={videoSupport.mp4}
                             onExport={handleVideoExport}
                             onVideoAspectChange={setVideoAspect}
                             onVideoDurationChange={setVideoDuration}
@@ -660,7 +685,7 @@ export function EditorExportDialog({
                             videoFps={videoFps}
                             videoQuality={videoQuality}
                             videoSize={videoSize}
-                            webmSupported={webmSupported}
+                            webmSupported={videoSupport.webm}
                           />
                         ) : null}
                         {activeTab === "project" ? (
@@ -822,6 +847,9 @@ function VideoTabContent({
   videoSize: { height: number; width: number }
   webmSupported: boolean
 }) {
+  const selectedFormatSupported =
+    videoFormat === "webm" ? webmSupported : mp4Supported
+
   return (
     <section className="flex flex-col gap-[14px]">
       <FieldLabel label="Format">
@@ -903,7 +931,7 @@ function VideoTabContent({
       </Typography>
 
       <Button
-        disabled={isWorking || !getSupportedVideoMimeType(videoFormat)}
+        disabled={isWorking || !selectedFormatSupported}
         onClick={() => void onExport()}
       >
         <FileArrowDownIcon size={16} weight="bold" />

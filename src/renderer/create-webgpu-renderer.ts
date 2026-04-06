@@ -51,6 +51,13 @@ export async function createWebGPURenderer(
       return pipeline?.hasPendingCompilations() ?? false
     },
 
+    hasPendingResources() {
+      return (
+        (pipeline?.hasPendingCompilations() ?? false) ||
+        (pipeline?.hasPendingMediaLoads() ?? false)
+      )
+    },
+
     resize(size: Size, pixelRatio: number) {
       renderer.setPixelRatio(pixelRatio)
       renderer.setSize(size.width, size.height, false)
@@ -59,6 +66,10 @@ export async function createWebGPURenderer(
 
     render(frame: RendererFrame) {
       renderFrame(frame)
+    },
+
+    async prepareForExportFrame(time: number) {
+      await pipeline?.prepareForExportFrame(time)
     },
 
     exportFrame(frame: RendererFrame, _renderSize: Size): HTMLCanvasElement {

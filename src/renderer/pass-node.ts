@@ -142,6 +142,10 @@ export class PassNode {
     return false
   }
 
+  async prepareForExportFrame(_time: number): Promise<void> {
+    // Default pass has no export-specific media work.
+  }
+
   dispose(): void {
     this.scene.clear()
     this.material.dispose()

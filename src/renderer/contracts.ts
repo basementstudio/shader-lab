@@ -38,7 +38,9 @@ export interface EditorRenderer {
   dispose(): void
   exportFrame(frame: RendererFrame, renderSize: Size): HTMLCanvasElement
   hasPendingCompilations(): boolean
+  hasPendingResources(): boolean
   initialize(): Promise<void>
+  prepareForExportFrame(time: number): Promise<void>
   render(frame: RendererFrame): void
   resize(size: Size, pixelRatio: number): void
 }

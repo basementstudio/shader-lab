@@ -88,11 +88,11 @@ export class MediaPass extends PassNode {
       typeof params.playbackRate === "number" &&
       Number.isFinite(params.playbackRate)
     ) {
-      this.videoHandle.video.playbackRate = Math.max(0.1, params.playbackRate)
+      this.videoHandle.setPlaybackRate(params.playbackRate)
     }
 
     if (this.videoHandle) {
-      this.videoHandle.video.loop = true
+      this.videoHandle.setLoop(true)
     }
   }
 
@@ -120,6 +120,14 @@ export class MediaPass extends PassNode {
 
   override needsContinuousRender(): boolean {
     return this.videoTexture !== null
+  }
+
+  override async prepareForExportFrame(time: number): Promise<void> {
+    if (!this.videoHandle) {
+      return
+    }
+
+    await this.videoHandle.prepareFrame(time)
   }
 
   override dispose(): void {

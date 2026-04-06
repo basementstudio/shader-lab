@@ -92,6 +92,7 @@ export class PipelineManager {
   private layerSignatures = new Map<string, string>()
   private compilingPasses = new Set<string>()
   private compiledVersions = new Map<string, number>()
+  private pendingMediaLoads = new Set<string>()
   private cachedActivePasses: LayerPassNode[] = []
   private activePassesDirty = true
   private dirty = true
@@ -312,6 +313,18 @@ export class PipelineManager {
     return this.compilingPasses.size > 0
   }
 
+  hasPendingMediaLoads(): boolean {
+    return this.pendingMediaLoads.size > 0
+  }
+
+  async prepareForExportFrame(time: number): Promise<void> {
+    const activePasses = this.passes.filter(
+      (pass) => pass.enabled && !this.compilingPasses.has(pass.layerId)
+    )
+
+    await Promise.all(activePasses.map((pass) => pass.prepareForExportFrame(time)))
+  }
+
   dispose(): void {
     this.rtA.dispose()
     this.rtB.dispose()
@@ -348,6 +361,7 @@ export class PipelineManager {
     if (pass instanceof MediaPass) {
       const asset = renderableLayer.asset
       if (asset?.kind === "image" || asset?.kind === "video") {
+        this.pendingMediaLoads.add(pass.layerId)
         void pass
           .setMedia(asset.url, asset.kind)
           .then(() => {
@@ -356,7 +370,11 @@ export class PipelineManager {
           .catch(() => {
             this.markDirty()
           })
+          .finally(() => {
+            this.pendingMediaLoads.delete(pass.layerId)
+          })
       } else {
+        this.pendingMediaLoads.delete(pass.layerId)
         pass.clearMedia()
       }
     }

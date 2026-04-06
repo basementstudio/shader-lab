@@ -458,11 +458,170 @@ Use the classes when:
 - You want full manual lifecycle control
 - You are integrating Shader Lab into a custom runtime or framework
 
+## Custom Shader Layer
+
+The custom shader layer lets you write GPU shaders using [Three.js TSL (Three Shading Language)](https://github.com/mrdoob/three.js/wiki/Three.js-Shading-Language). Your sketch runs entirely on the GPU as a node graph — there is no GLSL or WGSL to write.
+
+### How it works
+
+Your code must export a function wrapped in `Fn()` that returns a TSL node (vec3 or vec4). The editor compiles your TypeScript, strips imports, and evaluates the result in a sandbox with a pre-injected scope. Everything from `three/tsl` and the Shader Lab utility library is available as globals — no imports needed.
+
+```ts
+export const sketch = Fn(() => {
+  const color = vec3(uv().x, uv().y, sin(time).mul(0.5).add(0.5))
+  return color
+})
+```
+
+Click **Apply** (or re-paste) to recompile. The entry export name defaults to `sketch` but can be changed in the Entry Export field.
+
+### Source mode vs Effect mode
+
+The custom shader layer has an **Effect Mode** toggle:
+
+- **Source mode** (default) — the layer generates pixels from scratch, like a gradient or image. Your sketch outputs a color for each pixel. The output is linearized (sRGB → linear via `pow(2.2)`) to match the compositing pipeline.
+
+- **Effect mode** — the layer acts as a post-processing effect. It receives the composited result of all layers below it via `inputTexture` and transforms it. No gamma conversion is applied since the input is already in linear space.
+
+### Injected scope
+
+These variables are injected into your sketch and available as globals:
+
+| Variable | Type | Description |
+| --- | --- | --- |
+| `time` | `float` | Elapsed time in seconds, continuously updated |
+| `inputTexture` | `TextureNode` | The composited layers below (effect mode). In source mode this is a blank texture. Use directly for the default-UV color, or call `.sample(customUV)` to re-sample at custom coordinates |
+
+### TSL globals
+
+Everything exported from `three/tsl` is available. Key ones:
+
+| Function | Description |
+| --- | --- |
+| `Fn(() => { ... })` | Defines a deferred shader function (required wrapper) |
+| `float`, `vec2`, `vec3`, `vec4` | Constructors for scalar and vector types |
+| `uv()` | Fragment UV coordinates (0–1) |
+| `screenSize` | Viewport resolution as vec2 |
+| `sin`, `cos`, `abs`, `floor`, `round`, `pow`, `mix`, `clamp`, `smoothstep`, `dot`, `min`, `max` | Standard math |
+| `texture(tex, uv)` | Sample a texture at given UVs |
+| `uniform(value)` | Create a uniform node |
+| `select(cond, a, b)` | Ternary selection |
+| `If(cond, () => { ... }).Else(...)` | Conditional branching with `.toVar()` assignments |
+
+Nodes are chained with methods: `a.add(b)`, `a.mul(b)`, `a.sub(b)`, `a.div(b)`, `a.negate()`, `a.toVar()` (makes mutable), `a.assign(b)` (mutates a toVar node).
+
+### Shader Lab utilities
+
+These are additional helpers injected alongside TSL:
+
+#### Noise
+
+| Function | Signature | Description |
+| --- | --- | --- |
+| `simplexNoise3d` | `(vec3) → float` | 3D simplex noise |
+| `simplexNoise4d` | `(vec4) → float` | 4D simplex noise (use `.w` for time) |
+| `perlinNoise3d` | `(vec3) → float` | 3D Perlin noise |
+| `valueNoise3d` | `(vec3) → float` | 3D value noise |
+| `voronoiNoise3d` | `(vec3) → vec2` | 3D Voronoi (`.x` = cell dist, `.y` = edge dist) |
+| `fbm` | `(vec3) → float` | Fractal Brownian motion (2-octave simplex) |
+| `curlNoise3d` | `(vec3) → vec3` | 3D curl noise |
+| `curlNoise4d` | `(vec4) → vec3` | 4D curl noise |
+| `ridgeNoise` | `(vec3) → float` | Ridge noise |
+| `turbulence` | `(vec3) → float` | Turbulence noise |
+
+#### Tonemapping
+
+| Function | Signature | Description |
+| --- | --- | --- |
+| `reinhardTonemap` | `(vec3) → vec3` | Reinhard tonemap |
+| `acesTonemap` | `(vec3) → vec3` | ACES filmic tonemap |
+| `technicolorTonemap` | `(vec3) → vec3` | Warm technicolor look |
+| `cinematicTonemap` | `(vec3) → vec3` | Cinematic S-curve with tint |
+| `bleachBypassTonemap` | `(vec3) → vec3` | Desaturated high-contrast |
+| `crossProcessTonemap` | `(vec3) → vec3` | Cross-process color shift |
+| `totosTonemap` | `(vec3) → vec3` | Basement's custom filmic tonemap |
+
+#### SDF primitives
+
+| Function | Signature | Description |
+| --- | --- | --- |
+| `sdBox2d` | `(vec2, float) → float` | 2D box signed distance |
+| `sdSphere` | `(vec3, float) → float` | 3D sphere signed distance |
+| `sdDiamond` | `(vec2, float) → float` | 2D diamond signed distance |
+| `sdRhombus` | `(vec2, vec2) → float` | 2D rhombus signed distance |
+
+#### Math & space
+
+| Function | Signature | Description |
+| --- | --- | --- |
+| `screenAspectUV` | `(screenSize, range?) → vec2` | Aspect-corrected UVs centered at origin |
+| `rotate` | `(vec2, float) → vec2` | 2D rotation by angle (radians) |
+| `smin` | `(float, float, float) → float` | Smooth minimum |
+| `smax` | `(float, float, float) → float` | Smooth maximum |
+| `atan2` | `(float, float) → float` | Two-argument arctangent |
+| `tanh` | `(float) → float` | Hyperbolic tangent |
+| `sinh` | `(float) → float` | Hyperbolic sine |
+| `cosh` | `(float) → float` | Hyperbolic cosine |
+| `cosinePalette` | `(t, a, b, c, d, e?) → vec3` | Cosine-based color palette generator |
+
+#### Complex math
+
+All complex operations use `vec2` where `.x` = real, `.y` = imaginary:
+
+`complexMul`, `complexDiv`, `complexPow`, `complexSqrt`, `complexSin`, `complexCos`, `complexTan`, `complexLog`, `complexConj`, `complexToPolar`, `complexMobius`
+
+#### Patterns
+
+| Function | Signature | Description |
+| --- | --- | --- |
+| `bloom` | `(float) → float` | Soft glow curve |
+| `bloomEdgePattern` | `(float, float, float) → float` | Edge-aware bloom |
+| `canvasWeavePattern` | `(vec2, float) → float` | Woven canvas texture |
+| `grainTexturePattern` | `(vec2) → float` | Film grain texture |
+| `repeatingPattern` | `(vec2, float) → vec2` | Tiling UV helper |
+
+### Examples
+
+Source mode — animated gradient with tonemap:
+
+```ts
+export const sketch = Fn(() => {
+  const uv0 = screenAspectUV(screenSize)
+  const color = vec3(
+    uv0.x.add(0.5),
+    uv0.y.add(0.5),
+    sin(time).mul(0.5).add(0.5)
+  ).toVar()
+  color.assign(technicolorTonemap(color))
+  return color
+})
+```
+
+Effect mode — sample input at custom UVs with distortion:
+
+```ts
+export const sketch = Fn(() => {
+  const warp = sin(uv().y.mul(20).add(time.mul(2))).mul(0.02)
+  const warped = vec2(uv().x.add(warp), uv().y)
+  return inputTexture.sample(warped)
+})
+```
+
+Effect mode — simple color manipulation:
+
+```ts
+export const sketch = Fn(() => {
+  const color = inputTexture.toVar()
+  const luma = dot(color.rgb, vec3(0.299, 0.587, 0.114))
+  return vec4(vec3(luma), color.a)
+})
+```
+
 ## Included Runtime Support
 
 - Gradient
 - Text
-- Custom shader
+- Custom shader (source and effect modes)
 - Image and video sources
 - Live camera input
 - ASCII

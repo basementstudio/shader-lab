@@ -35,29 +35,28 @@ function parseCssColorRgb(value: string): [number, number, number] {
   )
 
   if (rgba) {
-    return [
+    const color = new THREE.Color().setRGB(
       clamp01(Number.parseFloat(rgba[1] ?? "0") / 255),
       clamp01(Number.parseFloat(rgba[2] ?? "0") / 255),
       clamp01(Number.parseFloat(rgba[3] ?? "0") / 255),
-    ]
+      THREE.SRGBColorSpace,
+    )
+
+    return [color.r, color.g, color.b]
   }
 
   const hex = value.trim().replace("#", "")
 
   if (hex.length === 6) {
-    return [
-      Number.parseInt(hex.slice(0, 2), 16) / 255,
-      Number.parseInt(hex.slice(2, 4), 16) / 255,
-      Number.parseInt(hex.slice(4, 6), 16) / 255,
-    ]
+    const color = new THREE.Color(`#${hex}`)
+
+    return [color.r, color.g, color.b]
   }
 
   if (hex.length === 3) {
-    return [
-      Number.parseInt(`${hex[0] ?? "0"}${hex[0] ?? "0"}`, 16) / 255,
-      Number.parseInt(`${hex[1] ?? "0"}${hex[1] ?? "0"}`, 16) / 255,
-      Number.parseInt(`${hex[2] ?? "0"}${hex[2] ?? "0"}`, 16) / 255,
-    ]
+    const color = new THREE.Color(`#${hex}`)
+
+    return [color.r, color.g, color.b]
   }
 
   return [1, 1, 1]

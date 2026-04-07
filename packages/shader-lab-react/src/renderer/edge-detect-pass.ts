@@ -24,11 +24,9 @@ const COLOR_MODE_SOURCE = 2
 
 function hexToVec3(hex: string): [number, number, number] {
   const normalized = hex.trim().replace("#", "").padEnd(6, "0").slice(0, 6)
-  return [
-    Number.parseInt(normalized.slice(0, 2), 16) / 255,
-    Number.parseInt(normalized.slice(2, 4), 16) / 255,
-    Number.parseInt(normalized.slice(4, 6), 16) / 255,
-  ]
+  const color = new THREE.Color(`#${normalized}`)
+
+  return [color.r, color.g, color.b]
 }
 
 function toColorModeValue(value: unknown): number {

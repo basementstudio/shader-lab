@@ -23,7 +23,7 @@ import type { LayerParameterValues } from "@/types/editor"
 type Node = TSLNode
 type DitherColorMode = "duo-tone" | "monochrome" | "source"
 
-function hexToRgb(hex: string): [number, number, number] {
+function hexToLinearRgb(hex: string): [number, number, number] {
   const normalized = hex.trim().replace("#", "")
   const value =
     normalized.length === 3
@@ -33,11 +33,9 @@ function hexToRgb(hex: string): [number, number, number] {
           .join("")
       : normalized.padEnd(6, "0").slice(0, 6)
 
-  return [
-    Number.parseInt(value.slice(0, 2), 16) / 255,
-    Number.parseInt(value.slice(2, 4), 16) / 255,
-    Number.parseInt(value.slice(4, 6), 16) / 255,
-  ]
+  const color = new THREE.Color(`#${value}`)
+
+  return [color.r, color.g, color.b]
 }
 
 export class DitheringPass extends PassNode {
@@ -145,11 +143,13 @@ export class DitheringPass extends PassNode {
         ? params.colorMode
         : "source"
 
-    const [red, green, blue] = hexToRgb(typeof params.monoColor === "string" ? params.monoColor : "#f5f5f0")
-    const [shadowRed, shadowGreen, shadowBlue] = hexToRgb(
+    const [red, green, blue] = hexToLinearRgb(
+      typeof params.monoColor === "string" ? params.monoColor : "#f5f5f0",
+    )
+    const [shadowRed, shadowGreen, shadowBlue] = hexToLinearRgb(
       typeof params.shadowColor === "string" ? params.shadowColor : "#101010",
     )
-    const [highlightRed, highlightGreen, highlightBlue] = hexToRgb(
+    const [highlightRed, highlightGreen, highlightBlue] = hexToLinearRgb(
       typeof params.highlightColor === "string" ? params.highlightColor : "#f5f2e8",
     )
 

@@ -1,5 +1,11 @@
 # @basementstudio/shader-lab
 
+## 1.3.0
+
+### Minor Changes
+
+- fc1bf5d: Support custom shader layers running in effect mode. When `effectMode` is enabled in layer params, the shader receives `inputTexture` (the composited layers below) and skips sRGB-to-linear conversion since the input is already linear.
+
 ## 1.2.4
 
 ### Patch Changes

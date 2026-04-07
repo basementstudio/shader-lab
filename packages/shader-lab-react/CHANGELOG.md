@@ -1,5 +1,11 @@
 # @basementstudio/shader-lab
 
+## 1.3.1
+
+### Patch Changes
+
+- a7eafe4: fix dithering color conversion
+
 ## 1.3.0
 
 ### Minor Changes

@@ -8,7 +8,6 @@ import {
   max,
   min,
   mix,
-  screenSize,
   select,
   sin,
   smoothstep,
@@ -93,6 +92,8 @@ export class HalftonePass extends PassNode {
   private readonly paperGrainUniform: Node
   private readonly gcrUniform: Node
   private readonly registrationUniform: Node
+  private readonly logicalWidthUniform: Node
+  private readonly logicalHeightUniform: Node
 
   private readonly inkCyanUniform: Node
   private readonly inkMagentaUniform: Node
@@ -164,6 +165,8 @@ export class HalftonePass extends PassNode {
     this.paperGrainUniform = uniform(0.15)
     this.gcrUniform = uniform(0.5)
     this.registrationUniform = uniform(0)
+    this.logicalWidthUniform = uniform(1)
+    this.logicalHeightUniform = uniform(1)
 
     const [cyanR, cyanG, cyanB] = hexToRgb("#00AEEF")
     this.inkCyanUniform = uniform(new THREE.Vector3(cyanR, cyanG, cyanB))
@@ -191,6 +194,11 @@ export class HalftonePass extends PassNode {
       node.value = inputTexture
     }
     super.render(renderer, inputTexture, outputTarget, time, delta)
+  }
+
+  override updateLogicalSize(width: number, height: number): void {
+    this.logicalWidthUniform.value = Math.max(1, width)
+    this.logicalHeightUniform.value = Math.max(1, height)
   }
 
   override updateParams(params: LayerParameterValues): void {
@@ -386,10 +394,14 @@ export class HalftonePass extends PassNode {
     this.sampleNodes = []
 
     const renderTargetUv = vec2(uv().x, float(1).sub(uv().y))
-    const pixCoord = renderTargetUv.mul(screenSize)
+    const logicalScreenSize = vec2(
+      this.logicalWidthUniform,
+      this.logicalHeightUniform
+    )
+    const pixCoord = renderTargetUv.mul(logicalScreenSize)
 
     if (this.colorMode === "cmyk") {
-      return this.buildCmykNode(pixCoord, renderTargetUv)
+      return this.buildCmykNode(pixCoord, renderTargetUv, logicalScreenSize)
     }
 
     return this.buildSingleChannelNode(pixCoord, renderTargetUv)
@@ -542,7 +554,11 @@ export class HalftonePass extends PassNode {
     )
   }
 
-  private buildCmykNode(pixCoord: Node, renderTargetUv: Node): Node {
+  private buildCmykNode(
+    pixCoord: Node,
+    renderTargetUv: Node,
+    logicalScreenSize: Node
+  ): Node {
     const gcrAmount = this.gcrUniform
 
     const extractCyan = (sample: Node) => {
@@ -617,7 +633,7 @@ export class HalftonePass extends PassNode {
       extractKey
     )
 
-    const grain = grainTexturePattern(renderTargetUv.mul(screenSize))
+    const grain = grainTexturePattern(renderTargetUv.mul(logicalScreenSize))
     const grainOffset = grain.sub(0.5).mul(this.paperGrainUniform)
     const paperR = clamp(
       float(this.paperRedUniform).add(grainOffset),
@@ -773,7 +789,9 @@ export class HalftonePass extends PassNode {
 
         const cellSX = cosA.mul(cellRX).sub(sinA.mul(cellRY))
         const cellSY = sinA.mul(cellRX).add(cosA.mul(cellRY))
-        const cellUV = vec2(cellSX, cellSY).div(screenSize)
+        const cellUV = vec2(cellSX, cellSY).div(
+          vec2(this.logicalWidthUniform, this.logicalHeightUniform)
+        )
 
         const sNode = tslTexture(new THREE.Texture(), cellUV)
         this.sampleNodes.push(sNode)

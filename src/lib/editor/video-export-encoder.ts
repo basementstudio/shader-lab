@@ -73,11 +73,19 @@ const WEBM_CODEC_CANDIDATES = [
   muxerCodec: WebMMuxerCodec
 }[]
 
-const MP4_CODEC_CANDIDATES = [
-  "avc1.640028",
-  "avc1.4d0028",
-  "avc1.42E01E",
-] as const
+function getAvcLevelHex(width: number, height: number): string {
+  const macroblocks = Math.ceil(width / 16) * Math.ceil(height / 16)
+  if (macroblocks <= 8192) return "28"
+  if (macroblocks <= 8704) return "2A"
+  if (macroblocks <= 22080) return "32"
+  if (macroblocks <= 36864) return "33"
+  return "3C"
+}
+
+function getMp4CodecCandidates(width: number, height: number): string[] {
+  const level = getAvcLevelHex(width, height)
+  return [`avc1.6400${level}`, `avc1.4d00${level}`, `avc1.42001E`]
+}
 
 async function resolveSupportedWebMConfig(
   width: number,
@@ -129,7 +137,7 @@ async function resolveSupportedMp4Config(
     return null
   }
 
-  for (const codec of MP4_CODEC_CANDIDATES) {
+  for (const codec of getMp4CodecCandidates(width, height)) {
     const support = await VideoEncoder.isConfigSupported({
       avc: {
         format: "avc",

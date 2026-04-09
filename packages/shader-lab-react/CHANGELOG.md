@@ -1,5 +1,11 @@
 # @basementstudio/shader-lab
 
+## 1.3.3
+
+### Patch Changes
+
+- 72491d0: ascii pass improvements
+
 ## 1.3.2
 
 ### Patch Changes

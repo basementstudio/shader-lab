@@ -18,6 +18,7 @@ import { cn } from "@/lib/cn"
 
 export type AddLayerAction =
   | "ascii"
+  | "circuit-bent"
   | "directional-blur"
   | "chromatic-aberration"
   | "crt"
@@ -165,6 +166,13 @@ const EFFECT_ITEMS: readonly EffectItem[] = [
     label: "Plotter",
     previewSrc: "/examples/plotter.webp",
     value: "plotter",
+  },
+  {
+    category: "distort",
+    description:
+      "Renders luma-gated scanlines and bends them around a pull or push attractor.",
+    label: "Circuit Bent",
+    value: "circuit-bent",
   },
   {
     category: "distort",

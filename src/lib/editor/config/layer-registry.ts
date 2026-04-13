@@ -2615,8 +2615,8 @@ const crtParams = [
     key: "cellSize",
     label: "Mask Scale",
     max: 32,
-    min: 2,
-    step: 2,
+    min: 3,
+    step: 1,
     type: "number",
   },
   {

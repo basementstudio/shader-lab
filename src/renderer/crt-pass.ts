@@ -1,4 +1,3 @@
-import * as THREE from "three/webgpu"
 import { bloom } from "three/examples/jsm/tsl/display/BloomNode.js"
 import {
   abs,
@@ -13,17 +12,19 @@ import {
   mod,
   pow,
   select,
+  sin,
   smoothstep,
-  texture as tslTexture,
   type TSLNode,
+  texture as tslTexture,
   uniform,
   uv,
   vec2,
   vec3,
   vec4,
 } from "three/tsl"
-import { simplexNoise3d } from "@/renderer/shaders/tsl/noise/simplex-noise-3d"
+import * as THREE from "three/webgpu"
 import { PassNode } from "@/renderer/pass-node"
+import { simplexNoise3d } from "@/renderer/shaders/tsl/noise/simplex-noise-3d"
 import type { LayerParameterValues } from "@/types/editor"
 
 type Node = TSLNode
@@ -102,8 +103,16 @@ export class CrtPass extends PassNode {
     super(layerId)
 
     this.placeholder = new THREE.Texture()
-    this.historyReadTarget = new THREE.WebGLRenderTarget(1, 1, HISTORY_TARGET_OPTIONS)
-    this.historyWriteTarget = new THREE.WebGLRenderTarget(1, 1, HISTORY_TARGET_OPTIONS)
+    this.historyReadTarget = new THREE.WebGLRenderTarget(
+      1,
+      1,
+      HISTORY_TARGET_OPTIONS
+    )
+    this.historyWriteTarget = new THREE.WebGLRenderTarget(
+      1,
+      1,
+      HISTORY_TARGET_OPTIONS
+    )
 
     this.crtModeUniform = uniform(CRT_MODE_SLOT_MASK)
     this.cellSizeUniform = uniform(3)
@@ -141,15 +150,15 @@ export class CrtPass extends PassNode {
     inputTexture: THREE.Texture,
     outputTarget: THREE.WebGLRenderTarget,
     time: number,
-    delta: number,
+    delta: number
   ): void {
-    this.inputNode.value = inputTexture
-
     for (const node of this.sourceTextureNodes) {
       node.value = inputTexture
     }
 
-    const historyTexture = this.historyValid ? this.historyReadTarget.texture : this.placeholder
+    const historyTexture = this.historyValid
+      ? this.historyReadTarget.texture
+      : this.placeholder
     for (const node of this.historyTextureNodes) {
       node.value = historyTexture
     }
@@ -188,9 +197,13 @@ export class CrtPass extends PassNode {
     this.cellSizeUniform.value =
       typeof params.cellSize === "number" ? Math.max(2, params.cellSize) : 3
     this.scanlineIntensityUniform.value =
-      typeof params.scanlineIntensity === "number" ? clamp01(params.scanlineIntensity) : 0.17
+      typeof params.scanlineIntensity === "number"
+        ? clamp01(params.scanlineIntensity)
+        : 0.17
     this.maskIntensityUniform.value =
-      typeof params.maskIntensity === "number" ? clamp01(params.maskIntensity) : 1
+      typeof params.maskIntensity === "number"
+        ? clamp01(params.maskIntensity)
+        : 1
     this.barrelDistortionUniform.value =
       typeof params.barrelDistortion === "number"
         ? Math.max(0, Math.min(0.3, params.barrelDistortion))
@@ -222,31 +235,47 @@ export class CrtPass extends PassNode {
     this.shadowLiftUniform.value =
       typeof params.shadowLift === "number" ? clamp01(params.shadowLift) : 0.16
     this.persistenceUniform.value =
-      typeof params.persistence === "number" ? clamp01(params.persistence) : 0.18
+      typeof params.persistence === "number"
+        ? clamp01(params.persistence)
+        : 0.18
     this.vignetteIntensityUniform.value =
-      typeof params.vignetteIntensity === "number" ? clamp01(params.vignetteIntensity) : 0.45
+      typeof params.vignetteIntensity === "number"
+        ? clamp01(params.vignetteIntensity)
+        : 0.45
     this.flickerIntensityUniform.value =
       typeof params.flickerIntensity === "number"
         ? Math.max(0, Math.min(0.2, params.flickerIntensity))
         : 0.03
     this.glitchIntensityUniform.value =
-      typeof params.glitchIntensity === "number" ? clamp01(params.glitchIntensity) : 0
+      typeof params.glitchIntensity === "number"
+        ? clamp01(params.glitchIntensity)
+        : 0
     this.glitchSpeedUniform.value =
       typeof params.glitchSpeed === "number"
         ? Math.max(0.1, Math.min(5, params.glitchSpeed))
         : 1
     this.signalArtifactsUniform.value =
-      typeof params.signalArtifacts === "number" ? clamp01(params.signalArtifacts) : 0.45
+      typeof params.signalArtifacts === "number"
+        ? clamp01(params.signalArtifacts)
+        : 0.45
 
     const nextBloomEnabled = params.bloomEnabled !== false
     const nextBloomIntensity =
-      typeof params.bloomIntensity === "number" ? Math.max(0, params.bloomIntensity) : 1.5
+      typeof params.bloomIntensity === "number"
+        ? Math.max(0, params.bloomIntensity)
+        : 1.5
     const nextBloomThreshold =
-      typeof params.bloomThreshold === "number" ? clamp01(params.bloomThreshold) : 0.4
+      typeof params.bloomThreshold === "number"
+        ? clamp01(params.bloomThreshold)
+        : 0.4
     const nextBloomRadius =
-      typeof params.bloomRadius === "number" ? Math.max(0, params.bloomRadius) : 8
+      typeof params.bloomRadius === "number"
+        ? Math.max(0, params.bloomRadius)
+        : 8
     const nextBloomSoftness =
-      typeof params.bloomSoftness === "number" ? clamp01(params.bloomSoftness) : 0.4
+      typeof params.bloomSoftness === "number"
+        ? clamp01(params.bloomSoftness)
+        : 0.4
 
     this.bloomIntensityUniform.value = nextBloomIntensity
     this.bloomRadiusUniform.value = nextBloomRadius
@@ -263,15 +292,14 @@ export class CrtPass extends PassNode {
       this.bloomNode.strength.value = nextBloomIntensity
       this.bloomNode.radius.value = this.normalizeBloomRadius(nextBloomRadius)
       this.bloomNode.threshold.value = nextBloomThreshold
-      this.bloomNode.smoothWidth.value = this.normalizeBloomSoftness(nextBloomSoftness)
+      this.bloomNode.smoothWidth.value =
+        this.normalizeBloomSoftness(nextBloomSoftness)
     }
   }
 
   override resize(width: number, height: number): void {
     this.renderWidth = Math.max(1, width)
     this.renderHeight = Math.max(1, height)
-    this.widthUniform.value = this.renderWidth
-    this.heightUniform.value = this.renderHeight
     this.historyReadTarget.setSize(this.renderWidth, this.renderHeight)
     this.historyWriteTarget.setSize(this.renderWidth, this.renderHeight)
     this.historyValid = false
@@ -304,7 +332,7 @@ export class CrtPass extends PassNode {
     const dims = vec2(this.widthUniform, this.heightUniform)
     const texel = vec2(
       float(1).div(max(this.widthUniform, float(1))),
-      float(1).div(max(this.heightUniform, float(1))),
+      float(1).div(max(this.heightUniform, float(1)))
     )
     const centered = renderTargetUv.sub(vec2(0.5, 0.5))
     const distSq = dot(centered, centered)
@@ -318,7 +346,7 @@ export class CrtPass extends PassNode {
       .add(apertureWeight.mul(0.72))
       .add(compositeWeight.mul(1.16))
     const distortedUv = renderTargetUv.add(
-      centered.mul(distSq).mul(this.barrelDistortionUniform).mul(distortionBias),
+      centered.mul(distSq).mul(this.barrelDistortionUniform).mul(distortionBias)
     )
 
     const insideScreen = distortedUv.x
@@ -332,54 +360,81 @@ export class CrtPass extends PassNode {
     const cellCoord = floor(screenPixel.div(pitch))
     const localCellUv = vec2(
       fract(screenPixel.x.div(pitch)),
-      fract(screenPixel.y.div(pitch)),
+      fract(screenPixel.y.div(pitch))
     )
     const cellCenterUv = cellCoord.add(vec2(0.5, 0.5)).mul(pitch).div(dims)
     const centeredCell = cellCenterUv.sub(vec2(0.5, 0.5))
     const cellDistSq = dot(centeredCell, centeredCell)
     const distortedCellUv = cellCenterUv.add(
-      centeredCell.mul(cellDistSq).mul(this.barrelDistortionUniform).mul(distortionBias),
+      centeredCell
+        .mul(cellDistSq)
+        .mul(this.barrelDistortionUniform)
+        .mul(distortionBias)
     )
     const row = cellCoord.y
     const timeDrift = this.timeUniform.mul(this.glitchSpeedUniform)
     const drift = simplexNoise3d(vec3(float(0), row.mul(float(0.1)), timeDrift))
       .mul(this.glitchIntensityUniform)
-      .mul(slotWeight.mul(0.003).add(compositeWeight.mul(0.007)).add(apertureWeight.mul(0.0025)))
+      .mul(
+        slotWeight
+          .mul(0.003)
+          .add(compositeWeight.mul(0.007))
+          .add(apertureWeight.mul(0.0025))
+      )
     const samplingUv = vec2(distortedCellUv.x.add(drift), distortedCellUv.y)
     const clampedSamplingUv = clamp(samplingUv, vec2(0, 0), vec2(1, 1))
 
-    const baseSignal = this.sampleSignalColor(clampedSamplingUv, texel, compositeWeight)
+    const baseSignal = this.sampleSignalColor(
+      clampedSamplingUv,
+      texel,
+      compositeWeight
+    )
     const baseLuma = this.luma(baseSignal)
     const brightnessSpread = mix(
       float(0.82),
       float(1.34),
-      smoothstep(float(0.12), float(0.95), baseLuma),
+      smoothstep(float(0.12), float(0.95), baseLuma)
     )
 
-    const beamWidthX = mix(float(1.6), float(0.58), this.beamFocusUniform)
+    const beamWidthX = mix(
+      pitch.mul(float(0.8)),
+      float(0.1),
+      this.beamFocusUniform
+    )
       .mul(brightnessSpread.mul(float(0.15)).add(float(0.92)))
       .mul(
-        slotWeight.mul(1)
+        slotWeight
+          .mul(1)
           .add(apertureWeight.mul(0.72))
-          .add(compositeWeight.mul(1.4)),
+          .add(compositeWeight.mul(1.4))
       )
-    const beamWidthY = mix(float(1.95), float(0.62), this.beamFocusUniform)
-      .mul(mix(float(1.12), float(0.46), this.scanlineIntensityUniform))
-      .mul(brightnessSpread)
-      .mul(
-        slotWeight.mul(1)
-          .add(apertureWeight.mul(0.84))
-          .add(compositeWeight.mul(1.3)),
-      )
+    const beamWidthY = mix(
+      pitch.mul(float(0.6)),
+      float(0.05),
+      this.beamFocusUniform
+    ).mul(
+      slotWeight
+        .mul(1)
+        .add(apertureWeight.mul(0.84))
+        .add(compositeWeight.mul(1.3))
+    )
 
-    const edgeFactor = pow(clamp(centered.length().mul(float(1.82)), float(0), float(1)), float(2))
+    const edgeFactor = pow(
+      clamp(centered.length().mul(float(1.82)), float(0), float(1)),
+      float(2)
+    )
     const convergenceShape = vec2(
       centered.x.mul(abs(centered.x).add(float(0.16))),
-      centered.y.mul(abs(centered.y).add(float(0.08))),
+      centered.y.mul(abs(centered.y).add(float(0.08)))
     )
     const convergenceScale = this.chromaticAberrationUniform
       .mul(edgeFactor)
-      .mul(slotWeight.mul(1).add(apertureWeight.mul(0.82)).add(compositeWeight.mul(1.18)))
+      .mul(
+        slotWeight
+          .mul(1)
+          .add(apertureWeight.mul(0.82))
+          .add(compositeWeight.mul(1.18))
+      )
       .div(dims)
       .mul(float(1.6))
     const convergenceOffset = convergenceShape.mul(convergenceScale)
@@ -389,43 +444,75 @@ export class CrtPass extends PassNode {
       clamp(clampedSamplingUv.add(convergenceOffset), vec2(0, 0), vec2(1, 1)),
       texel,
       beamWidthX,
-      beamWidthY,
-      compositeWeight,
+      compositeWeight
     )
     const greenBeam = this.sampleBeamColor(
       clamp(clampedSamplingUv.add(greenOffset), vec2(0, 0), vec2(1, 1)),
       texel,
       beamWidthX,
-      beamWidthY,
-      compositeWeight,
+      compositeWeight
     )
     const blueBeam = this.sampleBeamColor(
       clamp(clampedSamplingUv.sub(convergenceOffset), vec2(0, 0), vec2(1, 1)),
       texel,
       beamWidthX,
-      beamWidthY,
-      compositeWeight,
+      compositeWeight
     )
 
-    const beamEnergy = vec3(float(redBeam.r), float(greenBeam.g), float(blueBeam.b))
+    const yOffset = vec2(float(0), texel.y.mul(beamWidthY))
+    const vBleedUp = this.sampleSignalColor(
+      clamp(clampedSamplingUv.sub(yOffset), vec2(0, 0), vec2(1, 1)),
+      texel,
+      compositeWeight
+    )
+    const vBleedDown = this.sampleSignalColor(
+      clamp(clampedSamplingUv.add(yOffset), vec2(0, 0), vec2(1, 1)),
+      texel,
+      compositeWeight
+    )
+    const verticalBleed = vBleedUp.add(vBleedDown).mul(float(0.5))
+    const verticalBlend = smoothstep(float(0.1), float(1.5), beamWidthY).mul(
+      float(0.45)
+    )
+
+    const redBeamFinal = mix(redBeam, verticalBleed, verticalBlend)
+    const greenBeamFinal = mix(greenBeam, verticalBleed, verticalBlend)
+    const blueBeamFinal = mix(blueBeam, verticalBleed, verticalBlend)
+
+    const beamEnergy = vec3(
+      float(redBeamFinal.r),
+      float(greenBeamFinal.g),
+      float(blueBeamFinal.b)
+    )
     const feedResponse = this.buildFeedResponse(
       beamEnergy,
       cellCoord,
       slotWeight,
       apertureWeight,
-      compositeWeight,
+      compositeWeight
     )
-    const scanlineEnvelope = this.buildScanlineEnvelope(screenPixel, baseLuma, compositeWeight)
+    const scanlineEnvelope = this.buildScanlineEnvelope(
+      screenPixel,
+      baseLuma,
+      compositeWeight
+    )
 
-    const halationSignal = this.sampleHalation(clampedSamplingUv, texel, compositeWeight)
+    const halationSignal = this.sampleHalation(
+      clampedSamplingUv,
+      texel,
+      compositeWeight
+    )
     const halation = vec3(
       float(halationSignal.r),
       float(halationSignal.g),
-      float(halationSignal.b),
+      float(halationSignal.b)
     ).mul(
       smoothstep(float(0.45), float(1), baseLuma).mul(
-        slotWeight.mul(0.04).add(apertureWeight.mul(0.03)).add(compositeWeight.mul(0.07)),
-      ),
+        slotWeight
+          .mul(0.04)
+          .add(apertureWeight.mul(0.03))
+          .add(compositeWeight.mul(0.07))
+      )
     )
 
     let color = this.renderPhosphorCell(
@@ -436,7 +523,7 @@ export class CrtPass extends PassNode {
       feedResponse,
       slotWeight,
       apertureWeight,
-      compositeWeight,
+      compositeWeight
     )
     const tubeGlow = this.buildTubeGlow(
       localCellUv,
@@ -444,7 +531,7 @@ export class CrtPass extends PassNode {
       baseLuma,
       slotWeight,
       apertureWeight,
-      compositeWeight,
+      compositeWeight
     )
     const specularLift = this.buildSpecularLift(
       localCellUv,
@@ -452,23 +539,34 @@ export class CrtPass extends PassNode {
       baseLuma,
       slotWeight,
       apertureWeight,
-      compositeWeight,
+      compositeWeight
     )
-    color = color.mul(mix(vec3(1, 1, 1), scanlineEnvelope, this.scanlineIntensityUniform))
+    color = color.mul(
+      mix(vec3(1, 1, 1), scanlineEnvelope, this.scanlineIntensityUniform)
+    )
     color = color.add(halation).add(tubeGlow).add(specularLift)
 
     const vignetteStrength = this.vignetteIntensityUniform.mul(
-      slotWeight.mul(1).add(apertureWeight.mul(0.82)).add(compositeWeight.mul(1.1)),
+      slotWeight
+        .mul(1)
+        .add(apertureWeight.mul(0.82))
+        .add(compositeWeight.mul(1.1))
     )
     const vignetteDistance = centered.length().mul(float(2))
     const vignette = clamp(
-      float(1).sub(vignetteDistance.mul(vignetteDistance).mul(vignetteStrength)),
+      float(1).sub(
+        vignetteDistance.mul(vignetteDistance).mul(vignetteStrength)
+      ),
       float(0),
-      float(1),
+      float(1)
     )
     color = color.mul(vignette)
 
-    const flickerNoise = simplexNoise3d(vec3(float(0), float(0), this.timeUniform.mul(float(8))))
+    const flickerPhase = this.timeUniform.mul(float(8))
+    const flickerNoise = sin(flickerPhase)
+      .mul(float(0.6))
+      .add(sin(flickerPhase.mul(float(2.3))).mul(float(0.3)))
+      .add(sin(flickerPhase.mul(float(5.7))).mul(float(0.1)))
     const flicker = float(1).add(flickerNoise.mul(this.flickerIntensityUniform))
     color = color.mul(flicker)
     color = color.mul(select(insideScreen, float(1), float(0)))
@@ -477,23 +575,19 @@ export class CrtPass extends PassNode {
     const historyColor = vec3(
       float(historySample.r),
       float(historySample.g),
-      float(historySample.b),
+      float(historySample.b)
     )
     const historyDecay = historyColor.mul(
       vec3(
-        mix(float(0.62), float(0.92), this.persistenceUniform),
-        mix(float(0.68), float(0.96), this.persistenceUniform),
-        mix(float(0.56), float(0.88), this.persistenceUniform),
-      ),
+        mix(float(0), float(0.92), this.persistenceUniform),
+        mix(float(0), float(0.96), this.persistenceUniform),
+        mix(float(0), float(0.88), this.persistenceUniform)
+      )
     )
-    color = clamp(
-      color.add(historyDecay.mul(this.persistenceUniform).mul(float(0.55))),
-      vec3(0, 0, 0),
-      vec3(1, 1, 1),
-    )
+    color = color.add(historyDecay.mul(float(0.55)))
 
     if (!this.bloomEnabled) {
-      return vec4(color, float(1))
+      return vec4(clamp(color, vec3(0, 0, 0), vec3(1, 1, 1)), float(1))
     }
 
     const bloomInput = vec4(color, float(1))
@@ -501,30 +595,35 @@ export class CrtPass extends PassNode {
       bloomInput,
       this.bloomIntensityUniform.value as number,
       this.normalizeBloomRadius(this.bloomRadiusUniform.value as number),
-      this.bloomThresholdUniform.value as number,
+      this.bloomThresholdUniform.value as number
     )
     this.bloomNode.smoothWidth.value = this.normalizeBloomSoftness(
-      this.bloomSoftnessUniform.value as number,
+      this.bloomSoftnessUniform.value as number
     )
 
     return vec4(
       clamp(
         color.add(this.getBloomTextureNode().rgb),
         vec3(float(0), float(0), float(0)),
-        vec3(float(1), float(1), float(1)),
+        vec3(float(1), float(1), float(1))
       ),
-      float(1),
+      float(1)
     )
   }
 
-  private buildBand(position: Node, center: Node | number, halfWidth: Node | number, softEdge: Node | number): Node {
+  private buildBand(
+    position: Node,
+    center: Node | number,
+    halfWidth: Node | number,
+    softEdge: Node | number
+  ): Node {
     const bandCenter = this.toNode(center)
     const halfWidthNode = this.toNode(halfWidth)
     const softEdgeNode = this.toNode(softEdge)
     const low = bandCenter.sub(halfWidthNode)
     const high = bandCenter.add(halfWidthNode)
     return smoothstep(low.sub(softEdgeNode), low, position).mul(
-      float(1).sub(smoothstep(high, high.add(softEdgeNode), position)),
+      float(1).sub(smoothstep(high, high.add(softEdgeNode), position))
     )
   }
 
@@ -535,7 +634,7 @@ export class CrtPass extends PassNode {
     halfWidth: Node | number,
     halfHeight: Node | number,
     softEdge: Node | number,
-    taper: Node | number,
+    taper: Node | number
   ): Node {
     const halfHeightNode = this.toNode(halfHeight)
     const softEdgeNode = this.toNode(softEdge)
@@ -544,11 +643,128 @@ export class CrtPass extends PassNode {
     const widthTaper = mix(
       float(1),
       taperNode,
-      smoothstep(halfHeightNode.mul(0.42), float(0.5), yDistance),
+      smoothstep(halfHeightNode.mul(0.42), float(0.5), yDistance)
     )
-    return this.buildBand(localX, centerX, this.toNode(halfWidth).mul(widthTaper), softEdgeNode).mul(
-      this.buildBand(localY, 0.5, halfHeightNode, softEdgeNode),
+    return this.buildBand(
+      localX,
+      centerX,
+      this.toNode(halfWidth).mul(widthTaper),
+      softEdgeNode
+    ).mul(this.buildBand(localY, 0.5, halfHeightNode, softEdgeNode))
+  }
+
+  private buildCombinedMaskShape(
+    localX: Node,
+    slotY: Node,
+    oddRow: Node,
+    definition: Node,
+    rowJitter: Node,
+    slotJitter: Node,
+    apertureJitter: Node,
+    tvJitter: Node,
+    apertureSegment: Node,
+    slotWeight: Node,
+    apertureWeight: Node,
+    compositeWeight: Node
+  ): Node {
+    const slotX = fract(localX.add(select(oddRow, float(0.5), float(0))))
+    const apertureX = fract(localX)
+    const tvX = fract(localX.add(select(oddRow, float(0.25), float(0))))
+
+    const slotShape = vec3(
+      this.buildRoundedPhosphor(
+        slotX,
+        slotY,
+        float(1 / 6).sub(rowJitter.mul(0.01)),
+        float(0.12).mul(definition).add(slotJitter.mul(0.01)),
+        float(0.38).add(abs(slotJitter).mul(0.03)),
+        float(0.015),
+        float(0.38)
+      ),
+      this.buildRoundedPhosphor(
+        slotX,
+        slotY,
+        float(0.5),
+        float(0.115).mul(definition).add(slotJitter.mul(0.008)),
+        float(0.38).add(abs(slotJitter).mul(0.03)),
+        float(0.015),
+        float(0.38)
+      ),
+      this.buildRoundedPhosphor(
+        slotX,
+        slotY,
+        float(5 / 6).add(rowJitter.mul(0.01)),
+        float(0.12).mul(definition).add(slotJitter.mul(0.01)),
+        float(0.38).add(abs(slotJitter).mul(0.03)),
+        float(0.015),
+        float(0.38)
+      )
     )
+
+    const apertureShape = vec3(
+      this.buildRoundedPhosphor(
+        apertureX,
+        slotY,
+        float(1 / 6).add(apertureJitter.mul(0.007)),
+        float(0.14).mul(definition).add(apertureJitter.mul(0.008)),
+        float(0.44),
+        float(0.008),
+        float(0.82)
+      ).mul(apertureSegment),
+      this.buildRoundedPhosphor(
+        apertureX,
+        slotY,
+        float(0.5),
+        float(0.135).mul(definition).add(apertureJitter.mul(0.006)),
+        float(0.44),
+        float(0.008),
+        float(0.82)
+      ).mul(apertureSegment),
+      this.buildRoundedPhosphor(
+        apertureX,
+        slotY,
+        float(5 / 6).sub(apertureJitter.mul(0.007)),
+        float(0.14).mul(definition).add(apertureJitter.mul(0.008)),
+        float(0.44),
+        float(0.008),
+        float(0.82)
+      ).mul(apertureSegment)
+    )
+
+    const tvShape = vec3(
+      this.buildRoundedPhosphor(
+        tvX,
+        slotY,
+        float(1 / 6).add(tvJitter.mul(0.015)),
+        float(0.11).mul(definition).add(tvJitter.mul(0.012)),
+        float(0.34).add(abs(tvJitter).mul(0.04)),
+        float(0.02),
+        float(0.44)
+      ),
+      this.buildRoundedPhosphor(
+        tvX,
+        slotY,
+        float(0.5),
+        float(0.105).mul(definition).add(tvJitter.mul(0.01)),
+        float(0.34).add(abs(tvJitter).mul(0.04)),
+        float(0.02),
+        float(0.44)
+      ),
+      this.buildRoundedPhosphor(
+        tvX,
+        slotY,
+        float(5 / 6).sub(tvJitter.mul(0.015)),
+        float(0.11).mul(definition).add(tvJitter.mul(0.012)),
+        float(0.34).add(abs(tvJitter).mul(0.04)),
+        float(0.02),
+        float(0.44)
+      )
+    )
+
+    return slotShape
+      .mul(slotWeight)
+      .add(apertureShape.mul(apertureWeight))
+      .add(tvShape.mul(compositeWeight))
   }
 
   private buildFeedResponse(
@@ -556,21 +772,39 @@ export class CrtPass extends PassNode {
     cellCoord: Node,
     slotWeight: Node,
     apertureWeight: Node,
-    compositeWeight: Node,
+    compositeWeight: Node
   ): Node {
-    const feedMax = max(float(beamEnergy.r), max(float(beamEnergy.g), float(beamEnergy.b)))
+    const feedMax = max(
+      float(beamEnergy.r),
+      max(float(beamEnergy.g), float(beamEnergy.b))
+    )
     const safeFeedMax = max(feedMax, float(1e-4))
-    const channelSeparation = slotWeight.mul(0.86).add(apertureWeight.mul(0.78)).add(compositeWeight.mul(0.58))
-    const responseCurve = slotWeight.mul(0.92).add(apertureWeight.mul(0.88)).add(compositeWeight.mul(1.04))
-    const spill = compositeWeight.mul(0.12).add(slotWeight.mul(0.04)).add(apertureWeight.mul(0.03))
+    const channelSeparation = slotWeight
+      .mul(0.86)
+      .add(apertureWeight.mul(0.78))
+      .add(compositeWeight.mul(0.58))
+    const responseCurve = slotWeight
+      .mul(0.92)
+      .add(apertureWeight.mul(0.88))
+      .add(compositeWeight.mul(1.04))
+    const spill = compositeWeight
+      .mul(0.12)
+      .add(slotWeight.mul(0.04))
+      .add(apertureWeight.mul(0.03))
 
-    const rNoise = simplexNoise3d(vec3(cellCoord.x.add(float(0.19)), cellCoord.y, float(7.1)))
+    const rNoise = simplexNoise3d(
+      vec3(cellCoord.x.add(float(0.19)), cellCoord.y, float(7.1))
+    )
       .mul(0.5)
       .add(0.5)
-    const gNoise = simplexNoise3d(vec3(cellCoord.x.add(float(0.41)), cellCoord.y, float(13.7)))
+    const gNoise = simplexNoise3d(
+      vec3(cellCoord.x.add(float(0.41)), cellCoord.y, float(13.7))
+    )
       .mul(0.5)
       .add(0.5)
-    const bNoise = simplexNoise3d(vec3(cellCoord.x.add(float(0.73)), cellCoord.y, float(19.9)))
+    const bNoise = simplexNoise3d(
+      vec3(cellCoord.x.add(float(0.73)), cellCoord.y, float(19.9))
+    )
       .mul(0.5)
       .add(0.5)
 
@@ -578,34 +812,52 @@ export class CrtPass extends PassNode {
     const gResponse = mix(float(0.84), float(1.16), gNoise)
     const bResponse = mix(float(0.8), float(1.2), bNoise)
 
-    const rDominance = pow(clamp(float(beamEnergy.r).div(safeFeedMax), float(0), float(1)), float(0.82))
-    const gDominance = pow(clamp(float(beamEnergy.g).div(safeFeedMax), float(0), float(1)), float(0.82))
-    const bDominance = pow(clamp(float(beamEnergy.b).div(safeFeedMax), float(0), float(1)), float(0.82))
+    const rDominance = pow(
+      clamp(float(beamEnergy.r).div(safeFeedMax), float(0), float(1)),
+      float(0.82)
+    )
+    const gDominance = pow(
+      clamp(float(beamEnergy.g).div(safeFeedMax), float(0), float(1)),
+      float(0.82)
+    )
+    const bDominance = pow(
+      clamp(float(beamEnergy.b).div(safeFeedMax), float(0), float(1)),
+      float(0.82)
+    )
 
     const rDrive = clamp(
-      beamEnergy.r.mul(rResponse).mul(mix(float(1), rDominance, channelSeparation)).add(feedMax.mul(spill)),
+      beamEnergy.r
+        .mul(rResponse)
+        .mul(mix(float(1), rDominance, channelSeparation))
+        .add(feedMax.mul(spill)),
       float(0),
-      float(1),
+      float(1)
     )
     const gDrive = clamp(
-      beamEnergy.g.mul(gResponse).mul(mix(float(1), gDominance, channelSeparation)).add(feedMax.mul(spill)),
+      beamEnergy.g
+        .mul(gResponse)
+        .mul(mix(float(1), gDominance, channelSeparation))
+        .add(feedMax.mul(spill)),
       float(0),
-      float(1),
+      float(1)
     )
     const bDrive = clamp(
-      beamEnergy.b.mul(bResponse).mul(mix(float(1), bDominance, channelSeparation)).add(feedMax.mul(spill)),
+      beamEnergy.b
+        .mul(bResponse)
+        .mul(mix(float(1), bDominance, channelSeparation))
+        .add(feedMax.mul(spill)),
       float(0),
-      float(1),
+      float(1)
     )
 
     return clamp(
       vec3(
         pow(rDrive, responseCurve),
         pow(gDrive, responseCurve),
-        pow(bDrive, responseCurve),
+        pow(bDrive, responseCurve)
       ),
       vec3(0, 0, 0),
-      vec3(1, 1, 1),
+      vec3(1, 1, 1)
     )
   }
 
@@ -617,185 +869,189 @@ export class CrtPass extends PassNode {
     feedResponse: Node,
     slotWeight: Node,
     apertureWeight: Node,
-    compositeWeight: Node,
+    compositeWeight: Node
   ): Node {
     const rowIndex = cellCoord.y
     const oddRow = mod(rowIndex, float(2)).greaterThan(float(0.5))
-    const slotX = fract(localCellUv.x.add(select(oddRow, float(0.5), float(0))))
     const slotY = localCellUv.y
 
     const definition = mix(float(0.72), float(1.18), this.maskIntensityUniform)
-    const rowJitter = simplexNoise3d(vec3(float(0), rowIndex, float(3.7))).mul(0.5).add(0.5).sub(0.5)
-    const slotJitter = simplexNoise3d(vec3(cellCoord.x, cellCoord.y, float(9.3))).mul(0.5).add(0.5).sub(0.5)
-    const apertureJitter = simplexNoise3d(vec3(cellCoord.x, cellCoord.y, float(15.1)))
+    const rowJitter = simplexNoise3d(vec3(float(0), rowIndex, float(3.7)))
       .mul(0.5)
       .add(0.5)
       .sub(0.5)
-    const tvJitter = simplexNoise3d(vec3(cellCoord.x, cellCoord.y, float(21.4))).mul(0.5).add(0.5).sub(0.5)
-
-    const slotShape = vec3(
-      this.buildRoundedPhosphor(
-        slotX,
-        slotY,
-        float(1 / 6).sub(rowJitter.mul(0.01)),
-        float(0.12).mul(definition).add(slotJitter.mul(0.01)),
-        float(0.38).add(abs(slotJitter).mul(0.03)),
-        float(0.015),
-        float(0.38),
-      ),
-      this.buildRoundedPhosphor(
-        slotX,
-        slotY,
-        float(0.5),
-        float(0.115).mul(definition).add(slotJitter.mul(0.008)),
-        float(0.38).add(abs(slotJitter).mul(0.03)),
-        float(0.015),
-        float(0.38),
-      ),
-      this.buildRoundedPhosphor(
-        slotX,
-        slotY,
-        float(5 / 6).add(rowJitter.mul(0.01)),
-        float(0.12).mul(definition).add(slotJitter.mul(0.01)),
-        float(0.38).add(abs(slotJitter).mul(0.03)),
-        float(0.015),
-        float(0.38),
-      ),
+    const slotJitter = simplexNoise3d(
+      vec3(cellCoord.x, cellCoord.y, float(9.3))
     )
-
-    const apertureX = localCellUv.x
+      .mul(0.5)
+      .add(0.5)
+      .sub(0.5)
+    const apertureJitter = simplexNoise3d(
+      vec3(cellCoord.x, cellCoord.y, float(15.1))
+    )
+      .mul(0.5)
+      .add(0.5)
+      .sub(0.5)
+    const tvJitter = simplexNoise3d(vec3(cellCoord.x, cellCoord.y, float(21.4)))
+      .mul(0.5)
+      .add(0.5)
+      .sub(0.5)
     const apertureSegment = this.buildBand(slotY, 0.5, float(0.41), float(0.06))
-    const apertureShape = vec3(
-      this.buildRoundedPhosphor(
-        apertureX,
-        slotY,
-        float(1 / 6).add(apertureJitter.mul(0.007)),
-        float(0.14).mul(definition).add(apertureJitter.mul(0.008)),
-        float(0.44),
-        float(0.008),
-        float(0.82),
-      ).mul(apertureSegment),
-      this.buildRoundedPhosphor(
-        apertureX,
-        slotY,
-        float(0.5),
-        float(0.135).mul(definition).add(apertureJitter.mul(0.006)),
-        float(0.44),
-        float(0.008),
-        float(0.82),
-      ).mul(apertureSegment),
-      this.buildRoundedPhosphor(
-        apertureX,
-        slotY,
-        float(5 / 6).sub(apertureJitter.mul(0.007)),
-        float(0.14).mul(definition).add(apertureJitter.mul(0.008)),
-        float(0.44),
-        float(0.008),
-        float(0.82),
-      ).mul(apertureSegment),
-    )
 
-    const tvX = fract(localCellUv.x.add(select(oddRow, float(0.25), float(0))))
-    const tvShape = vec3(
-      this.buildRoundedPhosphor(
-        tvX,
-        slotY,
-        float(1 / 6).add(tvJitter.mul(0.015)),
-        float(0.11).mul(definition).add(tvJitter.mul(0.012)),
-        float(0.34).add(abs(tvJitter).mul(0.04)),
-        float(0.02),
-        float(0.44),
-      ),
-      this.buildRoundedPhosphor(
-        tvX,
-        slotY,
-        float(0.5),
-        float(0.105).mul(definition).add(tvJitter.mul(0.01)),
-        float(0.34).add(abs(tvJitter).mul(0.04)),
-        float(0.02),
-        float(0.44),
-      ),
-      this.buildRoundedPhosphor(
-        tvX,
-        slotY,
-        float(5 / 6).sub(tvJitter.mul(0.015)),
-        float(0.11).mul(definition).add(tvJitter.mul(0.012)),
-        float(0.34).add(abs(tvJitter).mul(0.04)),
-        float(0.02),
-        float(0.44),
-      ),
+    // 3-tap supersample along the mask axis so the RGB stripes resolve
+    // correctly even when the cell is only a few physical pixels wide
+    const pitch = max(this.cellSizeUniform, float(2))
+    const subStep = float(1).div(pitch).div(float(3))
+    const sampledShape = this.buildCombinedMaskShape(
+      localCellUv.x.sub(subStep),
+      slotY,
+      oddRow,
+      definition,
+      rowJitter,
+      slotJitter,
+      apertureJitter,
+      tvJitter,
+      apertureSegment,
+      slotWeight,
+      apertureWeight,
+      compositeWeight
     )
+      .add(
+        this.buildCombinedMaskShape(
+          localCellUv.x,
+          slotY,
+          oddRow,
+          definition,
+          rowJitter,
+          slotJitter,
+          apertureJitter,
+          tvJitter,
+          apertureSegment,
+          slotWeight,
+          apertureWeight,
+          compositeWeight
+        )
+      )
+      .add(
+        this.buildCombinedMaskShape(
+          localCellUv.x.add(subStep),
+          slotY,
+          oddRow,
+          definition,
+          rowJitter,
+          slotJitter,
+          apertureJitter,
+          tvJitter,
+          apertureSegment,
+          slotWeight,
+          apertureWeight,
+          compositeWeight
+        )
+      )
+      .div(float(3))
 
-    const combinedShape = slotShape.mul(slotWeight)
-      .add(apertureShape.mul(apertureWeight))
-      .add(tvShape.mul(compositeWeight))
+    // below ~3 px per cell, even supersampling can't fully resolve 3 stripes
+    // fade toward an even rgb spread so brightness/color stay correct(ish)
+    const maskFade = smoothstep(float(1.5), float(3.5), pitch)
+    const uniformShape = vec3(float(1 / 3), float(1 / 3), float(1 / 3))
+    const combinedShape = mix(uniformShape, sampledShape, maskFade)
 
     const channelResponse = vec3(
       beamEnergy.r.mul(feedResponse.r),
       beamEnergy.g.mul(feedResponse.g),
-      beamEnergy.b.mul(feedResponse.b),
+      beamEnergy.b.mul(feedResponse.b)
     )
     const responseLuma = this.luma(channelResponse)
     const responseNeutral = vec3(responseLuma, responseLuma, responseLuma)
     const responseChroma = channelResponse.sub(responseNeutral)
-    const highlightMask = smoothstep(this.highlightThresholdUniform, float(1), baseLuma)
+    const highlightMask = smoothstep(
+      this.highlightThresholdUniform,
+      float(1),
+      baseLuma
+    )
     const brightnessGain = mix(
       float(1),
       this.brightnessUniform,
-      smoothstep(float(0.22), float(0.98), baseLuma),
+      smoothstep(float(0.22), float(0.98), baseLuma)
     )
     const lumaDrive = brightnessGain.mul(
-      mix(float(1), this.highlightDriveUniform, highlightMask),
+      mix(float(1), this.highlightDriveUniform, highlightMask)
     )
     const shadowGain = mix(
       float(1),
       this.shadowLiftUniform.mul(float(0.35)).add(float(1)),
-      smoothstep(float(0.42), float(0.02), baseLuma),
+      smoothstep(float(0.42), float(0.02), baseLuma)
     )
     const drivenLuma = responseLuma.mul(lumaDrive).mul(shadowGain)
-    const shoulderStrength = this.shoulderUniform.mul(highlightMask).mul(float(0.15))
+    const shoulderStrength = this.shoulderUniform
+      .mul(highlightMask)
+      .mul(float(0.15))
     const compressedLuma = drivenLuma.div(
-      drivenLuma.mul(shoulderStrength).add(float(1)),
+      drivenLuma.mul(shoulderStrength).add(float(1))
     )
     const shapedLuma = mix(
       drivenLuma,
       compressedLuma,
-      smoothstep(float(0.05), float(1), highlightMask),
+      smoothstep(float(0.05), float(1), highlightMask)
     )
     const chromaGain = mix(
       float(1),
       this.chromaRetentionUniform.mul(mix(float(1), lumaDrive, float(0.18))),
-      smoothstep(float(0.18), float(0.95), baseLuma),
+      smoothstep(float(0.18), float(0.95), baseLuma)
     )
     const boostedResponse = vec3(shapedLuma, shapedLuma, shapedLuma).add(
-      responseChroma.mul(chromaGain),
+      responseChroma.mul(chromaGain)
     )
-    const phosphorBrightness = slotWeight.mul(2.8).add(apertureWeight.mul(2.4)).add(compositeWeight.mul(2.6))
+    const phosphorBrightness = slotWeight
+      .mul(2.8)
+      .add(apertureWeight.mul(2.4))
+      .add(compositeWeight.mul(2.6))
     const baseEmission = vec3(
       combinedShape.r.mul(boostedResponse.r),
       combinedShape.g.mul(boostedResponse.g),
-      combinedShape.b.mul(boostedResponse.b),
+      combinedShape.b.mul(boostedResponse.b)
     ).mul(phosphorBrightness)
-    const channelMin = min(boostedResponse.r, min(boostedResponse.g, boostedResponse.b))
-    const channelMax = max(boostedResponse.r, max(boostedResponse.g, boostedResponse.b))
-    const channelAvg = boostedResponse.r.add(boostedResponse.g).add(boostedResponse.b).div(3)
-    const sharedDrive = clamp(channelAvg.div(max(channelMax, float(1e-4))), float(0), float(1))
-    const neutrality = clamp(channelMin.div(max(channelMax, float(1e-4))), float(0), float(1))
-    const whiteHot = smoothstep(float(0.24), float(0.82), channelAvg).mul(
-      smoothstep(float(0.55), float(0.96), neutrality),
-    ).mul(
-      mix(float(0.03), float(0.18), pow(sharedDrive, float(0.72))),
+    const channelMin = min(
+      boostedResponse.r,
+      min(boostedResponse.g, boostedResponse.b)
     )
-    const sharedCore = combinedShape.add(vec3(channelMin, channelMin, channelMin)).div(4)
-    const whiteCore = vec3(whiteHot, whiteHot, whiteHot).mul(sharedCore).mul(
-      slotWeight.mul(0.34).add(apertureWeight.mul(0.28)).add(compositeWeight.mul(0.46)),
-    ).mul(mix(float(1), lumaDrive, smoothstep(float(0.52), float(1), channelAvg)))
+    const channelMax = max(
+      boostedResponse.r,
+      max(boostedResponse.g, boostedResponse.b)
+    )
+    const channelAvg = boostedResponse.r
+      .add(boostedResponse.g)
+      .add(boostedResponse.b)
+      .div(3)
+    const sharedDrive = clamp(
+      channelAvg.div(max(channelMax, float(1e-4))),
+      float(0),
+      float(1)
+    )
+    const neutrality = clamp(
+      channelMin.div(max(channelMax, float(1e-4))),
+      float(0),
+      float(1)
+    )
+    const whiteHot = smoothstep(float(0.24), float(0.82), channelAvg)
+      .mul(smoothstep(float(0.55), float(0.96), neutrality))
+      .mul(mix(float(0.03), float(0.18), pow(sharedDrive, float(0.72))))
+    const sharedCore = combinedShape
+      .add(vec3(channelMin, channelMin, channelMin))
+      .div(4)
+    const whiteCore = vec3(whiteHot, whiteHot, whiteHot)
+      .mul(sharedCore)
+      .mul(
+        slotWeight
+          .mul(0.34)
+          .add(apertureWeight.mul(0.28))
+          .add(compositeWeight.mul(0.46))
+      )
+      .mul(
+        mix(float(1), lumaDrive, smoothstep(float(0.52), float(1), channelAvg))
+      )
 
-    return clamp(
-      baseEmission.add(whiteCore),
-      vec3(0, 0, 0),
-      vec3(1, 1, 1),
-    )
+    return clamp(baseEmission.add(whiteCore), vec3(0, 0, 0), vec3(1, 1, 1))
   }
 
   private buildTubeGlow(
@@ -804,36 +1060,43 @@ export class CrtPass extends PassNode {
     baseLuma: Node,
     slotWeight: Node,
     apertureWeight: Node,
-    compositeWeight: Node,
+    compositeWeight: Node
   ): Node {
     const channelMax = max(baseSignal.r, max(baseSignal.g, baseSignal.b))
     const channelMin = min(baseSignal.r, min(baseSignal.g, baseSignal.b))
-    const neutrality = clamp(channelMin.div(max(channelMax, float(1e-4))), float(0), float(1))
-    const highlightMix = smoothstep(float(0.58), float(0.98), channelMax)
-    const whiteness = smoothstep(float(0.55), float(0.94), baseLuma).mul(
-      smoothstep(float(0.62), float(0.98), neutrality),
-    ).mul(
-      mix(float(0.04), float(0.18), highlightMix),
+    const neutrality = clamp(
+      channelMin.div(max(channelMax, float(1e-4))),
+      float(0),
+      float(1)
     )
+    const highlightMix = smoothstep(float(0.58), float(0.98), channelMax)
+    const whiteness = smoothstep(float(0.55), float(0.94), baseLuma)
+      .mul(smoothstep(float(0.62), float(0.98), neutrality))
+      .mul(mix(float(0.04), float(0.18), highlightMix))
     const neutral = vec3(baseLuma, baseLuma, baseLuma)
     const warmedNeutral = mix(
       neutral,
       vec3(baseLuma.mul(1.03), baseLuma.mul(0.99), baseLuma.mul(0.96)),
-      slotWeight.mul(0.18).add(compositeWeight.mul(0.28)),
+      slotWeight.mul(0.18).add(compositeWeight.mul(0.28))
     )
     const neutralMix = whiteness.mul(
       mix(
         float(1),
         float(0.55),
-        clamp(this.chromaRetentionUniform.sub(float(1)), float(0), float(1)),
-      ),
+        clamp(this.chromaRetentionUniform.sub(float(1)), float(0), float(1))
+      )
     )
     const drivenSignal = mix(baseSignal, warmedNeutral, neutralMix)
     const centerDistance = localCellUv.sub(vec2(0.5, 0.5)).length()
     const spread = smoothstep(float(0.42), float(0.18), centerDistance)
-    const glowStrength = highlightMix.mul(baseLuma).mul(
-      slotWeight.mul(0.04).add(apertureWeight.mul(0.03)).add(compositeWeight.mul(0.08)),
-    )
+    const glowStrength = highlightMix
+      .mul(baseLuma)
+      .mul(
+        slotWeight
+          .mul(0.04)
+          .add(apertureWeight.mul(0.03))
+          .add(compositeWeight.mul(0.08))
+      )
     return drivenSignal.mul(spread).mul(glowStrength)
   }
 
@@ -843,29 +1106,51 @@ export class CrtPass extends PassNode {
     baseLuma: Node,
     slotWeight: Node,
     apertureWeight: Node,
-    compositeWeight: Node,
+    compositeWeight: Node
   ): Node {
     const channelMax = max(baseSignal.r, max(baseSignal.g, baseSignal.b))
     const channelMin = min(baseSignal.r, min(baseSignal.g, baseSignal.b))
-    const neutrality = clamp(channelMin.div(max(channelMax, float(1e-4))), float(0), float(1))
-    const highlightGate = smoothstep(float(0.62), float(0.98), channelMax)
-      .mul(smoothstep(float(0.42), float(0.92), baseLuma))
+    const neutrality = clamp(
+      channelMin.div(max(channelMax, float(1e-4))),
+      float(0),
+      float(1)
+    )
+    const highlightGate = smoothstep(float(0.62), float(0.98), channelMax).mul(
+      smoothstep(float(0.42), float(0.92), baseLuma)
+    )
     const coreDistance = localCellUv.sub(vec2(0.5, 0.5)).length()
     const core = smoothstep(float(0.44), float(0.02), coreDistance)
-    const liftStrength = highlightGate.mul(
-      mix(float(0.32), float(0.9), neutrality)
-    ).mul(
-      slotWeight.mul(0.95).add(apertureWeight.mul(0.78)).add(compositeWeight.mul(1.08)),
+    const liftStrength = highlightGate
+      .mul(mix(float(0.32), float(0.9), neutrality))
+      .mul(
+        slotWeight
+          .mul(0.95)
+          .add(apertureWeight.mul(0.78))
+          .add(compositeWeight.mul(1.08))
+      )
+    const neutralLift = mix(
+      baseSignal,
+      vec3(channelMax, channelMax, channelMax),
+      float(0.86)
     )
-    const neutralLift = mix(baseSignal, vec3(channelMax, channelMax, channelMax), float(0.86))
     return neutralLift.mul(core).mul(liftStrength)
   }
 
-  private buildScanlineEnvelope(screenPixel: Node, luma: Node, compositeWeight: Node): Node {
+  private buildScanlineEnvelope(
+    screenPixel: Node,
+    luma: Node,
+    compositeWeight: Node
+  ): Node {
     const pitch = max(this.cellSizeUniform, float(2))
     const localY = fract(screenPixel.y.div(pitch))
-    const halfWidth = mix(float(0.48), float(0.21), this.scanlineIntensityUniform)
-      .mul(mix(float(0.82), float(1.18), smoothstep(float(0.08), float(1), luma)))
+    const halfWidth = mix(
+      float(0.48),
+      float(0.21),
+      this.scanlineIntensityUniform
+    )
+      .mul(
+        mix(float(0.82), float(1.18), smoothstep(float(0.08), float(1), luma))
+      )
       .mul(mix(float(1), float(1.12), compositeWeight))
     const envelope = this.buildBand(localY, 0.5, halfWidth, 0.12)
     return vec3(envelope, envelope, envelope)
@@ -876,7 +1161,11 @@ export class CrtPass extends PassNode {
   }
 
   private modeWeight(targetMode: number): Node {
-    return select(this.crtModeUniform.equal(float(targetMode)), float(1), float(0))
+    return select(
+      this.crtModeUniform.equal(float(targetMode)),
+      float(1),
+      float(0)
+    )
   }
 
   private toNode(value: Node | number): Node {
@@ -907,11 +1196,17 @@ export class CrtPass extends PassNode {
       throw new Error("Bloom node is not initialized")
     }
 
-    if ("getTextureNode" in bloomNode && typeof bloomNode.getTextureNode === "function") {
+    if (
+      "getTextureNode" in bloomNode &&
+      typeof bloomNode.getTextureNode === "function"
+    ) {
       return bloomNode.getTextureNode()
     }
 
-    if ("getTexture" in bloomNode && typeof bloomNode.getTexture === "function") {
+    if (
+      "getTexture" in bloomNode &&
+      typeof bloomNode.getTexture === "function"
+    ) {
       return bloomNode.getTexture()
     }
 
@@ -922,73 +1217,67 @@ export class CrtPass extends PassNode {
     sampleUv: Node,
     texel: Node,
     beamWidthX: Node,
-    beamWidthY: Node,
-    compositeWeight: Node,
+    compositeWeight: Node
   ): Node {
     const xOffset = vec2(texel.x.mul(beamWidthX), float(0))
-    const yOffset = vec2(float(0), texel.y.mul(beamWidthY))
 
     const center = this.sampleSignalColor(sampleUv, texel, compositeWeight)
     const left = this.sampleSignalColor(
       clamp(sampleUv.sub(xOffset), vec2(0, 0), vec2(1, 1)),
       texel,
-      compositeWeight,
+      compositeWeight
     )
     const right = this.sampleSignalColor(
       clamp(sampleUv.add(xOffset), vec2(0, 0), vec2(1, 1)),
       texel,
-      compositeWeight,
-    )
-    const up = this.sampleSignalColor(
-      clamp(sampleUv.sub(yOffset), vec2(0, 0), vec2(1, 1)),
-      texel,
-      compositeWeight,
-    )
-    const down = this.sampleSignalColor(
-      clamp(sampleUv.add(yOffset), vec2(0, 0), vec2(1, 1)),
-      texel,
-      compositeWeight,
+      compositeWeight
     )
 
-    return center.mul(0.42)
-      .add(left.add(right).mul(0.2))
-      .add(up.add(down).mul(0.09))
+    return center.mul(0.5).add(left.add(right).mul(0.25))
   }
 
-  private sampleHalation(sampleUv: Node, texel: Node, compositeWeight: Node): Node {
+  private sampleHalation(
+    sampleUv: Node,
+    texel: Node,
+    compositeWeight: Node
+  ): Node {
     const haloX = vec2(texel.x.mul(2.2), float(0))
     const haloY = vec2(float(0), texel.y.mul(1.6))
     const left = this.sampleSignalColor(
       clamp(sampleUv.sub(haloX), vec2(0, 0), vec2(1, 1)),
       texel,
-      compositeWeight,
+      compositeWeight
     )
     const right = this.sampleSignalColor(
       clamp(sampleUv.add(haloX), vec2(0, 0), vec2(1, 1)),
       texel,
-      compositeWeight,
+      compositeWeight
     )
     const up = this.sampleSignalColor(
       clamp(sampleUv.sub(haloY), vec2(0, 0), vec2(1, 1)),
       texel,
-      compositeWeight,
+      compositeWeight
     )
     const down = this.sampleSignalColor(
       clamp(sampleUv.add(haloY), vec2(0, 0), vec2(1, 1)),
       texel,
-      compositeWeight,
+      compositeWeight
     )
     return left.add(right).add(up).add(down).mul(0.25)
   }
 
-  private sampleSignalColor(sampleUv: Node, texel: Node, compositeWeight: Node): Node {
+  private sampleSignalColor(
+    sampleUv: Node,
+    texel: Node,
+    compositeWeight: Node
+  ): Node {
     const sampleOffset = vec2(texel.x.mul(1.35), float(0))
     const center = this.trackSourceTextureNode(sampleUv)
     const left = this.trackSourceTextureNode(
-      clamp(sampleUv.sub(sampleOffset), vec2(0, 0), vec2(1, 1)),
+      clamp(sampleUv.sub(sampleOffset), vec2(0, 0), vec2(1, 1))
     )
     const right = this.trackSourceTextureNode(
-      clamp(sampleUv.add(sampleOffset), vec2(0, 0), vec2(1, 1)),
+      clamp(sampleUv.add(sampleOffset), vec2(0, 0), vec2(1, 1))
     )
 
     const centerColor = vec3(float(center.r), float(center.g), float(center.b))
@@ -1002,27 +1291,33 @@ export class CrtPass extends PassNode {
     const lumaSignal = vec3(
       mix(lumaCenter, lumaAvg, this.signalArtifactsUniform.mul(0.28)),
       mix(lumaCenter, lumaAvg, this.signalArtifactsUniform.mul(0.28)),
-      mix(lumaCenter, lumaAvg, this.signalArtifactsUniform.mul(0.28)),
+      mix(lumaCenter, lumaAvg, this.signalArtifactsUniform.mul(0.28))
     )
-    const ringing = centerColor.sub(avgColor).mul(this.signalArtifactsUniform.mul(0.3))
+    const ringing = centerColor
+      .sub(avgColor)
+      .mul(this.signalArtifactsUniform.mul(0.3))
     const compositeColor = clamp(
       lumaSignal.add(chromaBlur.mul(0.92)).add(ringing),
       vec3(0, 0, 0),
-      vec3(1, 1, 1),
+      vec3(1, 1, 1)
     )
-    const signalColor = mix(centerColor, compositeColor, compositeWeight.mul(this.signalArtifactsUniform))
+    const signalColor = mix(
+      centerColor,
+      compositeColor,
+      compositeWeight.mul(this.signalArtifactsUniform)
+    )
     const signalLuma = this.luma(signalColor)
     const neutralSignal = vec3(signalLuma, signalLuma, signalLuma)
     const signalChroma = signalColor.sub(neutralSignal)
     const liftedLuma = signalLuma.add(
       smoothstep(float(0.38), float(0.02), signalLuma)
         .mul(this.shadowLiftUniform)
-        .mul(float(0.08)),
+        .mul(float(0.08))
     )
     return clamp(
       vec3(liftedLuma, liftedLuma, liftedLuma).add(signalChroma),
       vec3(0, 0, 0),
-      vec3(1, 1, 1),
+      vec3(1, 1, 1)
     )
   }
 

@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
-import type { PropsWithChildren } from "react";
+import { Suspense, type PropsWithChildren } from "react";
 import {
   APP_BASE_URL,
   APP_DEFAULT_TITLE,
@@ -77,8 +77,12 @@ export default function RootLayout({ children }: PropsWithChildren) {
       className={cn(fontsVariable, geist.variable, geist.className)}
       suppressHydrationWarning
     >
-      <body>{children}</body>
-      <Analytics />
+      <body>
+        {children}
+        <Suspense fallback={null}>
+          <Analytics />
+        </Suspense>
+      </body>
     </html>
   );
 }

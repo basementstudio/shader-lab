@@ -22,6 +22,7 @@ import {
 } from "react"
 import { createPortal } from "react-dom"
 import { GlassPanel } from "@/components/ui/glass-panel"
+import { IconButton } from "@/components/ui/icon-button"
 import { cn } from "@/lib/cn"
 
 export type AddLayerAction =
@@ -432,7 +433,9 @@ export function LayerPicker({ className, onSelect }: LayerPickerProps) {
         : null
 
     window.requestAnimationFrame(() => {
-      panelRef.current?.querySelector<HTMLElement>("button:not([disabled])")?.focus()
+      panelRef.current
+        ?.querySelector<HTMLElement>("button:not([disabled])")
+        ?.focus()
     })
 
     const handlePointerDown = (event: MouseEvent) => {
@@ -489,14 +492,11 @@ export function LayerPicker({ className, onSelect }: LayerPickerProps) {
 
   return (
     <div className={cn("relative", className)} ref={rootRef}>
-      <button
+      <IconButton
         aria-controls={panelId}
         aria-expanded={open}
         aria-label="Add layer"
-        className={cn(
-          "inline-flex h-7 w-7 origin-center cursor-pointer items-center justify-center rounded-[var(--ds-radius-icon)] border-0 bg-transparent text-[var(--ds-color-text-tertiary)] transition-[transform,background-color,color,box-shadow] duration-[200ms] ease-[cubic-bezier(0.32,0.72,0,1)] hover:shadow-[inset_0_0_0_1px_rgb(255_255_255_/_0.04)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--ds-border-active)] focus-visible:outline-offset-2 active:scale-[0.97]",
-          open && "bg-white/12 text-white/70"
-        )}
+        className="focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--ds-border-active)] focus-visible:outline-offset-2"
         onClick={() => {
           setOpen((current) => {
             const next = !current
@@ -510,10 +510,10 @@ export function LayerPicker({ className, onSelect }: LayerPickerProps) {
           })
         }}
         ref={triggerRef}
-        type="button"
+        variant="emphasis"
       >
         <PlusIcon size={14} weight="bold" />
-      </button>
+      </IconButton>
 
       {typeof document !== "undefined"
         ? createPortal(

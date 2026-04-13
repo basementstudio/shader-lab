@@ -1,5 +1,5 @@
 import { cva, type VariantProps } from "class-variance-authority"
-import type { ButtonHTMLAttributes, ReactNode } from "react"
+import type { ButtonHTMLAttributes, Ref, ReactNode } from "react"
 import { cn } from "@/lib/cn"
 
 const iconButtonVariants = cva(
@@ -14,6 +14,10 @@ const iconButtonVariants = cva(
       hover:
         "bg-[var(--ds-color-surface-active)] text-[var(--ds-color-text-secondary)]",
       active: "bg-white/12 text-white/70",
+      primary:
+        "bg-[var(--ds-color-text-primary)] text-[var(--ds-color-text-on-light)] hover:not-disabled:bg-white/82 hover:not-disabled:text-[var(--ds-color-text-on-light)] hover:not-disabled:shadow-none active:not-disabled:bg-white/72 disabled:bg-white/18 disabled:text-black/45",
+      emphasis:
+        "bg-[linear-gradient(180deg,rgb(255_255_255_/_0.12),rgb(255_255_255_/_0.04))] text-[var(--ds-color-text-primary)] shadow-[inset_0_1px_0_rgb(255_255_255_/_0.12),inset_0_0_0_1px_rgb(255_255_255_/_0.08)] hover:not-disabled:bg-[linear-gradient(180deg,rgb(255_255_255_/_0.18),rgb(255_255_255_/_0.06))] hover:not-disabled:text-[var(--ds-color-text-primary)] hover:not-disabled:shadow-[inset_0_1px_0_rgb(255_255_255_/_0.16),inset_0_0_0_1px_rgb(255_255_255_/_0.12)]",
     },
   },
   defaultVariants: {
@@ -23,6 +27,7 @@ const iconButtonVariants = cva(
 
 type CommonIconButtonProps = {
   children?: ReactNode
+  ref?: Ref<HTMLButtonElement>
 } & VariantProps<typeof iconButtonVariants>
 
 type IconButtonProps = CommonIconButtonProps &
@@ -31,12 +36,14 @@ type IconButtonProps = CommonIconButtonProps &
 export function IconButton({
   children,
   className,
+  ref,
   variant,
   ...props
 }: IconButtonProps) {
   return (
     <button
       className={cn(iconButtonVariants({ variant }), className)}
+      ref={ref}
       type="button"
       {...props}
     >

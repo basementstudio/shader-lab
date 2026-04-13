@@ -11,7 +11,15 @@ import {
 } from "@phosphor-icons/react"
 import { AnimatePresence, motion, useReducedMotion } from "motion/react"
 import Image from "next/image"
-import { type ComponentType, useCallback, useEffect, useId, useMemo, useRef, useState } from "react"
+import {
+  type ComponentType,
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react"
 import { createPortal } from "react-dom"
 import { GlassPanel } from "@/components/ui/glass-panel"
 import { cn } from "@/lib/cn"
@@ -172,6 +180,7 @@ const EFFECT_ITEMS: readonly EffectItem[] = [
     description:
       "Renders luma-gated scanlines and bends them around a pull or push attractor.",
     label: "Circuit Bent",
+    previewSrc: "/examples/circuit-bent.webp",
     value: "circuit-bent",
   },
   {

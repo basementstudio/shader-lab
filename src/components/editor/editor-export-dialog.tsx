@@ -83,6 +83,14 @@ const VIDEO_FPS_PRESETS = [24, 30, 60] as const
 const DEFAULT_VIDEO_EXPORT_DURATION = 8
 const VIDEO_DURATION_STEP = 0.25
 const DEFAULT_MAX_EXPORT_DIMENSION = 8192
+const FOCUSABLE_SELECTOR = [
+  "button:not([disabled])",
+  "input:not([disabled])",
+  "textarea:not([disabled])",
+  "select:not([disabled])",
+  "[href]",
+  '[tabindex]:not([tabindex="-1"])',
+].join(", ")
 
 function roundDurationForExport(value: number): number {
   if (!Number.isFinite(value) || value <= 0) {
@@ -164,6 +172,8 @@ export function EditorExportDialog({
   const videoExportAbortRef = useRef<AbortController | null>(null)
   const importInputRef = useRef<HTMLInputElement | null>(null)
   const measureRef = useRef<HTMLDivElement | null>(null)
+  const dialogRef = useRef<HTMLDivElement | null>(null)
+  const previousFocusRef = useRef<HTMLElement | null>(null)
 
   const shaderExportIssues = useMemo(
     () => validateShaderExportSupport(layers, assets),
@@ -319,6 +329,10 @@ export function EditorExportDialog({
       return
     }
 
+    previousFocusRef.current =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null
     setVideoDuration(defaultVideoDuration)
     setVideoDurationDirty(false)
     setVideoProgress(null)
@@ -326,13 +340,59 @@ export function EditorExportDialog({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         onOpenChange(false)
+        return
+      }
+
+      if (event.key !== "Tab") {
+        return
+      }
+
+      const focusableElements = Array.from(
+        dialogRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR) ??
+          []
+      )
+
+      if (focusableElements.length === 0) {
+        event.preventDefault()
+        return
+      }
+
+      const firstFocusable = focusableElements[0]
+      const lastFocusable = focusableElements[focusableElements.length - 1]
+      const activeElement =
+        document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null
+
+      if (!activeElement || !dialogRef.current?.contains(activeElement)) {
+        event.preventDefault()
+        ;(event.shiftKey ? lastFocusable : firstFocusable)?.focus()
+        return
+      }
+
+      if (event.shiftKey && activeElement === firstFocusable) {
+        event.preventDefault()
+        lastFocusable?.focus()
+        return
+      }
+
+      if (!event.shiftKey && activeElement === lastFocusable) {
+        event.preventDefault()
+        firstFocusable?.focus()
       }
     }
+
+    window.requestAnimationFrame(() => {
+      dialogRef.current
+        ?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR)
+        ?.focus()
+    })
 
     window.addEventListener("keydown", handleKeyDown)
 
     return () => {
       window.removeEventListener("keydown", handleKeyDown)
+      previousFocusRef.current?.focus()
     }
   }, [defaultVideoDuration, onOpenChange, open])
 
@@ -611,6 +671,7 @@ export function EditorExportDialog({
             exit={{ opacity: 0 }}
             initial={{ opacity: 0 }}
             onClick={() => onOpenChange(false)}
+            tabIndex={-1}
             transition={{
               duration: reduceMotion ? 0.12 : 0.18,
               ease: "easeOut",
@@ -634,6 +695,7 @@ export function EditorExportDialog({
                   ? { opacity: 0 }
                   : { opacity: 0, scale: 0.985, y: 10 }
               }
+              ref={dialogRef}
               transition={
                 reduceMotion
                   ? { duration: 0.12, ease: "easeOut" }

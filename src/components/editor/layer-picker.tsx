@@ -375,6 +375,7 @@ export function LayerPicker({ className, onSelect }: LayerPickerProps) {
   const rootRef = useRef<HTMLDivElement | null>(null)
   const panelRef = useRef<HTMLDivElement | null>(null)
   const triggerRef = useRef<HTMLButtonElement | null>(null)
+  const previousFocusRef = useRef<HTMLElement | null>(null)
   const [panelPosition, setPanelPosition] = useState<{
     left: number
     top: number
@@ -425,6 +426,15 @@ export function LayerPicker({ className, onSelect }: LayerPickerProps) {
       return
     }
 
+    previousFocusRef.current =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null
+
+    window.requestAnimationFrame(() => {
+      panelRef.current?.querySelector<HTMLElement>("button:not([disabled])")?.focus()
+    })
+
     const handlePointerDown = (event: MouseEvent) => {
       if (!(event.target instanceof Node)) {
         return
@@ -450,6 +460,7 @@ export function LayerPicker({ className, onSelect }: LayerPickerProps) {
     return () => {
       window.removeEventListener("mousedown", handlePointerDown)
       window.removeEventListener("keydown", handleKeyDown)
+      previousFocusRef.current?.focus()
     }
   }, [open])
 

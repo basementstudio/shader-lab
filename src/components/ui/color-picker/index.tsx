@@ -144,6 +144,8 @@ export function ColorPicker({
   value,
 }: ColorPickerProps) {
   const triggerRef = useRef<HTMLButtonElement | null>(null)
+  const popupRef = useRef<HTMLDivElement | null>(null)
+  const previousFocusRef = useRef<HTMLElement | null>(null)
   const surfaceRef = useRef<HTMLDivElement | null>(null)
   const hueRef = useRef<HTMLDivElement | null>(null)
   const gestureActiveRef = useRef(false)
@@ -166,6 +168,11 @@ export function ColorPicker({
     if (!isOpen) {
       return
     }
+
+    previousFocusRef.current =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null
 
     const updatePosition = () => {
       const trigger = triggerRef.current
@@ -205,6 +212,9 @@ export function ColorPicker({
     }
 
     updatePosition()
+    window.requestAnimationFrame(() => {
+      popupRef.current?.querySelector<HTMLInputElement>("input")?.focus()
+    })
     window.addEventListener("resize", updatePosition)
     window.addEventListener("scroll", updatePosition, true)
     window.addEventListener("pointerdown", handlePointerDown)
@@ -215,6 +225,7 @@ export function ColorPicker({
       window.removeEventListener("scroll", updatePosition, true)
       window.removeEventListener("pointerdown", handlePointerDown)
       window.removeEventListener("keydown", handleKeyDown)
+      previousFocusRef.current?.focus()
     }
   }, [isOpen])
 
@@ -323,7 +334,7 @@ export function ColorPicker({
 
       {isOpen
         ? createPortal(
-            <div data-color-picker-popup="" style={popupStyle}>
+            <div data-color-picker-popup="" ref={popupRef} style={popupStyle}>
               <GlassPanel className="flex w-[208px] flex-col gap-3 p-3" variant="panel">
                 <div
                   className="relative h-[132px] w-full cursor-crosshair overflow-hidden rounded-[10px] select-none"

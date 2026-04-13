@@ -1,5 +1,11 @@
 # @basementstudio/shader-lab
 
+## 1.3.4
+
+### Patch Changes
+
+- 34c1436: new circuit bent shader pass, crt version 2.0
+
 ## 1.3.3
 
 ### Patch Changes

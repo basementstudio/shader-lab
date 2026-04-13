@@ -21,7 +21,6 @@ const imageParams = [
     options: [
       { label: "Cover", value: "cover" },
       { label: "Contain", value: "contain" },
-      { label: "Stretch", value: "stretch" },
     ],
     type: "select",
   },
@@ -82,7 +81,6 @@ const liveParams = [
     options: [
       { label: "Cover", value: "cover" },
       { label: "Contain", value: "contain" },
-      { label: "Stretch", value: "stretch" },
     ],
     type: "select",
   },

@@ -171,8 +171,8 @@ export class LivePass extends PassNode {
 
     const coverScaleX = max(aspectRatio, float(1))
     const coverScaleY = max(float(1).div(aspectRatio), float(1))
-    const containScaleX = float(1).div(coverScaleX)
-    const containScaleY = float(1).div(coverScaleY)
+    const containScaleX = clamp(aspectRatio, float(0), float(1))
+    const containScaleY = clamp(float(1).div(aspectRatio), float(0), float(1))
     const useContain = this.fitModeUniform
     const scaleX = mix(coverScaleX, containScaleX, useContain)
     const scaleY = mix(coverScaleY, containScaleY, useContain)

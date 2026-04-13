@@ -10,7 +10,7 @@ import {
 } from "webm-muxer"
 import type { VideoExportFormat } from "@/lib/editor/export"
 
-type Mp4MuxerCodec = "avc"
+type Mp4MuxerCodec = "avc" | "hevc"
 type WebMMuxerCodec = "V_VP8" | "V_VP9"
 
 export type SupportedVideoExportConfig = {
@@ -87,6 +87,19 @@ function getMp4CodecCandidates(width: number, height: number): string[] {
   return [`avc1.6400${level}`, `avc1.4d00${level}`, `avc1.42001E`]
 }
 
+const HEVC_MP4_CODEC_CANDIDATES = [
+  "hvc1.1.6.L186.B0",
+  "hev1.1.6.L186.B0",
+  "hvc1.1.6.L123.00",
+  "hev1.1.6.L123.00",
+] as const
+
+type HevcVideoEncoderConfig = VideoEncoderConfig & {
+  hevc?: {
+    format: "hevc" | "annexb"
+  }
+}
+
 async function resolveSupportedWebMConfig(
   width: number,
   height: number,
@@ -135,6 +148,30 @@ async function resolveSupportedMp4Config(
     typeof VideoFrame === "undefined"
   ) {
     return null
+  }
+
+  for (const codec of HEVC_MP4_CODEC_CANDIDATES) {
+    const support = await VideoEncoder.isConfigSupported({
+      bitrate,
+      codec,
+      framerate: fps,
+      height,
+      width,
+      hevc: {
+        format: "hevc",
+      },
+    } as HevcVideoEncoderConfig).catch(() => null)
+
+    if (!support?.config) {
+      continue
+    }
+
+    return {
+      encoderConfig: support.config as VideoEncoderConfig,
+      format: "mp4",
+      mimeType: "video/mp4",
+      muxerCodec: "hevc",
+    }
   }
 
   for (const codec of getMp4CodecCandidates(width, height)) {
@@ -278,7 +315,7 @@ export async function createVideoExportEncoder(
     framerate: options.fps,
     height: options.height,
     width: options.width,
-  })
+  } as VideoEncoderConfig)
 
   return {
     async encodeCanvasFrame(canvas, frameIndex, duration, timestamp) {

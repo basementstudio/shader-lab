@@ -27,12 +27,15 @@ import { cn } from "@/lib/cn"
 import { getEffectiveCompositionSize } from "@/lib/editor/composition"
 import {
   ASPECT_PRESET_LABELS,
+  clampExportSize,
   type ExportAspectPreset,
   type ExportQualityPreset,
   exportStillImage,
   exportVideo,
   getAspectRatioForPreset,
   getDimensionsForPreset,
+  getMaxDimensionForQuality,
+  getMaxExportDimension,
   getSupportedVideoMimeType,
   type VideoExportFormat,
 } from "@/lib/editor/export"
@@ -78,6 +81,7 @@ const QUALITY_PRESETS: ExportQualityPreset[] = [
 const VIDEO_FPS_PRESETS = [24, 30, 60] as const
 const DEFAULT_VIDEO_EXPORT_DURATION = 8
 const VIDEO_DURATION_STEP = 0.25
+const DEFAULT_MAX_EXPORT_DIMENSION = 8192
 
 function roundDurationForExport(value: number): number {
   if (!Number.isFinite(value) || value <= 0) {
@@ -118,6 +122,9 @@ export function EditorExportDialog({
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [contentHeight, setContentHeight] = useState<number | null>(null)
+  const [maxExportDimension, setMaxExportDimension] = useState(
+    DEFAULT_MAX_EXPORT_DIMENSION
+  )
   const [imageAspect, setImageAspect] = useState<ExportAspectPreset>("original")
   const [imageQuality, setImageQuality] =
     useState<ExportQualityPreset>("standard")
@@ -125,7 +132,8 @@ export function EditorExportDialog({
     getDimensionsForPreset(
       useEditorStore.getState().canvasSize,
       "original",
-      "standard"
+      "standard",
+      DEFAULT_MAX_EXPORT_DIMENSION
     )
   )
   const [videoAspect, setVideoAspect] = useState<ExportAspectPreset>("original")
@@ -135,7 +143,8 @@ export function EditorExportDialog({
     getDimensionsForPreset(
       useEditorStore.getState().canvasSize,
       "original",
-      "standard"
+      "standard",
+      DEFAULT_MAX_EXPORT_DIMENSION
     )
   )
   const [videoDuration, setVideoDuration] = useState(timelineDuration)
@@ -216,6 +225,20 @@ export function EditorExportDialog({
   useEffect(() => {
     let cancelled = false
 
+    void getMaxExportDimension().then((dimension) => {
+      if (!cancelled) {
+        setMaxExportDimension(dimension)
+      }
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+
     void Promise.all([
       getSupportedVideoMimeType("webm"),
       getSupportedVideoMimeType("mp4"),
@@ -261,15 +284,25 @@ export function EditorExportDialog({
 
   useEffect(() => {
     setImageSize(
-      getDimensionsForPreset(compositionSize, imageAspect, imageQuality)
+      getDimensionsForPreset(
+        compositionSize,
+        imageAspect,
+        imageQuality,
+        maxExportDimension
+      )
     )
-  }, [compositionSize, imageAspect, imageQuality])
+  }, [compositionSize, imageAspect, imageQuality, maxExportDimension])
 
   useEffect(() => {
     setVideoSize(
-      getDimensionsForPreset(compositionSize, videoAspect, videoQuality)
+      getDimensionsForPreset(
+        compositionSize,
+        videoAspect,
+        videoQuality,
+        maxExportDimension
+      )
     )
-  }, [compositionSize, videoAspect, videoQuality])
+  }, [compositionSize, videoAspect, videoQuality, maxExportDimension])
 
   useEffect(() => {
     if (!open || videoDurationDirty) {
@@ -318,44 +351,73 @@ export function EditorExportDialog({
     [activeTab, clearFeedback]
   )
 
+  const imageMaxDimension = Math.min(
+    maxExportDimension,
+    getMaxDimensionForQuality(imageQuality)
+  )
+  const videoMaxDimension = Math.min(
+    maxExportDimension,
+    getMaxDimensionForQuality(videoQuality)
+  )
+
   function updateImageWidth(nextWidth: number) {
     const width = Math.max(1, Math.round(nextWidth))
     const ratio = getAspectRatioForPreset(compositionSize, imageAspect)
 
-    setImageSize({
-      height: Math.max(1, Math.round(width / ratio)),
-      width,
-    })
+    setImageSize(
+      clampExportSize(
+        {
+          height: Math.max(1, Math.round(width / ratio)),
+          width,
+        },
+        imageMaxDimension
+      )
+    )
   }
 
   function updateImageHeight(nextHeight: number) {
     const height = Math.max(1, Math.round(nextHeight))
     const ratio = getAspectRatioForPreset(compositionSize, imageAspect)
 
-    setImageSize({
-      height,
-      width: Math.max(1, Math.round(height * ratio)),
-    })
+    setImageSize(
+      clampExportSize(
+        {
+          height,
+          width: Math.max(1, Math.round(height * ratio)),
+        },
+        imageMaxDimension
+      )
+    )
   }
 
   function updateVideoWidth(nextWidth: number) {
     const width = Math.max(1, Math.round(nextWidth))
     const ratio = getAspectRatioForPreset(compositionSize, videoAspect)
 
-    setVideoSize({
-      height: Math.max(1, Math.round(width / ratio)),
-      width,
-    })
+    setVideoSize(
+      clampExportSize(
+        {
+          height: Math.max(1, Math.round(width / ratio)),
+          width,
+        },
+        videoMaxDimension
+      )
+    )
   }
 
   function updateVideoHeight(nextHeight: number) {
     const height = Math.max(1, Math.round(nextHeight))
     const ratio = getAspectRatioForPreset(compositionSize, videoAspect)
 
-    setVideoSize({
-      height,
-      width: Math.max(1, Math.round(height * ratio)),
-    })
+    setVideoSize(
+      clampExportSize(
+        {
+          height,
+          width: Math.max(1, Math.round(height * ratio)),
+        },
+        videoMaxDimension
+      )
+    )
   }
 
   async function handleImageExport() {
@@ -631,6 +693,7 @@ export function EditorExportDialog({
                           imageQuality={imageQuality}
                           imageSize={imageSize}
                           isWorking={isWorking}
+                          maxExportDimension={maxExportDimension}
                           onExport={handleImageExport}
                           onImageAspectChange={setImageAspect}
                           onImageHeightChange={updateImageHeight}
@@ -641,6 +704,7 @@ export function EditorExportDialog({
                       {activeTab === "video" ? (
                         <VideoTabContent
                           isWorking={isWorking}
+                          maxExportDimension={maxExportDimension}
                           mp4Supported={videoSupport.mp4}
                           onExport={handleVideoExport}
                           onVideoAspectChange={setVideoAspect}
@@ -706,6 +770,7 @@ export function EditorExportDialog({
                             imageQuality={imageQuality}
                             imageSize={imageSize}
                             isWorking={isWorking}
+                            maxExportDimension={maxExportDimension}
                             onExport={handleImageExport}
                             onImageAspectChange={setImageAspect}
                             onImageHeightChange={updateImageHeight}
@@ -716,6 +781,7 @@ export function EditorExportDialog({
                         {activeTab === "video" ? (
                           <VideoTabContent
                             isWorking={isWorking}
+                            maxExportDimension={maxExportDimension}
                             mp4Supported={videoSupport.mp4}
                             onExport={handleVideoExport}
                             onVideoAspectChange={setVideoAspect}
@@ -797,6 +863,7 @@ function ImageTabContent({
   imageQuality,
   imageSize,
   isWorking,
+  maxExportDimension,
   onExport,
   onImageAspectChange,
   onImageHeightChange,
@@ -807,6 +874,7 @@ function ImageTabContent({
   imageQuality: ExportQualityPreset
   imageSize: { height: number; width: number }
   isWorking: boolean
+  maxExportDimension: number
   onExport: () => Promise<void>
   onImageAspectChange: (preset: ExportAspectPreset) => void
   onImageHeightChange: (value: number) => void
@@ -849,7 +917,8 @@ function ImageTabContent({
       />
 
       <Typography className="leading-[14px]" tone="muted" variant="caption">
-        Uses the current playhead frame.
+        Uses the current playhead frame. Max export dimension on this device:{" "}
+        {maxExportDimension}px.
       </Typography>
 
       <Button disabled={isWorking} onClick={() => void onExport()}>
@@ -862,6 +931,7 @@ function ImageTabContent({
 
 function VideoTabContent({
   isWorking,
+  maxExportDimension,
   mp4Supported,
   onExport,
   onVideoAspectChange,
@@ -881,6 +951,7 @@ function VideoTabContent({
   webmSupported,
 }: {
   isWorking: boolean
+  maxExportDimension: number
   mp4Supported: boolean
   onExport: () => Promise<void>
   onVideoAspectChange: (preset: ExportAspectPreset) => void
@@ -989,7 +1060,8 @@ function VideoTabContent({
           />
         </div>
         <Typography className="leading-[14px]" tone="muted" variant="caption">
-          {videoProgress?.label ?? "\u00A0"}
+          {videoProgress?.label ??
+            `Max export dimension on this device: ${maxExportDimension}px.`}
         </Typography>
       </div>
 

@@ -20,12 +20,14 @@ export type ExportAspectPreset = "16:9" | "1:1" | "4:5" | "9:16" | "original"
 export type ExportQualityPreset = "draft" | "high" | "standard" | "ultra"
 export type VideoExportFormat = "mp4" | "webm"
 
-export const EXPORT_QUALITY_SCALE: Record<ExportQualityPreset, number> = {
-  draft: 0.5,
-  high: 2,
-  standard: 1,
-  ultra: 4,
+export const EXPORT_QUALITY_LONG_EDGE: Record<ExportQualityPreset, number> = {
+  draft: 1280,
+  standard: 1920,
+  high: 3840,
+  ultra: 7680,
 }
+
+const DEFAULT_MAX_EXPORT_DIMENSION = 8192
 
 export const ASPECT_PRESET_LABELS: Record<ExportAspectPreset, string> = {
   "16:9": "16:9",
@@ -100,24 +102,93 @@ export function getAspectRatioForPreset(
 export function getDimensionsForPreset(
   compositionSize: Size,
   aspectPreset: ExportAspectPreset,
-  qualityPreset: ExportQualityPreset
+  qualityPreset: ExportQualityPreset,
+  maxDimension = Number.POSITIVE_INFINITY
 ): Size {
   const ratio = getAspectRatio(compositionSize, aspectPreset)
-  const longEdge = Math.max(compositionSize.width, compositionSize.height)
-  const scaledLongEdge = clampDimension(
-    longEdge * EXPORT_QUALITY_SCALE[qualityPreset]
+  const targetLongEdge = clampDimension(
+    Math.min(getMaxDimensionForQuality(qualityPreset), maxDimension)
   )
 
   if (ratio >= 1) {
     return {
-      height: clampDimension(scaledLongEdge / ratio),
-      width: scaledLongEdge,
+      height: clampDimension(targetLongEdge / ratio),
+      width: targetLongEdge,
     }
   }
 
   return {
-    height: scaledLongEdge,
-    width: clampDimension(scaledLongEdge * ratio),
+    height: targetLongEdge,
+    width: clampDimension(targetLongEdge * ratio),
+  }
+}
+
+export function getMaxDimensionForQuality(
+  qualityPreset: ExportQualityPreset
+): number {
+  return EXPORT_QUALITY_LONG_EDGE[qualityPreset]
+}
+
+export function clampExportSize(size: Size, maxDimension: number): Size {
+  const width = clampDimension(size.width)
+  const height = clampDimension(size.height)
+  const limit = clampDimension(maxDimension)
+  const longEdge = Math.max(width, height)
+
+  if (longEdge <= limit) {
+    return { width, height }
+  }
+
+  const scale = limit / longEdge
+
+  return {
+    width: clampDimension(width * scale),
+    height: clampDimension(height * scale),
+  }
+}
+
+export async function getMaxExportDimension(): Promise<number> {
+  if (
+    typeof navigator === "undefined" ||
+    !("gpu" in navigator) ||
+    typeof navigator.gpu.requestAdapter !== "function"
+  ) {
+    return DEFAULT_MAX_EXPORT_DIMENSION
+  }
+
+  try {
+    const adapter = await navigator.gpu.requestAdapter()
+    return (
+      adapter?.limits.maxTextureDimension2D ?? DEFAULT_MAX_EXPORT_DIMENSION
+    )
+  } catch {
+    return DEFAULT_MAX_EXPORT_DIMENSION
+  }
+}
+
+function getSourceRenderSizeForExport(
+  compositionSize: Size,
+  aspectPreset: ExportAspectPreset,
+  outputSize: Size
+): Size {
+  const sourceRatio =
+    compositionSize.width / Math.max(compositionSize.height, 1)
+  const targetRatio = getAspectRatio(compositionSize, aspectPreset)
+
+  if (Math.abs(targetRatio - sourceRatio) <= 0.0001) {
+    return outputSize
+  }
+
+  if (targetRatio > sourceRatio) {
+    return {
+      width: outputSize.width,
+      height: clampDimension(outputSize.width / sourceRatio),
+    }
+  }
+
+  return {
+    width: clampDimension(outputSize.height * sourceRatio),
+    height: outputSize.height,
   }
 }
 
@@ -132,15 +203,29 @@ export async function exportStillImage(
   projectState: RenderProjectState,
   options: StillExportOptions
 ): Promise<Blob> {
-  const renderScale = EXPORT_QUALITY_SCALE[options.qualityPreset]
-  const sourceRenderSize = {
-    height: clampDimension(projectState.compositionSize.height * renderScale),
-    width: clampDimension(projectState.compositionSize.width * renderScale),
-  }
-
+  const maxExportDimension = await getMaxExportDimension()
+  const maxAllowedDimension = Math.min(
+    maxExportDimension,
+    getMaxDimensionForQuality(options.qualityPreset)
+  )
+  const clampedOutputSize = clampExportSize(
+    {
+      width: options.width,
+      height: options.height,
+    },
+    maxAllowedDimension
+  )
   const outputCanvas = document.createElement("canvas")
-  outputCanvas.width = clampDimension(options.width)
-  outputCanvas.height = clampDimension(options.height)
+  outputCanvas.width = clampedOutputSize.width
+  outputCanvas.height = clampedOutputSize.height
+  const sourceRenderSize = getSourceRenderSizeForExport(
+    projectState.compositionSize,
+    options.aspectPreset,
+    {
+      width: outputCanvas.width,
+      height: outputCanvas.height,
+    }
+  )
 
   return exportStillWithNewRenderer(
     projectState,
@@ -208,17 +293,26 @@ export async function exportVideo(
     )
   }
 
-  const renderScale = EXPORT_QUALITY_SCALE[options.qualityPreset]
-  const sourceRenderSize = {
-    height: clampDimension(projectState.compositionSize.height * renderScale),
-    width: clampDimension(projectState.compositionSize.width * renderScale),
-  }
-
   const renderCanvas = createHiddenRenderCanvas()
+  const maxExportDimension = await getMaxExportDimension()
+  const maxAllowedDimension = Math.min(
+    maxExportDimension,
+    getMaxDimensionForQuality(options.qualityPreset)
+  )
   const exportSize = normalizeVideoExportSize(options.format, {
-    width: options.width,
-    height: options.height,
+    ...clampExportSize(
+      {
+        width: options.width,
+        height: options.height,
+      },
+      maxAllowedDimension
+    ),
   })
+  const sourceRenderSize = getSourceRenderSizeForExport(
+    projectState.compositionSize,
+    options.aspectPreset,
+    exportSize
+  )
   const outputCanvas = document.createElement("canvas")
   outputCanvas.width = exportSize.width
   outputCanvas.height = exportSize.height

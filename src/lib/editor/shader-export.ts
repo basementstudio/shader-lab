@@ -26,6 +26,7 @@ const SUPPORTED_SHADER_EXPORT_LAYER_TYPES = new Set<LayerType>([
   "live",
   "custom-shader",
   "ascii",
+  "circuit-bent",
   "directional-blur",
   "ink",
   "pattern",
@@ -55,6 +56,7 @@ const UNSUPPORTED_SHADER_EXPORT_LAYER_TYPES = new Set<LayerType>([
 type SupportedShaderExportLayerType = Extract<
   LayerType,
   | "ascii"
+  | "circuit-bent"
   | "directional-blur"
   | "crt"
   | "chromatic-aberration"

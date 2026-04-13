@@ -1,14 +1,14 @@
-import type { Metadata } from "next"
-import { ShaderLabPage } from "@/components/pages/shader-lab-page"
+import type { Metadata } from "next";
+import { ShaderLabPage } from "@/components/pages/shader-lab-page";
 import {
   APP_BASE_URL,
   APP_DEFAULT_TITLE,
   APP_DESCRIPTION,
   APP_NAME,
   APP_TITLE_TEMPLATE,
-} from "@/lib/app"
+} from "@/lib/app";
 
-const shaderLabPath = "/tools/shader-lab"
+const shaderLabPath = "/tools/shader-lab";
 
 export const metadata: Metadata = {
   alternates: {
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
       {
         alt: APP_DEFAULT_TITLE,
         height: 630,
-        url: "/opengraph-image.jpg",
+        url: "/opengraph-image.png",
         width: 1200,
       },
     ],
@@ -45,8 +45,8 @@ export const metadata: Metadata = {
       template: APP_TITLE_TEMPLATE,
     },
   },
-}
+};
 
 export default function ShaderLabRoute() {
-  return <ShaderLabPage />
+  return <ShaderLabPage />;
 }

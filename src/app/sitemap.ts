@@ -4,7 +4,7 @@ import { APP_BASE_URL } from "@/lib/app"
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
     {
-      url: APP_BASE_URL,
+      url: `${APP_BASE_URL}/tools/shader-lab`,
       lastModified: new Date(),
       changeFrequency: "daily",
       priority: 1,

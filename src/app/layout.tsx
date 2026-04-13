@@ -18,12 +18,6 @@ const geist = Geist({
 })
 
 export const metadata: Metadata = {
-  alternates: {
-    canonical: "/",
-    languages: {
-      "en-US": "/en-US",
-    },
-  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -51,7 +45,6 @@ export const metadata: Metadata = {
       template: APP_TITLE_TEMPLATE,
     },
     type: "website",
-    url: APP_BASE_URL,
   },
   other: {
     "fb:app_id": process.env.NEXT_PUBLIC_FACEBOOK_APP_ID || "",

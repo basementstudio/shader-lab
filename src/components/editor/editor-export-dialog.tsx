@@ -5,7 +5,7 @@ import {
   FileArrowDownIcon,
   FolderIcon,
   UploadSimpleIcon,
-  X,
+  XIcon,
 } from "@phosphor-icons/react"
 import { AnimatePresence, motion, useReducedMotion } from "motion/react"
 import {
@@ -484,12 +484,9 @@ export function EditorExportDialog({
         `${videoFormat.toUpperCase()} exported at ${exportSize.width}×${exportSize.height}.`
       )
     } catch (error) {
-      if (
-        error instanceof DOMException &&
-        error.name === "AbortError"
-      ) {
+      if (error instanceof DOMException && error.name === "AbortError") {
         setVideoProgress(null)
-        setStatusMessage("Video export canceled.")
+        setStatusMessage("Video export cancelled.")
       } else {
         setErrorMessage(
           error instanceof Error ? error.message : "Video export failed."
@@ -658,7 +655,7 @@ export function EditorExportDialog({
                     onClick={() => onOpenChange(false)}
                     variant="default"
                   >
-                    <X size={18} weight="bold" />
+                    <XIcon size={18} weight="bold" />
                   </IconButton>
                 </div>
 
@@ -1073,9 +1070,12 @@ function VideoTabContent({
         </Typography>
       </div>
 
-      <Button disabled={!isWorking && !selectedFormatSupported} onClick={() => void onExport()}>
+      <Button
+        disabled={!(isWorking || selectedFormatSupported)}
+        onClick={() => void onExport()}
+      >
         {isWorking ? (
-          <X size={16} weight="bold" />
+          <XIcon size={16} weight="bold" />
         ) : (
           <FileArrowDownIcon size={16} weight="bold" />
         )}

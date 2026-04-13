@@ -1,13 +1,13 @@
 "use client"
+import {
+  createVideoExportEncoder,
+  getSupportedVideoExportConfig,
+} from "@/lib/editor/video-export-encoder"
 import { buildRendererFrame } from "@/renderer/contracts"
 import {
   browserSupportsWebGPU,
   createWebGPURenderer,
 } from "@/renderer/create-webgpu-renderer"
-import {
-  createVideoExportEncoder,
-  getSupportedVideoExportConfig,
-} from "@/lib/editor/video-export-encoder"
 import type {
   EditorAsset,
   EditorLayer,
@@ -77,7 +77,7 @@ function clampDimension(value: number): number {
 
 function throwIfAborted(signal?: AbortSignal): void {
   if (signal?.aborted) {
-    throw new DOMException("Video export canceled.", "AbortError")
+    throw new DOMException("Video export cancelled.", "AbortError")
   }
 }
 
@@ -165,9 +165,7 @@ export async function getMaxExportDimension(): Promise<number> {
 
   try {
     const adapter = await navigator.gpu.requestAdapter()
-    return (
-      adapter?.limits.maxTextureDimension2D ?? DEFAULT_MAX_EXPORT_DIMENSION
-    )
+    return adapter?.limits.maxTextureDimension2D ?? DEFAULT_MAX_EXPORT_DIMENSION
   } catch {
     return DEFAULT_MAX_EXPORT_DIMENSION
   }
@@ -343,7 +341,10 @@ export async function exportVideo(
     })
 
     const totalFrames = Math.max(1, Math.round(options.duration * options.fps))
-    const totalDurationUs = Math.max(1, Math.round(options.duration * 1_000_000))
+    const totalDurationUs = Math.max(
+      1,
+      Math.round(options.duration * 1_000_000)
+    )
 
     options.onProgress?.({
       label: `Rendering frames 0/${totalFrames}`,
@@ -371,7 +372,9 @@ export async function exportVideo(
         projectState.compositionSize
       )
 
-      const frameStartUs = Math.round((frameIndex * totalDurationUs) / totalFrames)
+      const frameStartUs = Math.round(
+        (frameIndex * totalDurationUs) / totalFrames
+      )
       const frameEndUs = Math.round(
         ((frameIndex + 1) * totalDurationUs) / totalFrames
       )
@@ -545,10 +548,7 @@ function getVideoBitrate(qualityPreset: ExportQualityPreset): number {
   }
 }
 
-function normalizeVideoExportSize(
-  format: VideoExportFormat,
-  size: Size
-): Size {
+function normalizeVideoExportSize(format: VideoExportFormat, size: Size): Size {
   const width = clampDimension(size.width)
   const height = clampDimension(size.height)
 

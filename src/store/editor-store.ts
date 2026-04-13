@@ -4,6 +4,7 @@ import { DEFAULT_CANVAS_SIZE } from "@/lib/editor/layers"
 import type { EditorRenderer } from "@/renderer/contracts"
 import type {
   EditorStateSnapshot,
+  MobileEditorPanel,
   RenderScale,
   SceneConfig,
   SidebarView,
@@ -15,6 +16,7 @@ const DEFAULT_PROJECT_COMPOSITION = getDefaultProjectComposition()
 
 export interface EditorStoreState extends EditorStateSnapshot {
   liveRenderer: EditorRenderer | null
+  mobilePanel: MobileEditorPanel
   startupPreviewDismissed: boolean
 }
 
@@ -38,8 +40,10 @@ export interface EditorStoreActions {
   setTimelinePanelOpen: (open: boolean) => void
   setSidebarView: (view: SidebarView) => void
   setLiveRenderer: (renderer: EditorRenderer | null) => void
+  setMobilePanel: (panel: MobileEditorPanel) => void
   setWebGPUStatus: (status: WebGPUStatus, error?: string | null) => void
   setZoom: (zoom: number) => void
+  toggleMobilePanel: (panel: Exclude<MobileEditorPanel, "none">) => void
   toggleTimelineAutoKey: () => void
   toggleTimelinePanel: () => void
   toggleSidebar: (side: "left" | "right") => void
@@ -64,6 +68,7 @@ export const useEditorStore = create<EditorStore>((set) => ({
   immersiveCanvas: false,
   interactiveEditDepth: 0,
   liveRenderer: null,
+  mobilePanel: "none",
   outputSize: DEFAULT_PROJECT_COMPOSITION,
   panOffset: { x: 0, y: 0 },
   renderScale: 1,
@@ -160,8 +165,16 @@ export const useEditorStore = create<EditorStore>((set) => ({
   setImmersiveCanvas: (immersiveCanvas) => {
     set((state) => ({
       immersiveCanvas,
+      mobilePanel: immersiveCanvas ? "none" : state.mobilePanel,
       timelinePanelOpen: immersiveCanvas ? false : state.timelinePanelOpen,
     }))
+  },
+
+  setMobilePanel: (mobilePanel) => {
+    set({
+      immersiveCanvas: false,
+      mobilePanel,
+    })
   },
 
   setTimelinePanelOpen: (timelinePanelOpen) => {
@@ -203,6 +216,7 @@ export const useEditorStore = create<EditorStore>((set) => ({
   enterImmersiveCanvas: () => {
     set((state) => ({
       immersiveCanvas: true,
+      mobilePanel: "none",
       sidebars: {
         ...state.sidebars,
         left: false,
@@ -215,6 +229,7 @@ export const useEditorStore = create<EditorStore>((set) => ({
   exitImmersiveCanvas: () => {
     set((state) => ({
       immersiveCanvas: false,
+      mobilePanel: "none",
       sidebars: {
         ...state.sidebars,
         left: true,
@@ -241,6 +256,13 @@ export const useEditorStore = create<EditorStore>((set) => ({
         ...state.sidebars,
         [side]: !state.sidebars[side],
       },
+    }))
+  },
+
+  toggleMobilePanel: (panel) => {
+    set((state) => ({
+      immersiveCanvas: false,
+      mobilePanel: state.mobilePanel === panel ? "none" : panel,
     }))
   },
 

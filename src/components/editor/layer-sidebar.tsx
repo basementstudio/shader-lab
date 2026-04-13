@@ -27,6 +27,7 @@ import { GlassPanel } from "@/components/ui/glass-panel"
 import { IconButton } from "@/components/ui/icon-button"
 import { Select } from "@/components/ui/select"
 import { Typography } from "@/components/ui/typography"
+import { useIsMobileViewport } from "@/hooks/use-is-mobile-viewport"
 import { cn } from "@/lib/cn"
 import { inferFileAssetKind } from "@/lib/editor/media-file"
 import { useAssetStore } from "@/store/asset-store"
@@ -317,9 +318,14 @@ export function LayerSidebar() {
   const loadAsset = useAssetStore((state) => state.loadAsset)
   const removeAsset = useAssetStore((state) => state.removeAsset)
   const leftSidebarVisible = useEditorStore((state) => state.sidebars.left)
+  const mobilePanel = useEditorStore((state) => state.mobilePanel)
   const enterImmersiveCanvas = useEditorStore(
     (state) => state.enterImmersiveCanvas
   )
+  const isMobileViewport = useIsMobileViewport()
+  const panelVisible = isMobileViewport
+    ? mobilePanel === "layers"
+    : leftSidebarVisible
 
   const assetsById = useMemo(
     () => new Map(assets.map((asset) => [asset.id, asset])),
@@ -480,8 +486,14 @@ export function LayerSidebar() {
   return (
     <aside
       className={cn(
-        "pointer-events-none absolute top-[76px] left-4 z-20 w-[284px] translate-x-0 transition-[opacity,translate] duration-[220ms,260ms] ease-[ease-out,cubic-bezier(0.22,1,0.36,1)]",
-        !leftSidebarVisible && "-translate-x-[18px] opacity-0"
+        "pointer-events-none transition-[opacity,translate] duration-[220ms,260ms] ease-[ease-out,cubic-bezier(0.22,1,0.36,1)]",
+        isMobileViewport
+          ? "fixed right-3 bottom-[88px] left-3 z-45 translate-y-0"
+          : "absolute top-[76px] left-4 z-20 w-[284px] translate-x-0",
+        !panelVisible &&
+          (isMobileViewport
+            ? "translate-y-3 opacity-0"
+            : "-translate-x-[18px] opacity-0")
       )}
     >
       <input
@@ -508,7 +520,8 @@ export function LayerSidebar() {
       <GlassPanel
         className={cn(
           "pointer-events-auto relative flex flex-col gap-[var(--ds-space-1)] p-0",
-          !leftSidebarVisible && "pointer-events-none"
+          isMobileViewport ? "max-h-[min(56vh,420px)] w-full" : "w-[284px]",
+          !panelVisible && "pointer-events-none"
         )}
         variant="panel"
       >
@@ -535,7 +548,12 @@ export function LayerSidebar() {
         <Reorder.Group
           axis="y"
           as="ul"
-          className="flex max-h-[min(52vh,480px)] flex-col gap-0.5 overflow-y-auto p-1"
+          className={cn(
+            "flex flex-col gap-0.5 overflow-y-auto p-1",
+            isMobileViewport
+              ? "max-h-[min(44vh,320px)]"
+              : "max-h-[min(52vh,480px)]"
+          )}
           onReorder={handleReorder}
           values={layers}
         >

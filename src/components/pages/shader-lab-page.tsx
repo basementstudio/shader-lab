@@ -1,4 +1,5 @@
 import { EditorCanvasViewport } from "@/components/editor/editor-canvas-viewport"
+import { MobileEditorDock } from "@/components/editor/mobile-editor-dock"
 import { EditorShortcuts } from "@/components/editor/editor-shortcuts"
 import { EditorTimelineOverlay } from "@/components/editor/editor-timeline-overlay"
 import { EditorTopBar } from "@/components/editor/editor-topbar"
@@ -17,6 +18,7 @@ export function ShaderLabPage() {
       <EditorTopBar />
       <LayerSidebar />
       <PropertiesSidebar />
+      <MobileEditorDock />
     </main>
   )
 }

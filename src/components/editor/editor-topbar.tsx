@@ -11,6 +11,8 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { GlassPanel } from "@/components/ui/glass-panel"
 import { IconButton } from "@/components/ui/icon-button"
 import { Typography } from "@/components/ui/typography"
+import { useIsMobileViewport } from "@/hooks/use-is-mobile-viewport"
+import { cn } from "@/lib/cn"
 import {
   applyEditorHistorySnapshot,
   buildEditorHistorySnapshot,
@@ -31,6 +33,7 @@ const HISTORY_COMMIT_DEBOUNCE_MS = 220
 
 export function EditorTopBar() {
   const immersiveCanvas = useEditorStore((state) => state.immersiveCanvas)
+  const mobilePanel = useEditorStore((state) => state.mobilePanel)
   const zoom = useEditorStore((state) => state.zoom)
   const panOffset = useEditorStore((state) => state.panOffset)
   const setPan = useEditorStore((state) => state.setPan)
@@ -53,9 +56,11 @@ export function EditorTopBar() {
   > | null>(null)
   const latestSnapshotRef = useRef(buildEditorHistorySnapshot())
   const historyTimerRef = useRef<number | null>(null)
+  const isMobileViewport = useIsMobileViewport()
 
   const canUndo = historyPastLength > 0
   const canRedo = historyFutureLength > 0
+  const panelVisible = isMobileViewport ? mobilePanel === "actions" : true
 
   const syncHistorySnapshotRefs = useCallback(() => {
     const snapshot = buildEditorHistorySnapshot()
@@ -229,18 +234,33 @@ export function EditorTopBar() {
     setPan(nextState.panOffset.x, nextState.panOffset.y)
   }
 
-  if (immersiveCanvas) {
+  if (immersiveCanvas || !panelVisible) {
     return null
   }
 
   return (
     <>
-      <div className="pointer-events-none fixed top-4 right-0 left-0 z-45 flex justify-center">
+      <div
+        className={cn(
+          "pointer-events-none fixed right-0 left-0 z-45 flex justify-center",
+          isMobileViewport ? "bottom-[88px] px-3" : "top-4"
+        )}
+      >
         <GlassPanel
-          className="pointer-events-auto flex min-h-11 w-auto items-center justify-between gap-[var(--ds-space-4)] px-[10px] py-2 max-[899px]:gap-[10px] max-[899px]:p-2"
+          className={cn(
+            "pointer-events-auto flex min-h-11 items-center gap-[var(--ds-space-4)] px-[10px] py-2",
+            isMobileViewport
+              ? "w-full max-w-[420px] flex-wrap justify-between gap-2 p-2.5"
+              : "w-auto justify-between"
+          )}
           variant="panel"
         >
-          <div className="inline-flex items-center gap-1.5 max-[899px]:gap-1">
+          <div
+            className={cn(
+              "inline-flex items-center gap-1.5",
+              isMobileViewport && "w-full justify-between"
+            )}
+          >
             <IconButton
               aria-label="Undo"
               className="h-7 w-7 disabled:opacity-45"
@@ -261,7 +281,12 @@ export function EditorTopBar() {
             </IconButton>
           </div>
 
-          <div className="inline-flex items-center gap-1.5 max-[899px]:gap-1">
+          <div
+            className={cn(
+              "inline-flex items-center gap-1.5",
+              isMobileViewport && "w-full justify-between"
+            )}
+          >
             <IconButton
               aria-label="Zoom out"
               className="h-7 w-7 disabled:opacity-45"
@@ -289,7 +314,10 @@ export function EditorTopBar() {
             </IconButton>
             <span
               aria-hidden="true"
-              className="block h-5 w-px rounded-full bg-[var(--ds-border-divider)]"
+              className={cn(
+                "block h-5 w-px rounded-full bg-[var(--ds-border-divider)]",
+                isMobileViewport && "mx-1"
+              )}
             />
             <IconButton
               aria-label="Export"

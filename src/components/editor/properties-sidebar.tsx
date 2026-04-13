@@ -5,6 +5,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { GlassPanel } from "@/components/ui/glass-panel"
 import { IconButton } from "@/components/ui/icon-button"
+import { useIsMobileViewport } from "@/hooks/use-is-mobile-viewport"
 import { cn } from "@/lib/cn"
 import { getLayerDefinition } from "@/lib/editor/config/layer-registry"
 import { evaluateTimelineForLayers } from "@/lib/editor/timeline/evaluate"
@@ -46,6 +47,7 @@ export function PropertiesSidebar() {
   const [panelHeight, setPanelHeight] = useState<number | null>(null)
   const viewResizeObserverRef = useRef<ResizeObserver | null>(null)
   const rightSidebarVisible = useEditorStore((state) => state.sidebars.right)
+  const mobilePanel = useEditorStore((state) => state.mobilePanel)
   const sidebarView = useEditorStore((state) => state.sidebarView)
   const setSidebarView = useEditorStore((state) => state.setSidebarView)
   const timelineAutoKey = useEditorStore((state) => state.timelineAutoKey)
@@ -74,6 +76,10 @@ export function PropertiesSidebar() {
   const assets = useAssetStore((state) => state.assets)
   const activeGestureDepthRef = useRef(0)
   const activeGestureTimeRef = useRef<number | null>(null)
+  const isMobileViewport = useIsMobileViewport()
+  const panelVisible = isMobileViewport
+    ? mobilePanel === "properties" || mobilePanel === "scene"
+    : rightSidebarVisible
 
   const resetLivePreviewOverrides = useCallback(() => {
     setLivePreviewOverrides((current) => {
@@ -251,6 +257,21 @@ export function PropertiesSidebar() {
       setSidebarView("properties")
     }
   }, [selectedLayerId, setSidebarView])
+
+  useEffect(() => {
+    if (!isMobileViewport) {
+      return
+    }
+
+    if (mobilePanel === "scene") {
+      setSidebarView("scene")
+      return
+    }
+
+    if (mobilePanel === "properties") {
+      setSidebarView("properties")
+    }
+  }, [isMobileViewport, mobilePanel, setSidebarView])
 
   useEffect(() => {
     return () => {
@@ -533,8 +554,14 @@ export function PropertiesSidebar() {
   return (
     <aside
       className={cn(
-        "pointer-events-none absolute top-[76px] right-4 z-20 w-[300px] translate-x-0 transition-[opacity,translate] duration-[220ms,260ms] ease-[ease-out,cubic-bezier(0.22,1,0.36,1)]",
-        !rightSidebarVisible && "translate-x-[18px] opacity-0"
+        "pointer-events-none transition-[opacity,translate] duration-[220ms,260ms] ease-[ease-out,cubic-bezier(0.22,1,0.36,1)]",
+        isMobileViewport
+          ? "fixed right-3 bottom-[88px] left-3 z-45 translate-y-0"
+          : "absolute top-[76px] right-4 z-20 w-[300px] translate-x-0",
+        !panelVisible &&
+          (isMobileViewport
+            ? "translate-y-3 opacity-0"
+            : "translate-x-[18px] opacity-0")
       )}
     >
       <div
@@ -549,7 +576,8 @@ export function PropertiesSidebar() {
       <motion.div
         className={cn(
           "pointer-events-auto overflow-hidden rounded-[var(--ds-radius-panel)]",
-          !rightSidebarVisible && "pointer-events-none"
+          isMobileViewport ? "max-h-[min(60vh,520px)] w-full" : "w-[300px]",
+          !panelVisible && "pointer-events-none"
         )}
         initial={false}
         {...(panelHeight === null ? {} : { animate: { height: panelHeight } })}
@@ -561,7 +589,9 @@ export function PropertiesSidebar() {
         >
           <div className="flex items-center justify-end border-b border-[var(--ds-border-divider)] px-3 py-1.5">
             <IconButton
-              aria-label="Scene settings"
+              aria-label={
+                sidebarView === "scene" ? "Layer properties" : "Scene settings"
+              }
               className={cn(
                 "h-7 w-7",
                 sidebarView === "scene" && "bg-white/10"

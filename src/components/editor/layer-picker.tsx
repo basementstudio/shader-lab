@@ -397,6 +397,15 @@ export function LayerPicker({ className, onSelect }: LayerPickerProps) {
     }
 
     const rect = triggerRef.current.getBoundingClientRect()
+
+    if (window.innerWidth < 900) {
+      setPanelPosition({
+        left: 16,
+        top: 16,
+      })
+      return
+    }
+
     const sidebarRight = 16 + 284 + 8
     const left = Math.min(sidebarRight, window.innerWidth - 560 - 16)
 

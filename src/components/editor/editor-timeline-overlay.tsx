@@ -24,6 +24,7 @@ import { GlassPanel } from "@/components/ui/glass-panel"
 import { IconButton } from "@/components/ui/icon-button"
 import { NumberInput } from "@/components/ui/number-input"
 import { Typography } from "@/components/ui/typography"
+import { useIsMobileViewport } from "@/hooks/use-is-mobile-viewport"
 import { cn } from "@/lib/cn"
 import { getLayerDefinition } from "@/lib/editor/config/layer-registry"
 import { getLongestVideoLayerDuration } from "@/lib/editor/timeline-duration"
@@ -415,6 +416,7 @@ function TimelineTransport({
 
 export function EditorTimelineOverlay() {
   const reduceMotion = useReducedMotion() ?? false
+  const isMobileViewport = useIsMobileViewport()
   const immersiveCanvas = useEditorStore((state) => state.immersiveCanvas)
   const timelinePanelOpen = useEditorStore((state) => state.timelinePanelOpen)
   const timelineAutoKey = useEditorStore((state) => state.timelineAutoKey)
@@ -669,7 +671,13 @@ export function EditorTimelineOverlay() {
     }
   }, [dragState])
 
-  if (immersiveCanvas) {
+  useEffect(() => {
+    if (isMobileViewport) {
+      closeTimelinePanel()
+    }
+  }, [closeTimelinePanel, isMobileViewport])
+
+  if (immersiveCanvas || isMobileViewport) {
     return null
   }
 

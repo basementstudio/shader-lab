@@ -310,6 +310,12 @@ export interface TimelineStateSnapshot {
 }
 
 export type SidebarView = "properties" | "scene"
+export type MobileEditorPanel =
+  | "none"
+  | "layers"
+  | "properties"
+  | "scene"
+  | "actions"
 
 export const COMPOSITION_ASPECTS = [
   "screen",

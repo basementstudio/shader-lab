@@ -21,6 +21,7 @@ const ACCEPTED_TYPES = new Set([
   "image/gif",
   "video/mp4",
   "video/webm",
+  "video/quicktime",
   "model/gltf-binary",
   "model/gltf+json",
   "model/obj",
@@ -41,6 +42,10 @@ function inferAssetKind(file: File): AssetKind | null {
     return "video"
   }
 
+  if (fileName.endsWith(".mov")) {
+    return "video"
+  }
+
   if (
     fileName.endsWith(".glb") ||
     fileName.endsWith(".gltf") ||
@@ -58,9 +63,14 @@ function inferAssetKind(file: File): AssetKind | null {
 function validateFile(file: File): AssetKind {
   const kind = inferAssetKind(file)
 
-  if (!kind || (!ACCEPTED_TYPES.has(file.type) && kind !== "model")) {
+  if (
+    !kind ||
+    (!ACCEPTED_TYPES.has(file.type) &&
+      !(kind === "video" && file.name.toLowerCase().endsWith(".mov")) &&
+      kind !== "model")
+  ) {
     throw new Error(
-      `Unsupported file type "${file.type || "unknown"}". Accepted: PNG, JPG, WebP, GIF, MP4, WebM, GLB, GLTF, OBJ.`,
+      `Unsupported file type "${file.type || "unknown"}". Accepted: PNG, JPG, WebP, GIF, MP4, WebM, MOV, GLB, GLTF, OBJ.`,
     )
   }
 

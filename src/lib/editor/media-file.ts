@@ -12,6 +12,10 @@ export function inferFileAssetKind(file: File): AssetKind | null {
     return "video"
   }
 
+  if (fileName.endsWith(".mov")) {
+    return "video"
+  }
+
   if (
     fileName.endsWith(".glb") ||
     fileName.endsWith(".gltf") ||

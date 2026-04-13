@@ -55,6 +55,7 @@ type StillExportOptions = {
 }
 
 type VideoExportOptions = {
+  abortSignal?: AbortSignal
   aspectPreset: ExportAspectPreset
   duration: number
   format: VideoExportFormat
@@ -72,6 +73,12 @@ function clampDimension(value: number): number {
   }
 
   return Math.max(1, Math.round(value))
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) {
+    throw new DOMException("Video export canceled.", "AbortError")
+  }
 }
 
 function getAspectRatio(
@@ -280,6 +287,7 @@ export async function exportVideo(
   projectState: RenderProjectState,
   options: VideoExportOptions
 ): Promise<Blob> {
+  throwIfAborted(options.abortSignal)
   options.onProgress?.({
     label: "Preparing export",
     value: 0.02,
@@ -327,6 +335,7 @@ export async function exportVideo(
   })
 
   try {
+    throwIfAborted(options.abortSignal)
     await prewarmExportFrame(renderer, renderCanvas, projectState, {
       logicalSize: projectState.compositionSize,
       renderSize: sourceRenderSize,
@@ -342,6 +351,7 @@ export async function exportVideo(
     })
 
     for (let frameIndex = 0; frameIndex < totalFrames; frameIndex += 1) {
+      throwIfAborted(options.abortSignal)
       const time = resolveExportTime(
         options.startTime + frameIndex / options.fps,
         projectState.timeline.duration,
@@ -372,6 +382,7 @@ export async function exportVideo(
         Math.max(1, frameEndUs - frameStartUs),
         frameStartUs
       )
+      throwIfAborted(options.abortSignal)
 
       options.onProgress?.({
         label: `Rendering frames ${frameIndex + 1}/${totalFrames}`,
@@ -383,6 +394,7 @@ export async function exportVideo(
       label: "Finalizing file",
       value: 0.98,
     })
+    throwIfAborted(options.abortSignal)
 
     return await encoder.finalize()
   } finally {

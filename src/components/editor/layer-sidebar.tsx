@@ -115,7 +115,7 @@ function getAcceptForAssetKind(kind: AssetKind): string {
     case "image":
       return "image/png,image/jpeg,image/webp,image/gif"
     case "video":
-      return "video/mp4,video/webm"
+      return "video/mp4,video/webm,video/quicktime,.mov"
     case "model":
       return ".glb,.gltf,.obj,model/gltf-binary,model/gltf+json,model/obj,application/octet-stream"
   }
@@ -498,7 +498,7 @@ export function LayerSidebar() {
         type="file"
       />
       <input
-        accept="video/mp4,video/webm"
+        accept="video/mp4,video/webm,video/quicktime,.mov"
         className="hidden"
         onChange={handleVideoChange}
         ref={videoInputRef}

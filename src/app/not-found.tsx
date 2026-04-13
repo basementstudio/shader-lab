@@ -3,9 +3,6 @@ import Link from "next/link";
 const primaryActionClassName =
   "inline-flex items-center justify-center rounded-[var(--ds-radius-control)] bg-[var(--ds-color-text-primary)] px-5 py-2 text-[12px] font-medium leading-4 text-[var(--ds-color-text-on-light)] transition-[background-color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:bg-white/82 active:scale-[0.98] active:bg-white/72";
 
-const secondaryActionClassName =
-  "inline-flex items-center justify-center rounded-[var(--ds-radius-control)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-5 py-2 text-[12px] font-medium leading-4 text-white/70 transition-[background-color,border-color,color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:border-[var(--ds-border-hover)] hover:bg-white/10 hover:text-white/80 active:scale-[0.98] active:border-[var(--ds-border-active)] active:bg-white/14 active:text-[var(--ds-color-text-primary)]";
-
 export default function NotFound() {
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10 sm:px-6">

@@ -84,10 +84,14 @@ export function FloatingDesktopPanel({
   } | null>(null)
   const [viewportSize, setViewportSize] = useState({ height: 0, width: 0 })
   const [panelSize, setPanelSize] = useState({ height: 0, width: 0 })
+  const hasRevealedRef = useRef(false)
   const panelState = useEditorStore((state) => state.floatingPanels[id])
   const focusFloatingPanel = useEditorStore((state) => state.focusFloatingPanel)
   const setFloatingPanelDragging = useEditorStore(
     (state) => state.setFloatingPanelDragging
+  )
+  const isResetting = useEditorStore(
+    (state) => state.floatingPanelsResetting
   )
   const setFloatingPanelOffset = useEditorStore(
     (state) => state.setFloatingPanelOffset
@@ -265,6 +269,24 @@ export function FloatingDesktopPanel({
     },
   }
 
+  const enableTransition = hasRevealedRef.current
+
+  if (isReady) {
+    hasRevealedRef.current = true
+  }
+
+  const transitions: string[] = []
+
+  if (enableTransition) {
+    transitions.push("opacity 120ms ease-out")
+  }
+
+  if (isResetting) {
+    transitions.push(
+      "transform 250ms cubic-bezier(0.22, 1, 0.36, 1)"
+    )
+  }
+
   const panelStyle = {
     left: basePosition.left,
     opacity: isReady ? 1 : 0,
@@ -272,7 +294,7 @@ export function FloatingDesktopPanel({
     position: "fixed",
     top: basePosition.top,
     transform: `translate3d(${effectiveOffsetX}px, ${effectiveOffsetY}px, 0)`,
-    transition: isReady ? "opacity 120ms ease-out" : undefined,
+    transition: transitions.length > 0 ? transitions.join(", ") : undefined,
     visibility: isReady ? "visible" : "hidden",
     zIndex: 20 + panelState.z,
   } as CSSProperties

@@ -884,7 +884,7 @@ export function EditorTimelineOverlay() {
                           aria-hidden="true"
                           className="absolute bottom-0 w-px bg-white/6 h-[10px]"
                           key={`minor-${tick}`}
-                          style={{ left: `${(tick / duration) * 100}%` }}
+                          style={{ left: `${(tick / effectiveDuration) * 100}%` }}
                         />
                       ))}
 
@@ -893,7 +893,7 @@ export function EditorTimelineOverlay() {
                           aria-hidden="true"
                           className="absolute bottom-0 h-[18px] w-px bg-white/14"
                           key={`major-${tick}`}
-                          style={{ left: `${(tick / duration) * 100}%` }}
+                          style={{ left: `${(tick / effectiveDuration) * 100}%` }}
                         />
                       ))}
 
@@ -904,7 +904,7 @@ export function EditorTimelineOverlay() {
                           key={`label-${tick}`}
                           tone="muted"
                           variant="monoXs"
-                          style={{ left: `${(tick / duration) * 100}%` }}
+                          style={{ left: `${(tick / effectiveDuration) * 100}%` }}
                         >
                           {tick.toFixed(1)}
                         </Typography>
@@ -964,7 +964,7 @@ export function EditorTimelineOverlay() {
                                     })
                                   }}
                                   style={{
-                                    left: `${(keyframe.time / duration) * 100}%`,
+                                    left: `${(keyframe.time / effectiveDuration) * 100}%`,
                                   }}
                                   type="button"
                                 >

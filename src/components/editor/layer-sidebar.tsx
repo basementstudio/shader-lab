@@ -503,20 +503,14 @@ export function LayerSidebar() {
       return
     }
 
-    let frameOne = 0
-    let frameTwo = 0
-
     setFreezeDesktopLayerList(true)
 
-    frameOne = window.requestAnimationFrame(() => {
-      frameTwo = window.requestAnimationFrame(() => {
-        setFreezeDesktopLayerList(false)
-      })
-    })
+    const timeout = window.setTimeout(() => {
+      setFreezeDesktopLayerList(false)
+    }, 320)
 
     return () => {
-      window.cancelAnimationFrame(frameOne)
-      window.cancelAnimationFrame(frameTwo)
+      window.clearTimeout(timeout)
     }
   }, [floatingPanelsResetToken])
 

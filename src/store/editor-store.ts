@@ -30,6 +30,7 @@ export interface EditorStoreState extends EditorStateSnapshot {
     }
   >
   floatingPanelZCounter: number
+  floatingPanelsResetting: boolean
   floatingPanelsResetToken: number
   liveRenderer: EditorRenderer | null
   mobilePanel: MobileEditorPanel
@@ -102,6 +103,7 @@ export const useEditorStore = create<EditorStore>((set) => ({
   canvasSize: DEFAULT_CANVAS_SIZE,
   floatingPanels: DEFAULT_FLOATING_PANELS,
   floatingPanelZCounter: 4,
+  floatingPanelsResetting: false,
   floatingPanelsResetToken: 0,
   immersiveCanvas: false,
   interactiveEditDepth: 0,
@@ -190,10 +192,22 @@ export const useEditorStore = create<EditorStore>((set) => ({
 
   resetFloatingPanels: () => {
     set((state) => ({
-      floatingPanels: DEFAULT_FLOATING_PANELS,
-      floatingPanelZCounter: 4,
+      floatingPanelsResetting: true,
       floatingPanelsResetToken: state.floatingPanelsResetToken + 1,
     }))
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        set({
+          floatingPanels: DEFAULT_FLOATING_PANELS,
+          floatingPanelZCounter: 4,
+        })
+
+        setTimeout(() => {
+          set({ floatingPanelsResetting: false })
+        }, 270)
+      })
+    })
   },
 
   setZoom: (zoom) => {

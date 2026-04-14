@@ -62,10 +62,12 @@ export function EditorTopBar() {
   const mobilePanel = useEditorStore((state) => state.mobilePanel)
   const zoom = useEditorStore((state) => state.zoom)
   const panOffset = useEditorStore((state) => state.panOffset)
-  const hasMovedFloatingPanels = useEditorStore((state) =>
-    Object.values(state.floatingPanels).some(
-      (panel) => panel.x !== 0 || panel.y !== 0
-    )
+  const hasMovedFloatingPanels = useEditorStore(
+    (state) =>
+      state.floatingPanelsResetting ||
+      Object.values(state.floatingPanels).some(
+        (panel) => panel.x !== 0 || panel.y !== 0
+      )
   )
   const resetFloatingPanels = useEditorStore(
     (state) => state.resetFloatingPanels

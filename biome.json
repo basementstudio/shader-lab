@@ -93,13 +93,7 @@
         "useExhaustiveDependencies": "warn"
       },
       "nursery": {
-        "useSortedClasses": {
-          "level": "warn",
-          "options": {
-            "attributes": ["class", "className"],
-            "functions": ["cn", "cva"]
-          }
-        }
+        "useSortedClasses": "off"
       },
       "performance": {
         "noImgElement": "error"

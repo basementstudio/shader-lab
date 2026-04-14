@@ -2,14 +2,16 @@
 
 import { Select as BaseSelect } from "@base-ui/react/select"
 import {
-  BezierCurveIcon,
   CaretDownIcon,
   CaretUpIcon,
   CircleIcon,
+  CommitIcon,
+  DotFilledIcon,
+  LoopIcon,
   PauseIcon,
   PlayIcon,
   StopIcon,
-} from "@phosphor-icons/react"
+} from "@radix-ui/react-icons"
 import { motion, useReducedMotion } from "motion/react"
 import {
   type CSSProperties,
@@ -20,6 +22,7 @@ import {
   useRef,
   useState,
 } from "react"
+import { FloatingDesktopPanel } from "@/components/editor/floating-desktop-panel"
 import { GlassPanel } from "@/components/ui/glass-panel"
 import { IconButton } from "@/components/ui/icon-button"
 import { NumberInput } from "@/components/ui/number-input"
@@ -27,8 +30,8 @@ import { Typography } from "@/components/ui/typography"
 import { cn } from "@/lib/cn"
 import { getLayerDefinition } from "@/lib/editor/config/layer-registry"
 import { getLongestVideoLayerDuration } from "@/lib/editor/timeline-duration"
-import { useAssetStore } from "@/store/asset-store"
 import { useEditorStore, useLayerStore, useTimelineStore } from "@/store"
+import { useAssetStore } from "@/store/asset-store"
 import {
   createLayerPropertyBinding,
   createParamBinding,
@@ -293,9 +296,9 @@ function TimelineTransport({
           variant="default"
         >
           {isPlaying ? (
-            <PauseIcon size={14} weight="fill" />
+            <PauseIcon height={14} width={14} />
           ) : (
-            <PlayIcon size={14} weight="fill" />
+            <PlayIcon height={14} width={14} />
           )}
         </IconButton>
         <IconButton
@@ -304,7 +307,18 @@ function TimelineTransport({
           onClick={onStop}
           variant="default"
         >
-          <StopIcon size={14} weight="fill" />
+          <StopIcon height={14} width={14} />
+        </IconButton>
+        <IconButton
+          aria-label={loop ? "Disable loop" : "Enable loop"}
+          className={cn(
+            "h-7 w-7",
+            loop && "bg-white/12 text-[var(--ds-color-text-primary)]"
+          )}
+          onClick={onToggleLoop}
+          variant={loop ? "active" : "default"}
+        >
+          <LoopIcon height={14} width={14} />
         </IconButton>
       </div>
 
@@ -315,19 +329,6 @@ function TimelineTransport({
 
       <div className="inline-flex items-center gap-1">
         <IconButton
-          aria-label={loop ? "Disable loop" : "Enable loop"}
-          className={cn(
-            "h-7 w-auto gap-1.5 px-[10px]",
-            loop && "bg-white/12 text-[var(--ds-color-text-primary)]"
-          )}
-          onClick={onToggleLoop}
-          variant={loop ? "active" : "default"}
-        >
-          <Typography as="span" tone="secondary" variant="monoSm">
-            Loop
-          </Typography>
-        </IconButton>
-        <IconButton
           aria-label={autoKey ? "Disable auto-key" : "Enable auto-key"}
           className={cn(
             "h-7 w-auto gap-1.5 px-[10px]",
@@ -336,7 +337,11 @@ function TimelineTransport({
           onClick={onToggleAutoKey}
           variant={autoKey ? "active" : "default"}
         >
-          <CircleIcon size={10} weight={autoKey ? "fill" : "regular"} />
+          {autoKey ? (
+            <DotFilledIcon height={10} width={10} />
+          ) : (
+            <CircleIcon height={10} width={10} />
+          )}
           <Typography as="span" tone="secondary" variant="monoSm">
             Auto-Key
           </Typography>
@@ -403,9 +408,9 @@ function TimelineTransport({
           variant="default"
         >
           {expanded ? (
-            <CaretDownIcon size={14} weight="bold" />
+            <CaretDownIcon height={14} width={14} />
           ) : (
-            <CaretUpIcon size={14} weight="bold" />
+            <CaretUpIcon height={14} width={14} />
           )}
         </IconButton>
       </div>
@@ -430,9 +435,9 @@ export function EditorTimelineOverlay() {
   const selectedLayerId = useLayerStore((state) => state.selectedLayerId)
   const selectedLayer = useMemo(
     () =>
-    selectedLayerId
-      ? (layers.find((layer) => layer.id === selectedLayerId) ?? null)
-      : null,
+      selectedLayerId
+        ? (layers.find((layer) => layer.id === selectedLayerId) ?? null)
+        : null,
     [layers, selectedLayerId]
   )
 
@@ -708,374 +713,392 @@ export function EditorTimelineOverlay() {
   }
 
   return (
-    <div className="pointer-events-none fixed right-0 bottom-3 left-0 z-35 hidden justify-center max-[899px]:hidden min-[900px]:flex">
-      <motion.div
-        animate={
-          reduceMotion
-            ? { height: shellHeight, opacity: 1, width: shellWidth }
-            : { height: shellHeight, opacity: 1, width: shellWidth, y: 0 }
-        }
-        className="pointer-events-auto mx-auto max-h-[min(380px,calc(100vh-268px))] origin-bottom"
-        initial={false}
-        transition={
-          reduceMotion
-            ? { duration: 0.14, ease: "easeOut" }
-            : {
-                damping: 34,
-                mass: 0.95,
-                stiffness: 280,
-                type: "spring",
-              }
-        }
-      >
-        <GlassPanel
-          className="pointer-events-auto flex h-full max-h-inherit w-full flex-col overflow-hidden"
-          variant="panel"
+    <FloatingDesktopPanel
+      id="timeline"
+      resolvePosition={({
+        panelHeight,
+        panelWidth,
+        viewportHeight,
+        viewportWidth,
+      }) => ({
+        left: Math.max(12, (viewportWidth - panelWidth) / 2),
+        top: Math.max(12, viewportHeight - panelHeight - 12),
+      })}
+    >
+      {({ suppressResize: _suppressResize }) => (
+        <motion.div
+          animate={
+            reduceMotion
+              ? { height: shellHeight, opacity: 1, width: shellWidth }
+              : { height: shellHeight, opacity: 1, width: shellWidth, y: 0 }
+          }
+          className="pointer-events-auto max-h-[min(380px,calc(100vh-268px))] origin-bottom"
+          initial={false}
+          transition={
+            reduceMotion
+              ? { duration: 0.14, ease: "easeOut" }
+              : {
+                  damping: 34,
+                  mass: 0.95,
+                  stiffness: 280,
+                  type: "spring",
+                }
+          }
         >
-          <div
-            className={cn(
-              "border-b border-[var(--ds-border-divider)] p-2 transition-[border-color] duration-160 ease-[var(--ease-out-cubic)]",
-              !timelinePanelOpen && "border-b-transparent"
-            )}
-          >
-            <TimelineTransport
-              autoKey={timelineAutoKey}
-              currentTime={currentTime}
-              duration={effectiveDuration}
-              durationReadOnly={hasDerivedVideoDuration}
-              expanded={timelinePanelOpen}
-              isPlaying={isPlaying}
-              loop={loop}
-              onDurationChange={setDuration}
-              onStop={stop}
-              onToggleAutoKey={toggleTimelineAutoKey}
-              onToggleExpanded={toggleTimelinePanel}
-              onToggleLoop={() => setLoop(!loop)}
-              onTogglePlaying={togglePlaying}
-            />
-          </div>
-
-          <motion.div
-            animate={panelBodyAnimation}
-            className="flex min-h-0 flex-1 overflow-hidden"
-            initial={false}
-            transition={
-              reduceMotion
-                ? { duration: 0.12, ease: "easeOut" }
-                : {
-                    damping: 34,
-                    delay: timelinePanelOpen ? 0.04 : 0,
-                    mass: 0.78,
-                    stiffness: 320,
-                    type: "spring",
-                  }
-            }
+          <GlassPanel
+            className="pointer-events-auto flex h-full max-h-inherit w-full flex-col overflow-hidden"
+            variant="panel"
           >
             <div
-              aria-hidden={!timelinePanelOpen}
               className={cn(
-                "flex h-full min-h-0 flex-1 overflow-hidden",
-                !timelinePanelOpen && "pointer-events-none"
+                "border-b border-[var(--ds-border-divider)] p-2 transition-[border-color] duration-160 ease-[var(--ease-out-cubic)]",
+                !timelinePanelOpen && "border-b-transparent"
               )}
             >
-              <div className="flex h-full min-h-0 shrink-0 basis-[180px] flex-col gap-4 overflow-y-auto border-r border-[var(--ds-border-divider)] px-3 pt-[10px] pb-3 [scrollbar-gutter:stable]">
-                <div className="flex flex-col gap-[10px]">
-                  <Typography
-                    className="tracking-[0.08em] uppercase"
-                    tone="secondary"
-                    variant="overline"
-                  >
-                    Properties
-                  </Typography>
+              <TimelineTransport
+                autoKey={timelineAutoKey}
+                currentTime={currentTime}
+                duration={effectiveDuration}
+                durationReadOnly={hasDerivedVideoDuration}
+                expanded={timelinePanelOpen}
+                isPlaying={isPlaying}
+                loop={loop}
+                onDurationChange={setDuration}
+                onStop={stop}
+                onToggleAutoKey={toggleTimelineAutoKey}
+                onToggleExpanded={toggleTimelinePanel}
+                onToggleLoop={() => setLoop(!loop)}
+                onTogglePlaying={togglePlaying}
+              />
+            </div>
 
-                  <div className="flex flex-col gap-1.5">
-                    {properties.length > 0 ? (
-                      properties.map((entry) => {
-                        const isFocused = focusedPropertyId === entry.id
-                        const hasTrack = Boolean(entry.track)
+            <motion.div
+              animate={panelBodyAnimation}
+              className="flex min-h-0 flex-1 overflow-hidden"
+              initial={false}
+              transition={
+                reduceMotion
+                  ? { duration: 0.12, ease: "easeOut" }
+                  : {
+                      damping: 34,
+                      delay: timelinePanelOpen ? 0.04 : 0,
+                      mass: 0.78,
+                      stiffness: 320,
+                      type: "spring",
+                    }
+              }
+            >
+              <div
+                aria-hidden={!timelinePanelOpen}
+                className={cn(
+                  "flex h-full min-h-0 flex-1 overflow-hidden",
+                  !timelinePanelOpen && "pointer-events-none"
+                )}
+              >
+                <div className="flex h-full min-h-0 shrink-0 basis-[180px] flex-col gap-4 overflow-y-auto border-r border-[var(--ds-border-divider)] px-3 pt-[10px] pb-3 [scrollbar-gutter:stable]">
+                  <div className="flex flex-col gap-[10px]">
+                    <Typography
+                      className="tracking-[0.08em] uppercase"
+                      tone="secondary"
+                      variant="overline"
+                    >
+                      Properties
+                    </Typography>
 
-                        return (
-                          <button
-                            className={cn(
-                              "flex min-h-8 cursor-pointer items-center gap-[10px] rounded-[10px] border border-transparent px-[10px] text-left transition-[background-color,border-color,color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:bg-white/4 hover:border-white/5 active:scale-[0.995]",
-                              isFocused && "border-white/8 bg-white/8",
-                              hasTrack
-                                ? "text-[var(--ds-color-text-primary)]"
-                                : "text-[var(--ds-color-text-muted)]"
-                            )}
-                            key={entry.id}
-                            onClick={() => {
-                              setFocusedPropertyId(entry.id)
+                    <div className="flex flex-col gap-1.5">
+                      {properties.length > 0 ? (
+                        properties.map((entry) => {
+                          const isFocused = focusedPropertyId === entry.id
+                          const hasTrack = Boolean(entry.track)
 
-                              if (entry.track) {
-                                setSelected(entry.track.id)
-                              } else {
-                                setSelected(null)
-                              }
-                            }}
-                            type="button"
-                          >
-                            <div className="flex min-w-0 items-center gap-2">
-                              <span
-                                aria-hidden="true"
-                                className="h-2 w-2 shrink-0 rounded-full shadow-[0_0_0_1px_rgb(255_255_255_/_0.08)]"
-                                style={{ backgroundColor: entry.color }}
-                              />
-                              <Typography
-                                as="span"
-                                className="min-w-0"
-                                tone={hasTrack ? "primary" : "muted"}
-                                variant="monoSm"
-                              >
-                                {entry.label}
-                              </Typography>
-                            </div>
-                            <span
-                              aria-hidden="true"
+                          return (
+                            <button
                               className={cn(
-                                "inline-flex h-[7px] w-[7px] shrink-0 rounded-full",
+                                "flex min-h-8 cursor-pointer items-center gap-[10px] rounded-[10px] border border-transparent px-[10px] text-left transition-[background-color,border-color,color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:bg-white/4 hover:border-white/5 active:scale-[0.995]",
+                                isFocused && "border-white/8 bg-white/8",
                                 hasTrack
-                                  ? "bg-[rgb(var(--timeline-track-rgb,122_162_255)_/_0.9)] shadow-[0_0_10px_rgb(var(--timeline-track-rgb,122_162_255)_/_0.35)]"
-                                  : "bg-white/14"
+                                  ? "text-[var(--ds-color-text-primary)]"
+                                  : "text-[var(--ds-color-text-muted)]"
                               )}
-                              style={
-                                hasTrack
-                                  ? ({
-                                      "--timeline-track-rgb": hexToRgbChannels(
-                                        entry.color
-                                      ),
-                                    } as CSSProperties)
-                                  : undefined
-                              }
-                            />
-                          </button>
-                        )
-                      })
-                    ) : (
-                      <Typography tone="muted" variant="caption">
-                        Select a layer to inspect its timeline properties.
-                      </Typography>
-                    )}
-                  </div>
-                </div>
-              </div>
+                              key={entry.id}
+                              onClick={() => {
+                                setFocusedPropertyId(entry.id)
 
-              <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-                <div
-                  className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
-                  onPointerDown={handleScrubStart}
-                  ref={scrubSurfaceRef}
-                >
-                  <div className="relative basis-[30px] border-b border-[var(--ds-border-divider)]">
-                    {tickPositions.minorTicks.map((tick) => (
-                      <span
-                        aria-hidden="true"
-                        className="absolute bottom-0 w-px bg-white/6 h-[10px]"
-                        key={`minor-${tick}`}
-                        style={{ left: `${(tick / duration) * 100}%` }}
-                      />
-                    ))}
-
-                    {tickPositions.majorTicks.map((tick) => (
-                      <span
-                        aria-hidden="true"
-                        className="absolute bottom-0 h-[18px] w-px bg-white/14"
-                        key={`major-${tick}`}
-                        style={{ left: `${(tick / duration) * 100}%` }}
-                      />
-                    ))}
-
-                    {tickPositions.majorTicks.map((tick) => (
-                      <Typography
-                        as="span"
-                        className="absolute top-1 left-0 -translate-x-1/2 whitespace-nowrap"
-                        key={`label-${tick}`}
-                        tone="muted"
-                        variant="monoXs"
-                        style={{ left: `${(tick / duration) * 100}%` }}
-                      >
-                        {tick.toFixed(1)}
-                      </Typography>
-                    ))}
-                  </div>
-
-                  <div className="relative flex min-h-0 flex-1 flex-col overflow-y-auto">
-                    {animatedProperties.length > 0 ? (
-                      animatedProperties.map((entry) => {
-                        const track = entry.track
-
-                        if (!track) {
-                          return null
-                        }
-
-                        const isFocused = focusedPropertyId === entry.id
-
-                        return (
-                          <div
-                            className={cn(
-                              "relative basis-[46px] border-b border-white/4 bg-[linear-gradient(90deg,rgb(255_255_255_/_0.02)_0%,rgb(255_255_255_/_0.015)_100%)]",
-                              isFocused &&
-                                "bg-[linear-gradient(90deg,rgb(var(--timeline-track-rgb,122_162_255)_/_0.12)_0%,rgb(var(--timeline-track-rgb,122_162_255)_/_0.03)_42%,rgb(255_255_255_/_0.02)_100%)]"
-                            )}
-                            key={track.id}
-                            style={
-                              {
-                                "--timeline-track-rgb": hexToRgbChannels(
-                                  entry.color
-                                ),
-                              } as CSSProperties
-                            }
-                          >
-                            <div
-                              className={cn(
-                                "absolute top-[22px] right-0 left-0 h-0.5 rounded-full bg-[rgb(var(--timeline-track-rgb,122_162_255)_/_0.18)]",
-                                !track.enabled && "opacity-40"
-                              )}
-                            />
-                            {track.keyframes.map((keyframe) => (
-                              <button
-                                aria-label={`Keyframe at ${formatSeconds(keyframe.time)}`}
-                                className="group absolute top-[11px] inline-flex h-[22px] w-[22px] -translate-x-1/2 items-center justify-center bg-transparent p-0 text-inherit cursor-grab active:cursor-grabbing"
-                                data-selected={
-                                  selectedKeyframeId === keyframe.id
+                                if (entry.track) {
+                                  setSelected(entry.track.id)
+                                } else {
+                                  setSelected(null)
                                 }
-                                key={keyframe.id}
-                                onPointerDown={(event) => {
-                                  event.preventDefault()
-                                  event.stopPropagation()
-                                  setFocusedPropertyId(entry.id)
-                                  setSelected(track.id, keyframe.id)
-                                  setDragState({
-                                    keyframeId: keyframe.id,
-                                    trackId: track.id,
-                                    type: "keyframe",
-                                  })
-                                }}
-                                style={{
-                                  left: `${(keyframe.time / duration) * 100}%`,
-                                }}
-                                type="button"
-                              >
+                              }}
+                              type="button"
+                            >
+                              <div className="flex min-w-0 items-center gap-2">
                                 <span
                                   aria-hidden="true"
-                                  className={cn(
-                                    "h-[11px] w-[11px] rounded-[4px] border border-white/40 bg-[rgb(var(--timeline-track-rgb,122_162_255)_/_0.95)] shadow-[0_4px_10px_rgb(0_0_0_/_0.22)] rotate-45 transition-[box-shadow,transform] duration-160 ease-[var(--ease-out-cubic)] group-hover:shadow-[0_0_0_1px_rgb(255_255_255_/_0.24),0_6px_14px_rgb(0_0_0_/_0.28)]",
-                                    selectedKeyframeId === keyframe.id &&
-                                      "bg-[rgb(var(--timeline-track-rgb,122_162_255)_/_1)] scale-[1.12]"
-                                  )}
+                                  className="h-2 w-2 shrink-0 rounded-full shadow-[0_0_0_1px_rgb(255_255_255_/_0.08)]"
+                                  style={{ backgroundColor: entry.color }}
                                 />
-                              </button>
-                            ))}
-                          </div>
-                        )
-                      })
-                    ) : (
-                      <div className="pointer-events-none absolute inset-x-0 top-[30px] flex items-start justify-center">
-                        <div className="flex max-w-[320px] flex-col gap-1.5 px-[18px] py-4 text-center">
-                          <Typography
-                            align="center"
-                            variant="caption"
-                            className="text-balance"
-                          >
-                            Add your first keyframe from the properties panel.
-                          </Typography>
-                        </div>
-                      </div>
-                    )}
-
-                    <div
-                      className={cn(
-                        "pointer-events-none absolute top-0 bottom-0 w-0 -translate-x-1/2",
-                        dragState?.type === "playhead" &&
-                          "[&_div[aria-hidden='true']]:cursor-grabbing"
+                                <Typography
+                                  as="span"
+                                  className="min-w-0"
+                                  tone={hasTrack ? "primary" : "muted"}
+                                  variant="monoSm"
+                                >
+                                  {entry.label}
+                                </Typography>
+                              </div>
+                              <span
+                                aria-hidden="true"
+                                className={cn(
+                                  "inline-flex h-[7px] w-[7px] shrink-0 rounded-full",
+                                  hasTrack
+                                    ? "bg-[rgb(var(--timeline-track-rgb,122_162_255)_/_0.9)] shadow-[0_0_10px_rgb(var(--timeline-track-rgb,122_162_255)_/_0.35)]"
+                                    : "bg-white/14"
+                                )}
+                                style={
+                                  hasTrack
+                                    ? ({
+                                        "--timeline-track-rgb":
+                                          hexToRgbChannels(entry.color),
+                                      } as CSSProperties)
+                                    : undefined
+                                }
+                              />
+                            </button>
+                          )
+                        })
+                      ) : (
+                        <Typography tone="muted" variant="caption">
+                          Select a layer to inspect its timeline properties.
+                        </Typography>
                       )}
-                      style={{ left: `${progress * 100}%` }}
-                    >
-                      <div
-                        aria-hidden="true"
-                        className="pointer-events-auto absolute top-0 left-1/2 h-[14px] w-[14px] -translate-x-1/2 cursor-grab rounded-[4px] bg-white/96 shadow-[0_8px_18px_rgb(0_0_0_/_0.28)] active:cursor-grabbing"
-                        onPointerDown={(event) => {
-                          event.preventDefault()
-                          event.stopPropagation()
-                          setDragState({ type: "playhead" })
-                        }}
-                      />
-                      <div
-                        aria-hidden="true"
-                        className="pointer-events-auto absolute top-3 bottom-0 left-1/2 w-px -translate-x-1/2 cursor-grab bg-[linear-gradient(180deg,rgb(255_255_255_/_0.95)_0%,rgb(255_255_255_/_0.62)_100%)] active:cursor-grabbing"
-                        onPointerDown={(event) => {
-                          event.preventDefault()
-                          event.stopPropagation()
-                          setDragState({ type: "playhead" })
-                        }}
-                      />
                     </div>
                   </div>
                 </div>
 
-                {selectedTrack ? (
+                <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
                   <div
-                    className="pointer-events-auto absolute right-3 bottom-3 z-4 inline-flex"
-                    onPointerDown={(event) => {
-                      event.stopPropagation()
-                    }}
+                    className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+                    onPointerDown={handleScrubStart}
+                    ref={scrubSurfaceRef}
                   >
-                    <BaseSelect.Root
-                      items={INTERPOLATION_OPTIONS}
-                      modal={false}
-                      onValueChange={(value) => {
-                        if (value) {
-                          setTrackInterpolation(
-                            selectedTrack.id,
-                            value as TimelineInterpolation
-                          )
-                        }
-                      }}
-                      value={selectedTrack.interpolation}
-                    >
-                      <BaseSelect.Trigger
-                        aria-label="Track easing"
-                        className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] text-[var(--ds-color-text-secondary)] transition-[background-color,border-color,color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:bg-white/8 hover:border-[var(--ds-border-hover)] active:scale-[0.96] data-[popup-open]:bg-white/8 data-[popup-open]:border-[var(--ds-border-hover)] data-[popup-open]:text-[var(--ds-color-text-primary)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--ds-border-active)]"
-                        onPointerDown={(event) => {
-                          event.stopPropagation()
-                        }}
-                      >
-                        <BezierCurveIcon size={14} weight="bold" />
-                      </BaseSelect.Trigger>
+                    <div className="relative basis-[30px] border-b border-[var(--ds-border-divider)]">
+                      {tickPositions.minorTicks.map((tick) => (
+                        <span
+                          aria-hidden="true"
+                          className="absolute bottom-0 w-px bg-white/6 h-[10px]"
+                          key={`minor-${tick}`}
+                          style={{
+                            left: `${(tick / effectiveDuration) * 100}%`,
+                          }}
+                        />
+                      ))}
 
-                      <BaseSelect.Portal>
-                        <BaseSelect.Positioner
-                          align="end"
-                          alignItemWithTrigger={false}
-                          className="z-50 outline-none"
-                          side="top"
-                          sideOffset={10}
+                      {tickPositions.majorTicks.map((tick) => (
+                        <span
+                          aria-hidden="true"
+                          className="absolute bottom-0 h-[18px] w-px bg-white/14"
+                          key={`major-${tick}`}
+                          style={{
+                            left: `${(tick / effectiveDuration) * 100}%`,
+                          }}
+                        />
+                      ))}
+
+                      {tickPositions.majorTicks.map((tick) => (
+                        <Typography
+                          as="span"
+                          className="absolute top-1 left-0 -translate-x-1/2 whitespace-nowrap"
+                          key={`label-${tick}`}
+                          tone="muted"
+                          variant="monoXs"
+                          style={{
+                            left: `${(tick / effectiveDuration) * 100}%`,
+                          }}
                         >
-                          <BaseSelect.Popup className="min-w-[132px] overflow-hidden rounded-[12px] border border-[var(--ds-border-panel)] bg-[rgb(18_18_22_/_0.82)] shadow-[var(--ds-shadow-panel-dark)] backdrop-blur-[24px]">
-                            <BaseSelect.List className="flex flex-col gap-0.5 p-1">
-                              {INTERPOLATION_OPTIONS.map((option) => (
-                                <BaseSelect.Item
-                                  className="cursor-pointer rounded-[var(--ds-radius-icon)] px-[10px] py-[6px] text-[var(--ds-color-text-secondary)] outline-none transition-[background-color,color] duration-140 ease-[var(--ease-out-cubic)] data-[highlighted]:bg-[var(--ds-color-surface-active)] data-[selected]:bg-[var(--ds-color-surface-active)] data-[highlighted]:text-[var(--ds-color-text-primary)] data-[selected]:text-[var(--ds-color-text-primary)]"
-                                  key={option.value}
-                                  value={option.value}
+                          {tick.toFixed(1)}
+                        </Typography>
+                      ))}
+                    </div>
+
+                    <div className="relative flex min-h-0 flex-1 flex-col overflow-y-auto">
+                      {animatedProperties.length > 0 ? (
+                        animatedProperties.map((entry) => {
+                          const track = entry.track
+
+                          if (!track) {
+                            return null
+                          }
+
+                          const isFocused = focusedPropertyId === entry.id
+
+                          return (
+                            <div
+                              className={cn(
+                                "relative basis-[46px] border-b border-white/4 bg-[linear-gradient(90deg,rgb(255_255_255_/_0.02)_0%,rgb(255_255_255_/_0.015)_100%)]",
+                                isFocused &&
+                                  "bg-[linear-gradient(90deg,rgb(var(--timeline-track-rgb,122_162_255)_/_0.12)_0%,rgb(var(--timeline-track-rgb,122_162_255)_/_0.03)_42%,rgb(255_255_255_/_0.02)_100%)]"
+                              )}
+                              key={track.id}
+                              style={
+                                {
+                                  "--timeline-track-rgb": hexToRgbChannels(
+                                    entry.color
+                                  ),
+                                } as CSSProperties
+                              }
+                            >
+                              <div
+                                className={cn(
+                                  "absolute top-[22px] right-0 left-0 h-0.5 rounded-full bg-[rgb(var(--timeline-track-rgb,122_162_255)_/_0.18)]",
+                                  !track.enabled && "opacity-40"
+                                )}
+                              />
+                              {track.keyframes.map((keyframe) => (
+                                <button
+                                  aria-label={`Keyframe at ${formatSeconds(keyframe.time)}`}
+                                  className="group absolute top-[11px] inline-flex h-[22px] w-[22px] -translate-x-1/2 items-center justify-center bg-transparent p-0 text-inherit cursor-grab active:cursor-grabbing"
+                                  data-selected={
+                                    selectedKeyframeId === keyframe.id
+                                  }
+                                  key={keyframe.id}
+                                  onPointerDown={(event) => {
+                                    event.preventDefault()
+                                    event.stopPropagation()
+                                    setFocusedPropertyId(entry.id)
+                                    setSelected(track.id, keyframe.id)
+                                    setDragState({
+                                      keyframeId: keyframe.id,
+                                      trackId: track.id,
+                                      type: "keyframe",
+                                    })
+                                  }}
+                                  style={{
+                                    left: `${(keyframe.time / effectiveDuration) * 100}%`,
+                                  }}
+                                  type="button"
                                 >
-                                  <BaseSelect.ItemText className="block font-[var(--ds-font-mono)] text-[11px] leading-[14px]">
-                                    {option.label}
-                                  </BaseSelect.ItemText>
-                                </BaseSelect.Item>
+                                  <span
+                                    aria-hidden="true"
+                                    className={cn(
+                                      "h-[11px] w-[11px] rounded-[4px] border border-white/40 bg-[rgb(var(--timeline-track-rgb,122_162_255)_/_0.95)] shadow-[0_4px_10px_rgb(0_0_0_/_0.22)] rotate-45 transition-[box-shadow,transform] duration-160 ease-[var(--ease-out-cubic)] group-hover:shadow-[0_0_0_1px_rgb(255_255_255_/_0.24),0_6px_14px_rgb(0_0_0_/_0.28)]",
+                                      selectedKeyframeId === keyframe.id &&
+                                        "bg-[rgb(var(--timeline-track-rgb,122_162_255)_/_1)] scale-[1.12]"
+                                    )}
+                                  />
+                                </button>
                               ))}
-                            </BaseSelect.List>
-                          </BaseSelect.Popup>
-                        </BaseSelect.Positioner>
-                      </BaseSelect.Portal>
-                    </BaseSelect.Root>
+                            </div>
+                          )
+                        })
+                      ) : (
+                        <div className="pointer-events-none absolute inset-x-0 top-[30px] flex items-start justify-center">
+                          <div className="flex max-w-[320px] flex-col gap-1.5 px-[18px] py-4 text-center">
+                            <Typography
+                              align="center"
+                              variant="caption"
+                              className="text-balance"
+                            >
+                              Add your first keyframe from the properties panel.
+                            </Typography>
+                          </div>
+                        </div>
+                      )}
+
+                      <div
+                        className={cn(
+                          "pointer-events-none absolute top-0 bottom-0 w-0 -translate-x-1/2",
+                          dragState?.type === "playhead" &&
+                            "[&_div[aria-hidden='true']]:cursor-grabbing"
+                        )}
+                        style={{ left: `${progress * 100}%` }}
+                      >
+                        <div
+                          aria-hidden="true"
+                          className="pointer-events-auto absolute top-0 left-1/2 h-[14px] w-[14px] -translate-x-1/2 cursor-grab rounded-[4px] bg-white/96 shadow-[0_8px_18px_rgb(0_0_0_/_0.28)] active:cursor-grabbing"
+                          onPointerDown={(event) => {
+                            event.preventDefault()
+                            event.stopPropagation()
+                            setDragState({ type: "playhead" })
+                          }}
+                        />
+                        <div
+                          aria-hidden="true"
+                          className="pointer-events-auto absolute top-3 bottom-0 left-1/2 w-px -translate-x-1/2 cursor-grab bg-[linear-gradient(180deg,rgb(255_255_255_/_0.95)_0%,rgb(255_255_255_/_0.62)_100%)] active:cursor-grabbing"
+                          onPointerDown={(event) => {
+                            event.preventDefault()
+                            event.stopPropagation()
+                            setDragState({ type: "playhead" })
+                          }}
+                        />
+                      </div>
+                    </div>
                   </div>
-                ) : null}
+
+                  {selectedTrack ? (
+                    <div
+                      className="pointer-events-auto absolute right-3 bottom-3 z-4 inline-flex"
+                      onPointerDown={(event) => {
+                        event.stopPropagation()
+                      }}
+                    >
+                      <BaseSelect.Root
+                        items={INTERPOLATION_OPTIONS}
+                        modal={false}
+                        onValueChange={(value) => {
+                          if (value) {
+                            setTrackInterpolation(
+                              selectedTrack.id,
+                              value as TimelineInterpolation
+                            )
+                          }
+                        }}
+                        value={selectedTrack.interpolation}
+                      >
+                        <BaseSelect.Trigger
+                          aria-label="Track easing"
+                          className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] text-[var(--ds-color-text-secondary)] transition-[background-color,border-color,color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:bg-white/8 hover:border-[var(--ds-border-hover)] active:scale-[0.96] data-[popup-open]:bg-white/8 data-[popup-open]:border-[var(--ds-border-hover)] data-[popup-open]:text-[var(--ds-color-text-primary)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--ds-border-active)]"
+                          onPointerDown={(event) => {
+                            event.stopPropagation()
+                          }}
+                        >
+                          <CommitIcon height={14} width={14} />
+                        </BaseSelect.Trigger>
+
+                        <BaseSelect.Portal>
+                          <BaseSelect.Positioner
+                            align="end"
+                            alignItemWithTrigger={false}
+                            className="z-50 outline-none"
+                            side="top"
+                            sideOffset={10}
+                          >
+                            <BaseSelect.Popup className="min-w-[132px] overflow-hidden rounded-[12px] border border-[var(--ds-border-panel)] bg-[rgb(18_18_22_/_0.82)] shadow-[var(--ds-shadow-panel-dark)] backdrop-blur-[24px]">
+                              <BaseSelect.List className="flex flex-col gap-0.5 p-1">
+                                {INTERPOLATION_OPTIONS.map((option) => (
+                                  <BaseSelect.Item
+                                    className="cursor-pointer rounded-[var(--ds-radius-icon)] px-[10px] py-[6px] text-[var(--ds-color-text-secondary)] outline-none transition-[background-color,color] duration-140 ease-[var(--ease-out-cubic)] data-[highlighted]:bg-[var(--ds-color-surface-active)] data-[selected]:bg-[var(--ds-color-surface-active)] data-[highlighted]:text-[var(--ds-color-text-primary)] data-[selected]:text-[var(--ds-color-text-primary)]"
+                                    key={option.value}
+                                    value={option.value}
+                                  >
+                                    <BaseSelect.ItemText className="block font-[var(--ds-font-mono)] text-[11px] leading-[14px]">
+                                      {option.label}
+                                    </BaseSelect.ItemText>
+                                  </BaseSelect.Item>
+                                ))}
+                              </BaseSelect.List>
+                            </BaseSelect.Popup>
+                          </BaseSelect.Positioner>
+                        </BaseSelect.Portal>
+                      </BaseSelect.Root>
+                    </div>
+                  ) : null}
+                </div>
               </div>
-            </div>
-          </motion.div>
-        </GlassPanel>
-      </motion.div>
-    </div>
+            </motion.div>
+          </GlassPanel>
+        </motion.div>
+      )}
+    </FloatingDesktopPanel>
   )
 }

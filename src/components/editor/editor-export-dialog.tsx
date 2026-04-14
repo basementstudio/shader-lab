@@ -2,11 +2,11 @@
 
 import {
   CopyIcon,
-  FileArrowDownIcon,
-  FolderIcon,
-  UploadSimpleIcon,
-  XIcon,
-} from "@phosphor-icons/react"
+  Cross2Icon,
+  DownloadIcon,
+  FileIcon,
+  UploadIcon,
+} from "@radix-ui/react-icons"
 import { AnimatePresence, motion, useReducedMotion } from "motion/react"
 import {
   type ChangeEvent,
@@ -713,7 +713,7 @@ export function EditorExportDialog({
                     onClick={() => onOpenChange(false)}
                     variant="default"
                   >
-                    <XIcon size={18} weight="bold" />
+                    <Cross2Icon height={18} width={18} />
                   </IconButton>
                 </div>
 
@@ -990,7 +990,7 @@ function ImageTabContent({
       </Typography>
 
       <Button disabled={isWorking} onClick={() => void onExport()}>
-        <FileArrowDownIcon size={16} weight="bold" />
+        <DownloadIcon height={16} width={16} />
         Export PNG
       </Button>
     </section>
@@ -1141,9 +1141,9 @@ function VideoTabContent({
         onClick={() => void onExport()}
       >
         {isWorking ? (
-          <XIcon size={16} weight="bold" />
+          <Cross2Icon height={16} width={16} />
         ) : (
-          <FileArrowDownIcon size={16} weight="bold" />
+          <DownloadIcon height={16} width={16} />
         )}
         {isWorking ? "Cancel Export" : `Export ${videoFormat.toUpperCase()}`}
       </Button>
@@ -1173,7 +1173,7 @@ function ProjectTabContent({
   return (
     <section className="flex flex-col gap-[14px]">
       <Button disabled={isWorking} onClick={() => void onExport()}>
-        <FileArrowDownIcon size={16} weight="bold" />
+        <DownloadIcon height={16} width={16} />
         Export .lab file
       </Button>
 
@@ -1202,7 +1202,7 @@ function ProjectTabContent({
           type="file"
         />
 
-        <UploadSimpleIcon size={20} weight="bold" />
+        <UploadIcon height={20} width={20} />
         <div>
           <Typography className="leading-4" variant="label">
             Import .lab configuration
@@ -1220,7 +1220,7 @@ function ProjectTabContent({
           }}
           variant="active"
         >
-          <FolderIcon size={20} />
+          <FileIcon height={20} width={20} />
         </IconButton>
       </label>
     </section>
@@ -1272,7 +1272,7 @@ function ShaderTabContent({
       </FieldLabel>
 
       <Button disabled={!canCopy || isCopying} onClick={() => void onCopy()}>
-        <CopyIcon size={16} weight="bold" />
+        <CopyIcon height={16} width={16} />
         {isCopying ? "Copying..." : "Copy snippet"}
       </Button>
     </section>

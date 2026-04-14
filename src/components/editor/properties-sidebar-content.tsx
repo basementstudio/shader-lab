@@ -1,6 +1,6 @@
 "use client"
 
-import { TextAlignRightIcon } from "@phosphor-icons/react"
+import { TextAlignRightIcon } from "@radix-ui/react-icons"
 import { AnimatePresence, motion } from "motion/react"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -217,7 +217,7 @@ function CustomShaderSection({
             title="Format sketch source"
             variant="ghost"
           >
-            <TextAlignRightIcon size={14} weight="regular" />
+            <TextAlignRightIcon height={14} width={14} />
           </IconButton>
         </div>
 
@@ -387,7 +387,7 @@ export function SelectedLayerPropertiesContent({
         ) : null}
       </div>
 
-      <div className="flex min-h-0 max-h-[min(62vh,620px)] flex-col gap-0 overflow-y-auto">
+      <div className="flex min-h-0 max-h-[min(62vh,620px)] flex-col gap-0 overflow-x-hidden overflow-y-auto">
         <section className="flex flex-col gap-3 border-t border-[var(--ds-border-divider)] px-4 pt-[14px] pb-4 first:border-t-0">
           <Typography className="uppercase" tone="secondary" variant="overline">
             General

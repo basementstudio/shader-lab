@@ -1,8 +1,9 @@
 "use client"
 
-import { GearSixIcon } from "@phosphor-icons/react"
+import { DragHandleDots2Icon, GearIcon } from "@radix-ui/react-icons"
 import { AnimatePresence, motion, useReducedMotion } from "motion/react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { FloatingDesktopPanel } from "@/components/editor/floating-desktop-panel"
 import { GlassPanel } from "@/components/ui/glass-panel"
 import { IconButton } from "@/components/ui/icon-button"
 import { cn } from "@/lib/cn"
@@ -179,7 +180,12 @@ export function PropertiesSidebar() {
           ? evaluatedSelectedLayer.properties.saturation
           : selectedLayer.saturation),
     }
-  }, [evaluatedSelectedLayer, livePreviewOverrides, selectedLayer, timelinePanelOpen])
+  }, [
+    evaluatedSelectedLayer,
+    livePreviewOverrides,
+    selectedLayer,
+    timelinePanelOpen,
+  ])
 
   const heightTransition = reduceMotion
     ? { duration: 0.12, ease: "easeOut" as const }
@@ -282,7 +288,12 @@ export function PropertiesSidebar() {
     }
 
     resetLivePreviewOverrides()
-  }, [currentTime, resetLivePreviewOverrides, timelineAutoKey, timelinePanelOpen])
+  }, [
+    currentTime,
+    resetLivePreviewOverrides,
+    timelineAutoKey,
+    timelinePanelOpen,
+  ])
 
   const handleToggleParamGroup = useCallback((groupId: string) => {
     setExpandedParamGroups((current) => ({
@@ -545,65 +556,132 @@ export function PropertiesSidebar() {
   }
 
   return (
-    <aside
-      className={cn(
-        "pointer-events-none transition-[opacity,translate] duration-[220ms,260ms] ease-[ease-out,cubic-bezier(0.22,1,0.36,1)]",
-        "max-[899px]:fixed max-[899px]:right-3 max-[899px]:bottom-[88px] max-[899px]:left-3 max-[899px]:z-45 max-[899px]:translate-y-0",
-        "min-[900px]:absolute min-[900px]:top-[76px] min-[900px]:right-4 min-[900px]:z-20 min-[900px]:w-[300px] min-[900px]:translate-x-0",
-        !mobilePanelVisible && "max-[899px]:translate-y-3 max-[899px]:opacity-0",
-        !rightSidebarVisible && "min-[900px]:translate-x-[18px] min-[900px]:opacity-0"
-      )}
-    >
+    <>
+      <aside
+        className={cn(
+          "pointer-events-none fixed right-3 bottom-[88px] left-3 z-45 translate-y-0 transition-[opacity,translate] duration-[220ms,260ms] ease-[ease-out,cubic-bezier(0.22,1,0.36,1)] min-[900px]:hidden",
+          !mobilePanelVisible && "translate-y-3 opacity-0"
+        )}
+      >
+        <div
+          aria-hidden="true"
+          className="pointer-events-none invisible absolute top-0 left-0 -z-1 w-full"
+        >
+          <div className="w-full" ref={bindMeasuredView}>
+            {renderInvisibleContent()}
+          </div>
+        </div>
+
+        <motion.div
+          className={cn(
+            "pointer-events-auto overflow-hidden rounded-[var(--ds-radius-panel)] max-h-[min(60vh,520px)] w-full",
+            !mobilePanelVisible && "pointer-events-none"
+          )}
+          initial={false}
+          {...(panelHeight === null
+            ? {}
+            : { animate: { height: panelHeight } })}
+          transition={heightTransition}
+        >
+          <GlassPanel
+            className="flex h-full min-h-0 flex-col gap-0 p-0"
+            variant="panel"
+          >
+            <div className="flex items-center justify-end border-b border-[var(--ds-border-divider)] px-3 py-1.5">
+              <IconButton
+                aria-label={
+                  sidebarView === "scene"
+                    ? "Layer properties"
+                    : "Scene settings"
+                }
+                className={cn(
+                  "h-7 w-7",
+                  sidebarView === "scene" && "bg-white/10"
+                )}
+                onClick={() =>
+                  setSidebarView(
+                    sidebarView === "scene" ? "properties" : "scene"
+                  )
+                }
+                variant="default"
+              >
+                <GearIcon height={16} width={16} />
+              </IconButton>
+            </div>
+            <AnimatePresence initial={false} mode="wait">
+              {renderAnimatedContent()}
+            </AnimatePresence>
+          </GlassPanel>
+        </motion.div>
+      </aside>
+
       <div
         aria-hidden="true"
-        className="pointer-events-none invisible absolute top-0 left-0 -z-1 w-full"
+        className="pointer-events-none invisible absolute top-0 left-0 -z-1 hidden w-full min-[900px]:block"
       >
         <div className="w-full" ref={bindMeasuredView}>
           {renderInvisibleContent()}
         </div>
       </div>
 
-      <motion.div
-        className={cn(
-          "pointer-events-auto overflow-hidden rounded-[var(--ds-radius-panel)]",
-          "max-[899px]:max-h-[min(60vh,520px)] max-[899px]:w-full",
-          "min-[900px]:w-[300px]",
-          !mobilePanelVisible && "max-[899px]:pointer-events-none",
-          !rightSidebarVisible && "min-[900px]:pointer-events-none"
-        )}
-        initial={false}
-        {...(panelHeight === null ? {} : { animate: { height: panelHeight } })}
-        transition={heightTransition}
-      >
-        <GlassPanel
-          className="flex h-full min-h-0 flex-col gap-0 p-0"
-          variant="panel"
+      {rightSidebarVisible ? (
+        <FloatingDesktopPanel
+          id="properties"
+          resolvePosition={({ panelWidth, viewportWidth }) => ({
+            left: viewportWidth - panelWidth - 16,
+            top: 76,
+          })}
         >
-          <div className="flex items-center justify-end border-b border-[var(--ds-border-divider)] px-3 py-1.5">
-            <IconButton
-              aria-label={
-                sidebarView === "scene" ? "Layer properties" : "Scene settings"
-              }
-              className={cn(
-                "h-7 w-7",
-                sidebarView === "scene" && "bg-white/10"
-              )}
-              onClick={() =>
-                setSidebarView(sidebarView === "scene" ? "properties" : "scene")
-              }
-              variant="default"
+          {({ dragHandleProps, suppressResize: _suppressResize }) => (
+            <motion.div
+              className="pointer-events-auto overflow-hidden rounded-[var(--ds-radius-panel)] w-[300px]"
+              initial={false}
+              {...(panelHeight === null
+                ? {}
+                : { animate: { height: panelHeight } })}
+              transition={heightTransition}
             >
-              <GearSixIcon
-                size={16}
-                weight={sidebarView === "scene" ? "fill" : "bold"}
-              />
-            </IconButton>
-          </div>
-          <AnimatePresence initial={false} mode="wait">
-            {renderAnimatedContent()}
-          </AnimatePresence>
-        </GlassPanel>
-      </motion.div>
-    </aside>
+              <GlassPanel
+                className="flex h-full min-h-0 flex-col gap-0 p-0"
+                variant="panel"
+              >
+                <div className="flex items-center justify-between border-b border-[var(--ds-border-divider)] px-3 py-1.5">
+                  <IconButton
+                    aria-label="Move properties panel"
+                    className="h-7 w-7 cursor-grab text-[var(--ds-color-text-muted)] active:cursor-grabbing"
+                    variant="ghost"
+                    {...dragHandleProps}
+                  >
+                    <DragHandleDots2Icon height={14} width={14} />
+                  </IconButton>
+                  <IconButton
+                    aria-label={
+                      sidebarView === "scene"
+                        ? "Layer properties"
+                        : "Scene settings"
+                    }
+                    className={cn(
+                      "h-7 w-7",
+                      sidebarView === "scene" && "bg-white/10"
+                    )}
+                    onClick={() =>
+                      setSidebarView(
+                        sidebarView === "scene" ? "properties" : "scene"
+                      )
+                    }
+                    variant="default"
+                  >
+                    <GearIcon height={16} width={16} />
+                  </IconButton>
+                </div>
+                <AnimatePresence initial={false} mode="wait">
+                  {renderAnimatedContent()}
+                </AnimatePresence>
+              </GlassPanel>
+            </motion.div>
+          )}
+        </FloatingDesktopPanel>
+      ) : null}
+    </>
   )
 }

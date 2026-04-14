@@ -164,7 +164,7 @@ export function SceneConfigContent() {
         </Typography>
       </div>
 
-      <div className="flex min-h-0 max-h-[min(62vh,620px)] flex-col gap-0 overflow-y-auto">
+      <div className="flex min-h-0 max-h-[min(62vh,620px)] flex-col gap-0 overflow-x-hidden overflow-y-auto">
         {/* Composition */}
         <Section title="Composition">
           <Row label="Aspect">

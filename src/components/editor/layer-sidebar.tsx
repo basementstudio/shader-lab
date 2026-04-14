@@ -329,7 +329,7 @@ const LayerListItem = memo(function LayerListItem({
       drag={layer.locked || isFloatingPanelDragging ? false : "y"}
       dragControls={dragControls}
       dragListener={false}
-      layout={isFloatingPanelDragging ? false : "position"}
+      layout="position"
       style={{ zIndex: 0 }}
       value={layer}
     >

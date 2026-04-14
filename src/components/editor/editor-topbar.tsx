@@ -4,8 +4,10 @@ import {
   ArrowClockwiseIcon,
   ArrowCounterClockwiseIcon,
   DownloadSimpleIcon,
+  GithubLogoIcon,
   MinusIcon,
   PlusIcon,
+  StarIcon,
 } from "@phosphor-icons/react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { GlassPanel } from "@/components/ui/glass-panel"
@@ -28,6 +30,29 @@ import {
 import { EditorExportDialog } from "./editor-export-dialog"
 
 const HISTORY_COMMIT_DEBOUNCE_MS = 220
+const GITHUB_REPO_URL = "https://github.com/basementstudio/shader-lab"
+
+function GitHubStarLink({ mobile = false }: { mobile?: boolean }) {
+  return (
+    <a
+      aria-label="Star Shader Lab on GitHub"
+      className={
+        mobile
+          ? "inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-[var(--ds-radius-control)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-3 text-[var(--ds-color-text-secondary)] transition-[background-color,border-color,color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:border-[var(--ds-border-hover)] hover:bg-white/8 hover:text-[var(--ds-color-text-primary)] active:scale-[0.98]"
+          : "inline-flex h-7 items-center justify-center gap-1.5 rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-3 text-[var(--ds-color-text-secondary)] transition-[background-color,border-color,color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:border-[var(--ds-border-hover)] hover:bg-white/8 hover:text-[var(--ds-color-text-primary)] active:scale-[0.98]"
+      }
+      href={GITHUB_REPO_URL}
+      rel="noreferrer"
+      target="_blank"
+    >
+      <GithubLogoIcon size={14} weight="bold" />
+      <StarIcon size={12} weight="fill" />
+      <Typography as="span" tone="secondary" variant="monoSm">
+        Star
+      </Typography>
+    </a>
+  )
+}
 
 export function EditorTopBar() {
   const immersiveCanvas = useEditorStore((state) => state.immersiveCanvas)
@@ -303,6 +328,7 @@ export function EditorTopBar() {
             >
               <DownloadSimpleIcon size={16} weight="bold" />
             </IconButton>
+            <GitHubStarLink />
           </div>
         </GlassPanel>
       </div>
@@ -372,6 +398,7 @@ export function EditorTopBar() {
               >
                 <DownloadSimpleIcon size={16} weight="bold" />
               </IconButton>
+              <GitHubStarLink mobile />
             </div>
           </GlassPanel>
         </div>

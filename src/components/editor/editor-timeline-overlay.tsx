@@ -721,7 +721,7 @@ export function EditorTimelineOverlay() {
         top: Math.max(12, viewportHeight - panelHeight - 12),
       })}
     >
-      {() => (
+      {({ suppressResize: _suppressResize }) => (
         <motion.div
           animate={
             reduceMotion

@@ -19,6 +19,7 @@ type FloatingDesktopPanelProps = {
       "data-floating-drag-handle": "true"
       onPointerDownCapture: (event: ReactPointerEvent<HTMLElement>) => void
     }
+    suppressResize: (suppress: boolean) => void
   }) => ReactNode
   id: FloatingPanelId
   resolvePosition: (args: {
@@ -74,6 +75,7 @@ export function FloatingDesktopPanel({
   id,
   resolvePosition,
 }: FloatingDesktopPanelProps) {
+  const suppressResize = () => {}
   const panelRef = useRef<HTMLDivElement | null>(null)
   const dragStateRef = useRef<{
     pointerId: number
@@ -307,7 +309,7 @@ export function FloatingDesktopPanel({
       }}
     >
       <div className="pointer-events-auto" ref={panelRef} style={panelStyle}>
-        {children({ dragHandleProps })}
+        {children({ dragHandleProps, suppressResize })}
       </div>
     </div>
   )

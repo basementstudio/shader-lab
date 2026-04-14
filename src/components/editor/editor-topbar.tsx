@@ -10,6 +10,7 @@ import {
   PlusIcon,
   StarIcon,
 } from "@phosphor-icons/react"
+import { AnimatePresence, motion } from "motion/react"
 import Link from "next/link"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { FloatingDesktopPanel } from "@/components/editor/floating-desktop-panel"
@@ -346,17 +347,30 @@ export function EditorTopBar() {
                 aria-hidden="true"
                 className="block h-5 w-px rounded-full bg-[var(--ds-border-divider)]"
               />
-              {hasMovedFloatingPanels ? (
-                <button
-                  className="inline-flex h-7 cursor-pointer items-center justify-center rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-[10px] transition-[background-color,border-color,color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:bg-white/8 hover:border-[var(--ds-border-hover)] active:scale-[0.98]"
-                  onClick={resetFloatingPanels}
-                  type="button"
-                >
-                  <Typography as="span" tone="secondary" variant="monoSm">
-                    Reset layout
-                  </Typography>
-                </button>
-              ) : null}
+              <AnimatePresence initial={false}>
+                {hasMovedFloatingPanels ? (
+                  <motion.div
+                    animate={{ opacity: 1, width: "auto" }}
+                    className="overflow-hidden"
+                    exit={{ opacity: 0, width: 0 }}
+                    initial={{ opacity: 0, width: 0 }}
+                    transition={{
+                      duration: 0.2,
+                      ease: [0.32, 0.72, 0, 1],
+                    }}
+                  >
+                    <button
+                      className="inline-flex h-7 cursor-pointer items-center justify-center whitespace-nowrap rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-[10px] transition-[background-color,border-color,color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:bg-white/8 hover:border-[var(--ds-border-hover)] active:scale-[0.98]"
+                      onClick={resetFloatingPanels}
+                      type="button"
+                    >
+                      <Typography as="span" tone="secondary" variant="monoSm">
+                        Reset layout
+                      </Typography>
+                    </button>
+                  </motion.div>
+                ) : null}
+              </AnimatePresence>
               <IconButton
                 aria-label="Export"
                 className="h-7 w-7 disabled:opacity-45"

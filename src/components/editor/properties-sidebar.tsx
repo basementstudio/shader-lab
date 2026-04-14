@@ -635,7 +635,7 @@ export function PropertiesSidebar() {
             top: 76,
           })}
         >
-          {({ dragHandleProps }) => (
+          {({ dragHandleProps, suppressResize: _suppressResize }) => (
             <motion.div
               className="pointer-events-auto overflow-hidden rounded-[var(--ds-radius-panel)] w-[300px]"
               initial={false}

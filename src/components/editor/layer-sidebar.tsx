@@ -774,7 +774,7 @@ export function LayerSidebar() {
             top: 76,
           })}
         >
-          {({ dragHandleProps }) => (
+          {({ dragHandleProps, suppressResize: _suppressResize }) => (
             <GlassPanel
               data-layer-sidebar-panel="true"
               className="relative flex w-[284px] flex-col gap-[var(--ds-space-1)] p-0"

@@ -444,7 +444,7 @@ export function LayerSidebar() {
   const [layerActionSelectKeys, setLayerActionSelectKeys] = useState<
     Record<string, number>
   >({})
-  const [freezeDesktopLayerList, setFreezeDesktopLayerList] = useState(false)
+  const [freezeDesktopLayerList, setFreezeDesktopLayerList] = useState(true)
 
   const layers = useLayerStore((state) => state.layers)
   const hoveredLayerId = useLayerStore((state) => state.hoveredLayerId)
@@ -481,6 +481,22 @@ export function LayerSidebar() {
   const mobilePanelVisible = mobilePanel === "layers"
   const shouldFreezeDesktopLayerList =
     isFloatingPanelDragging || freezeDesktopLayerList
+
+  useEffect(() => {
+    let frameOne = 0
+    let frameTwo = 0
+
+    frameOne = window.requestAnimationFrame(() => {
+      frameTwo = window.requestAnimationFrame(() => {
+        setFreezeDesktopLayerList(false)
+      })
+    })
+
+    return () => {
+      window.cancelAnimationFrame(frameOne)
+      window.cancelAnimationFrame(frameTwo)
+    }
+  }, [])
 
   useEffect(() => {
     if (floatingPanelsResetToken === 0) {
@@ -691,6 +707,7 @@ export function LayerSidebar() {
         )}
       >
         <GlassPanel
+          data-layer-sidebar-panel="true"
           className={cn(
             "pointer-events-auto relative flex flex-col gap-[var(--ds-space-1)] p-0 max-h-[min(56vh,420px)] w-full",
             !mobilePanelVisible && "pointer-events-none"
@@ -757,11 +774,15 @@ export function LayerSidebar() {
 
       {leftSidebarVisible ? (
         <FloatingDesktopPanel
-          desktopContainerClassName="pointer-events-none absolute top-[76px] left-4 z-20 hidden min-[900px]:block"
           id="layers"
+          resolvePosition={() => ({
+            left: 16,
+            top: 76,
+          })}
         >
           {({ dragHandleProps }) => (
             <GlassPanel
+              data-layer-sidebar-panel="true"
               className="relative flex w-[284px] flex-col gap-[var(--ds-space-1)] p-0"
               variant="panel"
             >

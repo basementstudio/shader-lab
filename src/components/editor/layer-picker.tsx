@@ -397,21 +397,36 @@ export function LayerPicker({ className, onSelect }: LayerPickerProps) {
     }
 
     const rect = triggerRef.current.getBoundingClientRect()
+    const sidebarPanel = triggerRef.current.closest<HTMLElement>(
+      "[data-layer-sidebar-panel='true']"
+    )
+    const sidebarRect = sidebarPanel?.getBoundingClientRect() ?? null
+    const viewportPadding = 16
+    const panelGap = 8
 
     if (window.innerWidth < 900) {
       setPanelPosition({
-        left: 16,
-        top: 16,
+        left: viewportPadding,
+        top: viewportPadding,
       })
       return
     }
 
-    const sidebarRight = 16 + 284 + 8
-    const left = Math.min(sidebarRight, window.innerWidth - 560 - 16)
+    const panelWidth = Math.min(560, window.innerWidth - viewportPadding * 2)
+    const panelHeight =
+      panelRef.current?.getBoundingClientRect().height ??
+      Math.min(window.innerHeight * 0.52, 520)
+    const anchorRight = sidebarRect?.right ?? rect.right
+    const preferredLeft = anchorRight + panelGap
+    const maxLeft = window.innerWidth - panelWidth - viewportPadding
+    const left = Math.max(viewportPadding, Math.min(preferredLeft, maxLeft))
+    const preferredTop = sidebarRect?.top ?? rect.top
+    const maxTop = window.innerHeight - panelHeight - viewportPadding
+    const top = Math.max(viewportPadding, Math.min(preferredTop, maxTop))
 
     setPanelPosition({
       left,
-      top: rect.top,
+      top,
     })
   }, [])
 

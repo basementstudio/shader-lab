@@ -629,8 +629,11 @@ export function PropertiesSidebar() {
 
       {rightSidebarVisible ? (
         <FloatingDesktopPanel
-          desktopContainerClassName="pointer-events-none absolute top-[76px] right-4 z-20 hidden min-[900px]:block"
           id="properties"
+          resolvePosition={({ panelWidth, viewportWidth }) => ({
+            left: viewportWidth - panelWidth - 16,
+            top: 76,
+          })}
         >
           {({ dragHandleProps }) => (
             <motion.div

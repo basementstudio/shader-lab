@@ -20,8 +20,16 @@ type FloatingDesktopPanelProps = {
       onPointerDownCapture: (event: ReactPointerEvent<HTMLElement>) => void
     }
   }) => ReactNode
-  desktopContainerClassName: string
   id: FloatingPanelId
+  resolvePosition: (args: {
+    panelHeight: number
+    panelWidth: number
+    viewportHeight: number
+    viewportWidth: number
+  }) => {
+    left: number
+    top: number
+  }
 }
 
 const VIEWPORT_MARGIN = 12
@@ -63,8 +71,8 @@ function getViewportSize() {
 
 export function FloatingDesktopPanel({
   children,
-  desktopContainerClassName,
   id,
+  resolvePosition,
 }: FloatingDesktopPanelProps) {
   const panelRef = useRef<HTMLDivElement | null>(null)
   const dragStateRef = useRef<{
@@ -74,11 +82,7 @@ export function FloatingDesktopPanel({
     startPointerX: number
     startPointerY: number
   } | null>(null)
-  const [viewportSize, setViewportSize] = useState(() =>
-    typeof window === "undefined" ? { height: 0, width: 0 } : getViewportSize()
-  )
-  const panelOffsetRef = useRef({ x: 0, y: 0 })
-  const originPositionRef = useRef({ left: 0, top: 0 })
+  const [viewportSize, setViewportSize] = useState({ height: 0, width: 0 })
   const [panelSize, setPanelSize] = useState({ height: 0, width: 0 })
   const panelState = useEditorStore((state) => state.floatingPanels[id])
   const focusFloatingPanel = useEditorStore((state) => state.focusFloatingPanel)
@@ -88,40 +92,29 @@ export function FloatingDesktopPanel({
   const setFloatingPanelOffset = useEditorStore(
     (state) => state.setFloatingPanelOffset
   )
-  const isReady =
-    viewportSize.width > 0 && panelSize.width > 0 && panelSize.height > 0
-
-  panelOffsetRef.current = {
-    x: panelState.x,
-    y: panelState.y,
-  }
-
-  useEffect(() => {
-    const updateViewportSize = () => {
-      setViewportSize(getViewportSize())
-    }
-
-    updateViewportSize()
-    window.addEventListener("resize", updateViewportSize)
-
-    return () => {
-      window.removeEventListener("resize", updateViewportSize)
-    }
-  }, [])
 
   useLayoutEffect(() => {
+    const updateViewportSize = () => {
+      setViewportSize((current) => {
+        const next = getViewportSize()
+
+        if (current.width === next.width && current.height === next.height) {
+          return current
+        }
+
+        return next
+      })
+    }
+
     const panel = panelRef.current
 
     if (!panel) {
       return
     }
 
-    const updatePanelMetrics = () => {
+    const updatePanelSize = () => {
       const rect = panel.getBoundingClientRect()
-      originPositionRef.current = {
-        left: rect.left - panelOffsetRef.current.x,
-        top: rect.top - panelOffsetRef.current.y,
-      }
+
       setPanelSize((current) => {
         const next = {
           height: rect.height,
@@ -139,38 +132,59 @@ export function FloatingDesktopPanel({
       })
     }
 
-    updatePanelMetrics()
+    updateViewportSize()
+    updatePanelSize()
 
     const resizeObserver = new ResizeObserver(() => {
-      updatePanelMetrics()
+      updatePanelSize()
     })
 
     resizeObserver.observe(panel)
-    window.addEventListener("resize", updatePanelMetrics)
+    window.addEventListener("resize", updateViewportSize)
+    window.addEventListener("resize", updatePanelSize)
 
     return () => {
       resizeObserver.disconnect()
-      window.removeEventListener("resize", updatePanelMetrics)
+      window.removeEventListener("resize", updateViewportSize)
+      window.removeEventListener("resize", updatePanelSize)
     }
   }, [])
 
-  const baseLeft = originPositionRef.current.left
-  const baseTop = originPositionRef.current.top
+  const isReady =
+    viewportSize.width > 0 && panelSize.width > 0 && panelSize.height > 0
 
-  const effectiveOffsetX = Math.min(
-    Math.max(panelState.x, VIEWPORT_MARGIN - baseLeft),
-    Math.max(
-      viewportSize.width - panelSize.width - VIEWPORT_MARGIN - baseLeft,
-      VIEWPORT_MARGIN - baseLeft
-    )
+  const basePosition = isReady
+    ? resolvePosition({
+        panelHeight: panelSize.height,
+        panelWidth: panelSize.width,
+        viewportHeight: viewportSize.height,
+        viewportWidth: viewportSize.width,
+      })
+    : { left: 0, top: 0 }
+
+  const minLeft = VIEWPORT_MARGIN
+  const maxLeft = Math.max(
+    viewportSize.width - panelSize.width - VIEWPORT_MARGIN,
+    VIEWPORT_MARGIN
   )
-  const effectiveOffsetY = Math.min(
-    Math.max(panelState.y, VIEWPORT_MARGIN - baseTop),
-    Math.max(
-      viewportSize.height - panelSize.height - VIEWPORT_MARGIN - baseTop,
-      VIEWPORT_MARGIN - baseTop
-    )
+  const minTop = VIEWPORT_MARGIN
+  const maxTop = Math.max(
+    viewportSize.height - panelSize.height - VIEWPORT_MARGIN,
+    VIEWPORT_MARGIN
   )
+
+  const effectiveOffsetX = isReady
+    ? Math.min(
+        Math.max(panelState.x, minLeft - basePosition.left),
+        maxLeft - basePosition.left
+      )
+    : 0
+  const effectiveOffsetY = isReady
+    ? Math.min(
+        Math.max(panelState.y, minTop - basePosition.top),
+        maxTop - basePosition.top
+      )
+    : 0
 
   useEffect(() => {
     return () => {
@@ -210,25 +224,20 @@ export function FloatingDesktopPanel({
           return
         }
 
-        const candidateLeft =
+        const candidateOffsetX =
           currentDragState.startOffsetX +
           (moveEvent.clientX - currentDragState.startPointerX)
-        const candidateTop =
+        const candidateOffsetY =
           currentDragState.startOffsetY +
           (moveEvent.clientY - currentDragState.startPointerY)
+
         const clampedOffsetX = Math.min(
-          Math.max(candidateLeft, VIEWPORT_MARGIN - baseLeft),
-          Math.max(
-            viewportSize.width - panelSize.width - VIEWPORT_MARGIN - baseLeft,
-            VIEWPORT_MARGIN - baseLeft
-          )
+          Math.max(candidateOffsetX, minLeft - basePosition.left),
+          maxLeft - basePosition.left
         )
         const clampedOffsetY = Math.min(
-          Math.max(candidateTop, VIEWPORT_MARGIN - baseTop),
-          Math.max(
-            viewportSize.height - panelSize.height - VIEWPORT_MARGIN - baseTop,
-            VIEWPORT_MARGIN - baseTop
-          )
+          Math.max(candidateOffsetY, minTop - basePosition.top),
+          maxTop - basePosition.top
         )
 
         setFloatingPanelOffset(id, clampedOffsetX, clampedOffsetY)
@@ -256,25 +265,24 @@ export function FloatingDesktopPanel({
     },
   }
 
-  const outerStyle = {
-    zIndex: 20 + panelState.z,
-  } as CSSProperties
-
   const panelStyle = {
+    left: basePosition.left,
     opacity: isReady ? 1 : 0,
     pointerEvents: isReady ? undefined : "none",
+    position: "fixed",
+    top: basePosition.top,
     transform: `translate3d(${effectiveOffsetX}px, ${effectiveOffsetY}px, 0)`,
     transition: isReady ? "opacity 120ms ease-out" : undefined,
     visibility: isReady ? "visible" : "hidden",
+    zIndex: 20 + panelState.z,
   } as CSSProperties
 
   return (
     <div
-      className={desktopContainerClassName}
+      className="pointer-events-none fixed hidden min-[900px]:block"
       onPointerDownCapture={() => {
         focusFloatingPanel(id)
       }}
-      style={outerStyle}
     >
       <div className="pointer-events-auto" ref={panelRef} style={panelStyle}>
         {children({ dragHandleProps })}

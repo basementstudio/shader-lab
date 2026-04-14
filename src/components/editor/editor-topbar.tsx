@@ -274,8 +274,11 @@ export function EditorTopBar() {
   return (
     <>
       <FloatingDesktopPanel
-        desktopContainerClassName="pointer-events-none fixed top-4 right-0 left-0 z-45 hidden justify-center max-[899px]:hidden min-[900px]:flex"
         id="topbar"
+        resolvePosition={({ panelWidth, viewportWidth }) => ({
+          left: Math.max(16, (viewportWidth - panelWidth) / 2),
+          top: 16,
+        })}
       >
         {({ dragHandleProps }) => (
           <GlassPanel

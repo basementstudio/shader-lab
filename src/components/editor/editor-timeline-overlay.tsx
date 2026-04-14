@@ -6,7 +6,6 @@ import {
   CaretDownIcon,
   CaretUpIcon,
   CircleIcon,
-  DotsSixVerticalIcon,
   PauseIcon,
   PlayIcon,
   StopIcon,
@@ -711,10 +710,18 @@ export function EditorTimelineOverlay() {
 
   return (
     <FloatingDesktopPanel
-      desktopContainerClassName="pointer-events-none fixed right-0 bottom-3 left-0 z-35 hidden justify-center max-[899px]:hidden min-[900px]:flex"
       id="timeline"
+      resolvePosition={({
+        panelHeight,
+        panelWidth,
+        viewportHeight,
+        viewportWidth,
+      }) => ({
+        left: Math.max(12, (viewportWidth - panelWidth) / 2),
+        top: Math.max(12, viewportHeight - panelHeight - 12),
+      })}
     >
-      {({ dragHandleProps }) => (
+      {() => (
         <motion.div
           animate={
             reduceMotion
@@ -740,18 +747,10 @@ export function EditorTimelineOverlay() {
           >
             <div
               className={cn(
-                "flex items-center gap-2 border-b border-[var(--ds-border-divider)] p-2 transition-[border-color] duration-160 ease-[var(--ease-out-cubic)]",
+                "border-b border-[var(--ds-border-divider)] p-2 transition-[border-color] duration-160 ease-[var(--ease-out-cubic)]",
                 !timelinePanelOpen && "border-b-transparent"
               )}
             >
-              <IconButton
-                aria-label="Move timeline panel"
-                className="h-7 w-7 shrink-0 cursor-grab text-[var(--ds-color-text-muted)] active:cursor-grabbing"
-                variant="ghost"
-                {...dragHandleProps}
-              >
-                <DotsSixVerticalIcon size={14} weight="bold" />
-              </IconButton>
               <TimelineTransport
                 autoKey={timelineAutoKey}
                 currentTime={currentTime}

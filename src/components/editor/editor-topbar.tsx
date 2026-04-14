@@ -3,13 +3,16 @@
 import {
   ArrowClockwiseIcon,
   ArrowCounterClockwiseIcon,
+  DotsSixVerticalIcon,
   DownloadSimpleIcon,
   GithubLogoIcon,
   MinusIcon,
   PlusIcon,
   StarIcon,
 } from "@phosphor-icons/react"
+import Link from "next/link"
 import { useCallback, useEffect, useRef, useState } from "react"
+import { FloatingDesktopPanel } from "@/components/editor/floating-desktop-panel"
 import { GlassPanel } from "@/components/ui/glass-panel"
 import { IconButton } from "@/components/ui/icon-button"
 import { Typography } from "@/components/ui/typography"
@@ -34,7 +37,7 @@ const GITHUB_REPO_URL = "https://github.com/basementstudio/shader-lab"
 
 function GitHubStarLink({ mobile = false }: { mobile?: boolean }) {
   return (
-    <a
+    <Link
       aria-label="Star Shader Lab on GitHub"
       className={
         mobile
@@ -50,7 +53,7 @@ function GitHubStarLink({ mobile = false }: { mobile?: boolean }) {
       <Typography as="span" tone="secondary" variant="monoSm">
         Star
       </Typography>
-    </a>
+    </Link>
   )
 }
 
@@ -59,6 +62,14 @@ export function EditorTopBar() {
   const mobilePanel = useEditorStore((state) => state.mobilePanel)
   const zoom = useEditorStore((state) => state.zoom)
   const panOffset = useEditorStore((state) => state.panOffset)
+  const hasMovedFloatingPanels = useEditorStore((state) =>
+    Object.values(state.floatingPanels).some(
+      (panel) => panel.x !== 0 || panel.y !== 0
+    )
+  )
+  const resetFloatingPanels = useEditorStore(
+    (state) => state.resetFloatingPanels
+  )
   const setPan = useEditorStore((state) => state.setPan)
   const setZoom = useEditorStore((state) => state.setZoom)
   const resetView = useEditorStore((state) => state.resetView)
@@ -262,76 +273,98 @@ export function EditorTopBar() {
 
   return (
     <>
-      <div
-        className="pointer-events-none fixed top-4 right-0 left-0 z-45 hidden justify-center max-[899px]:hidden min-[900px]:flex"
+      <FloatingDesktopPanel
+        desktopContainerClassName="pointer-events-none fixed top-4 right-0 left-0 z-45 hidden justify-center max-[899px]:hidden min-[900px]:flex"
+        id="topbar"
       >
-        <GlassPanel
-          className="pointer-events-auto flex min-h-11 w-auto items-center justify-between gap-[var(--ds-space-4)] px-[10px] py-2"
-          variant="panel"
-        >
-          <div className="inline-flex items-center gap-1.5">
-            <IconButton
-              aria-label="Undo"
-              className="h-7 w-7 disabled:opacity-45"
-              disabled={!canUndo}
-              onClick={handleUndo}
-              variant="default"
-            >
-              <ArrowCounterClockwiseIcon size={18} weight="bold" />
-            </IconButton>
-            <IconButton
-              aria-label="Redo"
-              className="h-7 w-7 disabled:opacity-45"
-              disabled={!canRedo}
-              onClick={handleRedo}
-              variant="default"
-            >
-              <ArrowClockwiseIcon size={18} weight="bold" />
-            </IconButton>
-          </div>
+        {({ dragHandleProps }) => (
+          <GlassPanel
+            className="flex min-h-11 w-auto items-center justify-between gap-[var(--ds-space-4)] px-[10px] py-2"
+            variant="panel"
+          >
+            <div className="inline-flex items-center gap-1.5">
+              <IconButton
+                aria-label="Move top bar"
+                className="h-7 w-7 cursor-grab text-[var(--ds-color-text-muted)] active:cursor-grabbing"
+                variant="ghost"
+                {...dragHandleProps}
+              >
+                <DotsSixVerticalIcon size={14} weight="bold" />
+              </IconButton>
+              <IconButton
+                aria-label="Undo"
+                className="h-7 w-7 disabled:opacity-45"
+                disabled={!canUndo}
+                onClick={handleUndo}
+                variant="default"
+              >
+                <ArrowCounterClockwiseIcon size={18} weight="bold" />
+              </IconButton>
+              <IconButton
+                aria-label="Redo"
+                className="h-7 w-7 disabled:opacity-45"
+                disabled={!canRedo}
+                onClick={handleRedo}
+                variant="default"
+              >
+                <ArrowClockwiseIcon size={18} weight="bold" />
+              </IconButton>
+            </div>
 
-          <div className="inline-flex items-center gap-1.5">
-            <IconButton
-              aria-label="Zoom out"
-              className="h-7 w-7 disabled:opacity-45"
-              onClick={() => applyZoomStep("out")}
-              variant="default"
-            >
-              <MinusIcon size={18} weight="bold" />
-            </IconButton>
-            <button
-              className="inline-flex h-7 min-w-16 cursor-pointer items-center justify-center rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-[10px] transition-[background-color,border-color,color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:bg-white/8 hover:border-[var(--ds-border-hover)] active:scale-[0.98] max-[899px]:min-w-14"
-              onClick={resetView}
-              type="button"
-            >
-              <Typography as="span" tone="secondary" variant="monoSm">
-                {Math.round(zoom * 100)}%
-              </Typography>
-            </button>
-            <IconButton
-              aria-label="Zoom in"
-              className="h-7 w-7 disabled:opacity-45"
-              onClick={() => applyZoomStep("in")}
-              variant="default"
-            >
-              <PlusIcon size={18} weight="bold" />
-            </IconButton>
-            <span
-              aria-hidden="true"
-              className="block h-5 w-px rounded-full bg-[var(--ds-border-divider)]"
-            />
-            <IconButton
-              aria-label="Export"
-              className="h-7 w-7 disabled:opacity-45"
-              onClick={() => setIsExportDialogOpen(true)}
-              variant="default"
-            >
-              <DownloadSimpleIcon size={16} weight="bold" />
-            </IconButton>
-            <GitHubStarLink />
-          </div>
-        </GlassPanel>
-      </div>
+            <div className="inline-flex items-center gap-1.5">
+              <IconButton
+                aria-label="Zoom out"
+                className="h-7 w-7 disabled:opacity-45"
+                onClick={() => applyZoomStep("out")}
+                variant="default"
+              >
+                <MinusIcon size={18} weight="bold" />
+              </IconButton>
+              <button
+                className="inline-flex h-7 min-w-16 cursor-pointer items-center justify-center rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-[10px] transition-[background-color,border-color,color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:bg-white/8 hover:border-[var(--ds-border-hover)] active:scale-[0.98] max-[899px]:min-w-14"
+                onClick={resetView}
+                type="button"
+              >
+                <Typography as="span" tone="secondary" variant="monoSm">
+                  {Math.round(zoom * 100)}%
+                </Typography>
+              </button>
+              <IconButton
+                aria-label="Zoom in"
+                className="h-7 w-7 disabled:opacity-45"
+                onClick={() => applyZoomStep("in")}
+                variant="default"
+              >
+                <PlusIcon size={18} weight="bold" />
+              </IconButton>
+              <span
+                aria-hidden="true"
+                className="block h-5 w-px rounded-full bg-[var(--ds-border-divider)]"
+              />
+              {hasMovedFloatingPanels ? (
+                <button
+                  className="inline-flex h-7 cursor-pointer items-center justify-center rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-[10px] transition-[background-color,border-color,color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:bg-white/8 hover:border-[var(--ds-border-hover)] active:scale-[0.98]"
+                  onClick={resetFloatingPanels}
+                  type="button"
+                >
+                  <Typography as="span" tone="secondary" variant="monoSm">
+                    Reset layout
+                  </Typography>
+                </button>
+              ) : null}
+              <IconButton
+                aria-label="Export"
+                className="h-7 w-7 disabled:opacity-45"
+                onClick={() => setIsExportDialogOpen(true)}
+                variant="default"
+              >
+                <DownloadSimpleIcon size={16} weight="bold" />
+              </IconButton>
+              <GitHubStarLink />
+            </div>
+          </GlassPanel>
+        )}
+      </FloatingDesktopPanel>
 
       {mobileActionsOpen ? (
         <div className="pointer-events-none fixed right-0 bottom-[88px] left-0 z-45 flex justify-center px-3 min-[900px]:hidden">

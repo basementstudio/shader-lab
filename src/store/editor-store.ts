@@ -15,6 +15,22 @@ import { DEFAULT_SCENE_CONFIG } from "@/types/editor"
 const DEFAULT_PROJECT_COMPOSITION = getDefaultProjectComposition()
 
 export interface EditorStoreState extends EditorStateSnapshot {
+  activeFloatingPanelDrag:
+    | "layers"
+    | "properties"
+    | "timeline"
+    | "topbar"
+    | null
+  floatingPanels: Record<
+    "layers" | "properties" | "timeline" | "topbar",
+    {
+      x: number
+      y: number
+      z: number
+    }
+  >
+  floatingPanelZCounter: number
+  floatingPanelsResetToken: number
   liveRenderer: EditorRenderer | null
   mobilePanel: MobileEditorPanel
   startupPreviewDismissed: boolean
@@ -27,9 +43,21 @@ export interface EditorStoreActions {
   endInteractiveEdit: () => void
   enterImmersiveCanvas: () => void
   exitImmersiveCanvas: () => void
+  focusFloatingPanel: (
+    panel: "layers" | "properties" | "timeline" | "topbar"
+  ) => void
   openTimelinePanel: () => void
+  resetFloatingPanels: () => void
   resetView: () => void
   setCanvasSize: (width: number, height: number) => void
+  setFloatingPanelDragging: (
+    panel: "layers" | "properties" | "timeline" | "topbar" | null
+  ) => void
+  setFloatingPanelOffset: (
+    panel: "layers" | "properties" | "timeline" | "topbar",
+    x: number,
+    y: number
+  ) => void
   setImmersiveCanvas: (immersiveCanvas: boolean) => void
   setOutputSize: (width: number, height: number) => void
   setPan: (x: number, y: number) => void
@@ -54,6 +82,12 @@ export type EditorStore = EditorStoreState & EditorStoreActions
 
 const ZOOM_MIN = 0.125
 const ZOOM_MAX = 6
+const DEFAULT_FLOATING_PANELS = {
+  layers: { x: 0, y: 0, z: 1 },
+  properties: { x: 0, y: 0, z: 2 },
+  topbar: { x: 0, y: 0, z: 3 },
+  timeline: { x: 0, y: 0, z: 4 },
+} as const
 
 function clampCanvasDimension(value: number): number {
   if (!Number.isFinite(value)) {
@@ -64,7 +98,11 @@ function clampCanvasDimension(value: number): number {
 }
 
 export const useEditorStore = create<EditorStore>((set) => ({
+  activeFloatingPanelDrag: null,
   canvasSize: DEFAULT_CANVAS_SIZE,
+  floatingPanels: DEFAULT_FLOATING_PANELS,
+  floatingPanelZCounter: 4,
+  floatingPanelsResetToken: 0,
   immersiveCanvas: false,
   interactiveEditDepth: 0,
   liveRenderer: null,
@@ -105,6 +143,56 @@ export const useEditorStore = create<EditorStore>((set) => ({
   endInteractiveEdit: () => {
     set((state) => ({
       interactiveEditDepth: Math.max(0, state.interactiveEditDepth - 1),
+    }))
+  },
+
+  setFloatingPanelOffset: (panel, x, y) => {
+    set((state) => ({
+      floatingPanels: {
+        ...state.floatingPanels,
+        [panel]: {
+          ...state.floatingPanels[panel],
+          x,
+          y,
+        },
+      },
+    }))
+  },
+
+  setFloatingPanelDragging: (panel) => {
+    set((state) =>
+      state.activeFloatingPanelDrag === panel
+        ? state
+        : { activeFloatingPanelDrag: panel }
+    )
+  },
+
+  focusFloatingPanel: (panel) => {
+    set((state) => {
+      const nextZ = state.floatingPanelZCounter + 1
+
+      if (state.floatingPanels[panel].z === nextZ) {
+        return state
+      }
+
+      return {
+        floatingPanels: {
+          ...state.floatingPanels,
+          [panel]: {
+            ...state.floatingPanels[panel],
+            z: nextZ,
+          },
+        },
+        floatingPanelZCounter: nextZ,
+      }
+    })
+  },
+
+  resetFloatingPanels: () => {
+    set((state) => ({
+      floatingPanels: DEFAULT_FLOATING_PANELS,
+      floatingPanelZCounter: 4,
+      floatingPanelsResetToken: state.floatingPanelsResetToken + 1,
     }))
   },
 

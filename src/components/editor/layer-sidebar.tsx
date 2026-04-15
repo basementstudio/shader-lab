@@ -7,6 +7,7 @@ import {
   FileIcon,
   ImageIcon,
   LayoutIcon,
+  TextIcon,
   TrashIcon,
 } from "@radix-ui/react-icons"
 import { Reorder, useDragControls } from "motion/react"
@@ -42,8 +43,15 @@ type LayerAction = "delete" | "reset"
 const thumbnailBaseClassName =
   "relative size-7 overflow-hidden rounded-[var(--ds-radius-thumb)] border border-white/6"
 
-function LayerThumbnail({ asset }: { asset: EditorAsset | null }) {
+function LayerThumbnail({
+  asset,
+  layer,
+}: {
+  asset: EditorAsset | null
+  layer: EditorLayer
+}) {
   const hasPreview = asset?.kind === "image" || asset?.kind === "video"
+  const PlaceholderIcon = layer.type === "text" ? TextIcon : ImageIcon
 
   return (
     <div
@@ -58,7 +66,7 @@ function LayerThumbnail({ asset }: { asset: EditorAsset | null }) {
       }
     >
       {hasPreview ? null : (
-        <ImageIcon aria-hidden="true" height={14} width={14} />
+        <PlaceholderIcon aria-hidden="true" height={14} width={14} />
       )}
     </div>
   )
@@ -198,7 +206,7 @@ const LayerListItem = memo(function LayerListItem({
             onClick={(event) => onSelectLayer(layer.id, event)}
             type="button"
           >
-            <LayerThumbnail asset={asset} />
+            <LayerThumbnail asset={asset} layer={layer} />
 
             <div className="flex min-w-0 min-h-7 items-center">
               <Typography
@@ -303,7 +311,7 @@ const LayerListItem = memo(function LayerListItem({
           onClick={(event) => onSelectLayer(layer.id, event)}
           type="button"
         >
-          <LayerThumbnail asset={asset} />
+          <LayerThumbnail asset={asset} layer={layer} />
 
           <div className="flex min-w-0 min-h-7 items-center">
             <Typography

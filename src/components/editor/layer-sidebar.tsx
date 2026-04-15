@@ -28,6 +28,7 @@ import {
 import { GlassPanel } from "@/components/ui/glass-panel"
 import { IconButton } from "@/components/ui/icon-button"
 import { Select } from "@/components/ui/select"
+import { HoverTooltip } from "@/components/ui/tooltip"
 import { Typography } from "@/components/ui/typography"
 import { cn } from "@/lib/cn"
 import { inferFileAssetKind } from "@/lib/editor/media-file"
@@ -216,18 +217,20 @@ const LayerListItem = memo(function LayerListItem({
         )}
       >
         <div className="grid min-w-0 grid-cols-[14px_minmax(0,1fr)] items-center gap-[var(--ds-space-2)]">
-          <button
+          <HoverTooltip content="Reorder" side="right">
+            <button
             aria-label={`Reorder ${layer.name}`}
-            className={cn(
-              "inline-flex h-[14px] w-[14px] touch-none items-center justify-center bg-transparent p-0 text-[var(--ds-color-text-muted)]",
-              !layer.locked && "cursor-grab active:cursor-grabbing",
-              layer.locked && "text-[var(--ds-color-text-disabled)]"
-            )}
-            disabled
-            type="button"
-          >
-            <DragHandleDots2Icon height={14} width={14} />
-          </button>
+              className={cn(
+                "inline-flex h-[14px] w-[14px] touch-none items-center justify-center bg-transparent p-0 text-[var(--ds-color-text-muted)]",
+                !layer.locked && "cursor-grab active:cursor-grabbing",
+                layer.locked && "text-[var(--ds-color-text-disabled)]"
+              )}
+              disabled
+              type="button"
+            >
+              <DragHandleDots2Icon height={14} width={14} />
+            </button>
+          </HoverTooltip>
 
           <button
             className="grid min-w-0 cursor-pointer grid-cols-[28px_minmax(0,1fr)] items-center gap-[var(--ds-space-2)] bg-transparent p-0 text-left text-inherit"
@@ -292,6 +295,7 @@ const LayerListItem = memo(function LayerListItem({
               event.stopPropagation()
               onSetLayerVisibility(layer.id, !layer.visible)
             }}
+            tooltip="Toggle visibility"
             variant="ghost"
           >
             {layer.visible ? (
@@ -308,6 +312,7 @@ const LayerListItem = memo(function LayerListItem({
             event.stopPropagation()
             onLayerAction(layer.id, "delete")
           }}
+          tooltip="Delete layer"
           variant="ghost"
         >
           <TrashIcon height={14} width={14} />
@@ -334,19 +339,21 @@ const LayerListItem = memo(function LayerListItem({
       value={layer}
     >
       <div className="grid min-w-0 grid-cols-[14px_minmax(0,1fr)] items-center gap-[var(--ds-space-2)]">
-        <button
+        <HoverTooltip content="Reorder" side="right">
+          <button
           aria-label={`Reorder ${layer.name}`}
-          className={cn(
-            "inline-flex h-[14px] w-[14px] touch-none items-center justify-center bg-transparent p-0 text-[var(--ds-color-text-muted)]",
-            !layer.locked && "cursor-grab active:cursor-grabbing",
-            layer.locked && "text-[var(--ds-color-text-disabled)]"
-          )}
-          disabled={layer.locked || isFloatingPanelDragging}
-          onPointerDown={handlePointerDown}
-          type="button"
-        >
-          <DragHandleDots2Icon height={14} width={14} />
-        </button>
+            className={cn(
+              "inline-flex h-[14px] w-[14px] touch-none items-center justify-center bg-transparent p-0 text-[var(--ds-color-text-muted)]",
+              !layer.locked && "cursor-grab active:cursor-grabbing",
+              layer.locked && "text-[var(--ds-color-text-disabled)]"
+            )}
+            disabled={layer.locked || isFloatingPanelDragging}
+            onPointerDown={handlePointerDown}
+            type="button"
+          >
+            <DragHandleDots2Icon height={14} width={14} />
+          </button>
+        </HoverTooltip>
 
         <button
           className="grid min-w-0 cursor-pointer grid-cols-[28px_minmax(0,1fr)] items-center gap-[var(--ds-space-2)] bg-transparent p-0 text-left text-inherit"
@@ -409,6 +416,7 @@ const LayerListItem = memo(function LayerListItem({
             event.stopPropagation()
             onSetLayerVisibility(layer.id, !layer.visible)
           }}
+          tooltip="Toggle visibility"
           variant="ghost"
         >
           {layer.visible ? (
@@ -425,6 +433,7 @@ const LayerListItem = memo(function LayerListItem({
           event.stopPropagation()
           onLayerAction(layer.id, "delete")
         }}
+        tooltip="Delete layer"
         variant="ghost"
       >
         <TrashIcon height={14} width={14} />
@@ -721,6 +730,7 @@ export function LayerSidebar() {
                 aria-label="Enter immersive canvas mode"
                 className="pointer-events-auto"
                 onClick={enterImmersiveCanvas}
+                tooltip="Hide UI"
                 variant="ghost"
               >
                 <LayoutIcon height={14} width={14} />
@@ -803,6 +813,7 @@ export function LayerSidebar() {
                     aria-label="Enter immersive canvas mode"
                     className="pointer-events-auto"
                     onClick={enterImmersiveCanvas}
+                    tooltip="Hide UI"
                     variant="ghost"
                   >
                     <LayoutIcon height={14} width={14} />

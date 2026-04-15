@@ -603,6 +603,7 @@ export function PropertiesSidebar() {
                     sidebarView === "scene" ? "properties" : "scene"
                   )
                 }
+                tooltip="Settings"
                 variant="default"
               >
                 <GearIcon height={16} width={16} />
@@ -669,6 +670,7 @@ export function PropertiesSidebar() {
                         sidebarView === "scene" ? "properties" : "scene"
                       )
                     }
+                    tooltip="Settings"
                     variant="default"
                   >
                     <GearIcon height={16} width={16} />

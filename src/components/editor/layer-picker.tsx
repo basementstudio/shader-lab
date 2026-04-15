@@ -534,6 +534,7 @@ export function LayerPicker({ className, onSelect }: LayerPickerProps) {
           })
         }}
         ref={triggerRef}
+        tooltip="Add layer"
         variant="emphasis"
       >
         <PlusIcon height={14} width={14} />

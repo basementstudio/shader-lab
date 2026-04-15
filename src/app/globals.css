@@ -63,11 +63,12 @@
     --layout-width: calc(100vw - (2 * var(--safe)));
     --column-width: calc(
       (var(--layout-width) - (var(--columns) - 1) * var(--gap)) /
-        var(--columns)
+      var(--columns)
     );
     --ease-out-cubic: cubic-bezier(0.215, 0.61, 0.355, 1);
     --ds-font-sans: var(--geist-sans);
     --ds-font-mono: var(--geist-mono);
+    --ds-font-value: var(--ds-font-mono);
     --ds-color-canvas: #080808;
     --ds-color-glass-panel: rgb(18 18 22 / 0.55);
     --ds-color-glass-pill: rgb(18 18 22 / 0.5);
@@ -167,6 +168,16 @@
 
   table {
     border-collapse: collapse;
+  }
+
+  input,
+  textarea,
+  select,
+  option,
+  [data-ds-value] {
+    font-family: var(--ds-font-value);
+    font-feature-settings: "zero" 1;
+    font-variant-numeric: tabular-nums slashed-zero;
   }
 
   textarea {
@@ -269,21 +280,27 @@
 
   .type-mono-md {
     font-family: var(--ds-font-mono);
+    font-feature-settings: "zero" 1;
     font-size: 13px;
+    font-variant-numeric: tabular-nums slashed-zero;
     font-weight: 400;
     line-height: 16px;
   }
 
   .type-mono-sm {
     font-family: var(--ds-font-mono);
+    font-feature-settings: "zero" 1;
     font-size: 11px;
+    font-variant-numeric: tabular-nums slashed-zero;
     font-weight: 400;
     line-height: 14px;
   }
 
   .type-mono-xs {
     font-family: var(--ds-font-mono);
+    font-feature-settings: "zero" 1;
     font-size: 10px;
+    font-variant-numeric: tabular-nums slashed-zero;
     font-weight: 400;
     line-height: 12px;
   }

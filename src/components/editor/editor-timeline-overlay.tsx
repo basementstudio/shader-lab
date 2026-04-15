@@ -70,7 +70,7 @@ const GENERAL_TIMELINE_PROPERTIES = [
   { color: "#F7B365", property: "saturation" },
 ] as const
 
-const COLLAPSED_SHELL_HEIGHT = 52
+const COLLAPSED_SHELL_HEIGHT = 46
 const COLLAPSED_SHELL_WIDTH = 580
 const EXPANDED_SHELL_HEIGHT = 380
 const EXPANDED_SHELL_WIDTH = 820
@@ -342,7 +342,7 @@ function TimelineTransport({
           ) : (
             <CircleIcon height={10} width={10} />
           )}
-          <Typography as="span" tone="secondary" variant="monoSm">
+          <Typography as="span" tone="secondary" variant="caption">
             Auto-Key
           </Typography>
         </IconButton>
@@ -354,7 +354,7 @@ function TimelineTransport({
       />
 
       <div className="inline-flex items-center gap-2">
-        <Typography as="span" tone="secondary" variant="monoSm">
+        <Typography as="span" tone="secondary" variant="caption">
           Dur
         </Typography>
         <NumberInput
@@ -384,7 +384,7 @@ function TimelineTransport({
           as="span"
           className="whitespace-nowrap"
           tone="secondary"
-          variant="monoSm"
+          variant="caption"
         >
           sec
         </Typography>
@@ -818,7 +818,7 @@ export function EditorTimelineOverlay() {
                                 isFocused && "border-white/8 bg-white/8",
                                 hasTrack
                                   ? "text-[var(--ds-color-text-primary)]"
-                                  : "text-[var(--ds-color-text-muted)]"
+                                  : "text-[var(--ds-color-text-secondary)]"
                               )}
                               key={entry.id}
                               onClick={() => {
@@ -841,29 +841,12 @@ export function EditorTimelineOverlay() {
                                 <Typography
                                   as="span"
                                   className="min-w-0"
-                                  tone={hasTrack ? "primary" : "muted"}
-                                  variant="monoSm"
+                                  tone={hasTrack ? "primary" : "secondary"}
+                                  variant="caption"
                                 >
                                   {entry.label}
                                 </Typography>
                               </div>
-                              <span
-                                aria-hidden="true"
-                                className={cn(
-                                  "inline-flex h-[7px] w-[7px] shrink-0 rounded-full",
-                                  hasTrack
-                                    ? "bg-[rgb(var(--timeline-track-rgb,122_162_255)_/_0.9)] shadow-[0_0_10px_rgb(var(--timeline-track-rgb,122_162_255)_/_0.35)]"
-                                    : "bg-white/14"
-                                )}
-                                style={
-                                  hasTrack
-                                    ? ({
-                                        "--timeline-track-rgb":
-                                          hexToRgbChannels(entry.color),
-                                      } as CSSProperties)
-                                    : undefined
-                                }
-                              />
                             </button>
                           )
                         })

@@ -1,6 +1,6 @@
 "use client"
 
-import { DragHandleDots2Icon, GearIcon } from "@radix-ui/react-icons"
+import { DragHandleDots2Icon } from "@radix-ui/react-icons"
 import { AnimatePresence, motion, useReducedMotion } from "motion/react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { FloatingDesktopPanel } from "@/components/editor/floating-desktop-panel"
@@ -587,27 +587,6 @@ export function PropertiesSidebar() {
             className="flex h-full min-h-0 flex-col gap-0 p-0"
             variant="panel"
           >
-            <div className="flex items-center justify-end border-b border-[var(--ds-border-divider)] px-3 py-1.5">
-              <IconButton
-                aria-label={
-                  sidebarView === "scene"
-                    ? "Layer properties"
-                    : "Scene settings"
-                }
-                className={cn(
-                  "h-7 w-7",
-                  sidebarView === "scene" && "bg-white/10"
-                )}
-                onClick={() =>
-                  setSidebarView(
-                    sidebarView === "scene" ? "properties" : "scene"
-                  )
-                }
-                variant="default"
-              >
-                <GearIcon height={16} width={16} />
-              </IconButton>
-            </div>
             <AnimatePresence initial={false} mode="wait">
               {renderAnimatedContent()}
             </AnimatePresence>
@@ -645,7 +624,7 @@ export function PropertiesSidebar() {
                 className="flex h-full min-h-0 flex-col gap-0 p-0"
                 variant="panel"
               >
-                <div className="flex items-center justify-between border-b border-[var(--ds-border-divider)] px-3 py-1.5">
+                <div className="flex items-center justify-start border-b border-[var(--ds-border-divider)] px-3 py-1.5">
                   <IconButton
                     aria-label="Move properties panel"
                     className="h-7 w-7 cursor-grab text-[var(--ds-color-text-muted)] active:cursor-grabbing"
@@ -653,25 +632,6 @@ export function PropertiesSidebar() {
                     {...dragHandleProps}
                   >
                     <DragHandleDots2Icon height={14} width={14} />
-                  </IconButton>
-                  <IconButton
-                    aria-label={
-                      sidebarView === "scene"
-                        ? "Layer properties"
-                        : "Scene settings"
-                    }
-                    className={cn(
-                      "h-7 w-7",
-                      sidebarView === "scene" && "bg-white/10"
-                    )}
-                    onClick={() =>
-                      setSidebarView(
-                        sidebarView === "scene" ? "properties" : "scene"
-                      )
-                    }
-                    variant="default"
-                  >
-                    <GearIcon height={16} width={16} />
                   </IconButton>
                 </div>
                 <AnimatePresence initial={false} mode="wait">

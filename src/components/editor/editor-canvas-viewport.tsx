@@ -1,6 +1,12 @@
 "use client"
 
-import { type DragEvent, useCallback, useEffect, useMemo, useState } from "react"
+import {
+  type DragEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react"
 import { useEditorRenderer } from "@/hooks/use-editor-renderer"
 import { inferFileAssetKind } from "@/lib/editor/media-file"
 import {
@@ -238,7 +244,7 @@ export function EditorCanvasViewport() {
 
         {isDragOver ? (
           <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center border-2 border-dashed border-white/30 bg-black/30 backdrop-blur-[2px]">
-            <span className="font-[var(--ds-font-mono)] text-xs text-white/70">
+            <span className="font-[var(--ds-font-sans)] text-xs text-white/70">
               Drop to add layer
             </span>
           </div>

@@ -41,44 +41,6 @@ type LayerAction = "delete" | "reset"
 const thumbnailBaseClassName =
   "relative h-7 w-7 overflow-hidden rounded-[var(--ds-radius-thumb)] border border-white/6 bg-[linear-gradient(135deg,rgb(255_255_255_/_0.07),rgb(255_255_255_/_0.03))]"
 
-function getLayerSecondaryText(
-  layer: EditorLayer,
-  asset: EditorAsset | null
-): string {
-  if (layer.runtimeError) {
-    return layer.runtimeError
-  }
-
-  if (
-    layer.type === "image" ||
-    layer.type === "video" ||
-    layer.type === "model"
-  ) {
-    return asset?.fileName ?? "No asset selected"
-  }
-
-  if (layer.type === "live") {
-    return "webcam"
-  }
-
-  if (layer.type === "custom-shader") {
-    return (
-      (typeof layer.params.sourceFileName === "string" &&
-        layer.params.sourceFileName) ||
-      "custom shader"
-    )
-  }
-
-  if (layer.type === "text") {
-    return (
-      (typeof layer.params.text === "string" && layer.params.text.trim()) ||
-      "text"
-    )
-  }
-
-  return layer.type.replaceAll("-", " ")
-}
-
 function getThumbnailClassName(
   layer: EditorLayer,
   asset: EditorAsset | null
@@ -243,19 +205,12 @@ const LayerListItem = memo(function LayerListItem({
               }
             />
 
-            <div className="flex min-w-0 flex-col gap-0.5">
+            <div className="flex min-w-0 min-h-7 items-center">
               <Typography
-                className="overflow-hidden text-ellipsis whitespace-nowrap"
+                className="overflow-hidden text-ellipsis whitespace-nowrap leading-none"
                 variant="label"
               >
                 {layer.name}
-              </Typography>
-              <Typography
-                className="overflow-hidden text-ellipsis whitespace-nowrap"
-                tone="muted"
-                variant="monoXs"
-              >
-                {getLayerSecondaryText(layer, asset)}
               </Typography>
             </div>
           </button>
@@ -362,19 +317,12 @@ const LayerListItem = memo(function LayerListItem({
             }
           />
 
-          <div className="flex min-w-0 flex-col gap-0.5">
+          <div className="flex min-w-0 min-h-7 items-center">
             <Typography
-              className="overflow-hidden text-ellipsis whitespace-nowrap"
+              className="overflow-hidden text-ellipsis whitespace-nowrap leading-none"
               variant="label"
             >
               {layer.name}
-            </Typography>
-            <Typography
-              className="overflow-hidden text-ellipsis whitespace-nowrap"
-              tone="muted"
-              variant="monoXs"
-            >
-              {getLayerSecondaryText(layer, asset)}
             </Typography>
           </div>
         </button>

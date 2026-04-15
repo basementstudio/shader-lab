@@ -67,7 +67,7 @@ export function MobileEditorDock() {
                 as="span"
                 className="leading-none"
                 tone={isActive ? "primary" : "muted"}
-                variant="monoXs"
+                variant="caption"
               >
                 {label}
               </Typography>

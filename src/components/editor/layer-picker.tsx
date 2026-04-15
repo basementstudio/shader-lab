@@ -4,8 +4,8 @@ import {
   CameraIcon,
   CodeIcon,
   ImageIcon,
-  PlusIcon,
   MagicWandIcon,
+  PlusIcon,
   TextIcon,
   VideoIcon,
 } from "@radix-ui/react-icons"
@@ -338,7 +338,7 @@ function EffectCard({
         <div
           className={cn("min-w-0 px-2 pt-1 pb-2", item.description && "pr-6")}
         >
-          <div className="overflow-hidden text-ellipsis whitespace-nowrap font-[var(--ds-font-mono)] text-[11px] text-[var(--ds-color-text-primary)] leading-[14px]">
+          <div className="overflow-hidden text-ellipsis whitespace-nowrap font-[var(--ds-font-sans)] text-[11px] text-[var(--ds-color-text-primary)] leading-[14px]">
             {item.label}
           </div>
         </div>
@@ -358,7 +358,7 @@ function SourceButton({
 
   return (
     <button
-      className="inline-flex h-7 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-white/8 bg-[rgb(255_255_255_/_0.03)] px-3 font-[var(--ds-font-mono)] text-[10px] text-[var(--ds-color-text-secondary)] leading-none transition-[transform,border-color,background-color,color] duration-[180ms] ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-white/14 hover:bg-[rgb(255_255_255_/_0.07)] hover:text-[var(--ds-color-text-primary)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--ds-border-active)] focus-visible:outline-offset-2 active:scale-[0.97]"
+      className="inline-flex h-7 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-white/8 bg-[rgb(255_255_255_/_0.03)] px-3 font-[var(--ds-font-sans)] text-[10px] text-[var(--ds-color-text-secondary)] leading-none transition-[transform,border-color,background-color,color] duration-[180ms] ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-white/14 hover:bg-[rgb(255_255_255_/_0.07)] hover:text-[var(--ds-color-text-primary)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--ds-border-active)] focus-visible:outline-offset-2 active:scale-[0.97]"
       onClick={() => onSelect(item.value)}
       type="button"
     >
@@ -578,7 +578,7 @@ export function LayerPicker({ className, onSelect }: LayerPickerProps) {
                     variant="panel"
                   >
                     <div className="border-[var(--ds-border-divider)] border-b px-3 pt-3 pb-2.5">
-                      <div className="mb-2 font-[var(--ds-font-mono)] text-[10px] text-[var(--ds-color-text-muted)] uppercase tracking-[0.14em]">
+                      <div className="mb-2 font-[var(--ds-font-sans)] text-[10px] text-[var(--ds-color-text-muted)] uppercase tracking-[0.14em]">
                         Source
                       </div>
                       <div className="flex flex-wrap gap-1.5">
@@ -601,7 +601,7 @@ export function LayerPicker({ className, onSelect }: LayerPickerProps) {
                             return (
                               <button
                                 className={cn(
-                                  "relative inline-flex h-7 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-transparent px-2.5 py-1 font-[var(--ds-font-mono)] text-[10px] text-[var(--ds-color-text-secondary)] leading-none transition-[transform,color] duration-[180ms] ease-[cubic-bezier(0.32,0.72,0,1)] hover:text-[var(--ds-color-text-primary)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--ds-border-active)] focus-visible:outline-offset-2 active:scale-[0.97]",
+                                  "relative inline-flex h-7 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-transparent px-2.5 py-1 font-[var(--ds-font-sans)] text-[10px] text-[var(--ds-color-text-secondary)] leading-none transition-[transform,color] duration-[180ms] ease-[cubic-bezier(0.32,0.72,0,1)] hover:text-[var(--ds-color-text-primary)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--ds-border-active)] focus-visible:outline-offset-2 active:scale-[0.97]",
                                   active &&
                                     "text-[var(--ds-color-text-primary)]"
                                 )}

@@ -1,12 +1,12 @@
 import type { CSSProperties } from "react"
 import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/cn"
 import { GlassPanel } from "@/components/ui/glass-panel"
 import { IconButton } from "@/components/ui/icon-button"
 import { Select } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
 import { Toggle } from "@/components/ui/toggle"
 import { Typography } from "@/components/ui/typography"
+import { cn } from "@/lib/cn"
 
 const typeSamples = [
   {
@@ -131,7 +131,7 @@ function GlassPreview({
       <Typography
         className="relative z-1"
         tone={light ? "onLight" : "muted"}
-        variant="monoXs"
+        variant="caption"
       >
         {caption}
       </Typography>
@@ -242,7 +242,7 @@ export default function DesignPage() {
               className="grid gap-[var(--ds-space-2)] border-white/4 border-b py-[12px] first:pt-0 last:border-b-0 last:pb-0 sm:grid-cols-[minmax(140px,180px)_minmax(0,1fr)] sm:gap-[var(--ds-space-4)]"
               key={sample.label}
             >
-              <Typography tone="muted" variant="monoXs">
+              <Typography tone="muted" variant="caption">
                 {sample.label}
               </Typography>
               <Typography variant={sample.variant}>{sample.text}</Typography>

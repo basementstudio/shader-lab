@@ -66,17 +66,18 @@ export function Select({
     >
       <div className={cn("flex w-fit flex-col gap-1", className)}>
         {label ? (
-          <BaseSelect.Label className="font-[var(--ds-font-mono)] text-[10px] leading-3 text-[var(--ds-color-text-muted)]">
+          <BaseSelect.Label className="font-[var(--ds-font-sans)] text-[10px] leading-3 text-[var(--ds-color-text-muted)]">
             {label}
           </BaseSelect.Label>
         ) : null}
 
         <BaseSelect.Trigger
           aria-label={triggerAriaLabel}
+          data-ds-value={isIconTrigger ? undefined : ""}
           className={cn(
             isIconTrigger
-              ? "group inline-flex h-7 w-7 min-w-0 shrink-0 cursor-pointer items-center justify-center rounded-[var(--ds-radius-icon)] border-0 bg-transparent p-0 text-[var(--ds-color-text-tertiary)] transition-[background-color,box-shadow,color,transform] duration-160 ease-[var(--ease-out-cubic)] will-change-transform hover:not-data-disabled:shadow-[inset_0_0_0_1px_rgb(255_255_255_/_0.04)] active:not-data-disabled:scale-[0.96] data-[popup-open]:bg-white/12 data-[popup-open]:text-white/70 data-[disabled]:cursor-not-allowed data-[disabled]:opacity-45 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--ds-border-active)]"
-              : "group inline-flex min-h-8 w-fit min-w-0 cursor-pointer items-center justify-between gap-[10px] rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-[10px] py-[6px] text-[var(--ds-color-text-secondary)] transition-[background-color,border-color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:not-data-disabled:bg-white/8 hover:not-data-disabled:border-[var(--ds-border-hover)] active:not-data-disabled:scale-[0.98] data-[popup-open]:bg-white/8 data-[popup-open]:border-[var(--ds-border-hover)] data-[disabled]:cursor-not-allowed data-[disabled]:opacity-45 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--ds-border-active)]",
+              ? "group inline-flex h-7 w-7 min-w-0 shrink-0 cursor-pointer items-center justify-center rounded-[var(--ds-radius-icon)] border-0 bg-transparent p-0 text-[var(--ds-color-text-tertiary)] transition-[background-color,box-shadow,color,transform] duration-160 ease-[var(--ease-out-cubic)] will-change-transform hover:not-data-disabled:shadow-[inset_0_0_0_1px_rgb(255_255_255_/_0.04)] active:not-data-disabled:scale-[0.96] data-[popup-open]:bg-white/12 data-[popup-open]:text-white/70 data-[disabled]:cursor-not-allowed data-[disabled]:opacity-45 focus-visible:shadow-[inset_0_0_0_1px_var(--ds-border-active)]"
+              : "group inline-flex min-h-8 w-fit min-w-0 cursor-pointer items-center justify-between gap-[10px] rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-[10px] py-[6px] text-[var(--ds-color-text-secondary)] transition-[background-color,border-color,box-shadow,transform] duration-160 ease-[var(--ease-out-cubic)] hover:not-data-disabled:bg-white/8 hover:not-data-disabled:border-[var(--ds-border-hover)] active:not-data-disabled:scale-[0.98] data-[popup-open]:bg-white/8 data-[popup-open]:border-[var(--ds-border-hover)] data-[disabled]:cursor-not-allowed data-[disabled]:opacity-45 focus-visible:border-[var(--ds-border-active)] focus-visible:shadow-[inset_0_0_0_1px_var(--ds-border-active)]",
             triggerClassName
           )}
         >
@@ -84,7 +85,7 @@ export function Select({
             className={cn(
               isIconTrigger
                 ? "inline-flex items-center justify-center leading-none text-inherit"
-                : "min-w-0 flex-1 font-[var(--ds-font-mono)] text-[11px] leading-[14px] text-inherit data-[placeholder]:text-[var(--ds-color-text-secondary)]",
+                : "min-w-0 flex-1 truncate text-left text-[11px] leading-[14px] text-inherit data-[placeholder]:text-[var(--ds-color-text-secondary)]",
               valueClassName
             )}
             placeholder={placeholder}
@@ -122,7 +123,10 @@ export function Select({
                   key={option.value}
                   value={option.value}
                 >
-                  <BaseSelect.ItemText className="block font-[var(--ds-font-mono)] text-[11px] leading-[14px]">
+                  <BaseSelect.ItemText
+                    className="block text-[11px] leading-[14px]"
+                    data-ds-value=""
+                  >
                     {option.label}
                   </BaseSelect.ItemText>
                 </BaseSelect.Item>

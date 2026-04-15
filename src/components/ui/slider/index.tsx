@@ -251,14 +251,17 @@ export function Slider({
         ) : (
           <span />
         )}
-        <span className="inline-flex w-16 shrink-0 justify-end">
+        <span
+          className="inline-flex w-16 shrink-0 justify-end"
+          data-ds-value=""
+        >
           <span className="relative inline-flex pb-px">
             {isEditingValue ? (
               <input
                 aria-label={
                   typeof label === "string" ? `${label} value` : "Slider value"
                 }
-                className="h-[14px] border-none bg-transparent p-0 text-right font-[var(--ds-font-mono)] text-[11px] leading-[14px] text-[var(--ds-color-text-primary)] outline-none transition-[color] duration-160 ease-[var(--ease-out-cubic)]"
+                className="h-[14px] border-none bg-transparent p-0 text-right text-[11px] leading-[14px] text-[var(--ds-color-text-primary)] outline-none transition-[color] duration-160 ease-[var(--ease-out-cubic)]"
                 id={inputId}
                 inputMode="decimal"
                 onBlur={commitInputValue}
@@ -278,7 +281,7 @@ export function Slider({
                     ? `Edit ${label} value`
                     : "Edit slider value"
                 }
-                className="cursor-pointer border-none bg-transparent p-0 text-right font-[var(--ds-font-mono)] text-[11px] leading-[14px] text-[var(--ds-color-text-secondary)] transition-[color] duration-160 ease-[var(--ease-out-cubic)] hover:text-[var(--ds-color-text-primary)]"
+                className="cursor-pointer border-none bg-transparent p-0 text-right text-[11px] leading-[14px] text-[var(--ds-color-text-secondary)] transition-[color] duration-160 ease-[var(--ease-out-cubic)] hover:text-[var(--ds-color-text-primary)]"
                 onClick={() => {
                   setDraftValue(formattedValue)
                   setIsEditingValue(true)

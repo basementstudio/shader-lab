@@ -1,11 +1,6 @@
 "use client"
 
-import {
-  type InputHTMLAttributes,
-  useEffect,
-  useRef,
-  useState,
-} from "react"
+import { type InputHTMLAttributes, useEffect, useRef, useState } from "react"
 import { cn } from "@/lib/cn"
 
 type NumberInputProps = Omit<
@@ -71,7 +66,9 @@ export function NumberInput({
     )
 
     onChange(clampedValue)
-    setDraftValue(formatValue ? formatValue(clampedValue) : clampedValue.toString())
+    setDraftValue(
+      formatValue ? formatValue(clampedValue) : clampedValue.toString()
+    )
   }
 
   return (

@@ -1,7 +1,7 @@
-import Link from "next/link";
+import Link from "next/link"
 
 const primaryActionClassName =
-  "inline-flex items-center justify-center rounded-[var(--ds-radius-control)] bg-[var(--ds-color-text-primary)] px-5 py-2 text-[12px] font-medium leading-4 text-[var(--ds-color-text-on-light)] transition-[background-color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:bg-white/82 active:scale-[0.98] active:bg-white/72";
+  "inline-flex items-center justify-center rounded-[var(--ds-radius-control)] bg-[var(--ds-color-text-primary)] px-5 py-2 text-[12px] font-medium leading-4 text-[var(--ds-color-text-on-light)] transition-[background-color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:bg-white/82 active:scale-[0.98] active:bg-white/72"
 
 export default function NotFound() {
   return (
@@ -14,14 +14,14 @@ export default function NotFound() {
 
       <section className="relative w-full max-w-2xl rounded-[28px] border border-[var(--ds-border-panel-strong)] bg-[rgb(12_12_16_/_0.72)] p-6 shadow-[var(--ds-shadow-panel-dark)] backdrop-blur-[24px] sm:p-8">
         <div className="mb-8 flex items-center justify-between gap-4">
-          <p className="font-[var(--ds-font-mono)] text-[11px] text-white/52 uppercase tracking-[0.24em]">
-            Error 404
+          <p className="text-[11px] text-white/52 uppercase tracking-[0.24em]">
+            Error <span className="font-[var(--ds-font-mono)]">404</span>
           </p>
           <div className="h-px flex-1 bg-[linear-gradient(90deg,rgb(255_255_255_/_0.14),transparent)]" />
         </div>
 
         <div className="space-y-4">
-          <p className="font-[var(--ds-font-mono)] text-[12px] text-white/38 uppercase tracking-[0.2em]">
+          <p className="text-[12px] text-white/38 uppercase tracking-[0.2em]">
             Route not found
           </p>
           <h1 className="max-w-xl font-semibold text-[clamp(3rem,9vw,5.5rem)] text-[var(--ds-color-text-primary)] leading-[0.9] tracking-[-0.05em]">
@@ -40,5 +40,5 @@ export default function NotFound() {
         </div>
       </section>
     </main>
-  );
+  )
 }

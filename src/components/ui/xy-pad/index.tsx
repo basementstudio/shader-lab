@@ -1,6 +1,13 @@
 "use client"
 
-import { type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode, useMemo, useRef } from "react"
+import {
+  type CSSProperties,
+  type KeyboardEvent,
+  type PointerEvent,
+  type ReactNode,
+  useMemo,
+  useRef,
+} from "react"
 import { cn } from "@/lib/cn"
 
 type XYPadProps = {
@@ -57,7 +64,7 @@ export function XYPad({
         "--xy-pad-x": `${((clamp(value[0], min, max) - min) / range) * 100}%`,
         "--xy-pad-y": `${(1 - (clamp(value[1], min, max) - min) / range) * 100}%`,
       }) as CSSProperties,
-    [max, min, range, value],
+    [max, min, range, value]
   )
 
   const commitPosition = (clientX: number, clientY: number) => {
@@ -70,8 +77,16 @@ export function XYPad({
     const rect = surface.getBoundingClientRect()
     const normalizedX = clamp((clientX - rect.left) / rect.width, 0, 1)
     const normalizedY = clamp((clientY - rect.top) / rect.height, 0, 1)
-    const nextX = clamp(roundToStep(min + normalizedX * range, step, min), min, max)
-    const nextY = clamp(roundToStep(min + (1 - normalizedY) * range, step, min), min, max)
+    const nextX = clamp(
+      roundToStep(min + normalizedX * range, step, min),
+      min,
+      max
+    )
+    const nextY = clamp(
+      roundToStep(min + (1 - normalizedY) * range, step, min),
+      min,
+      max
+    )
 
     onValueChange([nextX, nextY])
   }
@@ -137,11 +152,19 @@ export function XYPad({
   }
 
   return (
-    <div className={cn("flex w-full flex-col gap-[var(--ds-space-2)]", className)}>
+    <div
+      className={cn("flex w-full flex-col gap-[var(--ds-space-2)]", className)}
+    >
       <div className="flex items-center justify-between gap-[var(--ds-space-3)]">
         <div className="inline-flex min-w-0 items-center gap-2">
-          {label ? <span className="text-[11px] leading-[14px] font-normal text-white/45">{label}</span> : <span />}
-          <span className="inline-flex min-h-[18px] items-center rounded-full border border-white/8 bg-white/6 px-1.5 font-[var(--ds-font-mono)] text-[10px] leading-3 text-[var(--ds-color-text-muted)]">
+          {label ? (
+            <span className="text-[11px] leading-[14px] font-normal text-white/45">
+              {label}
+            </span>
+          ) : (
+            <span />
+          )}
+          <span className="inline-flex min-h-[18px] items-center rounded-full border border-white/8 bg-white/6 px-1.5 font-[var(--ds-font-sans)] text-[10px] leading-3 text-[var(--ds-color-text-muted)]">
             X/Y
           </span>
         </div>

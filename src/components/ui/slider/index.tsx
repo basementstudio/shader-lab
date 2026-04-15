@@ -13,6 +13,10 @@ import {
   useState,
 } from "react"
 import { cn } from "@/lib/cn"
+import {
+  formatNumberForDisplay,
+  formatNumberForLocale,
+} from "@/lib/format-number"
 
 type SliderProps = Omit<
   BaseSlider.Root.Props<number>,
@@ -74,8 +78,8 @@ export function Slider({
     min
 
   const formattedValue = valueFormatOptions
-    ? new Intl.NumberFormat(locale, valueFormatOptions).format(currentValue)
-    : currentValue.toString()
+    ? formatNumberForLocale(currentValue, locale, valueFormatOptions)
+    : formatNumberForDisplay(currentValue)
   const displayValue = `${valuePrefix ?? ""}${formattedValue}${valueSuffix ?? ""}`
 
   const updatePullOffset = useEffectEvent((clientX: number) => {
@@ -202,8 +206,8 @@ export function Slider({
     resetPull()
     setDraftValue(
       valueFormatOptions
-        ? new Intl.NumberFormat(locale, valueFormatOptions).format(clampedValue)
-        : clampedValue.toString()
+        ? formatNumberForLocale(clampedValue, locale, valueFormatOptions)
+        : formatNumberForDisplay(clampedValue)
     )
     setIsEditingValue(false)
   })

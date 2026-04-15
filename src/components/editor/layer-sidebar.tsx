@@ -666,9 +666,10 @@ export function LayerSidebar() {
             </Typography>
             <div className="inline-flex items-center gap-1.5">
               <IconButton
-                aria-label="Enter immersive canvas mode"
+                aria-label="Hide UI (Cmd + .)"
                 className="pointer-events-auto"
                 onClick={enterImmersiveCanvas}
+                title="Hide UI (Cmd + .)"
                 variant="ghost"
               >
                 <LayoutIcon height={14} width={14} />
@@ -748,9 +749,10 @@ export function LayerSidebar() {
                 </div>
                 <div className="inline-flex items-center gap-1.5">
                   <IconButton
-                    aria-label="Enter immersive canvas mode"
+                    aria-label="Hide UI (Cmd + .)"
                     className="pointer-events-auto"
                     onClick={enterImmersiveCanvas}
+                    title="Hide UI (Cmd + .)"
                     variant="ghost"
                   >
                     <LayoutIcon height={14} width={14} />

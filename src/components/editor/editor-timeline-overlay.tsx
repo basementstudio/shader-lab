@@ -393,7 +393,7 @@ function TimelineTransport({
       <div className="inline-flex min-w-0 flex-1 items-center justify-end gap-1">
         <Typography
           as="span"
-          className="min-w-[104px] whitespace-nowrap text-right"
+          className="min-w-[104px] whitespace-nowrap text-right text-[12px]"
           tone="secondary"
           variant="monoMd"
         >

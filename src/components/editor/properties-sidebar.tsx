@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { FloatingDesktopPanel } from "@/components/editor/floating-desktop-panel"
 import { GlassPanel } from "@/components/ui/glass-panel"
 import { IconButton } from "@/components/ui/icon-button"
+import { Typography } from "@/components/ui/typography"
 import { cn } from "@/lib/cn"
 import { getLayerDefinition } from "@/lib/editor/config/layer-registry"
 import { evaluateTimelineForLayers } from "@/lib/editor/timeline/evaluate"
@@ -624,15 +625,20 @@ export function PropertiesSidebar() {
                 className="flex h-full min-h-0 flex-col gap-0 p-0"
                 variant="panel"
               >
-                <div className="flex items-center justify-start border-b border-[var(--ds-border-divider)] px-3 py-1.5">
-                  <IconButton
-                    aria-label="Move properties panel"
-                    className="h-7 w-7 cursor-grab text-[var(--ds-color-text-muted)] active:cursor-grabbing"
-                    variant="ghost"
-                    {...dragHandleProps}
-                  >
-                    <DragHandleDots2Icon height={14} width={14} />
-                  </IconButton>
+                <div className="flex items-center justify-start gap-2 border-b border-[var(--ds-border-divider)] px-3 py-1.5">
+                  <div className="inline-flex items-center gap-2">
+                    <IconButton
+                      aria-label="Move properties panel"
+                      className="h-7 w-7 cursor-grab text-[var(--ds-color-text-muted)] active:cursor-grabbing"
+                      variant="ghost"
+                      {...dragHandleProps}
+                    >
+                      <DragHandleDots2Icon height={14} width={14} />
+                    </IconButton>
+                    <Typography tone="secondary" variant="overline">
+                      {sidebarView === "scene" ? "Scene" : "Properties"}
+                    </Typography>
+                  </div>
                 </div>
                 <AnimatePresence initial={false} mode="wait">
                   {renderAnimatedContent()}

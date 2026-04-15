@@ -157,162 +157,154 @@ export function SceneConfigContent() {
   )
 
   return (
-    <>
-      <div className="flex flex-col gap-1.5 border-b border-[var(--ds-border-divider)] px-4 pt-[14px] pb-3">
-        <Typography tone="secondary" variant="overline">
-          Scene
-        </Typography>
-      </div>
-
-      <div className="flex min-h-0 max-h-[min(62vh,620px)] flex-col gap-0 overflow-x-hidden overflow-y-auto">
-        {/* Composition */}
-        <Section title="Composition">
-          <Row label="Aspect">
-            <Select
-              onValueChange={(value) =>
-                handleUpdate("compositionAspect", value as CompositionAspect)
-              }
-              options={aspectOptions}
-              value={sceneConfig.compositionAspect}
-            />
-          </Row>
-          {sceneConfig.compositionAspect === "custom" && (
-            <div className="flex items-center justify-end gap-1.5">
-              <NumberInput
-                className={inputClassName}
-                min={1}
-                onChange={(value) =>
-                  handleUpdate("compositionWidth", Math.round(value))
-                }
-                parseValue={(value) => {
-                  const nextValue = Number.parseInt(value, 10)
-                  return Number.isFinite(nextValue) ? nextValue : null
-                }}
-                step={1}
-                value={sceneConfig.compositionWidth}
-              />
-              <Typography tone="muted" variant="monoXs">
-                :
-              </Typography>
-              <NumberInput
-                className={inputClassName}
-                min={1}
-                onChange={(value) =>
-                  handleUpdate("compositionHeight", Math.round(value))
-                }
-                parseValue={(value) => {
-                  const nextValue = Number.parseInt(value, 10)
-                  return Number.isFinite(nextValue) ? nextValue : null
-                }}
-                step={1}
-                value={sceneConfig.compositionHeight}
-              />
-            </div>
-          )}
-        </Section>
-
-        {/* Background */}
-        <Section title="Background">
-          <Row label="Color">
-            <ColorPicker
-              onValueChange={(value) => handleUpdate("backgroundColor", value)}
-              value={sceneConfig.backgroundColor}
-            />
-          </Row>
-        </Section>
-
-        {/* Color Adjustments */}
-        <Section title="Color Adjustments">
-          <Slider
-            label="Brightness"
-            max={100}
-            min={-100}
-            onValueChange={(value) => handleUpdate("brightness", value / 100)}
-            value={sceneConfig.brightness * 100}
-          />
-          <Slider
-            label="Contrast"
-            max={100}
-            min={-100}
-            onValueChange={(value) => handleUpdate("contrast", value / 100)}
-            value={sceneConfig.contrast * 100}
-          />
-          <Row label="Invert">
-            <Toggle
-              checked={sceneConfig.invert}
-              onCheckedChange={(value) => handleUpdate("invert", value)}
-            />
-          </Row>
-        </Section>
-
-        {/* Channel Mixer */}
-        <Section title="Channel Mixer">
-          <ChannelCurves
-            curves={channelCurves}
-            onCurveChange={handleCurveChange}
-          />
-        </Section>
-
-        {/* Clamp / Remap */}
-        <Section title="Clamp / Remap">
-          <Slider
-            label="Black Point"
-            max={100}
-            min={0}
-            onValueChange={(v) => handleUpdate("clampMin", v / 100)}
-            value={sceneConfig.clampMin * 100}
-          />
-          <Slider
-            label="White Point"
-            max={100}
-            min={0}
-            onValueChange={(v) => handleUpdate("clampMax", v / 100)}
-            value={sceneConfig.clampMax * 100}
-          />
-        </Section>
-
-        {/* Quantize */}
-        <Section title="Quantize">
-          <Slider
-            label="Levels"
-            max={256}
-            min={2}
+    <div className="flex min-h-0 max-h-[min(62vh,620px)] flex-col gap-0 overflow-x-hidden overflow-y-auto">
+      {/* Composition */}
+      <Section title="Composition">
+        <Row label="Aspect">
+          <Select
             onValueChange={(value) =>
-              handleUpdate("quantizeLevels", Math.round(value))
+              handleUpdate("compositionAspect", value as CompositionAspect)
             }
-            value={sceneConfig.quantizeLevels}
+            options={aspectOptions}
+            value={sceneConfig.compositionAspect}
           />
-        </Section>
-
-        {/* Color Map */}
-        <Section title="Color Map">
-          <Row label="Enabled">
-            <Toggle
-              checked={sceneConfig.colorMap !== null}
-              onCheckedChange={(enabled) => {
-                if (enabled) {
-                  updateSceneConfig({
-                    colorMap: {
-                      stops: [
-                        { position: 0, color: "#000000" },
-                        { position: 1, color: "#ffffff" },
-                      ],
-                    },
-                  })
-                } else {
-                  updateSceneConfig({ colorMap: null })
-                }
+        </Row>
+        {sceneConfig.compositionAspect === "custom" && (
+          <div className="flex items-center justify-end gap-1.5">
+            <NumberInput
+              className={inputClassName}
+              min={1}
+              onChange={(value) =>
+                handleUpdate("compositionWidth", Math.round(value))
+              }
+              parseValue={(value) => {
+                const nextValue = Number.parseInt(value, 10)
+                return Number.isFinite(nextValue) ? nextValue : null
               }}
+              step={1}
+              value={sceneConfig.compositionWidth}
             />
-          </Row>
-          {sceneConfig.colorMap && (
-            <GradientRamp
-              onChange={handleColorMapChange}
-              stops={sceneConfig.colorMap.stops}
+            <Typography tone="muted" variant="monoXs">
+              :
+            </Typography>
+            <NumberInput
+              className={inputClassName}
+              min={1}
+              onChange={(value) =>
+                handleUpdate("compositionHeight", Math.round(value))
+              }
+              parseValue={(value) => {
+                const nextValue = Number.parseInt(value, 10)
+                return Number.isFinite(nextValue) ? nextValue : null
+              }}
+              step={1}
+              value={sceneConfig.compositionHeight}
             />
-          )}
-        </Section>
-      </div>
-    </>
+          </div>
+        )}
+      </Section>
+
+      {/* Background */}
+      <Section title="Background">
+        <Row label="Color">
+          <ColorPicker
+            onValueChange={(value) => handleUpdate("backgroundColor", value)}
+            value={sceneConfig.backgroundColor}
+          />
+        </Row>
+      </Section>
+
+      {/* Color Adjustments */}
+      <Section title="Color Adjustments">
+        <Slider
+          label="Brightness"
+          max={100}
+          min={-100}
+          onValueChange={(value) => handleUpdate("brightness", value / 100)}
+          value={sceneConfig.brightness * 100}
+        />
+        <Slider
+          label="Contrast"
+          max={100}
+          min={-100}
+          onValueChange={(value) => handleUpdate("contrast", value / 100)}
+          value={sceneConfig.contrast * 100}
+        />
+        <Row label="Invert">
+          <Toggle
+            checked={sceneConfig.invert}
+            onCheckedChange={(value) => handleUpdate("invert", value)}
+          />
+        </Row>
+      </Section>
+
+      {/* Channel Mixer */}
+      <Section title="Channel Mixer">
+        <ChannelCurves
+          curves={channelCurves}
+          onCurveChange={handleCurveChange}
+        />
+      </Section>
+
+      {/* Clamp / Remap */}
+      <Section title="Clamp / Remap">
+        <Slider
+          label="Black Point"
+          max={100}
+          min={0}
+          onValueChange={(v) => handleUpdate("clampMin", v / 100)}
+          value={sceneConfig.clampMin * 100}
+        />
+        <Slider
+          label="White Point"
+          max={100}
+          min={0}
+          onValueChange={(v) => handleUpdate("clampMax", v / 100)}
+          value={sceneConfig.clampMax * 100}
+        />
+      </Section>
+
+      {/* Quantize */}
+      <Section title="Quantize">
+        <Slider
+          label="Levels"
+          max={256}
+          min={2}
+          onValueChange={(value) =>
+            handleUpdate("quantizeLevels", Math.round(value))
+          }
+          value={sceneConfig.quantizeLevels}
+        />
+      </Section>
+
+      {/* Color Map */}
+      <Section title="Color Map">
+        <Row label="Enabled">
+          <Toggle
+            checked={sceneConfig.colorMap !== null}
+            onCheckedChange={(enabled) => {
+              if (enabled) {
+                updateSceneConfig({
+                  colorMap: {
+                    stops: [
+                      { position: 0, color: "#000000" },
+                      { position: 1, color: "#ffffff" },
+                    ],
+                  },
+                })
+              } else {
+                updateSceneConfig({ colorMap: null })
+              }
+            }}
+          />
+        </Row>
+        {sceneConfig.colorMap && (
+          <GradientRamp
+            onChange={handleColorMapChange}
+            stops={sceneConfig.colorMap.stops}
+          />
+        )}
+      </Section>
+    </div>
   )
 }

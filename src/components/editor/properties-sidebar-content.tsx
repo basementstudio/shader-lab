@@ -48,9 +48,6 @@ import {
 export function EmptyPropertiesContent() {
   return (
     <div className="flex flex-col gap-1.5 p-4">
-      <Typography tone="secondary" variant="overline">
-        Properties
-      </Typography>
       <Typography variant="body">Select a layer to edit it.</Typography>
       <Typography tone="muted" variant="caption">
         Nothing to edit yet. Create a new layer in the left panel.
@@ -365,26 +362,25 @@ export function SelectedLayerPropertiesContent({
 
   return (
     <>
-      <div className="flex flex-col gap-1.5 border-b border-[var(--ds-border-divider)] px-4 pt-[14px] pb-3">
-        <div className="flex items-center justify-between gap-2">
-          <Typography tone="secondary" variant="overline">
-            Properties
-          </Typography>
+      <div className="flex flex-col gap-2 border-b border-[var(--ds-border-divider)] px-4 pt-[14px] pb-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex flex-col gap-1">
+            <Typography variant="title">{layerName}</Typography>
+            {layerSubtitle ? (
+              <Typography tone="muted" variant="monoXs">
+                {layerSubtitle}
+              </Typography>
+            ) : null}
+            {layerRuntimeError ? (
+              <Typography tone="muted" variant="caption">
+                {layerRuntimeError}
+              </Typography>
+            ) : null}
+          </div>
           <span className="inline-flex min-h-5 items-center rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-active)] px-[7px] font-[var(--ds-font-mono)] text-[10px] leading-3 text-[var(--ds-color-text-secondary)] capitalize">
             {formatLayerKind(layerKind)}
           </span>
         </div>
-        <Typography variant="title">{layerName}</Typography>
-        {layerSubtitle ? (
-          <Typography tone="muted" variant="monoXs">
-            {layerSubtitle}
-          </Typography>
-        ) : null}
-        {layerRuntimeError ? (
-          <Typography tone="muted" variant="caption">
-            {layerRuntimeError}
-          </Typography>
-        ) : null}
       </div>
 
       <div className="flex min-h-0 max-h-[min(62vh,620px)] flex-col gap-0 overflow-x-hidden overflow-y-auto">

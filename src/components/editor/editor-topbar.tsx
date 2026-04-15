@@ -6,7 +6,6 @@ import {
   GearIcon,
   GitHubLogoIcon,
   ResetIcon,
-  StarFilledIcon,
   ZoomInIcon,
   ZoomOutIcon,
 } from "@radix-ui/react-icons"
@@ -40,21 +39,18 @@ const GITHUB_REPO_URL = "https://github.com/basementstudio/shader-lab"
 function GitHubStarLink({ mobile = false }: { mobile?: boolean }) {
   return (
     <Link
-      aria-label="Star Shader Lab on GitHub"
+      aria-label="Open Shader Lab on GitHub"
       className={
         mobile
-          ? "inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-[var(--ds-radius-control)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-3 text-[var(--ds-color-text-secondary)] transition-[background-color,border-color,color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:border-[var(--ds-border-hover)] hover:bg-white/8 hover:text-[var(--ds-color-text-primary)] active:scale-[0.98]"
-          : "inline-flex h-7 items-center justify-center gap-1.5 rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-3 text-[var(--ds-color-text-secondary)] transition-[background-color,border-color,color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:border-[var(--ds-border-hover)] hover:bg-white/8 hover:text-[var(--ds-color-text-primary)] active:scale-[0.98]"
+          ? "inline-flex size-8 items-center justify-center rounded-[var(--ds-radius-control)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] text-[var(--ds-color-text-secondary)] transition-[background-color,border-color,color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:border-[var(--ds-border-hover)] hover:bg-white/8 hover:text-[var(--ds-color-text-primary)] active:scale-[0.98]"
+          : "inline-flex h-7 w-7 items-center justify-center rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] text-[var(--ds-color-text-secondary)] transition-[background-color,border-color,color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:border-[var(--ds-border-hover)] hover:bg-white/8 hover:text-[var(--ds-color-text-primary)] active:scale-[0.98]"
       }
       href={GITHUB_REPO_URL}
       rel="noreferrer"
       target="_blank"
+      title="Open Shader Lab on GitHub"
     >
       <GitHubLogoIcon height={14} width={14} />
-      <StarFilledIcon height={12} width={12} />
-      <Typography as="span" tone="secondary" variant="caption">
-        Star
-      </Typography>
     </Link>
   )
 }

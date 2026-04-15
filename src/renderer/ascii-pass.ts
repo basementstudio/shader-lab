@@ -43,6 +43,8 @@ type AsciiCharset = keyof typeof ASCII_CHARSETS | "custom"
 type AsciiToneMapping = "none" | "aces" | "cinematic" | "reinhard" | "totos"
 type AsciiSignalMode = "blue" | "green" | "lightness" | "luminance" | "red"
 
+const ASCII_ATLAS_CELL_SIZE = 64
+
 function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value))
 }
@@ -87,6 +89,7 @@ export class AsciiPass extends PassNode {
   private bloomNode: ReturnType<typeof bloom> | null = null
   private shimmerEnabled = false
   private readonly bgOpacityUniform: Node
+  private readonly atlasCellSizeUniform: Node
   private readonly bloomIntensityUniform: Node
   private readonly bloomRadiusUniform: Node
   private readonly bloomSoftnessUniform: Node
@@ -115,7 +118,6 @@ export class AsciiPass extends PassNode {
   private readonly toneMappingModeUniform: Node
   private sourceTextureNodes: Node[] = []
 
-  private currentCellSize = 12
   private currentCharset: AsciiCharset = "light"
   private currentCustomChars = DEFAULT_ASCII_CHARS
   private currentFontWeight: AsciiFontWeight = "regular"
@@ -123,6 +125,7 @@ export class AsciiPass extends PassNode {
   constructor(layerId: string) {
     super(layerId)
     this.placeholder = new THREE.Texture()
+    this.atlasCellSizeUniform = uniform(ASCII_ATLAS_CELL_SIZE)
     this.bgOpacityUniform = uniform(0)
     this.bloomIntensityUniform = uniform(1.25)
     this.bloomRadiusUniform = uniform(6)
@@ -152,7 +155,7 @@ export class AsciiPass extends PassNode {
     this.atlasTexture = buildAsciiAtlas(
       DEFAULT_ASCII_CHARS,
       "regular",
-      this.currentCellSize
+      ASCII_ATLAS_CELL_SIZE
     )
     this.rebuildEffectNode()
   }
@@ -180,7 +183,7 @@ export class AsciiPass extends PassNode {
   override updateParams(params: LayerParameterValues): void {
     const nextCellSize =
       typeof params.cellSize === "number"
-        ? Math.max(4, Math.round(params.cellSize))
+        ? Math.max(4, params.cellSize)
         : 12
     const nextCharset = this.resolveCharset(params.charset)
     const nextCustomChars =
@@ -275,12 +278,10 @@ export class AsciiPass extends PassNode {
     this.shimmerEnabled = nextShimmerAmount > 0
 
     const needsAtlasRebuild =
-      nextCellSize !== this.currentCellSize ||
       nextCharset !== this.currentCharset ||
       nextFontWeight !== this.currentFontWeight ||
       (nextCharset === "custom" && nextCustomChars !== this.currentCustomChars)
 
-    this.currentCellSize = nextCellSize
     this.currentCharset = nextCharset
     this.currentCustomChars = nextCustomChars
     this.currentFontWeight = nextFontWeight
@@ -357,6 +358,10 @@ export class AsciiPass extends PassNode {
       const localCellPixel = vec2(
         mod(screenPixel.x, this.cellSizeUniform),
         mod(screenPixel.y, this.cellSizeUniform)
+      )
+      const localCellUv = vec2(
+        localCellPixel.x.div(this.cellSizeUniform),
+        localCellPixel.y.div(this.cellSizeUniform)
       )
 
       // Sample source color and apply tone mapping
@@ -475,11 +480,13 @@ export class AsciiPass extends PassNode {
       // Atlas lookup
       const atlasUv = vec2(
         charIndex
-          .mul(this.cellSizeUniform)
-          .add(localCellPixel.x)
+          .mul(this.atlasCellSizeUniform)
+          .add(localCellUv.x.mul(this.atlasCellSizeUniform))
           .add(float(0.5))
-          .div(this.numCharsUniform.mul(this.cellSizeUniform)),
-        localCellPixel.y.add(float(0.5)).div(this.cellSizeUniform)
+          .div(this.numCharsUniform.mul(this.atlasCellSizeUniform)),
+        localCellUv.y.mul(this.atlasCellSizeUniform)
+          .add(float(0.5))
+          .div(this.atlasCellSizeUniform)
       )
       const characterMask = float(this.trackAtlasTextureNode(atlasUv).r)
 
@@ -669,7 +676,7 @@ export class AsciiPass extends PassNode {
     this.atlasTexture = buildAsciiAtlas(
       chars,
       this.currentFontWeight,
-      this.currentCellSize
+      ASCII_ATLAS_CELL_SIZE
     )
     this.numCharsUniform.value = chars.length
     this.rebuildEffectNode()

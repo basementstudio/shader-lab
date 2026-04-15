@@ -26,7 +26,7 @@ export function getNextZoomStep(currentZoom: number, direction: "in" | "out"): n
 }
 
 export function getWheelZoomFactor(deltaY: number): number {
-  return Math.exp(-deltaY * 0.0015)
+  return Math.exp(-deltaY * 0.0032)
 }
 
 export function applyZoomAtPoint(

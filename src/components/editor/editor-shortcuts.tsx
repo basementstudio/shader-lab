@@ -33,7 +33,7 @@ export function EditorShortcuts() {
     }
 
     if (
-      event.key === " " &&
+      event.key.toLowerCase() === "p" &&
       !event.altKey &&
       !event.ctrlKey &&
       !event.metaKey

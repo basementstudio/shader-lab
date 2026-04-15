@@ -1,6 +1,14 @@
 "use client"
 
-import { type DragEvent, useCallback, useEffect, useMemo, useState } from "react"
+import {
+  type DragEvent,
+  type PointerEvent as ReactPointerEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react"
 import { useEditorRenderer } from "@/hooks/use-editor-renderer"
 import { inferFileAssetKind } from "@/lib/editor/media-file"
 import {
@@ -80,9 +88,23 @@ export function EditorCanvasViewport() {
   ])
 
   const [isDragOver, setIsDragOver] = useState(false)
+  const [isSpacePressed, setIsSpacePressed] = useState(false)
+  const [isPointerPanning, setIsPointerPanning] = useState(false)
   const addLayer = useLayerStore((state) => state.addLayer)
   const setLayerAsset = useLayerStore((state) => state.setLayerAsset)
   const loadAsset = useAssetStore((state) => state.loadAsset)
+  const pointerPanRef = useRef<{
+    pointerId: number
+    originX: number
+    originY: number
+    startPanX: number
+    startPanY: number
+  } | null>(null)
+
+  const stopPointerPan = useCallback(() => {
+    pointerPanRef.current = null
+    setIsPointerPanning(false)
+  }, [])
 
   const handleDragOver = useCallback((event: DragEvent) => {
     event.preventDefault()
@@ -122,6 +144,42 @@ export function EditorCanvasViewport() {
   )
 
   useEffect(() => {
+    const isEditableTarget = (target: EventTarget | null): boolean =>
+      target instanceof HTMLElement &&
+      (target.isContentEditable ||
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement)
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === " " && !isEditableTarget(event.target)) {
+        setIsSpacePressed(true)
+      }
+    }
+
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.key === " ") {
+        setIsSpacePressed(false)
+      }
+    }
+
+    const handleWindowBlur = () => {
+      setIsSpacePressed(false)
+      stopPointerPan()
+    }
+
+    window.addEventListener("keydown", handleKeyDown)
+    window.addEventListener("keyup", handleKeyUp)
+    window.addEventListener("blur", handleWindowBlur)
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown)
+      window.removeEventListener("keyup", handleKeyUp)
+      window.removeEventListener("blur", handleWindowBlur)
+    }
+  }, [stopPointerPan])
+
+  useEffect(() => {
     if (!immersiveCanvas) {
       return
     }
@@ -149,29 +207,35 @@ export function EditorCanvasViewport() {
     const handleWheel = (event: WheelEvent) => {
       const shouldZoom = event.metaKey || event.ctrlKey
 
-      if (!shouldZoom) {
+      event.preventDefault()
+
+      const state = useEditorStore.getState()
+
+      if (shouldZoom) {
+        event.stopPropagation()
+
+        const rect = viewportElement.getBoundingClientRect()
+        const pointer = {
+          x: event.clientX - rect.left - rect.width / 2,
+          y: event.clientY - rect.top - rect.height / 2,
+        }
+        const nextZoom = clampZoom(state.zoom * getWheelZoomFactor(event.deltaY))
+        const nextState = applyZoomAtPoint(
+          state.zoom,
+          state.panOffset,
+          pointer,
+          nextZoom
+        )
+
+        state.setZoom(nextState.zoom)
+        state.setPan(nextState.panOffset.x, nextState.panOffset.y)
         return
       }
 
-      event.preventDefault()
-      event.stopPropagation()
-
-      const rect = viewportElement.getBoundingClientRect()
-      const state = useEditorStore.getState()
-      const pointer = {
-        x: event.clientX - rect.left - rect.width / 2,
-        y: event.clientY - rect.top - rect.height / 2,
-      }
-      const nextZoom = clampZoom(state.zoom * getWheelZoomFactor(event.deltaY))
-      const nextState = applyZoomAtPoint(
-        state.zoom,
-        state.panOffset,
-        pointer,
-        nextZoom
+      state.setPan(
+        state.panOffset.x - event.deltaX,
+        state.panOffset.y - event.deltaY
       )
-
-      state.setZoom(nextState.zoom)
-      state.setPan(nextState.panOffset.x, nextState.panOffset.y)
     }
 
     viewportElement.addEventListener("wheel", handleWheel, { passive: false })
@@ -181,14 +245,103 @@ export function EditorCanvasViewport() {
     }
   }, [viewportRef])
 
+  const handlePointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (event.button !== 0 || !isSpacePressed) {
+        return
+      }
+
+      event.preventDefault()
+
+      const state = useEditorStore.getState()
+      pointerPanRef.current = {
+        pointerId: event.pointerId,
+        originX: event.clientX,
+        originY: event.clientY,
+        startPanX: state.panOffset.x,
+        startPanY: state.panOffset.y,
+      }
+      setIsPointerPanning(true)
+      event.currentTarget.setPointerCapture(event.pointerId)
+    },
+    [isSpacePressed]
+  )
+
+  const handlePointerMove = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      const activePan = pointerPanRef.current
+
+      if (!activePan || activePan.pointerId !== event.pointerId) {
+        return
+      }
+
+      useEditorStore.getState().setPan(
+        activePan.startPanX + (event.clientX - activePan.originX),
+        activePan.startPanY + (event.clientY - activePan.originY)
+      )
+    },
+    []
+  )
+
+  const handlePointerUp = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      const activePan = pointerPanRef.current
+
+      if (!activePan || activePan.pointerId !== event.pointerId) {
+        return
+      }
+
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId)
+      }
+
+      stopPointerPan()
+    },
+    [stopPointerPan]
+  )
+
+  const handlePointerCancel = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      const activePan = pointerPanRef.current
+
+      if (!activePan || activePan.pointerId !== event.pointerId) {
+        return
+      }
+
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId)
+      }
+
+      stopPointerPan()
+    },
+    [stopPointerPan]
+  )
+
+  let viewportCursor: "grab" | "grabbing" | undefined
+
+  if (isPointerPanning) {
+    viewportCursor = "grabbing"
+  } else if (isSpacePressed) {
+    viewportCursor = "grab"
+  }
+
   return (
     <>
       <div
         ref={viewportRef}
         className="absolute inset-0 overflow-hidden"
+        role="application"
+        aria-label="Canvas viewport"
+        style={{
+          cursor: viewportCursor,
+        }}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerCancel}
       >
         <div
           className="absolute inset-0"

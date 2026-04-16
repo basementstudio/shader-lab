@@ -46,7 +46,7 @@ export function buildRendererFrame(
   return {
     clock: createRuntimeClock(config.timeline, time, delta),
     layers,
-    logicalSize: viewportSize,
+    logicalSize: config.composition,
     outputSize: viewportSize,
     pixelRatio,
     viewportSize,

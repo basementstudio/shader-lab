@@ -16,6 +16,10 @@
       "default": "./dist/src/index.js"
     }
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/basementstudio/shader-lab"
+  },
   "publishConfig": {
     "access": "public"
   },

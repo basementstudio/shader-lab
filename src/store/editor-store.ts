@@ -119,7 +119,7 @@ export const useEditorStore = create<EditorStore>((set) => ({
   },
   sidebarView: "properties",
   theme: "dark",
-  timelineAutoKey: false,
+  timelineAutoKey: true,
   timelinePanelOpen: false,
   webgpuError: null,
   webgpuStatus: "idle",

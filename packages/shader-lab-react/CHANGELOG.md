@@ -5,6 +5,7 @@
 ### Patch Changes
 
 - 9ad4873: Improve the timeline editor with multi-keyframe selection, marquee selection, keyboard editing shortcuts, and track toggles. Add curve editing and new easings, per keyframe.
+- Sync the package text runtime with the newer text layer canvas rendering behavior, including logical-size scaling, anchor/offset placement, and background alpha support. Fix npm provenance publishing by declaring the package repository URL.
 
 ## 1.3.5
 

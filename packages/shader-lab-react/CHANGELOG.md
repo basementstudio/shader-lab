@@ -1,5 +1,11 @@
 # @basementstudio/shader-lab
 
+## 1.3.7
+
+### Patch Changes
+
+- 8678fd0: sync the package text runtime with the latest text layer updates and fix npm provenance publishing by declaring the repository url
+
 ## 1.3.6
 
 ### Patch Changes

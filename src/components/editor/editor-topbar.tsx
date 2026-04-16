@@ -6,7 +6,6 @@ import {
   GearIcon,
   GitHubLogoIcon,
   ResetIcon,
-  StarFilledIcon,
   ZoomInIcon,
   ZoomOutIcon,
 } from "@radix-ui/react-icons"
@@ -16,6 +15,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { FloatingDesktopPanel } from "@/components/editor/floating-desktop-panel"
 import { GlassPanel } from "@/components/ui/glass-panel"
 import { IconButton } from "@/components/ui/icon-button"
+import { HoverTooltip } from "@/components/ui/tooltip"
 import { Typography } from "@/components/ui/typography"
 import { cn } from "@/lib/cn"
 import {
@@ -39,23 +39,21 @@ const GITHUB_REPO_URL = "https://github.com/basementstudio/shader-lab"
 
 function GitHubStarLink({ mobile = false }: { mobile?: boolean }) {
   return (
-    <Link
-      aria-label="Star Shader Lab on GitHub"
-      className={
-        mobile
-          ? "inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-[var(--ds-radius-control)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-3 text-[var(--ds-color-text-secondary)] transition-[background-color,border-color,color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:border-[var(--ds-border-hover)] hover:bg-white/8 hover:text-[var(--ds-color-text-primary)] active:scale-[0.98]"
-          : "inline-flex h-7 items-center justify-center gap-1.5 rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-3 text-[var(--ds-color-text-secondary)] transition-[background-color,border-color,color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:border-[var(--ds-border-hover)] hover:bg-white/8 hover:text-[var(--ds-color-text-primary)] active:scale-[0.98]"
-      }
-      href={GITHUB_REPO_URL}
-      rel="noreferrer"
-      target="_blank"
-    >
-      <GitHubLogoIcon height={14} width={14} />
-      <StarFilledIcon height={12} width={12} />
-      <Typography as="span" tone="secondary" variant="caption">
-        Star
-      </Typography>
-    </Link>
+    <HoverTooltip content="GitHub" side={mobile ? "top" : "bottom"}>
+      <Link
+        aria-label="Open Shader Lab on GitHub"
+        className={
+          mobile
+            ? "inline-flex size-8 items-center justify-center rounded-[var(--ds-radius-control)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] text-[var(--ds-color-text-secondary)] transition-[background-color,border-color,color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:border-[var(--ds-border-hover)] hover:bg-white/8 hover:text-[var(--ds-color-text-primary)] active:scale-[0.98]"
+            : "inline-flex h-7 w-7 items-center justify-center rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] text-[var(--ds-color-text-secondary)] transition-[background-color,border-color,color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:border-[var(--ds-border-hover)] hover:bg-white/8 hover:text-[var(--ds-color-text-primary)] active:scale-[0.98]"
+        }
+        href={GITHUB_REPO_URL}
+        rel="noreferrer"
+        target="_blank"
+      >
+        <GitHubLogoIcon height={14} width={14} />
+      </Link>
+    </HoverTooltip>
   )
 }
 
@@ -101,6 +99,8 @@ export function EditorTopBar() {
   const canUndo = historyPastLength > 0
   const canRedo = historyFutureLength > 0
   const mobileActionsOpen = mobilePanel === "actions"
+  const hasResettableView =
+    zoom !== 1 || panOffset.x !== 0 || panOffset.y !== 0
 
   const syncHistorySnapshotRefs = useCallback(() => {
     const snapshot = buildEditorHistorySnapshot()
@@ -298,8 +298,9 @@ export function EditorTopBar() {
           >
             <div className="inline-flex items-center gap-1.5">
               <IconButton
-                aria-label="Move top bar"
+                aria-label="Drag"
                 className="h-7 w-7 cursor-grab text-[var(--ds-color-text-muted)] active:cursor-grabbing"
+                tooltipSide="bottom"
                 variant="ghost"
                 {...dragHandleProps}
               >
@@ -310,6 +311,8 @@ export function EditorTopBar() {
                 className="h-7 w-7 disabled:opacity-45"
                 disabled={!canUndo}
                 onClick={handleUndo}
+                tooltip="Revert"
+                tooltipSide="bottom"
                 variant="default"
               >
                 <ResetIcon height={18} width={18} />
@@ -319,6 +322,7 @@ export function EditorTopBar() {
                 className="h-7 w-7 disabled:opacity-45"
                 disabled={!canRedo}
                 onClick={handleRedo}
+                tooltipSide="bottom"
                 variant="default"
               >
                 <ResetIcon className="scale-x-[-1]" height={18} width={18} />
@@ -330,23 +334,31 @@ export function EditorTopBar() {
                 aria-label="Zoom out"
                 className="h-7 w-7 disabled:opacity-45"
                 onClick={() => applyZoomStep("out")}
+                tooltipSide="bottom"
                 variant="default"
               >
                 <ZoomOutIcon height={18} width={18} />
               </IconButton>
-              <button
-                className="inline-flex h-7 min-w-16 cursor-pointer items-center justify-center rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-[10px] transition-[background-color,border-color,color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:bg-white/8 hover:border-[var(--ds-border-hover)] active:scale-[0.98] max-[899px]:min-w-14"
-                onClick={resetView}
-                type="button"
+              <HoverTooltip
+                content="Reset view"
+                disabled={!hasResettableView}
+                side="bottom"
               >
-                <Typography as="span" tone="secondary" variant="monoSm">
-                  {Math.round(zoom * 100)}%
-                </Typography>
-              </button>
+                <button
+                  className="inline-flex h-7 min-w-16 cursor-pointer items-center justify-center rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-[10px] transition-[background-color,border-color,color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:bg-white/8 hover:border-[var(--ds-border-hover)] active:scale-[0.98] max-[899px]:min-w-14"
+                  onClick={resetView}
+                  type="button"
+                >
+                  <Typography as="span" tone="secondary" variant="monoSm">
+                    {Math.round(zoom * 100)}%
+                  </Typography>
+                </button>
+              </HoverTooltip>
               <IconButton
                 aria-label="Zoom in"
                 className="h-7 w-7 disabled:opacity-45"
                 onClick={() => applyZoomStep("in")}
+                tooltipSide="bottom"
                 variant="default"
               >
                 <ZoomInIcon height={18} width={18} />
@@ -367,15 +379,21 @@ export function EditorTopBar() {
                       ease: [0.32, 0.72, 0, 1],
                     }}
                   >
-                    <button
-                      className="inline-flex h-7 cursor-pointer items-center justify-center whitespace-nowrap rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-[10px] transition-[background-color,border-color,color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:bg-white/8 hover:border-[var(--ds-border-hover)] active:scale-[0.98]"
-                      onClick={resetFloatingPanels}
-                      type="button"
-                    >
-                      <Typography as="span" tone="secondary" variant="caption">
-                        Reset layout
-                      </Typography>
-                    </button>
+                    <HoverTooltip content="Reset layout" side="bottom">
+                      <button
+                        className="inline-flex h-7 cursor-pointer items-center justify-center whitespace-nowrap rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-[10px] transition-[background-color,border-color,color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:bg-white/8 hover:border-[var(--ds-border-hover)] active:scale-[0.98]"
+                        onClick={resetFloatingPanels}
+                        type="button"
+                      >
+                        <Typography
+                          as="span"
+                          tone="secondary"
+                          variant="caption"
+                        >
+                          Reset layout
+                        </Typography>
+                      </button>
+                    </HoverTooltip>
                   </motion.div>
                 ) : null}
               </AnimatePresence>
@@ -400,6 +418,8 @@ export function EditorTopBar() {
                 aria-label="Export"
                 className="h-7 w-7 disabled:opacity-45"
                 onClick={() => setIsExportDialogOpen(true)}
+                tooltip="Download"
+                tooltipSide="bottom"
                 variant="default"
               >
                 <DownloadIcon height={16} width={16} />
@@ -422,6 +442,7 @@ export function EditorTopBar() {
                 className="h-7 w-7 disabled:opacity-45"
                 disabled={!canUndo}
                 onClick={handleUndo}
+                tooltip="Revert"
                 variant="default"
               >
                 <ResetIcon height={18} width={18} />
@@ -446,15 +467,20 @@ export function EditorTopBar() {
               >
                 <ZoomOutIcon height={18} width={18} />
               </IconButton>
-              <button
-                className="inline-flex h-7 min-w-16 cursor-pointer items-center justify-center rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-[10px] transition-[background-color,border-color,color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:bg-white/8 hover:border-[var(--ds-border-hover)] active:scale-[0.98]"
-                onClick={resetView}
-                type="button"
+              <HoverTooltip
+                content="Reset view"
+                disabled={!hasResettableView}
               >
-                <Typography as="span" tone="secondary" variant="monoSm">
-                  {Math.round(zoom * 100)}%
-                </Typography>
-              </button>
+                <button
+                  className="inline-flex h-7 min-w-16 cursor-pointer items-center justify-center rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-[10px] transition-[background-color,border-color,color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:bg-white/8 hover:border-[var(--ds-border-hover)] active:scale-[0.98]"
+                  onClick={resetView}
+                  type="button"
+                >
+                  <Typography as="span" tone="secondary" variant="monoSm">
+                    {Math.round(zoom * 100)}%
+                  </Typography>
+                </button>
+              </HoverTooltip>
               <IconButton
                 aria-label="Zoom in"
                 className="h-7 w-7 disabled:opacity-45"
@@ -471,6 +497,7 @@ export function EditorTopBar() {
                 aria-label="Export"
                 className="h-7 w-7 disabled:opacity-45"
                 onClick={() => setIsExportDialogOpen(true)}
+                tooltip="Download"
                 variant="default"
               >
                 <DownloadIcon height={16} width={16} />

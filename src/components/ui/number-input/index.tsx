@@ -2,6 +2,7 @@
 
 import { type InputHTMLAttributes, useEffect, useRef, useState } from "react"
 import { cn } from "@/lib/cn"
+import { formatNumberForDisplay } from "@/lib/format-number"
 
 type NumberInputProps = Omit<
   InputHTMLAttributes<HTMLInputElement>,
@@ -40,7 +41,7 @@ export function NumberInput({
   ...props
 }: NumberInputProps) {
   const [draftValue, setDraftValue] = useState(() =>
-    formatValue ? formatValue(value) : value.toString()
+    formatValue ? formatValue(value) : formatNumberForDisplay(value)
   )
   const isEditingRef = useRef(false)
 
@@ -49,14 +50,18 @@ export function NumberInput({
       return
     }
 
-    setDraftValue(formatValue ? formatValue(value) : value.toString())
+    setDraftValue(
+      formatValue ? formatValue(value) : formatNumberForDisplay(value)
+    )
   }, [formatValue, value])
 
   const commitDraftValue = () => {
     const parsedValue = parseValue(draftValue)
 
     if (parsedValue === null) {
-      setDraftValue(formatValue ? formatValue(value) : value.toString())
+      setDraftValue(
+        formatValue ? formatValue(value) : formatNumberForDisplay(value)
+      )
       return
     }
 
@@ -67,7 +72,9 @@ export function NumberInput({
 
     onChange(clampedValue)
     setDraftValue(
-      formatValue ? formatValue(clampedValue) : clampedValue.toString()
+      formatValue
+        ? formatValue(clampedValue)
+        : formatNumberForDisplay(clampedValue)
     )
   }
 
@@ -100,7 +107,9 @@ export function NumberInput({
 
         if (event.key === "Escape") {
           isEditingRef.current = false
-          setDraftValue(formatValue ? formatValue(value) : value.toString())
+          setDraftValue(
+            formatValue ? formatValue(value) : formatNumberForDisplay(value)
+          )
           event.currentTarget.blur()
           return
         }

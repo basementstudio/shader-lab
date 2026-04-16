@@ -20,6 +20,13 @@ function isEditableTarget(target: EventTarget | null): boolean {
 export function EditorShortcuts() {
   const selectedLayerIds = useLayerStore((state) => state.selectedLayerIds)
   const removeLayers = useLayerStore((state) => state.removeLayers)
+  const immersiveCanvas = useEditorStore((state) => state.immersiveCanvas)
+  const enterImmersiveCanvas = useEditorStore(
+    (state) => state.enterImmersiveCanvas
+  )
+  const exitImmersiveCanvas = useEditorStore(
+    (state) => state.exitImmersiveCanvas
+  )
   const timelinePanelOpen = useEditorStore((state) => state.timelinePanelOpen)
   const selectedKeyframeId = useTimelineStore(
     (state) => state.selectedKeyframeId
@@ -29,6 +36,23 @@ export function EditorShortcuts() {
 
   const handleKeyDown = useEffectEvent((event: KeyboardEvent) => {
     if (isEditableTarget(event.target)) {
+      return
+    }
+
+    if (
+      event.metaKey &&
+      !event.altKey &&
+      !event.ctrlKey &&
+      event.code === "Period"
+    ) {
+      event.preventDefault()
+
+      if (immersiveCanvas) {
+        exitImmersiveCanvas()
+      } else {
+        enterImmersiveCanvas()
+      }
+
       return
     }
 

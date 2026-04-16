@@ -88,7 +88,10 @@ export class ShaderLabPostProcessingSource {
       time,
       delta,
       this.pixelRatio,
-      viewportSize
+      viewportSize,
+      {
+        logicalSize: viewportSize,
+      }
     )
     this.currentTexture = this.headless.render(frame, inputTexture)
     return this.currentTexture

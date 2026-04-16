@@ -35,7 +35,10 @@ export function buildRendererFrame(
   time: number,
   delta: number,
   pixelRatio: number,
-  viewportSize: RendererSize
+  viewportSize: RendererSize,
+  options?: {
+    logicalSize?: RendererSize
+  }
 ): RendererFrame {
   const layers = resolveEvaluatedLayers(
     config.layers,
@@ -46,7 +49,7 @@ export function buildRendererFrame(
   return {
     clock: createRuntimeClock(config.timeline, time, delta),
     layers,
-    logicalSize: config.composition,
+    logicalSize: options?.logicalSize ?? config.composition,
     outputSize: viewportSize,
     pixelRatio,
     viewportSize,

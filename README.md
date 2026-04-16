@@ -313,6 +313,7 @@ export function PostProcessingExample({
 - Pass your scene texture from the same `WebGPURenderer` you gave to `useShaderLab`
 - WebGL host renderers are not supported for postprocessing
 - Effect-only Shader Lab configs are the most natural fit here
+- Keep the postprocessing `width`/`height` and `postprocessing.resize(...)` in sync with the input render target size, especially for screen-space effects like dithering, pixelation, and ASCII
 - `postprocessing.texture` always points to the latest output texture
 
 ## `useShaderLab`
@@ -417,6 +418,8 @@ useFrame((state, delta) => {
   // present(output)
 })
 ```
+
+Make sure the Shader Lab postprocessing source is resized whenever your scene render target size changes. Screen-space effects use that size to determine their sampling grid.
 
 This is useful when:
 

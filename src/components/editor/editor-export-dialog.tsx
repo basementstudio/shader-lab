@@ -1413,6 +1413,7 @@ function buildRenderProjectState() {
       isPlaying: timelineState.isPlaying,
       loop: timelineState.loop,
       selectedKeyframeId: timelineState.selectedKeyframeId,
+      selectedKeyframeIds: timelineState.selectedKeyframeIds,
       selectedTrackId: timelineState.selectedTrackId,
       tracks: structuredClone(timelineState.tracks),
     },

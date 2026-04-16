@@ -28,10 +28,9 @@ export function EditorShortcuts() {
     (state) => state.exitImmersiveCanvas
   )
   const timelinePanelOpen = useEditorStore((state) => state.timelinePanelOpen)
-  const selectedKeyframeId = useTimelineStore(
-    (state) => state.selectedKeyframeId
+  const selectedKeyframeIds = useTimelineStore(
+    (state) => state.selectedKeyframeIds
   )
-  const selectedTrackId = useTimelineStore((state) => state.selectedTrackId)
   const togglePlaying = useTimelineStore((state) => state.togglePlaying)
 
   const handleKeyDown = useEffectEvent((event: KeyboardEvent) => {
@@ -70,7 +69,7 @@ export function EditorShortcuts() {
     if (
       (event.key === "Backspace" || event.key === "Delete") &&
       selectedLayerIds.length > 0 &&
-      !(timelinePanelOpen && selectedTrackId && selectedKeyframeId)
+      !(timelinePanelOpen && selectedKeyframeIds.length > 0)
     ) {
       event.preventDefault()
       removeLayers(selectedLayerIds)

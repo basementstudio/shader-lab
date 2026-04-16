@@ -316,6 +316,7 @@ export interface TimelineStateSnapshot {
   isPlaying: boolean
   loop: boolean
   selectedKeyframeId: string | null
+  selectedKeyframeIds: string[]
   selectedTrackId: string | null
   tracks: TimelineTrack[]
 }
@@ -428,6 +429,7 @@ export interface EditorHistorySnapshot {
     | "duration"
     | "loop"
     | "selectedKeyframeId"
+    | "selectedKeyframeIds"
     | "selectedTrackId"
     | "tracks"
   >

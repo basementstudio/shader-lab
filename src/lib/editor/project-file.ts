@@ -121,6 +121,7 @@ export function applyLabProjectFile(
     isPlaying: true,
     loop: projectFile.timeline.loop,
     selectedKeyframeId: null,
+    selectedKeyframeIds: [],
     selectedTrackId: null,
     tracks: projectFile.timeline.tracks,
   })

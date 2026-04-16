@@ -10,7 +10,13 @@ type HistoryTimelineSnapshot = EditorHistorySnapshot["timeline"]
 function cloneHistoryTimeline(
   timeline: Pick<
     TimelineStateSnapshot,
-    "currentTime" | "duration" | "loop" | "selectedKeyframeId" | "selectedTrackId" | "tracks"
+    | "currentTime"
+    | "duration"
+    | "loop"
+    | "selectedKeyframeId"
+    | "selectedKeyframeIds"
+    | "selectedTrackId"
+    | "tracks"
   >,
 ): HistoryTimelineSnapshot {
   return structuredClone({
@@ -18,6 +24,7 @@ function cloneHistoryTimeline(
     duration: timeline.duration,
     loop: timeline.loop,
     selectedKeyframeId: timeline.selectedKeyframeId,
+    selectedKeyframeIds: timeline.selectedKeyframeIds,
     selectedTrackId: timeline.selectedTrackId,
     tracks: timeline.tracks,
   })
@@ -30,7 +37,13 @@ export function buildEditorHistorySnapshotFromState(
   >,
   timelineState: Pick<
     TimelineStateSnapshot,
-    "currentTime" | "duration" | "loop" | "selectedKeyframeId" | "selectedTrackId" | "tracks"
+    | "currentTime"
+    | "duration"
+    | "loop"
+    | "selectedKeyframeId"
+    | "selectedKeyframeIds"
+    | "selectedTrackId"
+    | "tracks"
   >,
 ): EditorHistorySnapshot {
   return {
@@ -58,6 +71,7 @@ export function applyEditorHistorySnapshot(snapshot: EditorHistorySnapshot): voi
     isPlaying: false,
     loop: snapshot.timeline.loop,
     selectedKeyframeId: snapshot.timeline.selectedKeyframeId,
+    selectedKeyframeIds: snapshot.timeline.selectedKeyframeIds,
     selectedTrackId: snapshot.timeline.selectedTrackId,
     tracks: snapshot.timeline.tracks,
   })

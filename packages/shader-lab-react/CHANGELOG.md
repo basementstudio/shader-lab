@@ -1,5 +1,11 @@
 # @basementstudio/shader-lab
 
+## 1.3.5
+
+### Patch Changes
+
+- 45227dc: minor fixes in pattern and ascii layers
+
 ## 1.3.4
 
 ### Patch Changes

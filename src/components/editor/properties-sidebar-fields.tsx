@@ -9,6 +9,10 @@ import type {
   TextParameterDefinition,
 } from "@/types/editor"
 import { cn } from "@/lib/cn"
+import {
+  getTextFontWeightControl,
+  normalizeTextFontWeight,
+} from "@/lib/editor/text-fonts"
 import { AnchorPicker } from "@/components/ui/anchor-picker"
 import { ColorPicker } from "@/components/ui/color-picker"
 import { IconButton } from "@/components/ui/icon-button"
@@ -263,6 +267,18 @@ export function ParameterField({
   }
 
   const fieldLabel = getCustomPaletteFieldLabel(definition, layerParams)
+  const textFontFamily =
+    typeof layerParams?.fontFamily === "string"
+      ? layerParams.fontFamily
+      : "display-serif"
+  const fontWeightControl =
+    definition.key === "fontWeight"
+      ? getTextFontWeightControl(textFontFamily)
+      : null
+
+  if (fontWeightControl?.hidden) {
+    return null
+  }
 
   switch (definition.type) {
     case "number":
@@ -273,15 +289,40 @@ export function ParameterField({
             definition.description,
             timelineControl
           )}
-          max={definition.max ?? 100}
-          min={definition.min ?? 0}
+          max={
+            fontWeightControl?.hidden === false
+              ? fontWeightControl.max
+              : (definition.max ?? 100)
+          }
+          min={
+            fontWeightControl?.hidden === false
+              ? fontWeightControl.min
+              : (definition.min ?? 0)
+          }
           onInteractionStart={onInteractionStart}
           onValueChange={(nextValue) =>
-            onChange(layerId, definition.key, nextValue)
+            onChange(
+              layerId,
+              definition.key,
+              definition.key === "fontWeight"
+                ? normalizeTextFontWeight(textFontFamily, nextValue)
+                : nextValue
+            )
           }
           onValueCommitted={() => onInteractionEnd?.()}
-          step={definition.step ?? 0.01}
-          value={toNumberValue(value, definition.defaultValue)}
+          step={
+            fontWeightControl?.hidden === false
+              ? fontWeightControl.step
+              : (definition.step ?? 0.01)
+          }
+          value={
+            definition.key === "fontWeight"
+              ? normalizeTextFontWeight(
+                  textFontFamily,
+                  toNumberValue(value, definition.defaultValue)
+                )
+              : toNumberValue(value, definition.defaultValue)
+          }
           valueFormatOptions={{
             maximumFractionDigits: 2,
             minimumFractionDigits: 0,

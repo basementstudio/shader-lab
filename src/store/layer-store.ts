@@ -14,6 +14,7 @@ import {
   cloneParameterValue,
   getParameterDefinition,
 } from "@/lib/editor/parameter-schema"
+import { normalizeTextFontWeight } from "@/lib/editor/text-fonts"
 import { useEditorStore } from "@/store/editor-store"
 import type {
   BlendMode,
@@ -737,6 +738,24 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
         const nextParams = {
           ...layer.params,
           [key]: cloneParameterValue(value),
+        }
+
+        if (layer.type === "text") {
+          if (key === "fontFamily" && typeof value === "string") {
+            nextParams.fontWeight = normalizeTextFontWeight(
+              value,
+              nextParams.fontWeight
+            )
+          }
+
+          if (key === "fontWeight") {
+            const fontFamily =
+              typeof nextParams.fontFamily === "string"
+                ? nextParams.fontFamily
+                : "display-serif"
+
+            nextParams.fontWeight = normalizeTextFontWeight(fontFamily, value)
+          }
         }
 
         if (

@@ -126,9 +126,12 @@ export function PropertiesSidebar() {
         return false
       }
 
-      return isParamVisible(param, selectedLayer.params, [
-        ...selectedDefinition.params,
-      ])
+      return isParamVisible(
+        param,
+        selectedLayer.params,
+        [...selectedDefinition.params],
+        selectedLayer.type
+      )
     })
   }, [selectedAsset, selectedDefinition, selectedLayer])
 

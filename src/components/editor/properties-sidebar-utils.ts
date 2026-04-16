@@ -6,6 +6,7 @@ import type {
   ParameterDefinition,
   ParameterValue,
 } from "@/types/editor"
+import { isTextFontWeightAdjustable } from "@/lib/editor/text-fonts"
 import { isParameterAnimatable } from "@/lib/editor/parameter-schema"
 import type { useTimelineStore } from "@/store/timeline-store"
 
@@ -117,29 +118,41 @@ export function resolveParamValue(
 export function isParamVisible(
   definition: ParameterDefinition,
   params: Record<string, ParameterValue>,
-  definitions: ParameterDefinition[]
+  definitions: ParameterDefinition[],
+  layerType?: string
 ): boolean {
-  if (!definition.visibleWhen) {
-    return true
+  if (definition.visibleWhen) {
+    const controllingValue = resolveParamValue(
+      params,
+      definitions,
+      definition.visibleWhen.key
+    )
+
+    if ("equals" in definition.visibleWhen) {
+      if (controllingValue !== definition.visibleWhen.equals) {
+        return false
+      }
+    } else if (
+      typeof controllingValue !== "number" ||
+      controllingValue < definition.visibleWhen.gte
+    ) {
+      return false
+    }
   }
 
-  const controllingValue = resolveParamValue(
-    params,
-    definitions,
-    definition.visibleWhen.key
-  )
-
-  if ("equals" in definition.visibleWhen) {
-    return controllingValue === definition.visibleWhen.equals
+  if (layerType === "text" && definition.key === "fontWeight") {
+    const fontFamily = resolveParamValue(params, definitions, "fontFamily")
+    return isTextFontWeightAdjustable(
+      typeof fontFamily === "string" ? fontFamily : "display-serif"
+    )
   }
 
-  return (
-    typeof controllingValue === "number" &&
-    controllingValue >= definition.visibleWhen.gte
-  )
+  return true
 }
 
-export function groupVisibleParams(params: ParameterDefinition[]): ParamGroup[] {
+export function groupVisibleParams(
+  params: ParameterDefinition[]
+): ParamGroup[] {
   const groups = new Map<string, ParamGroup>()
 
   for (const param of params) {

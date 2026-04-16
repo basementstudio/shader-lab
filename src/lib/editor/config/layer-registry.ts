@@ -3,6 +3,7 @@ import {
   CUSTOM_SHADER_INTERNAL_VISIBILITY,
   CUSTOM_SHADER_STARTER,
 } from "@/lib/editor/custom-shader/shared"
+import { TEXT_FONT_OPTIONS } from "@/lib/editor/text-fonts"
 import type {
   EffectLayerType,
   LayerDefinition,
@@ -230,12 +231,7 @@ const textParams = [
     defaultValue: "sans",
     key: "fontFamily",
     label: "Font",
-    options: [
-      { label: "Display Serif", value: "display-serif" },
-      { label: "Mono", value: "mono" },
-      { label: "Sans", value: "sans" },
-      { label: "Impact", value: "impact" },
-    ],
+    options: TEXT_FONT_OPTIONS,
     type: "select",
   },
   {
@@ -243,8 +239,8 @@ const textParams = [
     key: "fontWeight",
     label: "Weight",
     max: 900,
-    min: 300,
-    step: 100,
+    min: 100,
+    step: 1,
     type: "number",
   },
   {

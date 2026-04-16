@@ -12,6 +12,10 @@ import {
   getCenteredCropFrame,
   intersectCompositionFrames,
 } from "@/lib/editor/composition"
+import {
+  normalizeTextFontWeight,
+  resolveTextFontFamily,
+} from "@/lib/editor/text-fonts"
 import { PassNode } from "@/renderer/pass-node"
 import type {
   LayerParameterValues,
@@ -32,19 +36,6 @@ type GlyphLayout = {
   advance: number
   char: string
   x: number
-}
-
-function resolveFontFamily(value: string): string {
-  switch (value) {
-    case "mono":
-      return '"Geist Mono", ui-monospace, monospace'
-    case "sans":
-      return "Geist, Arial, sans-serif"
-    case "impact":
-      return 'Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif'
-    default:
-      return 'Georgia, "Times New Roman", serif'
-  }
 }
 
 function resolveTextAnchor(value: unknown): TextAnchor {
@@ -240,18 +231,20 @@ export class TextPass extends PassNode {
         ? Math.max(48, this.params.fontSize)
         : 280
     const fontSize = Math.round(baseFontSize * scaleFactor)
+    const fontFamilyValue =
+      typeof this.params.fontFamily === "string"
+        ? this.params.fontFamily
+        : "display-serif"
     const fontWeight =
-      typeof this.params.fontWeight === "number"
-        ? Math.round(this.params.fontWeight)
-        : 700
+      typeof this.params.fontWeight === "number" ? this.params.fontWeight : 700
     const letterSpacing =
       typeof this.params.letterSpacing === "number"
         ? this.params.letterSpacing
         : -0.02
-    const fontFamily = resolveFontFamily(
-      typeof this.params.fontFamily === "string"
-        ? this.params.fontFamily
-        : "display-serif"
+    const fontFamily = resolveTextFontFamily(fontFamilyValue)
+    const normalizedFontWeight = normalizeTextFontWeight(
+      fontFamilyValue,
+      fontWeight
     )
     const textColor =
       typeof this.params.textColor === "string"
@@ -277,7 +270,7 @@ export class TextPass extends PassNode {
     context.fillStyle = textColor
     context.textAlign = "left"
     context.textBaseline = "alphabetic"
-    context.font = `${fontWeight} ${fontSize}px ${fontFamily}`
+    context.font = `${normalizedFontWeight} ${fontSize}px ${fontFamily}`
 
     const characters = [...text]
     const spacing = fontSize * letterSpacing

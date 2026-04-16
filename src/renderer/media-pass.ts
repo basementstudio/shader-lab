@@ -197,8 +197,8 @@ export class MediaPass extends PassNode {
     const scaleX = mix(coverScaleX, containScaleX, useContain)
     const scaleY = mix(coverScaleY, containScaleY, useContain)
     const sampledUv = vec2(
-      centeredUv.x.div(scaleX).add(this.offsetXUniform).add(0.5),
-      centeredUv.y.div(scaleY).add(this.offsetYUniform).add(0.5)
+      centeredUv.x.div(scaleX).sub(this.offsetXUniform).add(0.5),
+      centeredUv.y.div(scaleY).sub(this.offsetYUniform).add(0.5)
     )
     const safeUv = clamp(sampledUv, vec2(0, 0), vec2(1, 1))
     this.mediaTextureNode = tslTexture(this.placeholder, safeUv)

@@ -13,7 +13,7 @@ import type {
   SourceLayerType,
 } from "@/types/editor"
 
-const imageParams = [
+const mediaPlacementParams = [
   {
     defaultValue: "cover",
     key: "fitMode",
@@ -44,8 +44,24 @@ const imageParams = [
   },
 ] as const satisfies ParameterDefinitions
 
+const imageParams = [
+  ...mediaPlacementParams,
+  {
+    defaultValue: "2048",
+    key: "svgRasterResolution",
+    label: "Rasterization Resolution",
+    options: [
+      { label: "1024", value: "1024" },
+      { label: "2048", value: "2048" },
+      { label: "4096", value: "4096" },
+      { label: "8192", value: "8192" },
+    ],
+    type: "select",
+  },
+] as const satisfies ParameterDefinitions
+
 const videoParams = [
-  ...imageParams,
+  ...mediaPlacementParams,
   {
     defaultValue: 1,
     key: "playbackRate",

@@ -12,11 +12,17 @@ import {
   vec2,
   vec4,
 } from "three/tsl"
-import { loadImageTexture, createVideoTexture, type VideoHandle } from "@/renderer/media-texture"
+import {
+  createVideoTexture,
+  loadImageTexture,
+  type ImageTextureSource,
+  type VideoHandle,
+} from "@/renderer/media-texture"
 import { PassNode } from "@/renderer/pass-node"
 import type { LayerParameterValues } from "@/types/editor"
 
 type MediaKind = "image" | "video"
+type MediaSource = ImageTextureSource & { kind: MediaKind }
 type Node = TSLNode
 
 export class MediaPass extends PassNode {
@@ -30,7 +36,8 @@ export class MediaPass extends PassNode {
   private readonly placeholder: THREE.Texture
 
   private currentTexture: THREE.Texture | null = null
-  private loadedUrl: string | null = null
+  private loadedSignature: string | null = null
+  private mediaLoadNonce = 0
   private videoHandle: VideoHandle | null = null
   private videoTexture: THREE.VideoTexture | null = null
   private previewFrozen = false
@@ -48,22 +55,43 @@ export class MediaPass extends PassNode {
     this.rebuildEffectNode()
   }
 
-  async setMedia(url: string, kind: MediaKind): Promise<void> {
-    if (this.loadedUrl === url) {
+  async setMedia(source: MediaSource): Promise<void> {
+    const nextSignature = [
+      source.url,
+      source.kind,
+      source.isSvg ? "svg" : "raster",
+      source.svgRasterResolution ?? "",
+    ].join("|")
+
+    if (this.loadedSignature === nextSignature) {
       return
     }
 
+    this.mediaLoadNonce += 1
+    const loadNonce = this.mediaLoadNonce
     this.releaseCurrentMedia()
-    this.loadedUrl = url
+    this.loadedSignature = nextSignature
 
-    if (kind === "image") {
-      const texture = await loadImageTexture(url)
+    if (source.kind === "image") {
+      const texture = await loadImageTexture(source)
+
+      if (loadNonce !== this.mediaLoadNonce) {
+        texture.dispose()
+        return
+      }
+
       this.currentTexture = texture
       this.setTextureAspect(texture)
       return
     }
 
-    const handle = await createVideoTexture(url)
+    const handle = await createVideoTexture(source.url)
+
+    if (loadNonce !== this.mediaLoadNonce) {
+      handle.dispose()
+      return
+    }
+
     this.currentTexture = handle.texture
     this.videoHandle = handle
     this.videoTexture = handle.texture
@@ -72,6 +100,7 @@ export class MediaPass extends PassNode {
   }
 
   clearMedia(): void {
+    this.mediaLoadNonce += 1
     this.releaseCurrentMedia()
   }
 
@@ -113,7 +142,7 @@ export class MediaPass extends PassNode {
     inputTexture: THREE.Texture,
     outputTarget: THREE.WebGLRenderTarget,
     time: number,
-    delta: number,
+    delta: number
   ): void {
     if (this.videoTexture) {
       this.videoTexture.needsUpdate = true
@@ -147,6 +176,7 @@ export class MediaPass extends PassNode {
   }
 
   override dispose(): void {
+    this.mediaLoadNonce += 1
     this.releaseCurrentMedia()
     this.placeholder.dispose()
     super.dispose()
@@ -168,7 +198,7 @@ export class MediaPass extends PassNode {
     const scaleY = mix(coverScaleY, containScaleY, useContain)
     const sampledUv = vec2(
       centeredUv.x.div(scaleX).add(this.offsetXUniform).add(0.5),
-      centeredUv.y.div(scaleY).add(this.offsetYUniform).add(0.5),
+      centeredUv.y.div(scaleY).add(this.offsetYUniform).add(0.5)
     )
     const safeUv = clamp(sampledUv, vec2(0, 0), vec2(1, 1))
     this.mediaTextureNode = tslTexture(this.placeholder, safeUv)
@@ -188,7 +218,7 @@ export class MediaPass extends PassNode {
     this.videoTexture = null
     this.videoHandle?.dispose()
     this.videoHandle = null
-    this.loadedUrl = null
+    this.loadedSignature = null
   }
 
   private setTextureAspect(texture: THREE.Texture): void {
@@ -200,11 +230,11 @@ export class MediaPass extends PassNode {
     const width =
       image instanceof HTMLVideoElement
         ? image.videoWidth
-        : image?.naturalWidth ?? 1
+        : (image?.naturalWidth ?? 1)
     const height =
       image instanceof HTMLVideoElement
         ? image.videoHeight
-        : image?.naturalHeight ?? 1
+        : (image?.naturalHeight ?? 1)
 
     this.textureAspectUniform.value = width / Math.max(height, 1)
   }

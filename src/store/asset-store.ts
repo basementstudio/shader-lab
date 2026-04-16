@@ -1,4 +1,5 @@
 import { create } from "zustand"
+import { isSvgFileName } from "@/lib/editor/media-file"
 import type { AssetKind, EditorAsset } from "@/types/editor"
 
 export interface AssetStoreState {
@@ -19,6 +20,7 @@ const ACCEPTED_TYPES = new Set([
   "image/jpeg",
   "image/webp",
   "image/gif",
+  "image/svg+xml",
   "video/mp4",
   "video/webm",
   "video/quicktime",
@@ -34,7 +36,7 @@ function inferAssetKind(file: File): AssetKind | null {
   const mimeType = file.type.toLowerCase()
   const fileName = file.name.toLowerCase()
 
-  if (mimeType.startsWith("image/")) {
+  if (mimeType.startsWith("image/") || isSvgFileName(fileName)) {
     return "image"
   }
 
@@ -62,28 +64,33 @@ function inferAssetKind(file: File): AssetKind | null {
 
 function validateFile(file: File): AssetKind {
   const kind = inferAssetKind(file)
+  const mimeType = file.type.toLowerCase()
 
   if (
     !kind ||
-    (!ACCEPTED_TYPES.has(file.type) &&
-      !(kind === "video" && file.name.toLowerCase().endsWith(".mov")) &&
+    (!(
+      ACCEPTED_TYPES.has(mimeType) ||
+      (kind === "video" && file.name.toLowerCase().endsWith(".mov"))
+    ) &&
       kind !== "model")
   ) {
     throw new Error(
-      `Unsupported file type "${file.type || "unknown"}". Accepted: PNG, JPG, WebP, GIF, MP4, WebM, MOV, GLB, GLTF, OBJ.`,
+      `Unsupported file type "${file.type || "unknown"}". Accepted: PNG, JPG, WebP, GIF, SVG, MP4, WebM, MOV, GLB, GLTF, OBJ.`
     )
   }
 
   if (file.size > MAX_SIZE_BYTES) {
     throw new Error(
-      `File is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum size is 100 MB.`,
+      `File is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum size is 100 MB.`
     )
   }
 
   return kind
 }
 
-function loadImageMetadata(url: string): Promise<{ height: number; width: number }> {
+function loadImageMetadata(
+  url: string
+): Promise<{ height: number; width: number }> {
   return new Promise((resolve, reject) => {
     const image = new Image()
 
@@ -103,7 +110,7 @@ function loadImageMetadata(url: string): Promise<{ height: number; width: number
 }
 
 function loadVideoMetadata(
-  url: string,
+  url: string
 ): Promise<{ duration: number; height: number; width: number }> {
   return new Promise((resolve, reject) => {
     const video = document.createElement("video")

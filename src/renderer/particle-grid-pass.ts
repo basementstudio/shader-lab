@@ -34,7 +34,7 @@ function resolveGridResolution(value: unknown): number {
     return 64
   }
 
-  let nearest = PARTICLE_GRID_RESOLUTIONS[0]
+  let nearest: number = PARTICLE_GRID_RESOLUTIONS[0]
   let nearestDistance = Number.POSITIVE_INFINITY
 
   for (const candidate of PARTICLE_GRID_RESOLUTIONS) {

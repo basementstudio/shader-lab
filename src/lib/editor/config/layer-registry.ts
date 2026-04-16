@@ -2129,13 +2129,20 @@ const halftoneParams = [
 
 const particleGridParams = [
   {
-    defaultValue: 256,
+    defaultValue: "256",
     key: "gridResolution",
     label: "Resolution",
-    max: 512,
-    min: 32,
-    step: 4,
-    type: "number",
+    options: [
+      { label: "32", value: "32" },
+      { label: "64", value: "64" },
+      { label: "128", value: "128" },
+      { label: "256", value: "256" },
+      { label: "512", value: "512" },
+      { label: "1024", value: "1024" },
+      { label: "2048", value: "2048" },
+      { label: "4096", value: "4096" },
+    ],
+    type: "select",
   },
   {
     defaultValue: 4,

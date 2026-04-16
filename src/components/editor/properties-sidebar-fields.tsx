@@ -359,27 +359,41 @@ export function ParameterField({
       }
 
       return (
-        <div
-          className="grid items-center gap-[10px] [grid-template-columns:minmax(0,1fr)_132px]"
-          style={definition.description ? { alignItems: "start" } : undefined}
-        >
-          {renderFieldLabelStack(
-            fieldLabel,
-            definition.description,
-            timelineControl
-          )}
-          <Select
-            className="w-[132px]"
-            onValueChange={(nextValue) => {
-              if (nextValue) {
-                onChange(layerId, definition.key, nextValue)
+        (() => {
+          let selectValue = definition.defaultValue
+
+          if (typeof value === "string") {
+            selectValue = value
+          } else if (typeof value === "number") {
+            selectValue = String(value)
+          }
+
+          return (
+            <div
+              className="grid items-center gap-[10px] [grid-template-columns:minmax(0,1fr)_132px]"
+              style={
+                definition.description ? { alignItems: "start" } : undefined
               }
-            }}
-            options={(definition as SelectParameterDefinition).options}
-            triggerClassName="w-[132px]"
-            value={typeof value === "string" ? value : definition.defaultValue}
-          />
-        </div>
+            >
+              {renderFieldLabelStack(
+                fieldLabel,
+                definition.description,
+                timelineControl
+              )}
+              <Select
+                className="w-[132px]"
+                onValueChange={(nextValue) => {
+                  if (nextValue) {
+                    onChange(layerId, definition.key, nextValue)
+                  }
+                }}
+                options={(definition as SelectParameterDefinition).options}
+                triggerClassName="w-[132px]"
+                value={selectValue}
+              />
+            </div>
+          )
+        })()
       )
 
     case "boolean":

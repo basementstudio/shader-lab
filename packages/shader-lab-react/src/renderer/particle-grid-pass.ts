@@ -19,6 +19,35 @@ import { simplexNoise3d } from "./shaders/tsl/noise/simplex-noise-3d"
 import type { LayerParameterValues } from "../types/editor"
 
 type Node = TSLNode
+const PARTICLE_GRID_RESOLUTIONS = [32, 64, 128, 256, 512, 1024, 2048, 4096] as const
+
+function resolveGridResolution(value: unknown): number {
+  let requested = Number.NaN
+
+  if (typeof value === "number") {
+    requested = value
+  } else if (typeof value === "string") {
+    requested = Number.parseInt(value, 10)
+  }
+
+  if (!Number.isFinite(requested)) {
+    return 64
+  }
+
+  let nearest: number = PARTICLE_GRID_RESOLUTIONS[0]
+  let nearestDistance = Number.POSITIVE_INFINITY
+
+  for (const candidate of PARTICLE_GRID_RESOLUTIONS) {
+    const distance = Math.abs(candidate - requested)
+
+    if (distance < nearestDistance) {
+      nearest = candidate
+      nearestDistance = distance
+    }
+  }
+
+  return nearest
+}
 
 function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value))
@@ -127,10 +156,7 @@ export class ParticleGridPass extends PassNode {
   }
 
   override updateParams(params: LayerParameterValues): void {
-    const nextResolution =
-      typeof params.gridResolution === "number"
-        ? Math.max(16, Math.min(512, Math.round(params.gridResolution)))
-        : 64
+    const nextResolution = resolveGridResolution(params.gridResolution)
     const nextPointSize =
       typeof params.pointSize === "number" ? params.pointSize : 3
     const nextBloomEnabled = params.bloomEnabled === true

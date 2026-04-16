@@ -1,5 +1,11 @@
 # @basementstudio/shader-lab
 
+## 1.3.6
+
+### Patch Changes
+
+- 9ad4873: Improve the timeline editor with multi-keyframe selection, marquee selection, keyboard editing shortcuts, and track toggles. Add curve editing and new easings, per keyframe.
+
 ## 1.3.5
 
 ### Patch Changes

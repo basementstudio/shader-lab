@@ -1,6 +1,15 @@
 import * as THREE from "three/webgpu"
 
 type VideoPlaybackMode = "export" | "live"
+const DEFAULT_SVG_RASTER_RESOLUTION = 2048
+
+export interface ImageTextureSource {
+  height?: number | null
+  isSvg?: boolean
+  svgRasterResolution?: number | null
+  url: string
+  width?: number | null
+}
 
 export interface VideoHandle {
   dispose: () => void
@@ -81,7 +90,7 @@ async function waitForSeek(video: HTMLVideoElement): Promise<void> {
   })
 }
 
-export function loadImageTexture(url: string): Promise<THREE.Texture> {
+function loadRasterImageTexture(url: string): Promise<THREE.Texture> {
   return new Promise((resolve, reject) => {
     const loader = new THREE.TextureLoader()
     loader.load(
@@ -93,9 +102,119 @@ export function loadImageTexture(url: string): Promise<THREE.Texture> {
       undefined,
       () => {
         reject(new Error(`Failed to load image texture: ${url}`))
-      },
+      }
     )
   })
+}
+
+function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) {
+        resolve(blob)
+        return
+      }
+
+      reject(new Error("Failed to encode SVG rasterization output."))
+    }, "image/png")
+  })
+}
+
+function loadImageElement(url: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new Image()
+    image.decoding = "async"
+    image.onload = () => resolve(image)
+    image.onerror = () => {
+      reject(new Error(`Failed to load image texture: ${url}`))
+    }
+    image.src = url
+  })
+}
+
+function resolveImageAspectRatio(
+  source: ImageTextureSource,
+  fallbackImage: HTMLImageElement
+): number {
+  const width = source.width ?? fallbackImage.naturalWidth
+  const height = source.height ?? fallbackImage.naturalHeight
+
+  if (width > 0 && height > 0) {
+    return width / height
+  }
+
+  return 1
+}
+
+function resolveSvgRasterSize(
+  aspectRatio: number,
+  svgRasterResolution: number | null | undefined
+): { height: number; width: number } {
+  const longEdge = Math.max(
+    1,
+    Math.round(svgRasterResolution ?? DEFAULT_SVG_RASTER_RESOLUTION)
+  )
+  const safeAspectRatio = aspectRatio > 0 ? aspectRatio : 1
+
+  if (safeAspectRatio >= 1) {
+    return {
+      height: Math.max(1, Math.round(longEdge / safeAspectRatio)),
+      width: longEdge,
+    }
+  }
+
+  return {
+    height: longEdge,
+    width: Math.max(1, Math.round(longEdge * safeAspectRatio)),
+  }
+}
+
+async function loadSvgTexture(
+  source: ImageTextureSource
+): Promise<THREE.Texture> {
+  const image = await loadImageElement(source.url)
+  const aspectRatio = resolveImageAspectRatio(source, image)
+  const { height, width } = resolveSvgRasterSize(
+    aspectRatio,
+    source.svgRasterResolution
+  )
+  const canvas = document.createElement("canvas")
+  canvas.width = width
+  canvas.height = height
+
+  const context = canvas.getContext("2d")
+
+  if (!context) {
+    throw new Error("Failed to rasterize SVG image.")
+  }
+
+  context.imageSmoothingEnabled = true
+  context.imageSmoothingQuality = "high"
+  context.clearRect(0, 0, width, height)
+  context.drawImage(image, 0, 0, width, height)
+  const blob = await canvasToBlob(canvas)
+  const blobUrl = URL.createObjectURL(blob)
+
+  try {
+    const texture = await loadRasterImageTexture(blobUrl)
+    URL.revokeObjectURL(blobUrl)
+    return texture
+  } catch (error) {
+    URL.revokeObjectURL(blobUrl)
+    throw error
+  }
+}
+
+export function loadImageTexture(
+  source: string | ImageTextureSource
+): Promise<THREE.Texture> {
+  const resolvedSource = typeof source === "string" ? { url: source } : source
+
+  if (resolvedSource.isSvg) {
+    return loadSvgTexture(resolvedSource)
+  }
+
+  return loadRasterImageTexture(resolvedSource.url)
 }
 
 export function createVideoTexture(url: string): Promise<VideoHandle> {
@@ -142,7 +261,9 @@ export function createVideoTexture(url: string): Promise<VideoHandle> {
             video.src = ""
           },
           async prepareFrame(time) {
-            const duration = Number.isFinite(video.duration) ? video.duration : 0
+            const duration = Number.isFinite(video.duration)
+              ? video.duration
+              : 0
             const targetTime = normalizeVideoTime(
               time * playbackRate,
               duration,
@@ -195,7 +316,7 @@ export function createVideoTexture(url: string): Promise<VideoHandle> {
           video,
         })
       },
-      { once: true },
+      { once: true }
     )
 
     video.addEventListener(
@@ -204,7 +325,7 @@ export function createVideoTexture(url: string): Promise<VideoHandle> {
         video.playbackRate = playbackRate
         video.play().catch(reject)
       },
-      { once: true },
+      { once: true }
     )
 
     video.onerror = () => {

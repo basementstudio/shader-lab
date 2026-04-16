@@ -77,7 +77,7 @@ function getExpectedAssetKind(layer: EditorLayer): AssetKind | null {
 function getAcceptForAssetKind(kind: AssetKind): string {
   switch (kind) {
     case "image":
-      return "image/png,image/jpeg,image/webp,image/gif"
+      return "image/png,image/jpeg,image/webp,image/gif,image/svg+xml,.svg"
     case "video":
       return "video/mp4,video/webm,video/quicktime,.mov"
     case "model":
@@ -621,7 +621,7 @@ export function LayerSidebar() {
   return (
     <>
       <input
-        accept="image/png,image/jpeg,image/webp,image/gif"
+        accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml,.svg"
         className="hidden"
         onChange={handleImageChange}
         ref={imageInputRef}

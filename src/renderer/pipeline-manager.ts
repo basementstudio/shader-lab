@@ -1,5 +1,6 @@
 import { float, type TSLNode, texture as tslTexture, uv, vec2 } from "three/tsl"
 import * as THREE from "three/webgpu"
+import { isSvgMediaSource } from "@/lib/editor/media-file"
 import { parameterValuesSignature } from "@/lib/editor/parameter-schema"
 import type { RenderableLayerPass } from "@/renderer/contracts"
 import { CustomShaderPass } from "@/renderer/custom-shader-pass"
@@ -26,6 +27,22 @@ const RENDER_TARGET_OPTIONS = {
 
 function clampUnit(value: number): number {
   return Math.max(0, Math.min(1, value))
+}
+
+function parseSvgRasterResolution(value: unknown): number {
+  let parsed = Number.NaN
+
+  if (typeof value === "number") {
+    parsed = value
+  } else if (typeof value === "string") {
+    parsed = Number.parseInt(value, 10)
+  }
+
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return 2048
+  }
+
+  return Math.round(parsed)
 }
 
 function createLayerSignature(layer: RenderableLayerPass): string {
@@ -373,7 +390,19 @@ export class PipelineManager {
       if (asset?.kind === "image" || asset?.kind === "video") {
         this.pendingMediaLoads.add(pass.layerId)
         void pass
-          .setMedia(asset.url, asset.kind)
+          .setMedia({
+            height: asset.height,
+            isSvg: isSvgMediaSource(asset),
+            kind: asset.kind,
+            svgRasterResolution:
+              asset.kind === "image"
+                ? parseSvgRasterResolution(
+                    renderableLayer.params.svgRasterResolution
+                  )
+                : null,
+            url: asset.url,
+            width: asset.width,
+          })
           .then(() => {
             this.markDirty()
           })

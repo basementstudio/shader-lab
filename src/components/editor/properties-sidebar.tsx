@@ -8,6 +8,7 @@ import { GlassPanel } from "@/components/ui/glass-panel"
 import { IconButton } from "@/components/ui/icon-button"
 import { cn } from "@/lib/cn"
 import { getLayerDefinition } from "@/lib/editor/config/layer-registry"
+import { isSvgMediaSource } from "@/lib/editor/media-file"
 import { evaluateTimelineForLayers } from "@/lib/editor/timeline/evaluate"
 import { useAssetStore } from "@/store/asset-store"
 import { useEditorStore } from "@/store/editor-store"
@@ -110,12 +111,25 @@ export function PropertiesSidebar() {
       return [] as ParameterDefinition[]
     }
 
-    return selectedDefinition.params.filter((param) =>
-      isParamVisible(param, selectedLayer.params, [
+    return selectedDefinition.params.filter((param) => {
+      if (
+        param.key === "svgRasterResolution" &&
+        !(
+          selectedAsset &&
+          isSvgMediaSource({
+            fileName: selectedAsset.fileName,
+            mimeType: selectedAsset.mimeType,
+          })
+        )
+      ) {
+        return false
+      }
+
+      return isParamVisible(param, selectedLayer.params, [
         ...selectedDefinition.params,
       ])
-    )
-  }, [selectedDefinition, selectedLayer])
+    })
+  }, [selectedAsset, selectedDefinition, selectedLayer])
 
   const selectedLayerTracks = useMemo(
     () =>

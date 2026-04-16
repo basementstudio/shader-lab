@@ -1,5 +1,12 @@
 import type { CompositionAspect, SceneConfig, Size } from "@/types/editor"
 
+export type CompositionFrame = {
+  height: number
+  width: number
+  x: number
+  y: number
+}
+
 function getCompositionAspectRatio(
   aspect: CompositionAspect,
   customWidth: number,
@@ -25,31 +32,86 @@ function getCompositionAspectRatio(
   }
 }
 
-export function getEffectiveCompositionSize(
+export function getCenteredCropFrame(
+  canvasSize: Size
+,
+  ratio: number | null
+): CompositionFrame {
+  const canvasWidth = Math.max(1, canvasSize.width)
+  const canvasHeight = Math.max(1, canvasSize.height)
+
+  if (ratio === null) {
+    return {
+      height: canvasHeight,
+      width: canvasWidth,
+      x: 0,
+      y: 0,
+    }
+  }
+
+  const viewportAspect = canvasWidth / canvasHeight
+
+  if (ratio > viewportAspect) {
+    const width = canvasWidth
+    const height = Math.round(canvasWidth / ratio)
+
+    return {
+      height,
+      width,
+      x: 0,
+      y: Math.round((canvasHeight - height) / 2),
+    }
+  }
+
+  const width = Math.round(canvasHeight * ratio)
+  const height = canvasHeight
+
+  return {
+    height,
+    width,
+    x: Math.round((canvasWidth - width) / 2),
+    y: 0,
+  }
+}
+
+export function intersectCompositionFrames(
+  left: CompositionFrame,
+  right: CompositionFrame
+): CompositionFrame {
+  const x = Math.max(left.x, right.x)
+  const y = Math.max(left.y, right.y)
+  const rightEdge = Math.min(left.x + left.width, right.x + right.width)
+  const bottomEdge = Math.min(left.y + left.height, right.y + right.height)
+
+  return {
+    height: Math.max(1, bottomEdge - y),
+    width: Math.max(1, rightEdge - x),
+    x,
+    y,
+  }
+}
+
+export function getCompositionFrame(
   sceneConfig: SceneConfig,
   canvasSize: Size
-): Size {
+): CompositionFrame {
   const ratio = getCompositionAspectRatio(
     sceneConfig.compositionAspect,
     sceneConfig.compositionWidth,
     sceneConfig.compositionHeight
   )
 
-  if (ratio === null) {
-    return canvasSize
-  }
+  return getCenteredCropFrame(canvasSize, ratio)
+}
 
-  const viewportAspect = canvasSize.width / Math.max(canvasSize.height, 1)
-
-  if (ratio > viewportAspect) {
-    return {
-      width: canvasSize.width,
-      height: Math.round(canvasSize.width / ratio),
-    }
-  }
+export function getEffectiveCompositionSize(
+  sceneConfig: SceneConfig,
+  canvasSize: Size
+): Size {
+  const frame = getCompositionFrame(sceneConfig, canvasSize)
 
   return {
-    width: Math.round(canvasSize.height * ratio),
-    height: canvasSize.height,
+    height: frame.height,
+    width: frame.width,
   }
 }

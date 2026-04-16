@@ -16,35 +16,10 @@ import {
   clampZoom,
   getWheelZoomFactor,
 } from "@/lib/editor/view-transform"
+import { getCompositionFrame } from "@/lib/editor/composition"
 import { useAssetStore } from "@/store/asset-store"
 import { useEditorStore } from "@/store/editor-store"
 import { useLayerStore } from "@/store/layer-store"
-import type { CompositionAspect } from "@/types/editor"
-
-function getCompositionAspectRatio(
-  aspect: CompositionAspect,
-  customWidth: number,
-  customHeight: number
-): number | null {
-  switch (aspect) {
-    case "screen":
-      return null
-    case "16:9":
-      return 16 / 9
-    case "9:16":
-      return 9 / 16
-    case "4:3":
-      return 4 / 3
-    case "3:4":
-      return 3 / 4
-    case "1:1":
-      return 1
-    case "custom":
-      return customWidth / Math.max(customHeight, 1)
-    default:
-      return null
-  }
-}
 
 export function EditorCanvasViewport() {
   const { canvasRef, isReady, viewportRef } = useEditorRenderer()
@@ -58,34 +33,24 @@ export function EditorCanvasViewport() {
   const canvasSize = useEditorStore((state) => state.canvasSize)
 
   const compositionOverlay = useMemo(() => {
-    const ratio = getCompositionAspectRatio(
-      sceneConfig.compositionAspect,
-      sceneConfig.compositionWidth,
-      sceneConfig.compositionHeight
-    )
-    if (ratio === null) return null
     if (canvasSize.width === 0 || canvasSize.height === 0) return null
 
-    const viewportAspect = canvasSize.width / canvasSize.height
+    const frame = getCompositionFrame(sceneConfig, canvasSize)
 
-    let widthPercent: number
-    let heightPercent: number
-
-    if (ratio > viewportAspect) {
-      widthPercent = 100
-      heightPercent = (viewportAspect / ratio) * 100
-    } else {
-      heightPercent = 100
-      widthPercent = (ratio / viewportAspect) * 100
+    if (
+      frame.x === 0 &&
+      frame.y === 0 &&
+      frame.width === canvasSize.width &&
+      frame.height === canvasSize.height
+    ) {
+      return null
     }
 
-    return { widthPercent, heightPercent }
-  }, [
-    sceneConfig.compositionAspect,
-    sceneConfig.compositionWidth,
-    sceneConfig.compositionHeight,
-    canvasSize,
-  ])
+    return {
+      heightPercent: (frame.height / canvasSize.height) * 100,
+      widthPercent: (frame.width / canvasSize.width) * 100,
+    }
+  }, [canvasSize, sceneConfig])
 
   const [isDragOver, setIsDragOver] = useState(false)
   const [isSpacePressed, setIsSpacePressed] = useState(false)

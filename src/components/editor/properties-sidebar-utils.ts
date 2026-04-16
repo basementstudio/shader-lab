@@ -6,6 +6,7 @@ import type {
   ParameterDefinition,
   ParameterValue,
 } from "@/types/editor"
+import { isParameterAnimatable } from "@/lib/editor/parameter-schema"
 import type { useTimelineStore } from "@/store/timeline-store"
 
 export const blendModeOptions = [
@@ -165,7 +166,7 @@ export function groupVisibleParams(params: ParameterDefinition[]): ParamGroup[] 
 export function createParamTimelineBinding(
   definition: ParameterDefinition
 ): AnimatedPropertyBinding | null {
-  if (definition.type === "text") {
+  if (definition.type === "text" || !isParameterAnimatable(definition)) {
     return null
   }
 

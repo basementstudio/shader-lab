@@ -14,7 +14,12 @@ import {
   vec4,
 } from "three/tsl"
 import { buildBlendNode } from "@/renderer/blend-modes"
-import type { LayerCompositeMode, LayerParameterValues, MaskConfig } from "@/types/editor"
+import type {
+  LayerCompositeMode,
+  LayerParameterValues,
+  MaskConfig,
+  SceneConfig,
+} from "@/types/editor"
 
 type Node = TSLNode
 
@@ -145,6 +150,14 @@ export class PassNode {
 
   updateLogicalSize(_width: number, _height: number): void {
     // Default pass has no logical-size-dependent uniforms.
+  }
+
+  updateSceneConfig(_config: SceneConfig): boolean {
+    return false
+  }
+
+  updateOutputCropAspectRatio(_ratio: number | null): boolean {
+    return false
   }
 
   needsContinuousRender(): boolean {

@@ -9,6 +9,7 @@ import type {
   TextParameterDefinition,
 } from "@/types/editor"
 import { cn } from "@/lib/cn"
+import { AnchorPicker } from "@/components/ui/anchor-picker"
 import { ColorPicker } from "@/components/ui/color-picker"
 import { IconButton } from "@/components/ui/icon-button"
 import { Select } from "@/components/ui/select"
@@ -289,6 +290,33 @@ export function ParameterField({
       )
 
     case "select":
+      if ((definition as SelectParameterDefinition).ui === "anchor-grid") {
+        const currentValue =
+          typeof value === "string" ? value : definition.defaultValue
+
+        return (
+          <div className="flex flex-col gap-2">
+            {renderFieldLabelStack(
+              fieldLabel,
+              definition.description,
+              timelineControl
+            )}
+            <AnchorPicker
+              onValueChange={(nextValue) => {
+                if (nextValue === currentValue) {
+                  return
+                }
+
+                onChange(layerId, definition.key, nextValue)
+                onChange(layerId, "offset", [0, 0])
+              }}
+              options={(definition as SelectParameterDefinition).options}
+              value={currentValue}
+            />
+          </div>
+        )
+      }
+
       return (
         <div
           className="grid items-center gap-[10px] [grid-template-columns:minmax(0,1fr)_132px]"

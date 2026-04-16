@@ -101,19 +101,22 @@
       "locked": false,
       "maskConfig": {
         "invert": false,
-        "mode": "stencil",
+        "mode": "multiply",
         "source": "luminance"
       },
       "name": "Text",
       "opacity": 1,
       "params": {
         "text": "basement",
+        "anchor": "center",
+        "offset": [0, 0],
         "fontSize": 201,
         "fontFamily": "sans",
         "fontWeight": 800,
         "letterSpacing": -0.1,
         "textColor": "#ffffff",
-        "backgroundColor": "#000000"
+        "backgroundColor": "#000000",
+        "backgroundAlpha": 1
       },
       "runtimeError": null,
       "saturation": 1,

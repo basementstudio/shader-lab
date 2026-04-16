@@ -200,7 +200,7 @@ export function parseEasingString(value: string): KeyframeEasing | null {
   }
 
   const bezierMatch = normalized.match(/^cubic-bezier\((.+)\)$/i)
-  const rawValues = (bezierMatch ? bezierMatch[1] : normalized).trim()
+  const rawValues = (bezierMatch?.[1] ?? normalized).trim()
   const parts = rawValues
     .split(/[,\s]+/)
     .filter((part) => part.length > 0)

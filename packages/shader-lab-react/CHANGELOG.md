@@ -1,5 +1,11 @@
 # @basementstudio/shader-lab
 
+## 1.3.8
+
+### Patch Changes
+
+- 42bff22: fix offsets in live and media passes
+
 ## 1.3.7
 
 ### Patch Changes

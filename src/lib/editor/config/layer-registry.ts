@@ -3,6 +3,7 @@ import {
   CUSTOM_SHADER_INTERNAL_VISIBILITY,
   CUSTOM_SHADER_STARTER,
 } from "@/lib/editor/custom-shader/shared"
+import { TEXT_FONT_OPTIONS } from "@/lib/editor/text-fonts"
 import type {
   EffectLayerType,
   LayerDefinition,
@@ -188,6 +189,36 @@ const textParams = [
     type: "text",
   },
   {
+    animatable: false,
+    defaultValue: "center",
+    group: "Placement",
+    key: "anchor",
+    label: "Anchor",
+    options: [
+      { label: "Top Left", value: "top-left" },
+      { label: "Top Center", value: "top-center" },
+      { label: "Top Right", value: "top-right" },
+      { label: "Center Left", value: "center-left" },
+      { label: "Center", value: "center" },
+      { label: "Center Right", value: "center-right" },
+      { label: "Bottom Left", value: "bottom-left" },
+      { label: "Bottom Center", value: "bottom-center" },
+      { label: "Bottom Right", value: "bottom-right" },
+    ],
+    type: "select",
+    ui: "anchor-grid",
+  },
+  {
+    defaultValue: [0, 0] as [number, number],
+    group: "Placement",
+    key: "offset",
+    label: "Offset",
+    max: 1,
+    min: -1,
+    step: 0.01,
+    type: "vec2",
+  },
+  {
     defaultValue: 48,
     key: "fontSize",
     label: "Font Size",
@@ -200,12 +231,7 @@ const textParams = [
     defaultValue: "sans",
     key: "fontFamily",
     label: "Font",
-    options: [
-      { label: "Display Serif", value: "display-serif" },
-      { label: "Mono", value: "mono" },
-      { label: "Sans", value: "sans" },
-      { label: "Impact", value: "impact" },
-    ],
+    options: TEXT_FONT_OPTIONS,
     type: "select",
   },
   {
@@ -213,8 +239,8 @@ const textParams = [
     key: "fontWeight",
     label: "Weight",
     max: 900,
-    min: 300,
-    step: 100,
+    min: 100,
+    step: 1,
     type: "number",
   },
   {
@@ -237,6 +263,15 @@ const textParams = [
     key: "backgroundColor",
     label: "Background",
     type: "color",
+  },
+  {
+    defaultValue: 1,
+    key: "backgroundAlpha",
+    label: "Background Alpha",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
   },
 ] as const satisfies ParameterDefinitions
 

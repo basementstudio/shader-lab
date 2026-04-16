@@ -32,6 +32,7 @@ import { getLayerDefinition } from "@/lib/editor/config/layer-registry"
 import { getLongestVideoLayerDuration } from "@/lib/editor/timeline-duration"
 import { useEditorStore, useLayerStore, useTimelineStore } from "@/store"
 import { useAssetStore } from "@/store/asset-store"
+import { isParamVisible } from "./properties-sidebar-utils"
 import {
   createLayerPropertyBinding,
   createParamBinding,
@@ -125,25 +126,9 @@ function getPropertyId(binding: AnimatedPropertyBinding): string {
 function getVisibleParams(layer: EditorLayer): ParameterDefinition[] {
   const definition = getLayerDefinition(layer.type)
 
-  return definition.params.filter((entry) => {
-    if (!entry.visibleWhen) {
-      return true
-    }
-
-    const controllingValue =
-      layer.params[entry.visibleWhen.key] ??
-      definition.params.find((param) => param.key === entry.visibleWhen?.key)
-        ?.defaultValue
-
-    if ("equals" in entry.visibleWhen) {
-      return controllingValue === entry.visibleWhen.equals
-    }
-
-    return (
-      typeof controllingValue === "number" &&
-      controllingValue >= entry.visibleWhen.gte
-    )
-  })
+  return definition.params.filter((entry) =>
+    isParamVisible(entry, layer.params, [...definition.params], layer.type)
+  )
 }
 
 function buildTimelineProperties(

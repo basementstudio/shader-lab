@@ -328,8 +328,26 @@ export class PipelineManager {
   }
 
   updateSceneConfig(config: SceneConfig): void {
-    const changed = this.postProcess.update(config)
-    if (changed) {
+    const postProcessChanged = this.postProcess.update(config)
+    let passChanged = false
+
+    for (const pass of this.passMap.values()) {
+      passChanged = pass.updateSceneConfig(config) || passChanged
+    }
+
+    if (postProcessChanged || passChanged) {
+      this.markDirty()
+    }
+  }
+
+  updateOutputCropAspectRatio(ratio: number | null): void {
+    let passChanged = false
+
+    for (const pass of this.passMap.values()) {
+      passChanged = pass.updateOutputCropAspectRatio(ratio) || passChanged
+    }
+
+    if (passChanged) {
       this.markDirty()
     }
   }

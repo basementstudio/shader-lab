@@ -1,22 +1,16 @@
-import type { Metadata, Viewport } from "next";
-import { Geist } from "next/font/google";
-import { Suspense, type PropsWithChildren } from "react";
+import type { Metadata, Viewport } from "next"
+import { Suspense, type PropsWithChildren } from "react"
 import {
   APP_BASE_URL,
   APP_DEFAULT_TITLE,
   APP_DESCRIPTION,
   APP_NAME,
   APP_TITLE_TEMPLATE,
-} from "@/lib/app";
-import { cn } from "@/lib/cn";
-import { fontsVariable } from "@/lib/fonts";
-import "@/app/globals.css";
-import { Analytics } from "@vercel/analytics/next";
-
-const geist = Geist({
-  subsets: ["latin"],
-  variable: "--geist-sans",
-});
+} from "@/lib/app"
+import { cn } from "@/lib/cn"
+import { fontsVariable } from "@/lib/fonts"
+import "@/app/globals.css"
+import { Analytics } from "@vercel/analytics/next"
 
 export const metadata: Metadata = {
   appleWebApp: {
@@ -74,19 +68,19 @@ export const metadata: Metadata = {
       template: APP_TITLE_TEMPLATE,
     },
   },
-};
+}
 
 export const viewport: Viewport = {
   colorScheme: "normal",
   themeColor: "#080808",
-};
+}
 
 export default function RootLayout({ children }: PropsWithChildren) {
   return (
     <html
       lang="en"
       dir="ltr"
-      className={cn(fontsVariable, geist.variable, geist.className)}
+      className={cn(fontsVariable)}
       suppressHydrationWarning
     >
       <body>
@@ -96,5 +90,5 @@ export default function RootLayout({ children }: PropsWithChildren) {
         </Suspense>
       </body>
     </html>
-  );
+  )
 }

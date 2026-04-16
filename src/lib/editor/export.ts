@@ -251,12 +251,14 @@ async function exportStillWithNewRenderer(
 
   try {
     await prewarmExportFrame(renderer, renderCanvas, projectState, {
+      cropAspectRatio: getAspectRatio(projectState.compositionSize, options.aspectPreset),
       logicalSize: projectState.compositionSize,
       renderSize: sourceRenderSize,
       time: options.time,
     })
 
     await renderFrameToCanvas(renderer, renderCanvas, projectState, {
+      cropAspectRatio: getAspectRatio(projectState.compositionSize, options.aspectPreset),
       logicalSize: projectState.compositionSize,
       renderSize: sourceRenderSize,
       time: options.time,
@@ -335,6 +337,7 @@ export async function exportVideo(
   try {
     throwIfAborted(options.abortSignal)
     await prewarmExportFrame(renderer, renderCanvas, projectState, {
+      cropAspectRatio: getAspectRatio(projectState.compositionSize, options.aspectPreset),
       logicalSize: projectState.compositionSize,
       renderSize: sourceRenderSize,
       time: options.startTime,
@@ -360,6 +363,7 @@ export async function exportVideo(
       )
 
       await renderFrameToCanvas(renderer, renderCanvas, projectState, {
+        cropAspectRatio: getAspectRatio(projectState.compositionSize, options.aspectPreset),
         logicalSize: projectState.compositionSize,
         renderSize: sourceRenderSize,
         time,
@@ -421,6 +425,7 @@ async function renderFrameToCanvas(
   canvas: HTMLCanvasElement,
   projectState: RenderProjectState,
   options: {
+    cropAspectRatio: number | null
     logicalSize: Size
     renderSize: Size
     time: number
@@ -440,6 +445,7 @@ async function renderFrameToCanvas(
   const frame = buildRendererFrame({
     assets: projectState.assets,
     clockTime: timelineState.currentTime,
+    cropAspectRatio: options.cropAspectRatio,
     delta: 0,
     layers: projectState.layers,
     logicalSize: options.logicalSize,
@@ -464,6 +470,7 @@ async function prewarmExportFrame(
   canvas: HTMLCanvasElement,
   projectState: RenderProjectState,
   options: {
+    cropAspectRatio: number | null
     logicalSize: Size
     renderSize: Size
     time: number

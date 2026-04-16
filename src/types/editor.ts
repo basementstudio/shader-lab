@@ -77,6 +77,19 @@ export type MaskSource = (typeof MASK_SOURCES)[number]
 export const MASK_MODES = ["multiply", "stencil"] as const
 export type MaskMode = (typeof MASK_MODES)[number]
 
+export const TEXT_ANCHORS = [
+  "top-left",
+  "top-center",
+  "top-right",
+  "center-left",
+  "center",
+  "center-right",
+  "bottom-left",
+  "bottom-center",
+  "bottom-right",
+] as const
+export type TextAnchor = (typeof TEXT_ANCHORS)[number]
+
 export interface MaskConfig {
   invert: boolean
   mode: MaskMode
@@ -154,6 +167,7 @@ export type SelectParameterDefinition = ParameterDefinitionBase<
     label: string
     value: string
   }[]
+  ui?: "anchor-grid"
 }
 
 export type ColorParameterDefinition = ParameterDefinitionBase<"color", string>

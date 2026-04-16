@@ -16,6 +16,7 @@ import type {
 import {
   cloneParameterValue,
   getParameterDefinition,
+  isParameterAnimatable,
 } from "@/lib/editor/parameter-schema"
 import { getLayerDefinition } from "@/lib/editor/config/layer-registry"
 
@@ -154,7 +155,13 @@ export function createParamBinding(
 ): AnimatedPropertyBinding | null {
   const definition = getParameterDefinition(getLayerDefinition(layer.type).params, key)
 
-  if (!(definition && isAnimatableValueType(definition.type))) {
+  if (
+    !(
+      definition &&
+      isAnimatableValueType(definition.type) &&
+      isParameterAnimatable(definition)
+    )
+  ) {
     return null
   }
 

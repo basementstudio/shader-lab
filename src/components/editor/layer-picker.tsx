@@ -27,6 +27,7 @@ import { cn } from "@/lib/cn"
 
 export type AddLayerAction =
   | "ascii"
+  | "bloom"
   | "circuit-bent"
   | "directional-blur"
   | "chromatic-aberration"
@@ -93,6 +94,13 @@ const SOURCE_ITEMS: readonly SourceItem[] = [
 ] as const
 
 const EFFECT_ITEMS: readonly EffectItem[] = [
+  {
+    category: "core",
+    description:
+      "Adds a standalone highlight bloom pass to the incoming frame.",
+    label: "Bloom",
+    value: "bloom",
+  },
   {
     category: "core",
     description:

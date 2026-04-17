@@ -1,4 +1,5 @@
 import { AsciiPass } from "@/renderer/ascii-pass"
+import { BloomPass } from "@/renderer/bloom-pass"
 import { CircuitBentPass } from "@/renderer/circuit-bent-pass"
 import { ChromaticAberrationPass } from "@/renderer/chromatic-aberration-pass"
 import { CrtPass } from "@/renderer/crt-pass"
@@ -28,6 +29,8 @@ export function createPassNode(
   switch (type) {
     case "ascii":
       return new AsciiPass(layerId)
+    case "bloom":
+      return new BloomPass(layerId)
     case "circuit-bent":
       return new CircuitBentPass(layerId)
     case "directional-blur":

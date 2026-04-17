@@ -17,6 +17,7 @@ export type ShaderLabSourceLayerType =
 
 export type ShaderLabEffectLayerType =
   | "ascii"
+  | "bloom"
   | "circuit-bent"
   | "directional-blur"
   | "chromatic-aberration"

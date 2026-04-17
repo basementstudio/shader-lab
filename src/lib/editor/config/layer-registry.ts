@@ -539,6 +539,69 @@ const inkParams = [
   },
 ] as const satisfies ParameterDefinitions
 
+const bloomParams = [
+  {
+    defaultValue: 1.25,
+    group: "Bloom",
+    key: "bloomIntensity",
+    label: "Intensity",
+    max: 8,
+    min: 0,
+    step: 0.01,
+    type: "number",
+  },
+  {
+    defaultValue: 0.6,
+    group: "Bloom",
+    key: "bloomThreshold",
+    label: "Threshold",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+  },
+  {
+    defaultValue: 6,
+    group: "Bloom",
+    key: "bloomRadius",
+    label: "Radius",
+    max: 24,
+    min: 0,
+    step: 0.25,
+    type: "number",
+  },
+  {
+    defaultValue: 0.35,
+    group: "Bloom",
+    key: "bloomSoftness",
+    label: "Softness",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+  },
+  {
+    defaultValue: 0.2,
+    group: "Highlight",
+    key: "bloomKnee",
+    label: "Knee",
+    max: 0.5,
+    min: 0,
+    step: 0.01,
+    type: "number",
+  },
+  {
+    defaultValue: 1.5,
+    group: "Highlight",
+    key: "highlightDrive",
+    label: "Highlight Drive",
+    max: 4,
+    min: 1,
+    step: 0.01,
+    type: "number",
+  },
+] as const satisfies ParameterDefinitions
+
 const gradientParams = [
   {
     defaultValue: "custom",
@@ -3179,6 +3242,12 @@ const layerDefinitions: Record<LayerType, LayerDefinition> = {
     kind: "effect",
     params: asciiParams,
     type: "ascii",
+  },
+  bloom: {
+    defaultName: "Bloom",
+    kind: "effect",
+    params: bloomParams,
+    type: "bloom",
   },
   "circuit-bent": {
     defaultName: "Circuit Bent",

@@ -3,6 +3,7 @@ import * as THREE from "three/webgpu"
 import type { ShaderLabCompositeMode, ShaderLabLayerConfig } from "../types"
 import { DEFAULT_MASK_CONFIG } from "../types/editor"
 import { AsciiPass } from "./ascii-pass"
+import { BloomPass } from "./bloom-pass"
 import { CircuitBentPass } from "./circuit-bent-pass"
 import { ChromaticAberrationPass } from "./chromatic-aberration-pass"
 import { CrtPass } from "./crt-pass"
@@ -31,6 +32,7 @@ import { ThresholdPass } from "./threshold-pass"
 
 type LayerPassNode =
   | AsciiPass
+  | BloomPass
   | CircuitBentPass
   | ChromaticAberrationPass
   | CrtPass
@@ -486,6 +488,8 @@ export class PipelineManager {
       switch (layer.type) {
         case "ascii":
           return new AsciiPass(layer.id)
+        case "bloom":
+          return new BloomPass(layer.id)
         case "circuit-bent":
           return new CircuitBentPass(layer.id)
         case "directional-blur":

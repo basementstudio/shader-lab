@@ -50,8 +50,8 @@ export class SlicePass extends PassNode {
   private readonly speedUniform: Node
   private readonly directionUniform: Node
   private readonly timeUniform: Node
-  private readonly widthUniform: Node
-  private readonly heightUniform: Node
+  private readonly logicalWidthUniform: Node
+  private readonly logicalHeightUniform: Node
 
   private speedValue = 0.2
   private readonly placeholder: THREE.Texture
@@ -68,8 +68,8 @@ export class SlicePass extends PassNode {
     this.speedUniform = uniform(0.2)
     this.directionUniform = uniform(SLICE_DIRECTION_RIGHT)
     this.timeUniform = uniform(0)
-    this.widthUniform = uniform(1)
-    this.heightUniform = uniform(1)
+    this.logicalWidthUniform = uniform(1)
+    this.logicalHeightUniform = uniform(1)
     this.rebuildEffectNode()
   }
 
@@ -87,9 +87,9 @@ export class SlicePass extends PassNode {
     super.render(renderer, inputTexture, outputTarget, time, delta)
   }
 
-  override resize(width: number, height: number): void {
-    this.widthUniform.value = Math.max(1, width)
-    this.heightUniform.value = Math.max(1, height)
+  override updateLogicalSize(width: number, height: number): void {
+    this.logicalWidthUniform.value = Math.max(1, width)
+    this.logicalHeightUniform.value = Math.max(1, height)
   }
 
   override updateParams(params: LayerParameterValues): void {
@@ -145,8 +145,8 @@ export class SlicePass extends PassNode {
 
     const renderTargetUv = vec2(uv().x, float(1).sub(uv().y))
     const pixelCoord = vec2(
-      renderTargetUv.x.mul(this.widthUniform),
-      renderTargetUv.y.mul(this.heightUniform)
+      renderTargetUv.x.mul(this.logicalWidthUniform),
+      renderTargetUv.y.mul(this.logicalHeightUniform)
     )
     const sliceIndex = floor(pixelCoord.y.div(this.sliceHeightUniform))
     const blockIndex = floor(pixelCoord.x.div(this.blockWidthUniform))
@@ -181,7 +181,7 @@ export class SlicePass extends PassNode {
       .mul(this.amountUniform)
       .mul(gate)
     const offsetUv = vec2(
-      sliceStrength.mul(signedDirection).div(this.widthUniform),
+      sliceStrength.mul(signedDirection).div(this.logicalWidthUniform),
       float(0)
     )
     const chromaOffsetUv = vec2(

@@ -39,8 +39,8 @@ export class ChromaticAberrationPass extends PassNode {
   private readonly centerXUniform: Node
   private readonly centerYUniform: Node
   private readonly angleUniform: Node
-  private readonly widthUniform: Node
-  private readonly heightUniform: Node
+  private readonly logicalWidthUniform: Node
+  private readonly logicalHeightUniform: Node
 
   private sourceTextureNodes: Node[] = []
   private readonly placeholder: THREE.Texture
@@ -52,8 +52,8 @@ export class ChromaticAberrationPass extends PassNode {
     this.centerXUniform = uniform(0.5)
     this.centerYUniform = uniform(0.5)
     this.angleUniform = uniform(0)
-    this.widthUniform = uniform(1)
-    this.heightUniform = uniform(1)
+    this.logicalWidthUniform = uniform(1)
+    this.logicalHeightUniform = uniform(1)
     this.rebuildEffectNode()
   }
 
@@ -71,9 +71,9 @@ export class ChromaticAberrationPass extends PassNode {
     super.render(renderer, inputTexture, outputTarget, time, delta)
   }
 
-  override resize(width: number, height: number): void {
-    this.widthUniform.value = width
-    this.heightUniform.value = height
+  override updateLogicalSize(width: number, height: number): void {
+    this.logicalWidthUniform.value = Math.max(1, width)
+    this.logicalHeightUniform.value = Math.max(1, height)
   }
 
   override updateParams(params: LayerParameterValues): void {
@@ -138,8 +138,8 @@ export class ChromaticAberrationPass extends PassNode {
     }
 
     // Convert pixel intensity to UV space
-    const scaleX = this.intensityUniform.div(this.widthUniform)
-    const scaleY = this.intensityUniform.div(this.heightUniform)
+    const scaleX = this.intensityUniform.div(this.logicalWidthUniform)
+    const scaleY = this.intensityUniform.div(this.logicalHeightUniform)
     const offset = vec2(offsetDir.x.mul(scaleX), offsetDir.y.mul(scaleY))
 
     // Sample R, G, B at different offsets

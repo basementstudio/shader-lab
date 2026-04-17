@@ -1,10 +1,10 @@
-import { Fn, PI, mix, sin, smoothstep, vec3 } from "three/tsl"
+import { Fn, PI, mix, sin, smoothstep, type TSLNode, vec3 } from "three/tsl"
 import { fbm } from "../noise/fbm"
 
 /**
  * Returns a canvas weave pattern value for a given UV coordinate.
  */
-export const canvasWeavePattern = Fn(([uv]) => {
+export const canvasWeavePattern = Fn(([uv]: [TSLNode]) => {
   const grid = uv.mul(200.0).fract()
   const noiseOffset = fbm(vec3(uv.mul(30.0), 0.0), { octaves: 3 }).mul(0.1)
   const warpedGrid = grid.add(noiseOffset)

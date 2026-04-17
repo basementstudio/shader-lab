@@ -67,6 +67,7 @@ declare module "three/tsl" {
     greaterThanEqual(value: unknown): TSLNode
     lessThan(value: unknown): TSLNode
     lessThanEqual(value: unknown): TSLNode
+    mod(value: unknown): TSLNode
     mul(value: unknown): TSLNode
     mulAssign(value: unknown): TSLNode
     negate(): TSLNode
@@ -77,6 +78,7 @@ declare module "three/tsl" {
   }
 
   export function attribute(name: string, type: string): TSLNode
+  export const instanceIndex: TSLNode
   export const pointUV: TSLNode
   export const positionLocal: TSLNode
 
@@ -90,10 +92,11 @@ declare module "three/tsl" {
   export function cross(left: unknown, right: unknown): TSLNode
   export function div(left: unknown, right: unknown): TSLNode
   export function dot(left: unknown, right: unknown): TSLNode
+  // biome-ignore lint/suspicious/noExplicitAny: TSL Fn accepts both positional and destructured params
   export function Fn(
-    fn: ShaderNodeFn,
+    fn: ShaderNodeFn | ((...args: never[]) => unknown),
     layout?: unknown
-  ): (...args: unknown[]) => TSLNode
+  ): (...args: unknown[]) => TSLNode & { compute(count: number): unknown }
   export function Loop(
     config: LoopConfig,
     callback: (...args: unknown[]) => unknown
@@ -133,8 +136,14 @@ declare module "three/tsl" {
   export function step(edge: unknown, value: unknown): TSLNode
   export function sub(left: unknown, right: unknown): TSLNode
   export function texture(value: unknown, uv?: unknown): TSLNode
+  export function textureStore(
+    tex: unknown,
+    uv: unknown,
+    value: unknown
+  ): TSLNode & { toWriteOnly(): TSLNode }
   export function uniform(value?: unknown): TSLNode
   export function uv(): TSLNode
+  export function uvec2(x?: unknown, y?: unknown): TSLNode
   export function vec2(x?: unknown, y?: unknown): TSLNode
   export function vec3(x?: unknown, y?: unknown, z?: unknown): TSLNode
   export function vec4(

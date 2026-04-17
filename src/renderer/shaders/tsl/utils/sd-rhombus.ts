@@ -1,10 +1,10 @@
-import { abs, clamp, dot, Fn, float, length, sign, vec2 } from "three/tsl"
+import { abs, clamp, dot, Fn, float, length, sign, type TSLNode, vec2 } from "three/tsl"
 
-const ndot = Fn(([left, right]) => {
+const ndot = Fn(([left, right]: [TSLNode, TSLNode]) => {
   return left.x.mul(right.x).sub(left.y.mul(right.y))
 })
 
-export const sdRhombus = Fn(([pointNode, bounds = vec2(0.4)]) => {
+export const sdRhombus = Fn(([pointNode, bounds = vec2(0.4)]: [TSLNode, TSLNode?]) => {
   const point = abs(pointNode).toVar()
   const h = clamp(
     ndot(bounds.sub(point.mul(2)), bounds).div(dot(bounds, bounds)),

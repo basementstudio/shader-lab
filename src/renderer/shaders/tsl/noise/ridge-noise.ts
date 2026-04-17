@@ -1,7 +1,7 @@
-import { abs, clamp, Fn, float, Loop } from "three/tsl"
+import { abs, clamp, Fn, float, Loop, type TSLNode } from "three/tsl"
 import { simplexNoise3d } from "./simplex-noise-3d"
 
-export const ridgeNoise = Fn(([pImmutable]) => {
+export const ridgeNoise = Fn(([pImmutable]: [TSLNode]) => {
   const p = pImmutable.toVar()
   const value = float(0).toVar()
   const amplitude = float(0.5).toVar()

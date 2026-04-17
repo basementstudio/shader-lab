@@ -34,8 +34,8 @@ export class DisplacementMapPass extends PassNode {
 
   private readonly strengthUniform: Node
   private readonly midpointUniform: Node
-  private readonly widthUniform: Node
-  private readonly heightUniform: Node
+  private readonly logicalWidthUniform: Node
+  private readonly logicalHeightUniform: Node
 
   private channelMode: "luminance" | "red" | "green" | "blue" = "luminance"
 
@@ -47,8 +47,8 @@ export class DisplacementMapPass extends PassNode {
     this.placeholder = createPipelinePlaceholder()
     this.strengthUniform = uniform(20)
     this.midpointUniform = uniform(0.5)
-    this.widthUniform = uniform(1)
-    this.heightUniform = uniform(1)
+    this.logicalWidthUniform = uniform(1)
+    this.logicalHeightUniform = uniform(1)
     this.rebuildEffectNode()
   }
 
@@ -66,9 +66,9 @@ export class DisplacementMapPass extends PassNode {
     super.render(renderer, inputTexture, outputTarget, time, delta)
   }
 
-  override resize(width: number, height: number): void {
-    this.widthUniform.value = width
-    this.heightUniform.value = height
+  override updateLogicalSize(width: number, height: number): void {
+    this.logicalWidthUniform.value = Math.max(1, width)
+    this.logicalHeightUniform.value = Math.max(1, height)
   }
 
   override updateParams(params: ShaderLabLayerConfig["params"]): void {
@@ -131,8 +131,12 @@ export class DisplacementMapPass extends PassNode {
     }
 
     const offset = channelValue.sub(this.midpointUniform)
-    const offsetX = offset.mul(this.strengthUniform).div(this.widthUniform)
-    const offsetY = offset.mul(this.strengthUniform).div(this.heightUniform)
+    const offsetX = offset
+      .mul(this.strengthUniform)
+      .div(this.logicalWidthUniform)
+    const offsetY = offset
+      .mul(this.strengthUniform)
+      .div(this.logicalHeightUniform)
 
     let displacedUv: Node
     switch (this.directionMode) {

@@ -1,7 +1,7 @@
 import {
-  Fn,
   clamp,
   dot,
+  Fn,
   float,
   floor,
   max,
@@ -9,13 +9,14 @@ import {
   mul,
   step,
   sub,
+  type TSLNode,
   vec2,
   vec3,
   vec4,
 } from "three/tsl"
 import { grad4, permute, taylorInvSqrt } from "./common"
 
-export const simplexNoise4d = Fn(([vImmutable]) => {
+export const simplexNoise4d = Fn(([vImmutable]: [TSLNode]) => {
   const v = vec4(vImmutable).toVar()
   const c = vec2(0.1381966011250105, 0.30901699437494745)
   const i = vec4(floor(v.add(dot(v, c.yyyy)))).toVar()
@@ -41,21 +42,23 @@ export const simplexNoise4d = Fn(([vImmutable]) => {
 
   i.assign(mod(i, 289.0))
 
-  const j0 = float(permute(permute(permute(permute(i.w).add(i.z)).add(i.y)).add(i.x))).toVar()
+  const j0 = float(
+    permute(permute(permute(permute(i.w).add(i.z)).add(i.y)).add(i.x))
+  ).toVar()
   const j1 = vec4(
     permute(
       permute(
         permute(
           permute(i.w.add(vec4(i1.w, i2.w, i3.w, 1.0)))
             .add(i.z)
-            .add(vec4(i1.z, i2.z, i3.z, 1.0)),
+            .add(vec4(i1.z, i2.z, i3.z, 1.0))
         )
           .add(i.y)
-          .add(vec4(i1.y, i2.y, i3.y, 1.0)),
+          .add(vec4(i1.y, i2.y, i3.y, 1.0))
       )
         .add(i.x)
-        .add(vec4(i1.x, i2.x, i3.x, 1.0)),
-    ),
+        .add(vec4(i1.x, i2.x, i3.x, 1.0))
+    )
   ).toVar()
 
   const ip = vec4(1.0 / 294.0, 1.0 / 49.0, 1.0 / 7.0, 0.0).toVar()
@@ -65,7 +68,7 @@ export const simplexNoise4d = Fn(([vImmutable]) => {
   const p3 = vec4(grad4(j1.z, ip)).toVar()
   const p4 = vec4(grad4(j1.w, ip)).toVar()
   const norm = vec4(
-    taylorInvSqrt(vec4(dot(p0, p0), dot(p1, p1), dot(p2, p2), dot(p3, p3))),
+    taylorInvSqrt(vec4(dot(p0, p0), dot(p1, p1), dot(p2, p2), dot(p3, p3)))
   ).toVar()
 
   p0.mulAssign(norm.x)
@@ -74,7 +77,9 @@ export const simplexNoise4d = Fn(([vImmutable]) => {
   p3.mulAssign(norm.w)
   p4.mulAssign(taylorInvSqrt(dot(p4, p4)))
 
-  const m0 = vec3(max(sub(0.6, vec3(dot(x0, x0), dot(x1, x1), dot(x2, x2))), 0.0)).toVar()
+  const m0 = vec3(
+    max(sub(0.6, vec3(dot(x0, x0), dot(x1, x1), dot(x2, x2))), 0.0)
+  ).toVar()
   const m1 = vec2(max(sub(0.6, vec2(dot(x3, x3), dot(x4, x4))), 0.0)).toVar()
   m0.assign(m0.mul(m0))
   m1.assign(m1.mul(m1))
@@ -82,7 +87,7 @@ export const simplexNoise4d = Fn(([vImmutable]) => {
   return mul(
     49.0,
     dot(m0.mul(m0), vec3(dot(p0, x0), dot(p1, x1), dot(p2, x2))).add(
-      dot(m1.mul(m1), vec2(dot(p3, x3), dot(p4, x4))),
-    ),
+      dot(m1.mul(m1), vec2(dot(p3, x3), dot(p4, x4)))
+    )
   )
 })

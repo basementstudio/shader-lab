@@ -1,4 +1,4 @@
-import { Fn, float, Loop, sin, vec2 } from "three/tsl"
+import { Fn, float, Loop, sin, type TSLNode, vec2 } from "three/tsl"
 
 interface TurbulenceOptions {
   _amp?: number
@@ -17,7 +17,7 @@ const THETA = 0.9272952180016122
  *
  * @see https://mini.gmshaders.com/p/turbulence
  */
-export const turbulence = Fn(([pInput, time, rawOptions]) => {
+export const turbulence = Fn(([pInput, time, rawOptions]: [TSLNode, TSLNode, TurbulenceOptions?]) => {
   const options = (rawOptions as TurbulenceOptions | undefined) ?? {}
   const {
     _num = 10,

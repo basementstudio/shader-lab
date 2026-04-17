@@ -12,6 +12,7 @@ import {
   getCenteredCropFrame,
   intersectCompositionFrames,
 } from "@/lib/editor/composition"
+import { createDefaultColorCurves } from "@/lib/color-curves"
 import {
   normalizeTextFontWeight,
   resolveTextFontFamily,
@@ -308,6 +309,7 @@ export class TextPass extends PassNode {
     const sceneCropFrame = getCompositionFrame(
       {
         backgroundColor,
+        exposure: 0,
         brightness: 0,
         channelMixer: {
           bb: 1,
@@ -320,15 +322,21 @@ export class TextPass extends PassNode {
           rg: 0,
           rr: 1,
         },
+        colorCurves: createDefaultColorCurves(),
         clampMax: 1,
+        clampGamma: 1,
         clampMin: 0,
         colorMap: null,
         compositionAspect: this.compositionAspect,
         compositionHeight: this.compositionHeight,
         compositionWidth: this.compositionWidth,
         contrast: 0,
+        hue: 0,
         invert: false,
         quantizeLevels: 256,
+        saturation: 1,
+        temperature: 0,
+        tint: 0,
       },
       {
         height: this.logicalHeight,

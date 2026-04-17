@@ -2,9 +2,20 @@ import type {
   CubicBezierPoints as _CubicBezierPoints,
   KeyframeEasing as _KeyframeEasing,
 } from "@/lib/easing-curve"
+import type {
+  ColorCurve as _ColorCurve,
+  ColorCurveChannelId as _ColorCurveChannelId,
+  ColorCurvePoint as _ColorCurvePoint,
+  SceneColorCurves as _SceneColorCurves,
+} from "@/lib/color-curves"
+import { createDefaultColorCurves } from "@/lib/color-curves"
 
 export type CubicBezierPoints = _CubicBezierPoints
 export type KeyframeEasing = _KeyframeEasing
+export type ColorCurvePoint = _ColorCurvePoint
+export type ColorCurve = _ColorCurve
+export type ColorCurveChannelId = _ColorCurveChannelId
+export type SceneColorCurves = _SceneColorCurves
 
 export const LAYER_KINDS = ["source", "effect", "model"] as const
 export type LayerKind = (typeof LAYER_KINDS)[number]
@@ -359,8 +370,13 @@ export interface SceneConfig {
   compositionAspect: CompositionAspect
   compositionWidth: number
   compositionHeight: number
+  exposure: number
   brightness: number
   contrast: number
+  saturation: number
+  hue: number
+  temperature: number
+  tint: number
   invert: boolean
   channelMixer: {
     rr: number
@@ -373,7 +389,9 @@ export interface SceneConfig {
     bg: number
     bb: number
   }
+  colorCurves: SceneColorCurves
   clampMin: number
+  clampGamma: number
   clampMax: number
   quantizeLevels: number
   colorMap: { stops: { position: number; color: string }[] } | null
@@ -384,8 +402,13 @@ export const DEFAULT_SCENE_CONFIG: SceneConfig = {
   compositionAspect: "screen",
   compositionWidth: 1920,
   compositionHeight: 1080,
+  exposure: 0,
   brightness: 0,
   contrast: 0,
+  saturation: 1,
+  hue: 0,
+  temperature: 0,
+  tint: 0,
   invert: false,
   channelMixer: {
     rr: 1,
@@ -398,7 +421,9 @@ export const DEFAULT_SCENE_CONFIG: SceneConfig = {
     bg: 0,
     bb: 1,
   },
+  colorCurves: createDefaultColorCurves(),
   clampMin: 0,
+  clampGamma: 1,
   clampMax: 1,
   quantizeLevels: 256,
   colorMap: null,

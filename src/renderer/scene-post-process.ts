@@ -1,9 +1,13 @@
 import {
   clamp,
+  cos,
   float,
   floor,
   max,
   mix,
+  pow,
+  select,
+  sin,
   type TSLNode,
   texture as tslTexture,
   uniform,
@@ -13,9 +17,15 @@ import {
   vec4,
 } from "three/tsl"
 import * as THREE from "three/webgpu"
+import {
+  areDefaultColorCurves,
+  buildCurveLut,
+  COLOR_CURVE_CHANNELS,
+} from "@/lib/color-curves"
 import type { SceneConfig } from "@/types/editor"
 
 type Node = TSLNode
+const CURVE_LUT_SIZE = 4096
 
 function hexToRgb(hex: string): [number, number, number] {
   const h = hex.replace("#", "")
@@ -84,8 +94,13 @@ function buildColorMapTexture(
 
 function isDefaultConfig(config: SceneConfig): boolean {
   return (
+    config.exposure === 0 &&
     config.brightness === 0 &&
     config.contrast === 0 &&
+    config.saturation === 1 &&
+    config.hue === 0 &&
+    config.temperature === 0 &&
+    config.tint === 0 &&
     !config.invert &&
     config.channelMixer.rr === 1 &&
     config.channelMixer.rg === 0 &&
@@ -96,7 +111,9 @@ function isDefaultConfig(config: SceneConfig): boolean {
     config.channelMixer.br === 0 &&
     config.channelMixer.bg === 0 &&
     config.channelMixer.bb === 1 &&
+    areDefaultColorCurves(config.colorCurves) &&
     config.clampMin === 0 &&
+    config.clampGamma === 1 &&
     config.clampMax === 1 &&
     config.quantizeLevels === 256 &&
     config.colorMap === null
@@ -109,17 +126,27 @@ export class ScenePostProcess {
   private readonly material: THREE.MeshBasicNodeMaterial
   private readonly inputNode: Node
 
+  private readonly exposureUniform: Node
   private readonly brightnessUniform: Node
   private readonly contrastUniform: Node
+  private readonly saturationUniform: Node
+  private readonly hueUniform: Node
+  private readonly temperatureUniform: Node
+  private readonly tintUniform: Node
   private readonly invertUniform: Node
   private readonly mixerRowR: Node
   private readonly mixerRowG: Node
   private readonly mixerRowB: Node
   private readonly clampMinUniform: Node
+  private readonly clampGammaUniform: Node
   private readonly clampMaxUniform: Node
   private readonly quantizeLevelsUniform: Node
   private readonly colorMapEnabledUniform: Node
   private readonly colorMapTexture: THREE.DataTexture
+  private readonly curveTextures: Record<
+    "rgb" | "red" | "green" | "blue",
+    THREE.DataTexture
+  >
 
   active = false
 
@@ -131,16 +158,52 @@ export class ScenePostProcess {
     const renderTargetUv = vec2(uv().x, float(1).sub(uv().y))
     this.inputNode = tslTexture(new THREE.Texture(), renderTargetUv)
 
+    this.exposureUniform = uniform(0)
     this.brightnessUniform = uniform(0)
     this.contrastUniform = uniform(0)
+    this.saturationUniform = uniform(1)
+    this.hueUniform = uniform(0)
+    this.temperatureUniform = uniform(0)
+    this.tintUniform = uniform(0)
     this.invertUniform = uniform(0)
     this.mixerRowR = uniform(new THREE.Vector3(1, 0, 0))
     this.mixerRowG = uniform(new THREE.Vector3(0, 1, 0))
     this.mixerRowB = uniform(new THREE.Vector3(0, 0, 1))
     this.clampMinUniform = uniform(0)
+    this.clampGammaUniform = uniform(1)
     this.clampMaxUniform = uniform(1)
     this.quantizeLevelsUniform = uniform(256)
     this.colorMapEnabledUniform = uniform(0)
+    this.curveTextures = {
+      blue: new THREE.DataTexture(
+        buildCurveLut([], CURVE_LUT_SIZE),
+        CURVE_LUT_SIZE,
+        1,
+        THREE.RGBAFormat,
+        THREE.FloatType
+      ),
+      green: new THREE.DataTexture(
+        buildCurveLut([], CURVE_LUT_SIZE),
+        CURVE_LUT_SIZE,
+        1,
+        THREE.RGBAFormat,
+        THREE.FloatType
+      ),
+      red: new THREE.DataTexture(
+        buildCurveLut([], CURVE_LUT_SIZE),
+        CURVE_LUT_SIZE,
+        1,
+        THREE.RGBAFormat,
+        THREE.FloatType
+      ),
+      rgb: new THREE.DataTexture(
+        buildCurveLut([], CURVE_LUT_SIZE),
+        CURVE_LUT_SIZE,
+        1,
+        THREE.RGBAFormat,
+        THREE.FloatType
+      ),
+    }
 
     const lutData = buildColorMapTexture([])
     this.colorMapTexture = new THREE.DataTexture(
@@ -152,6 +215,12 @@ export class ScenePostProcess {
     this.colorMapTexture.magFilter = THREE.LinearFilter
     this.colorMapTexture.minFilter = THREE.LinearFilter
     this.colorMapTexture.needsUpdate = true
+    for (const channelId of COLOR_CURVE_CHANNELS) {
+      const texture = this.curveTextures[channelId]
+      texture.magFilter = THREE.LinearFilter
+      texture.minFilter = THREE.LinearFilter
+      texture.needsUpdate = true
+    }
 
     this.material.colorNode = this.buildColorNode()
 
@@ -169,8 +238,13 @@ export class ScenePostProcess {
     }
 
     this.active = true
+    this.exposureUniform.value = config.exposure
     this.brightnessUniform.value = config.brightness
     this.contrastUniform.value = config.contrast
+    this.saturationUniform.value = Math.max(0, config.saturation)
+    this.hueUniform.value = (config.hue * Math.PI) / 180
+    this.temperatureUniform.value = config.temperature
+    this.tintUniform.value = config.tint
     this.invertUniform.value = config.invert ? 1 : 0
 
     ;(this.mixerRowR.value as THREE.Vector3).set(
@@ -190,8 +264,17 @@ export class ScenePostProcess {
     )
 
     this.clampMinUniform.value = config.clampMin
+    this.clampGammaUniform.value = Math.max(0.01, config.clampGamma)
     this.clampMaxUniform.value = config.clampMax
     this.quantizeLevelsUniform.value = config.quantizeLevels
+    for (const channelId of COLOR_CURVE_CHANNELS) {
+      const lutData = buildCurveLut(
+        config.colorCurves[channelId].points,
+        CURVE_LUT_SIZE
+      )
+      ;(this.curveTextures[channelId].image.data as Float32Array).set(lutData)
+      this.curveTextures[channelId].needsUpdate = true
+    }
 
     if (config.colorMap) {
       this.colorMapEnabledUniform.value = 1
@@ -218,12 +301,21 @@ export class ScenePostProcess {
   dispose(): void {
     this.scene.clear()
     this.material.dispose()
+    for (const channelId of COLOR_CURVE_CHANNELS) {
+      this.curveTextures[channelId].dispose()
+    }
     this.colorMapTexture.dispose()
   }
 
   private buildColorNode(): Node {
     const input = this.inputNode
+    const sampleCurve = (texture: THREE.DataTexture, value: Node) =>
+      tslTexture(texture, vec2(clamp(value, 0, 1), float(0.5))).r
     let color: Node = vec3(input.r, input.g, input.b)
+
+    // Exposure
+    const exposureScale = pow(float(2), this.exposureUniform)
+    color = color.mul(vec3(exposureScale, exposureScale, exposureScale))
 
     // Brightness
     color = color.add(
@@ -241,6 +333,96 @@ export class ScenePostProcess {
       .mul(vec3(contrastScale, contrastScale, contrastScale))
       .add(vec3(float(0.5), float(0.5), float(0.5)))
 
+    // Saturation + Hue
+    const lumaPreGrade = float(color.x)
+      .mul(float(0.2126))
+      .add(float(color.y).mul(float(0.7152)))
+      .add(float(color.z).mul(float(0.0722)))
+    const saturated = mix(
+      vec3(lumaPreGrade, lumaPreGrade, lumaPreGrade),
+      color,
+      this.saturationUniform
+    )
+    const hueCos = float(cos(this.hueUniform))
+    const hueSin = float(sin(this.hueUniform))
+    color = vec3(
+      float(saturated.x)
+        .mul(
+          float(0.213)
+            .add(hueCos.mul(float(0.787)))
+            .sub(hueSin.mul(float(0.213)))
+        )
+        .add(
+          float(saturated.y).mul(
+            float(0.715)
+              .sub(hueCos.mul(float(0.715)))
+              .sub(hueSin.mul(float(0.715)))
+          )
+        )
+        .add(
+          float(saturated.z).mul(
+            float(0.072)
+              .sub(hueCos.mul(float(0.072)))
+              .add(hueSin.mul(float(0.928)))
+          )
+        ),
+      float(saturated.x)
+        .mul(
+          float(0.213)
+            .sub(hueCos.mul(float(0.213)))
+            .add(hueSin.mul(float(0.143)))
+        )
+        .add(
+          float(saturated.y).mul(
+            float(0.715)
+              .add(hueCos.mul(float(0.285)))
+              .add(hueSin.mul(float(0.14)))
+          )
+        )
+        .add(
+          float(saturated.z).mul(
+            float(0.072)
+              .sub(hueCos.mul(float(0.072)))
+              .sub(hueSin.mul(float(0.283)))
+          )
+        ),
+      float(saturated.x)
+        .mul(
+          float(0.213)
+            .sub(hueCos.mul(float(0.213)))
+            .sub(hueSin.mul(float(0.787)))
+        )
+        .add(
+          float(saturated.y).mul(
+            float(0.715)
+              .sub(hueCos.mul(float(0.715)))
+              .add(hueSin.mul(float(0.715)))
+          )
+        )
+        .add(
+          float(saturated.z).mul(
+            float(0.072)
+              .add(hueCos.mul(float(0.928)))
+              .add(hueSin.mul(float(0.072)))
+          )
+        )
+    )
+
+    // Temperature / Tint
+    color = color.add(
+      vec3(
+        this.temperatureUniform
+          .mul(float(0.12))
+          .add(this.tintUniform.mul(float(0.05))),
+        this.temperatureUniform
+          .mul(float(0.02))
+          .sub(this.tintUniform.mul(float(0.1))),
+        this.temperatureUniform
+          .mul(float(-0.12))
+          .add(this.tintUniform.mul(float(0.05)))
+      )
+    )
+
     // Channel mixer (3x3 matrix via dot products per row)
     const r = float(color.x)
       .mul(this.mixerRowR.x)
@@ -255,6 +437,18 @@ export class ScenePostProcess {
       .add(float(color.y).mul(this.mixerRowB.y))
       .add(float(color.z).mul(this.mixerRowB.z))
     color = vec3(r, g, b)
+
+    // Curves: apply master RGB, then per-channel remaps.
+    color = vec3(
+      sampleCurve(this.curveTextures.rgb, float(color.x)),
+      sampleCurve(this.curveTextures.rgb, float(color.y)),
+      sampleCurve(this.curveTextures.rgb, float(color.z))
+    )
+    color = vec3(
+      sampleCurve(this.curveTextures.red, float(color.x)),
+      sampleCurve(this.curveTextures.green, float(color.y)),
+      sampleCurve(this.curveTextures.blue, float(color.z))
+    )
 
     // Invert
     color = mix(
@@ -273,15 +467,23 @@ export class ScenePostProcess {
         vec3(this.clampMinUniform, this.clampMinUniform, this.clampMinUniform)
       )
       .div(vec3(range, range, range))
+    const gamma = max(this.clampGammaUniform, float(0.01))
+    const inverseGamma = float(1).div(gamma)
+    color = pow(
+      clamp(color, 0, 1),
+      vec3(inverseGamma, inverseGamma, inverseGamma)
+    )
 
     // Quantize
     const levels = this.quantizeLevelsUniform
     const levelsMinusOne = max(float(levels).sub(float(1)), float(1))
-    color = floor(
+    const clampedColor = clamp(color, 0, 1)
+    const quantizedColor = floor(
       clamp(color, 0, 1)
         .mul(vec3(levelsMinusOne, levelsMinusOne, levelsMinusOne))
         .add(vec3(float(0.5), float(0.5), float(0.5)))
     ).div(vec3(levelsMinusOne, levelsMinusOne, levelsMinusOne))
+    color = select(levels.lessThan(float(256)), quantizedColor, clampedColor)
 
     // Color map LUT
     const luma = float(color.x)

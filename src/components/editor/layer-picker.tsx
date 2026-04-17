@@ -97,13 +97,6 @@ const EFFECT_ITEMS: readonly EffectItem[] = [
   {
     category: "core",
     description:
-      "Adds a standalone highlight bloom pass to the incoming frame.",
-    label: "Bloom",
-    value: "bloom",
-  },
-  {
-    category: "core",
-    description:
       "Turns the image into text glyphs for a classic terminal look.",
     label: "ASCII",
     previewSrc: "/examples/ascii.webp",
@@ -175,6 +168,14 @@ const EFFECT_ITEMS: readonly EffectItem[] = [
     label: "Threshold",
     previewSrc: "/examples/threshold.webp",
     value: "threshold",
+  },
+  {
+    category: "core",
+    description:
+      "Adds a standalone highlight bloom pass to the incoming frame.",
+    label: "Bloom",
+    value: "bloom",
+    // previewSrc: "/examples/bloom.webp",
   },
   {
     category: "core",

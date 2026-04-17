@@ -1,5 +1,11 @@
 # @basementstudio/shader-lab
 
+## 1.3.9
+
+### Patch Changes
+
+- a43c21f: improve performance on particle grid pass, and use logical dimensions fixes across several passes
+
 ## 1.3.8
 
 ### Patch Changes

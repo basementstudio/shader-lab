@@ -99,8 +99,8 @@ function getGradientNoiseDefaults(noiseType: string): {
       }
     case "ridge":
       return {
-        warpAmount: 0.2,
-        warpScale: 2.0,
+        warpAmount: 0.18,
+        warpScale: 2.35,
       }
     case "turbulence":
       return {

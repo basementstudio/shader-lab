@@ -799,7 +799,7 @@ const gradientParams = [
     },
   },
   {
-    defaultValue: "simplex",
+    defaultValue: "ridge",
     group: "Distortion",
     key: "noiseType",
     label: "Noise",
@@ -814,7 +814,7 @@ const gradientParams = [
     type: "select",
   },
   {
-    defaultValue: 0,
+    defaultValue: 70.3,
     group: "Distortion",
     key: "noiseSeed",
     label: "Seed",
@@ -824,7 +824,7 @@ const gradientParams = [
     type: "number",
   },
   {
-    defaultValue: 0.64,
+    defaultValue: 0.18,
     group: "Distortion",
     key: "warpAmount",
     label: "Warp Amount",
@@ -834,7 +834,7 @@ const gradientParams = [
     type: "number",
   },
   {
-    defaultValue: 5.56,
+    defaultValue: 2.35,
     group: "Distortion",
     key: "warpScale",
     label: "Warp Scale",
@@ -891,7 +891,7 @@ const gradientParams = [
     type: "boolean",
   },
   {
-    defaultValue: 0,
+    defaultValue: 1,
     group: "Animation",
     key: "motionAmount",
     label: "Motion Amount",
@@ -901,7 +901,7 @@ const gradientParams = [
     type: "number",
   },
   {
-    defaultValue: 0.2,
+    defaultValue: 0.4,
     group: "Animation",
     key: "motionSpeed",
     label: "Motion Speed",
@@ -925,7 +925,7 @@ const gradientParams = [
     type: "number",
   },
   {
-    defaultValue: "reinhard",
+    defaultValue: "cinematic",
     group: "Finish",
     key: "tonemapMode",
     label: "Tonemap",

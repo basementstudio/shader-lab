@@ -1,5 +1,11 @@
 # @basementstudio/shader-lab
 
+## 1.3.11
+
+### Patch Changes
+
+- 8979cdb: add sdbox3d utility for custom shader layer
+
 ## 1.3.10
 
 ### Patch Changes

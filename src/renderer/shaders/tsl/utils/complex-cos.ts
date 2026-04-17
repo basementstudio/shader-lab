@@ -1,9 +1,9 @@
-import { cos, Fn, sin, vec2 } from "three/tsl"
+import { cos, Fn, sin, type TSLNode, vec2 } from "three/tsl"
 import { cosh, sinh } from "./hyperbolic"
 
 /**
  * Complex cosine: cos(a + bi) = cos(a)cosh(b) - i sin(a)sinh(b)
  */
-export const complexCos = Fn(([z]) => {
+export const complexCos = Fn(([z]: [TSLNode]) => {
   return vec2(cos(z.x).mul(cosh(z.y)), sin(z.x).mul(sinh(z.y)).negate())
 })

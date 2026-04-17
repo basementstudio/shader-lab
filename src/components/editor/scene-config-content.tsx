@@ -295,15 +295,23 @@ export function SceneConfigContent() {
 
       {/* Quantize */}
       <Section title="Quantize">
-        <Slider
-          label="Levels"
-          max={256}
-          min={2}
-          onValueChange={(value) =>
-            handleUpdate("quantizeLevels", Math.round(value))
-          }
-          value={sceneConfig.quantizeLevels}
-        />
+        <Row label="Enabled">
+          <Toggle
+            checked={sceneConfig.quantizeEnabled}
+            onCheckedChange={(value) => handleUpdate("quantizeEnabled", value)}
+          />
+        </Row>
+        {sceneConfig.quantizeEnabled && (
+          <Slider
+            label="Levels"
+            max={256}
+            min={2}
+            onValueChange={(value) =>
+              handleUpdate("quantizeLevels", Math.round(value))
+            }
+            value={sceneConfig.quantizeLevels}
+          />
+        )}
       </Section>
 
       {/* Color Map */}

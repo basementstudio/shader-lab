@@ -2,6 +2,7 @@ import { useAssetStore } from "@/store/asset-store"
 import { useEditorStore } from "@/store/editor-store"
 import { useLayerStore } from "@/store/layer-store"
 import { useTimelineStore } from "@/store/timeline-store"
+import { createDefaultColorCurves } from "@/lib/color-curves"
 import type {
   EditorAsset,
   EditorLayer,
@@ -128,7 +129,9 @@ export function applyLabProjectFile(
 
   const editorStore = useEditorStore.getState()
   if (projectFile.version >= 2 && projectFile.sceneConfig) {
-    editorStore.updateSceneConfig(projectFile.sceneConfig)
+    editorStore.updateSceneConfig(
+      normalizeSceneConfig(projectFile.sceneConfig as Partial<SceneConfig>)
+    )
     editorStore.setOutputSize(
       projectFile.composition.width,
       projectFile.composition.height
@@ -143,6 +146,30 @@ export function applyLabProjectFile(
     missingAssetCount: nextLayers.filter((layer) =>
       Boolean(layer.assetId && layer.runtimeError)
     ).length,
+  }
+}
+
+function normalizeSceneConfig(sceneConfig: Partial<SceneConfig>): SceneConfig {
+  const defaultCurves = createDefaultColorCurves()
+  const colorCurves = sceneConfig.colorCurves
+  const quantizeEnabled =
+    typeof sceneConfig.quantizeEnabled === "boolean"
+      ? sceneConfig.quantizeEnabled
+      : typeof sceneConfig.quantizeLevels === "number" &&
+          sceneConfig.quantizeLevels !== DEFAULT_SCENE_CONFIG.quantizeLevels
+
+  return {
+    ...DEFAULT_SCENE_CONFIG,
+    ...sceneConfig,
+    channelMixer: {
+      ...DEFAULT_SCENE_CONFIG.channelMixer,
+      ...sceneConfig.channelMixer,
+    },
+    colorCurves: {
+      ...defaultCurves,
+      ...colorCurves,
+    },
+    quantizeEnabled,
   }
 }
 

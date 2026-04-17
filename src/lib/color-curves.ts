@@ -118,7 +118,11 @@ export function normalizeCurvePoints(
 
 export function getMonotoneCurveTangents(points: ColorCurvePoint[]): number[] {
   const normalizedPoints = normalizeCurvePoints(points)
-  const pointCount = normalizedPoints.length
+  return computeMonotoneCurveTangents(normalizedPoints)
+}
+
+function computeMonotoneCurveTangents(points: ColorCurvePoint[]): number[] {
+  const pointCount = points.length
 
   if (pointCount === 0) {
     return []
@@ -132,8 +136,8 @@ export function getMonotoneCurveTangents(points: ColorCurvePoint[]): number[] {
   const slopes = new Array<number>(pointCount - 1)
 
   for (let index = 0; index < pointCount - 1; index += 1) {
-    const pointA = normalizedPoints[index]!
-    const pointB = normalizedPoints[index + 1]!
+    const pointA = points[index]!
+    const pointB = points[index + 1]!
     const width = Math.max(pointB.x - pointA.x, Number.EPSILON)
     segmentWidths[index] = width
     slopes[index] = (pointB.y - pointA.y) / width
@@ -211,40 +215,8 @@ export function getMonotoneCurveTangents(points: ColorCurvePoint[]): number[] {
 
 export function evaluateCurve(points: ColorCurvePoint[], x: number): number {
   const normalizedPoints = normalizeCurvePoints(points)
-  const tangents = getMonotoneCurveTangents(normalizedPoints)
-  const clampedX = clamp01(x)
-
-  if (clampedX <= 0) {
-    return normalizedPoints[0]?.y ?? 0
-  }
-
-  const lastPoint = normalizedPoints[normalizedPoints.length - 1]
-  if (clampedX >= 1) {
-    return lastPoint?.y ?? 1
-  }
-
-  for (let index = 1; index < normalizedPoints.length; index += 1) {
-    const pointA = normalizedPoints[index - 1]!
-    const pointB = normalizedPoints[index]!
-
-    if (clampedX <= pointB.x) {
-      const width = Math.max(pointB.x - pointA.x, Number.EPSILON)
-      const t = (clampedX - pointA.x) / width
-      const t2 = t * t
-      const t3 = t2 * t
-      const tangentA = tangents[index - 1] ?? 0
-      const tangentB = tangents[index] ?? 0
-
-      return (
-        (2 * t3 - 3 * t2 + 1) * pointA.y +
-        (t3 - 2 * t2 + t) * width * tangentA +
-        (-2 * t3 + 3 * t2) * pointB.y +
-        (t3 - t2) * width * tangentB
-      )
-    }
-  }
-
-  return lastPoint?.y ?? 1
+  const tangents = computeMonotoneCurveTangents(normalizedPoints)
+  return evaluatePreparedCurve(normalizedPoints, tangents, x).value
 }
 
 export function isIdentityCurve(points: ColorCurvePoint[]): boolean {
@@ -271,13 +243,23 @@ export function areDefaultColorCurves(curves: SceneColorCurves): boolean {
 
 export function buildCurveLut(
   points: ColorCurvePoint[],
-  size = 4096
+  size = 1024
 ): Float32Array {
   const data = new Float32Array(size * 4)
+  const normalizedPoints = normalizeCurvePoints(points)
+  const tangents = computeMonotoneCurveTangents(normalizedPoints)
+  let segmentIndex = 1
 
   for (let index = 0; index < size; index += 1) {
     const t = index / Math.max(size - 1, 1)
-    const value = clamp01(evaluateCurve(points, t))
+    const sample = evaluatePreparedCurve(
+      normalizedPoints,
+      tangents,
+      t,
+      segmentIndex
+    )
+    const value = clamp01(sample.value)
+    segmentIndex = sample.segmentIndex
     const offset = index * 4
     data[offset] = value
     data[offset + 1] = value
@@ -286,4 +268,56 @@ export function buildCurveLut(
   }
 
   return data
+}
+
+function evaluatePreparedCurve(
+  points: ColorCurvePoint[],
+  tangents: number[],
+  x: number,
+  hintSegmentIndex = 1
+): { segmentIndex: number; value: number } {
+  const clampedX = clamp01(x)
+
+  if (clampedX <= 0) {
+    return {
+      segmentIndex: 1,
+      value: points[0]?.y ?? 0,
+    }
+  }
+
+  const lastPoint = points[points.length - 1]
+  if (clampedX >= 1) {
+    return {
+      segmentIndex: Math.max(1, points.length - 1),
+      value: lastPoint?.y ?? 1,
+    }
+  }
+
+  const maxSegmentIndex = Math.max(1, points.length - 1)
+  let segmentIndex = Math.min(Math.max(hintSegmentIndex, 1), maxSegmentIndex)
+
+  while (
+    segmentIndex < maxSegmentIndex &&
+    clampedX > (points[segmentIndex]?.x ?? 1)
+  ) {
+    segmentIndex += 1
+  }
+
+  const pointA = points[segmentIndex - 1]!
+  const pointB = points[segmentIndex]!
+  const width = Math.max(pointB.x - pointA.x, Number.EPSILON)
+  const t = (clampedX - pointA.x) / width
+  const t2 = t * t
+  const t3 = t2 * t
+  const tangentA = tangents[segmentIndex - 1] ?? 0
+  const tangentB = tangents[segmentIndex] ?? 0
+
+  return {
+    segmentIndex,
+    value:
+      (2 * t3 - 3 * t2 + 1) * pointA.y +
+      (t3 - 2 * t2 + t) * width * tangentA +
+      (-2 * t3 + 3 * t2) * pointB.y +
+      (t3 - t2) * width * tangentB,
+  }
 }

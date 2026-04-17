@@ -333,6 +333,7 @@ export class TextPass extends PassNode {
         contrast: 0,
         hue: 0,
         invert: false,
+        quantizeEnabled: false,
         quantizeLevels: 256,
         saturation: 1,
         temperature: 0,

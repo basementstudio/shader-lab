@@ -393,6 +393,7 @@ export interface SceneConfig {
   clampMin: number
   clampGamma: number
   clampMax: number
+  quantizeEnabled: boolean
   quantizeLevels: number
   colorMap: { stops: { position: number; color: string }[] } | null
 }
@@ -425,6 +426,7 @@ export const DEFAULT_SCENE_CONFIG: SceneConfig = {
   clampMin: 0,
   clampGamma: 1,
   clampMax: 1,
+  quantizeEnabled: false,
   quantizeLevels: 256,
   colorMap: null,
 }

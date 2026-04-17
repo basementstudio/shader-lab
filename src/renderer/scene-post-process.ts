@@ -6,7 +6,6 @@ import {
   max,
   mix,
   pow,
-  select,
   sin,
   type TSLNode,
   texture as tslTexture,
@@ -25,7 +24,7 @@ import {
 import type { SceneConfig } from "@/types/editor"
 
 type Node = TSLNode
-const CURVE_LUT_SIZE = 4096
+const CURVE_LUT_SIZE = 1024
 
 function hexToRgb(hex: string): [number, number, number] {
   const h = hex.replace("#", "")
@@ -115,9 +114,18 @@ function isDefaultConfig(config: SceneConfig): boolean {
     config.clampMin === 0 &&
     config.clampGamma === 1 &&
     config.clampMax === 1 &&
+    !config.quantizeEnabled &&
     config.quantizeLevels === 256 &&
     config.colorMap === null
   )
+}
+
+function getColorCurvesSignature(curves: SceneConfig["colorCurves"]): string {
+  return COLOR_CURVE_CHANNELS.map((channelId) =>
+    curves[channelId].points
+      .map((point) => `${point.x},${point.y}`)
+      .join("|")
+  ).join("||")
 }
 
 export class ScenePostProcess {
@@ -140,6 +148,7 @@ export class ScenePostProcess {
   private readonly clampMinUniform: Node
   private readonly clampGammaUniform: Node
   private readonly clampMaxUniform: Node
+  private readonly quantizeEnabledUniform: Node
   private readonly quantizeLevelsUniform: Node
   private readonly colorMapEnabledUniform: Node
   private readonly colorMapTexture: THREE.DataTexture
@@ -147,6 +156,7 @@ export class ScenePostProcess {
     "rgb" | "red" | "green" | "blue",
     THREE.DataTexture
   >
+  private colorCurvesSignature = ""
 
   active = false
 
@@ -172,6 +182,7 @@ export class ScenePostProcess {
     this.clampMinUniform = uniform(0)
     this.clampGammaUniform = uniform(1)
     this.clampMaxUniform = uniform(1)
+    this.quantizeEnabledUniform = uniform(0)
     this.quantizeLevelsUniform = uniform(256)
     this.colorMapEnabledUniform = uniform(0)
     this.curveTextures = {
@@ -230,9 +241,11 @@ export class ScenePostProcess {
   }
 
   update(config: SceneConfig): boolean {
+    const colorCurvesSignature = getColorCurvesSignature(config.colorCurves)
     const shouldBeActive = !isDefaultConfig(config)
 
     if (!shouldBeActive) {
+      this.colorCurvesSignature = colorCurvesSignature
       this.active = false
       return false
     }
@@ -266,14 +279,19 @@ export class ScenePostProcess {
     this.clampMinUniform.value = config.clampMin
     this.clampGammaUniform.value = Math.max(0.01, config.clampGamma)
     this.clampMaxUniform.value = config.clampMax
+    this.quantizeEnabledUniform.value = config.quantizeEnabled ? 1 : 0
     this.quantizeLevelsUniform.value = config.quantizeLevels
-    for (const channelId of COLOR_CURVE_CHANNELS) {
-      const lutData = buildCurveLut(
-        config.colorCurves[channelId].points,
-        CURVE_LUT_SIZE
-      )
-      ;(this.curveTextures[channelId].image.data as Float32Array).set(lutData)
-      this.curveTextures[channelId].needsUpdate = true
+
+    if (colorCurvesSignature !== this.colorCurvesSignature) {
+      for (const channelId of COLOR_CURVE_CHANNELS) {
+        const lutData = buildCurveLut(
+          config.colorCurves[channelId].points,
+          CURVE_LUT_SIZE
+        )
+        ;(this.curveTextures[channelId].image.data as Float32Array).set(lutData)
+        this.curveTextures[channelId].needsUpdate = true
+      }
+      this.colorCurvesSignature = colorCurvesSignature
     }
 
     if (config.colorMap) {
@@ -483,7 +501,7 @@ export class ScenePostProcess {
         .mul(vec3(levelsMinusOne, levelsMinusOne, levelsMinusOne))
         .add(vec3(float(0.5), float(0.5), float(0.5)))
     ).div(vec3(levelsMinusOne, levelsMinusOne, levelsMinusOne))
-    color = select(levels.lessThan(float(256)), quantizedColor, clampedColor)
+    color = mix(clampedColor, quantizedColor, this.quantizeEnabledUniform)
 
     // Color map LUT
     const luma = float(color.x)

@@ -1,10 +1,12 @@
 import { float, type TSLNode, texture as tslTexture, uv, vec2 } from "three/tsl"
 import * as THREE from "three/webgpu"
+import { isGroupLayer } from "@/lib/editor/layer-groups"
 import { isSvgMediaSource } from "@/lib/editor/media-file"
 import { parameterValuesSignature } from "@/lib/editor/parameter-schema"
 import type { RenderableLayerPass } from "@/renderer/contracts"
 import { CustomShaderPass } from "@/renderer/custom-shader-pass"
 import { GradientPass } from "@/renderer/gradient-pass"
+import { GroupPass } from "@/renderer/group-pass"
 import { LivePass } from "@/renderer/live-pass"
 import { MediaPass } from "@/renderer/media-pass"
 import type { PassNode } from "@/renderer/pass-node"
@@ -13,7 +15,15 @@ import { ScenePostProcess } from "@/renderer/scene-post-process"
 import { TextPass } from "@/renderer/text-pass"
 import type { EditorLayer, SceneConfig, Size } from "@/types/editor"
 
-type LayerPassNode = LivePass | MediaPass | PassNode
+type LayerPassNode = GroupPass | LivePass | MediaPass | PassNode
+type LayerTreeNode = {
+  children: LayerTreeNode[]
+  entry: RenderableLayerPass
+}
+type RenderTargetPair = {
+  read: THREE.WebGLRenderTarget
+  write: THREE.WebGLRenderTarget
+}
 
 const RENDER_TARGET_OPTIONS = {
   depthBuffer: false,
@@ -45,7 +55,26 @@ function parseSvgRasterResolution(value: unknown): number {
   return Math.round(parsed)
 }
 
+function createGroupSignature(layer: RenderableLayerPass): string {
+  return [
+    layer.layer.id,
+    layer.layer.kind,
+    layer.layer.type,
+    layer.layer.visible ? "1" : "0",
+    layer.layer.opacity.toFixed(4),
+    layer.layer.blendMode,
+    layer.layer.compositeMode,
+    layer.layer.maskConfig.source,
+    layer.layer.maskConfig.mode,
+    layer.layer.maskConfig.invert ? "1" : "0",
+  ].join("|")
+}
+
 function createLayerSignature(layer: RenderableLayerPass): string {
+  if (isGroupLayer(layer.layer)) {
+    return createGroupSignature(layer)
+  }
+
   if (layer.layer.type === "custom-shader") {
     return [
       layer.layer.id,
@@ -95,29 +124,71 @@ function createLayerSignature(layer: RenderableLayerPass): string {
   ].join("|")
 }
 
+function buildRenderTree(layers: RenderableLayerPass[]): LayerTreeNode[] {
+  const groupIds = new Set(
+    layers.filter((entry) => isGroupLayer(entry.layer)).map((entry) => entry.layer.id)
+  )
+  const parentById = new Map(
+    layers.map((entry) => {
+      const parentGroupId =
+        entry.layer.parentGroupId && groupIds.has(entry.layer.parentGroupId)
+          ? entry.layer.parentGroupId
+          : null
+
+      return [entry.layer.id, parentGroupId]
+    })
+  )
+
+  const visit = (
+    entry: RenderableLayerPass,
+    lineage: Set<string>
+  ): LayerTreeNode | null => {
+    if (lineage.has(entry.layer.id)) {
+      return null
+    }
+
+    const nextLineage = new Set(lineage)
+    nextLineage.add(entry.layer.id)
+    const children = layers
+      .filter((candidate) => (parentById.get(candidate.layer.id) ?? null) === entry.layer.id)
+      .map((child) => visit(child, nextLineage))
+      .filter((child): child is LayerTreeNode => child !== null)
+
+    return { children, entry }
+  }
+
+  return layers
+    .filter((entry) => (parentById.get(entry.layer.id) ?? null) === null)
+    .map((entry) => visit(entry, new Set()))
+    .filter((entry): entry is LayerTreeNode => entry !== null)
+}
+
+function createStructureSignature(layers: RenderableLayerPass[]): string {
+  return layers
+    .map(
+      (entry) => `${entry.layer.id}:${entry.layer.parentGroupId ?? "root"}`
+    )
+    .join("|")
+}
+
 export class PipelineManager {
   private readonly renderer: THREE.WebGPURenderer
   private readonly baseScene: THREE.Scene
   private readonly baseCamera: THREE.OrthographicCamera
+  private readonly clearScene: THREE.Scene
   private readonly blitScene: THREE.Scene
   private readonly blitCamera: THREE.OrthographicCamera
   private readonly blitInputNode: TSLNode
   private readonly blitMaterial: THREE.MeshBasicNodeMaterial
 
   private passMap = new Map<string, LayerPassNode>()
-  private passes: LayerPassNode[] = []
   private layerSignatures = new Map<string, string>()
   private compilingPasses = new Set<string>()
   private compiledVersions = new Map<string, number>()
   private pendingMediaLoads = new Set<string>()
-  private cachedActivePasses: LayerPassNode[] = []
-  private activePassesDirty = true
+  private renderTree: LayerTreeNode[] = []
+  private structureSignature = ""
   private dirty = true
-
-  private markDirty(): void {
-    this.dirty = true
-    this.activePassesDirty = true
-  }
 
   private width: number
   private height: number
@@ -128,6 +199,7 @@ export class PipelineManager {
   private readonly postProcess: ScenePostProcess
   private rtA: THREE.WebGLRenderTarget
   private rtB: THREE.WebGLRenderTarget
+  private subgroupTargetPool: RenderTargetPair[] = []
 
   constructor(renderer: THREE.WebGPURenderer, size: Size) {
     this.renderer = renderer
@@ -138,6 +210,7 @@ export class PipelineManager {
 
     this.baseScene = new THREE.Scene()
     this.baseCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
+    this.clearScene = new THREE.Scene()
     this.baseMaterial = new THREE.MeshBasicMaterial({ color: "#080808" })
     const baseMesh = new THREE.Mesh(
       new THREE.PlaneGeometry(2, 2),
@@ -189,9 +262,11 @@ export class PipelineManager {
       this.markDirty()
     }
 
-    const orderedPasses: LayerPassNode[] = []
-
     for (const renderableLayer of layers) {
+      if (renderableLayer.layer.kind === "model") {
+        continue
+      }
+
       const layerId = renderableLayer.layer.id
       const signature = createLayerSignature(renderableLayer)
       let pass = this.passMap.get(layerId)
@@ -214,37 +289,25 @@ export class PipelineManager {
           this.scheduleCompile(pass)
         }
       }
-
-      orderedPasses.push(pass)
     }
 
-    if (
-      orderedPasses.length !== this.passes.length ||
-      orderedPasses.some((pass, index) => this.passes[index] !== pass)
-    ) {
-      this.passes = orderedPasses
+    const nextStructureSignature = createStructureSignature(layers)
+    if (nextStructureSignature !== this.structureSignature) {
+      this.structureSignature = nextStructureSignature
       this.markDirty()
     }
+
+    this.renderTree = buildRenderTree(layers)
   }
 
   render(time: number, delta: number): boolean {
-    if (this.activePassesDirty) {
-      this.cachedActivePasses = this.passes.filter(
-        (pass) => pass.enabled && !this.compilingPasses.has(pass.layerId)
-      )
-      this.activePassesDirty = false
-    }
-
-    const activePasses = this.cachedActivePasses
-    const needsContinuousRender = activePasses.some((pass) =>
-      pass.needsContinuousRender()
-    )
+    const needsContinuousRender = this.hasContinuousRender(this.renderTree)
 
     if (!(this.dirty || needsContinuousRender)) {
       return false
     }
 
-    if (activePasses.length === 0) {
+    if (!this.hasRenderableNodes(this.renderTree)) {
       this.renderer.setRenderTarget(null)
       this.renderer.render(this.baseScene, this.baseCamera)
       this.dirty = false
@@ -254,15 +317,16 @@ export class PipelineManager {
     this.renderer.setRenderTarget(this.rtA)
     this.renderer.render(this.baseScene, this.baseCamera)
 
-    let readTarget = this.rtA
-    let writeTarget = this.rtB
+    const renderResult = this.renderNodes(
+      this.renderTree,
+      this.rtA,
+      this.rtB,
+      time,
+      delta
+    )
 
-    for (const pass of activePasses) {
-      pass.render(this.renderer, readTarget.texture, writeTarget, time, delta)
-      const previousRead = readTarget
-      readTarget = writeTarget
-      writeTarget = previousRead
-    }
+    let readTarget = renderResult.readTarget
+    let writeTarget = renderResult.writeTarget
 
     if (this.postProcess.active) {
       this.postProcess.render(this.renderer, readTarget.texture, writeTarget)
@@ -294,6 +358,11 @@ export class PipelineManager {
 
     for (const pass of this.passMap.values()) {
       pass.resize(this.width, this.height)
+    }
+
+    for (const pair of this.subgroupTargetPool) {
+      pair.read.setSize(this.width, this.height)
+      pair.write.setSize(this.width, this.height)
     }
 
     this.markDirty()
@@ -361,12 +430,10 @@ export class PipelineManager {
   }
 
   async prepareForExportFrame(time: number, loop: boolean): Promise<void> {
-    const activePasses = this.passes.filter(
-      (pass) => pass.enabled && !this.compilingPasses.has(pass.layerId)
-    )
+    const activeLeafPasses = this.collectActiveLeafPasses(this.renderTree)
 
     await Promise.all(
-      activePasses.map((pass) => pass.prepareForExportFrame(time, loop))
+      activeLeafPasses.map((pass) => pass.prepareForExportFrame(time, loop))
     )
   }
 
@@ -380,11 +447,20 @@ export class PipelineManager {
       pass.dispose()
     }
 
+    for (const pair of this.subgroupTargetPool) {
+      pair.read.dispose()
+      pair.write.dispose()
+    }
+
     this.passMap.clear()
-    this.passes = []
     this.layerSignatures.clear()
     this.compilingPasses.clear()
     this.compiledVersions.clear()
+    this.subgroupTargetPool = []
+  }
+
+  private markDirty(): void {
+    this.dirty = true
   }
 
   private applyLayerState(
@@ -396,10 +472,17 @@ export class PipelineManager {
     pass.updateBlendMode(renderableLayer.layer.blendMode)
     pass.updateCompositeMode(renderableLayer.layer.compositeMode)
     pass.updateMaskConfig(renderableLayer.layer.maskConfig)
+
+    if (pass instanceof GroupPass) {
+      pass.flushColorNode()
+      return
+    }
+
     pass.updateLayerColorAdjustments(
       renderableLayer.layer.hue,
       renderableLayer.layer.saturation
     )
+    pass.updateCommonParams(renderableLayer.params)
     pass.updateParams(renderableLayer.params)
     pass.flushColorNode()
 
@@ -482,6 +565,10 @@ export class PipelineManager {
   }
 
   private createPass(layer: EditorLayer): LayerPassNode {
+    if (isGroupLayer(layer)) {
+      return new GroupPass(layer.id)
+    }
+
     if (layer.kind === "effect") {
       return createPassNode(layer.id, layer.type)
     }
@@ -510,5 +597,174 @@ export class PipelineManager {
     }
 
     throw new Error(`Unsupported layer type in current scope: ${layer.type}`)
+  }
+
+  private hasContinuousRender(nodes: LayerTreeNode[]): boolean {
+    return nodes.some((node) => {
+      if (!node.entry.layer.visible) {
+        return false
+      }
+
+      const pass = this.passMap.get(node.entry.layer.id)
+      if (!(pass && !this.compilingPasses.has(pass.layerId))) {
+        return false
+      }
+
+      if (isGroupLayer(node.entry.layer)) {
+        return this.hasContinuousRender(node.children)
+      }
+
+      return pass.needsContinuousRender()
+    })
+  }
+
+  private hasRenderableNodes(nodes: LayerTreeNode[]): boolean {
+    return nodes.some((node) => this.isNodeRenderable(node))
+  }
+
+  private isNodeRenderable(node: LayerTreeNode): boolean {
+    if (!node.entry.layer.visible) {
+      return false
+    }
+
+    const pass = this.passMap.get(node.entry.layer.id)
+    if (!(pass && !this.compilingPasses.has(pass.layerId))) {
+      return false
+    }
+
+    if (isGroupLayer(node.entry.layer)) {
+      return this.hasRenderableNodes(node.children)
+    }
+
+    return true
+  }
+
+  private collectActiveLeafPasses(nodes: LayerTreeNode[]): LayerPassNode[] {
+    return nodes.flatMap((node) => {
+      if (!node.entry.layer.visible) {
+        return []
+      }
+
+      const pass = this.passMap.get(node.entry.layer.id)
+      if (!(pass && !this.compilingPasses.has(pass.layerId))) {
+        return []
+      }
+
+      if (isGroupLayer(node.entry.layer)) {
+        return this.collectActiveLeafPasses(node.children)
+      }
+
+      return [pass]
+    })
+  }
+
+  private renderNodes(
+    nodes: LayerTreeNode[],
+    readTarget: THREE.WebGLRenderTarget,
+    writeTarget: THREE.WebGLRenderTarget,
+    time: number,
+    delta: number
+  ): {
+    readTarget: THREE.WebGLRenderTarget
+    rendered: boolean
+    writeTarget: THREE.WebGLRenderTarget
+  } {
+    let currentReadTarget = readTarget
+    let currentWriteTarget = writeTarget
+    let renderedAny = false
+
+    for (let index = nodes.length - 1; index >= 0; index -= 1) {
+      const node = nodes[index]
+      if (!node?.entry.layer.visible) {
+        continue
+      }
+
+      const pass = this.passMap.get(node.entry.layer.id)
+      if (!(pass && !this.compilingPasses.has(pass.layerId))) {
+        continue
+      }
+
+      if (isGroupLayer(node.entry.layer)) {
+        const subgroupPair = this.acquireSubgroupPair()
+        this.clearRenderTarget(subgroupPair.read)
+
+        const subgroupResult = this.renderNodes(
+          node.children,
+          subgroupPair.read,
+          subgroupPair.write,
+          time,
+          delta
+        )
+
+        if (!(subgroupResult.rendered && pass instanceof GroupPass)) {
+          this.releaseSubgroupPair(subgroupPair)
+          continue
+        }
+
+        pass.setGroupTexture(subgroupResult.readTarget.texture)
+        pass.render(
+          this.renderer,
+          currentReadTarget.texture,
+          currentWriteTarget,
+          time,
+          delta
+        )
+        renderedAny = true
+        const previousRead = currentReadTarget
+        currentReadTarget = currentWriteTarget
+        currentWriteTarget = previousRead
+        this.releaseSubgroupPair(subgroupPair)
+        continue
+      }
+
+      pass.render(
+        this.renderer,
+        currentReadTarget.texture,
+        currentWriteTarget,
+        time,
+        delta
+      )
+      renderedAny = true
+      const previousRead = currentReadTarget
+      currentReadTarget = currentWriteTarget
+      currentWriteTarget = previousRead
+    }
+
+    return {
+      readTarget: currentReadTarget,
+      rendered: renderedAny,
+      writeTarget: currentWriteTarget,
+    }
+  }
+
+  private acquireSubgroupPair(): RenderTargetPair {
+    const pair = this.subgroupTargetPool.pop()
+    if (pair) {
+      return pair
+    }
+
+    return {
+      read: new THREE.WebGLRenderTarget(
+        this.width,
+        this.height,
+        RENDER_TARGET_OPTIONS
+      ),
+      write: new THREE.WebGLRenderTarget(
+        this.width,
+        this.height,
+        RENDER_TARGET_OPTIONS
+      ),
+    }
+  }
+
+  private releaseSubgroupPair(pair: RenderTargetPair): void {
+    this.subgroupTargetPool.push(pair)
+  }
+
+  private clearRenderTarget(target: THREE.WebGLRenderTarget): void {
+    this.renderer.setClearColor("#000000", 0)
+    this.renderer.setRenderTarget(target)
+    this.renderer.render(this.clearScene, this.baseCamera)
+    this.renderer.setClearColor("#0a0d10", 1)
   }
 }

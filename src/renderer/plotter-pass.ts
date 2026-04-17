@@ -59,6 +59,7 @@ export class PlotterPass extends PassNode {
   private readonly paperColorRUniform: Node
   private readonly paperColorGUniform: Node
   private readonly paperColorBUniform: Node
+  private readonly backgroundAlphaUniform: Node
   private readonly inkColorRUniform: Node
   private readonly inkColorGUniform: Node
   private readonly inkColorBUniform: Node
@@ -78,6 +79,7 @@ export class PlotterPass extends PassNode {
     this.paperColorRUniform = uniform(0.96)
     this.paperColorGUniform = uniform(0.94)
     this.paperColorBUniform = uniform(0.91)
+    this.backgroundAlphaUniform = uniform(1)
     this.inkColorRUniform = uniform(0.1)
     this.inkColorGUniform = uniform(0.1)
     this.inkColorBUniform = uniform(0.1)
@@ -121,6 +123,10 @@ export class PlotterPass extends PassNode {
       typeof params.wobble === "number"
         ? Math.max(0, Math.min(1, params.wobble))
         : 0.3
+    this.backgroundAlphaUniform.value =
+      typeof params.backgroundAlpha === "number"
+        ? Math.max(0, Math.min(1, params.backgroundAlpha))
+        : 1
 
     const [pr, pg, pb] = parseHexColor(params.paperColor, [0.96, 0.94, 0.91])
     this.paperColorRUniform.value = pr
@@ -215,7 +221,13 @@ export class PlotterPass extends PassNode {
     )
 
     const result = mix(paperColor, lineColor, combinedHatch)
+    const sourceAlpha = clamp(float(this.inputNode.a), float(0), float(1))
+    const outputAlpha = mix(
+      this.backgroundAlphaUniform.mul(sourceAlpha),
+      sourceAlpha,
+      combinedHatch
+    )
 
-    return vec4(result, float(1))
+    return vec4(result, outputAlpha)
   }
 }

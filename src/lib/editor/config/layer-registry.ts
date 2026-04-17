@@ -11,8 +11,45 @@ import type {
   LayerType,
   ModelLayerType,
   ParameterDefinitions,
+  ParameterVisibilityCondition,
   SourceLayerType,
 } from "@/types/editor"
+
+const effectTransparencyParams = [
+  {
+    animatable: false,
+    defaultValue: true,
+    key: "opaqueBackground",
+    label: "Opaque Background",
+    type: "boolean",
+  },
+] as const satisfies ParameterDefinitions
+
+function withEffectTransparencyParams(
+  params: ParameterDefinitions,
+): ParameterDefinitions {
+  return [...effectTransparencyParams, ...params]
+}
+
+function withBackgroundAlphaParam(
+  params: ParameterDefinitions,
+  visibleWhen?: ParameterVisibilityCondition,
+): ParameterDefinitions {
+  return [
+    ...params,
+    {
+      animatable: false,
+      defaultValue: 1,
+      key: "backgroundAlpha",
+      label: "Background Alpha",
+      max: 1,
+      min: 0,
+      step: 0.01,
+      type: "number",
+      ...(visibleWhen ? { visibleWhen } : {}),
+    },
+  ]
+}
 
 const mediaPlacementParams = [
   {
@@ -3154,37 +3191,37 @@ const layerDefinitions: Record<LayerType, LayerDefinition> = {
   ascii: {
     defaultName: "ASCII",
     kind: "effect",
-    params: asciiParams,
+    params: withEffectTransparencyParams(asciiParams),
     type: "ascii",
   },
   "circuit-bent": {
     defaultName: "Circuit Bent",
     kind: "effect",
-    params: circuitBentParams,
+    params: withEffectTransparencyParams(circuitBentParams),
     type: "circuit-bent",
   },
   "directional-blur": {
     defaultName: "Directional Blur",
     kind: "effect",
-    params: directionalBlurParams,
+    params: withEffectTransparencyParams(directionalBlurParams),
     type: "directional-blur",
   },
   blur: {
     defaultName: "Blur",
     kind: "effect",
-    params: blurParams,
+    params: withEffectTransparencyParams(blurParams),
     type: "blur",
   },
   crt: {
     defaultName: "CRT",
     kind: "effect",
-    params: crtParams,
+    params: withEffectTransparencyParams(crtParams),
     type: "crt",
   },
   dithering: {
     defaultName: "Dithering",
     kind: "effect",
-    params: ditheringParams,
+    params: withEffectTransparencyParams(ditheringParams),
     type: "dithering",
   },
   fluid: {
@@ -3199,10 +3236,16 @@ const layerDefinitions: Record<LayerType, LayerDefinition> = {
     params: gradientParams,
     type: "gradient",
   },
+  group: {
+    defaultName: "Group",
+    kind: "group",
+    params: [],
+    type: "group",
+  },
   ink: {
     defaultName: "Ink",
     kind: "effect",
-    params: inkParams,
+    params: withEffectTransparencyParams(inkParams),
     type: "ink",
   },
   text: {
@@ -3220,49 +3263,57 @@ const layerDefinitions: Record<LayerType, LayerDefinition> = {
   halftone: {
     defaultName: "Halftone",
     kind: "effect",
-    params: halftoneParams,
+    params: withEffectTransparencyParams(
+      withBackgroundAlphaParam(halftoneParams)
+    ),
     type: "halftone",
   },
   pattern: {
     defaultName: "Pattern",
     kind: "effect",
-    params: patternParams,
+    params: withEffectTransparencyParams(
+      withBackgroundAlphaParam(patternParams)
+    ),
     type: "pattern",
   },
   "particle-grid": {
     defaultName: "Particle Grid",
     kind: "effect",
-    params: particleGridParams,
+    params: withEffectTransparencyParams(
+      withBackgroundAlphaParam(particleGridParams)
+    ),
     type: "particle-grid",
   },
   posterize: {
     defaultName: "Posterize",
     kind: "effect",
-    params: posterizeParams,
+    params: withEffectTransparencyParams(posterizeParams),
     type: "posterize",
   },
   threshold: {
     defaultName: "Threshold",
     kind: "effect",
-    params: thresholdParams,
+    params: withEffectTransparencyParams(thresholdParams),
     type: "threshold",
   },
   smear: {
     defaultName: "Progressive Blur",
     kind: "effect",
-    params: smearParams,
+    params: withEffectTransparencyParams(smearParams),
     type: "smear",
   },
   "fluted-glass": {
     defaultName: "Fluted Glass",
     kind: "effect",
-    params: flutedGlassParams,
+    params: withEffectTransparencyParams(flutedGlassParams),
     type: "fluted-glass",
   },
   plotter: {
     defaultName: "Plotter",
     kind: "effect",
-    params: plotterParams,
+    params: withEffectTransparencyParams(
+      withBackgroundAlphaParam(plotterParams)
+    ),
     type: "plotter",
   },
   image: {
@@ -3288,19 +3339,19 @@ const layerDefinitions: Record<LayerType, LayerDefinition> = {
   "pixel-sorting": {
     defaultName: "Pixel Sorting",
     kind: "effect",
-    params: pixelSortingParams,
+    params: withEffectTransparencyParams(pixelSortingParams),
     type: "pixel-sorting",
   },
   pixelation: {
     defaultName: "Pixelation",
     kind: "effect",
-    params: pixelationParams,
+    params: withEffectTransparencyParams(pixelationParams),
     type: "pixelation",
   },
   slice: {
     defaultName: "Slice",
     kind: "effect",
-    params: sliceParams,
+    params: withEffectTransparencyParams(sliceParams),
     type: "slice",
   },
   video: {
@@ -3313,19 +3364,24 @@ const layerDefinitions: Record<LayerType, LayerDefinition> = {
   "edge-detect": {
     defaultName: "Edge Detect",
     kind: "effect",
-    params: edgeDetectParams,
+    params: withEffectTransparencyParams(
+      withBackgroundAlphaParam(edgeDetectParams, {
+        equals: "mono",
+        key: "colorMode",
+      })
+    ),
     type: "edge-detect",
   },
   "displacement-map": {
     defaultName: "Displacement Map",
     kind: "effect",
-    params: displacementMapParams,
+    params: withEffectTransparencyParams(displacementMapParams),
     type: "displacement-map",
   },
   "chromatic-aberration": {
     defaultName: "Chromatic Aberration",
     kind: "effect",
-    params: chromaticAberrationParams,
+    params: withEffectTransparencyParams(chromaticAberrationParams),
     type: "chromatic-aberration",
   },
 }

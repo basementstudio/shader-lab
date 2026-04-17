@@ -534,22 +534,34 @@ export class AsciiPass extends PassNode {
         )
       )
       const sourceBackground = toneMapped.mul(this.bgOpacityUniform)
+      const sourceAlpha = clamp(float(this.inputNode.a), float(0), float(1))
       const backgroundColor = select(
         this.colorModeUniform.lessThan(float(0.5)),
         sourceBackground,
         vec3(float(0), float(0), float(0))
       )
+      const backgroundAlpha = select(
+        this.colorModeUniform.lessThan(float(0.5)),
+        this.bgOpacityUniform,
+        float(0),
+      )
+      const outputAlpha = mix(
+        backgroundAlpha.mul(sourceAlpha),
+        sourceAlpha,
+        finalMask,
+      )
 
       return {
         baseColor: mix(backgroundColor, glyphColor, finalMask),
         emissiveColor: glyphColor.mul(finalMask),
+        outputAlpha,
       }
     }
 
     const baseSample = sampleAscii(renderTargetUv)
 
     if (!this.bloomEnabled) {
-      return vec4(baseSample.baseColor, float(1))
+      return vec4(baseSample.baseColor, baseSample.outputAlpha)
     }
 
     const bloomInput = vec4(baseSample.emissiveColor, float(1))
@@ -569,7 +581,7 @@ export class AsciiPass extends PassNode {
         vec3(float(0), float(0), float(0)),
         vec3(float(1), float(1), float(1))
       ),
-      float(1)
+      baseSample.outputAlpha
     )
   }
 

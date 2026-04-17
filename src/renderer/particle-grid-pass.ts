@@ -85,6 +85,7 @@ export class ParticleGridPass extends PassNode {
   private readonly bloomRadiusUniform: Node
   private readonly bloomSoftnessUniform: Node
   private readonly bloomThresholdUniform: Node
+  private backgroundAlphaValue = 1
 
   // Noise compute
   private readonly noiseTexture: THREE.StorageTexture
@@ -167,7 +168,7 @@ export class ParticleGridPass extends PassNode {
       renderer.compute(this.noiseComputeNode)
     }
 
-    renderer.setClearColor(this.bgColor, 1)
+    renderer.setClearColor(this.bgColor, this.backgroundAlphaValue)
     renderer.setRenderTarget(this.internalRT)
     renderer.render(this.perspScene, this.perspCamera)
 
@@ -208,6 +209,10 @@ export class ParticleGridPass extends PassNode {
         ? params.backgroundColor
         : "#000000"
     )
+    this.backgroundAlphaValue =
+      typeof params.backgroundAlpha === "number"
+        ? clamp01(params.backgroundAlpha)
+        : 1
 
     const noiseAmount =
       typeof params.noiseAmount === "number" ? params.noiseAmount : 0
@@ -284,9 +289,10 @@ export class ParticleGridPass extends PassNode {
       this.blitInputNode.g,
       this.blitInputNode.b
     )
+    const baseAlpha = clamp(float(this.blitInputNode.a), float(0), float(1))
 
     if (!this.bloomEnabled) {
-      return vec4(baseColor, float(1))
+      return vec4(baseColor, baseAlpha)
     }
 
     const bloomInput = vec4(baseColor, float(1))
@@ -306,7 +312,7 @@ export class ParticleGridPass extends PassNode {
         vec3(float(0), float(0), float(0)),
         vec3(float(1), float(1), float(1))
       ),
-      float(1)
+      baseAlpha
     )
   }
 

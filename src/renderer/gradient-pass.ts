@@ -96,7 +96,7 @@ export class GradientPass extends PassNode {
   private warpIterations = 1
 
   constructor(layerId: string) {
-    super(layerId)
+    super(layerId, "source")
     this.timeUniform = uniform(0)
     this.animateUniform = uniform(1)
     this.aspectUniform = uniform(1)

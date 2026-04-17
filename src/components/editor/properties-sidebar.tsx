@@ -25,6 +25,7 @@ import type {
 } from "@/types/editor"
 import {
   EmptyPropertiesContent,
+  SelectedGroupPropertiesContent,
   SelectedLayerPropertiesContent,
 } from "./properties-sidebar-content"
 import {
@@ -45,6 +46,7 @@ export function PropertiesSidebar() {
     opacity?: number
     params: Record<string, ParameterValue>
     saturation?: number
+    visible?: boolean
   }>({ params: {} })
   const [panelHeight, setPanelHeight] = useState<number | null>(null)
   const viewResizeObserverRef = useRef<ResizeObserver | null>(null)
@@ -71,6 +73,7 @@ export function PropertiesSidebar() {
   const setLayerHue = useLayerStore((state) => state.setLayerHue)
   const setLayerOpacity = useLayerStore((state) => state.setLayerOpacity)
   const setLayerSaturation = useLayerStore((state) => state.setLayerSaturation)
+  const setLayerVisibility = useLayerStore((state) => state.setLayerVisibility)
   const updateLayerParam = useLayerStore((state) => state.updateLayerParam)
   const currentTime = useTimelineStore((state) => state.currentTime)
   const timelineTracks = useTimelineStore((state) => state.tracks)
@@ -87,6 +90,7 @@ export function PropertiesSidebar() {
         current.hue === undefined &&
         current.opacity === undefined &&
         current.saturation === undefined &&
+        current.visible === undefined &&
         Object.keys(current.params).length === 0
       ) {
         return current
@@ -173,6 +177,7 @@ export function PropertiesSidebar() {
           ...livePreviewOverrides.params,
         },
         saturation: livePreviewOverrides.saturation ?? selectedLayer.saturation,
+        visible: livePreviewOverrides.visible ?? selectedLayer.visible,
       }
     }
 
@@ -197,6 +202,11 @@ export function PropertiesSidebar() {
         (typeof evaluatedSelectedLayer.properties.saturation === "number"
           ? evaluatedSelectedLayer.properties.saturation
           : selectedLayer.saturation),
+      visible:
+        livePreviewOverrides.visible ??
+        (typeof evaluatedSelectedLayer.properties.visible === "boolean"
+          ? evaluatedSelectedLayer.properties.visible
+          : selectedLayer.visible),
     }
   }, [
     evaluatedSelectedLayer,
@@ -298,7 +308,7 @@ export function PropertiesSidebar() {
 
   useEffect(() => {
     resetLivePreviewOverrides()
-  }, [resetLivePreviewOverrides, selectedLayerId])
+  }, [resetLivePreviewOverrides])
 
   useEffect(() => {
     if (activeGestureDepthRef.current > 0) {
@@ -306,12 +316,7 @@ export function PropertiesSidebar() {
     }
 
     resetLivePreviewOverrides()
-  }, [
-    currentTime,
-    resetLivePreviewOverrides,
-    timelineAutoKey,
-    timelinePanelOpen,
-  ])
+  }, [resetLivePreviewOverrides])
 
   const handleToggleParamGroup = useCallback((groupId: string) => {
     setExpandedParamGroups((current) => ({
@@ -385,16 +390,26 @@ export function PropertiesSidebar() {
             const overrideKey =
               binding.property === "hue" ||
               binding.property === "opacity" ||
-              binding.property === "saturation"
+              binding.property === "saturation" ||
+              binding.property === "visible"
                 ? binding.property
                 : null
 
             if (overrideKey) {
-              setLivePreviewOverrides((current) => ({
-                ...current,
-                [overrideKey]:
-                  typeof value === "number" ? value : current[overrideKey],
-              }))
+              setLivePreviewOverrides((current) => {
+                let nextOverrideValue = current[overrideKey]
+
+                if (overrideKey === "visible") {
+                  nextOverrideValue = value === true
+                } else if (typeof value === "number") {
+                  nextOverrideValue = value
+                }
+
+                return {
+                  ...current,
+                  [overrideKey]: nextOverrideValue,
+                }
+              })
             }
           }
           return
@@ -467,66 +482,104 @@ export function PropertiesSidebar() {
     ]
   )
 
-  const selectedLayerContentProps = selectedLayer
-    ? {
-        blendMode: selectedLayer.blendMode,
-        compositeMode: selectedLayer.compositeMode,
-        maskConfig: selectedLayer.maskConfig,
-        setLayerMaskConfig,
-        definitionName: selectedDefinition?.defaultName ?? selectedLayer.type,
-        expandedParamGroups,
-        hue: displayedLayerState?.hue ?? selectedLayer.hue,
-        onInteractionEnd: endPropertyGesture,
-        onInteractionStart: beginPropertyGesture,
-        layerId: selectedLayer.id,
-        layerKind: selectedDefinition?.kind ?? "effect",
-        layerName: selectedLayer.name,
-        layerRuntimeError: selectedLayer.runtimeError,
-        layerSubtitle:
-          selectedAsset?.fileName ??
-          (selectedLayer.type === "custom-shader" &&
-          typeof selectedLayer.params.sourceFileName === "string"
-            ? selectedLayer.params.sourceFileName
-            : ""),
-        layerType: selectedLayer.type,
-        onToggleParamGroup: handleToggleParamGroup,
-        onTimelineKeyframe: handleTimelineKeyframe,
-        opacity: displayedLayerState?.opacity ?? selectedLayer.opacity,
-        reduceMotion,
-        saturation: displayedLayerState?.saturation ?? selectedLayer.saturation,
-        setLayerBlendMode,
-        setLayerCompositeMode,
-        setLayerHue: (id: string, value: number) =>
-          handleTimelineAwareLayerAdjustment(
-            createLayerPropertyBinding("hue"),
-            value,
-            () => setLayerHue(id, value)
-          ),
-        setLayerOpacity: (id: string, value: number) =>
-          handleTimelineAwareLayerAdjustment(
-            createLayerPropertyBinding("opacity"),
-            value,
-            () => setLayerOpacity(id, value)
-          ),
-        setLayerSaturation: (id: string, value: number) =>
-          handleTimelineAwareLayerAdjustment(
-            createLayerPropertyBinding("saturation"),
-            value,
-            () => setLayerSaturation(id, value)
-          ),
-        timelinePanelOpen,
-        updateLayerParam: (id: string, key: string, value: ParameterValue) => {
-          if (id === selectedLayer.id) {
-            handleTimelineAwareParamChange(key, value)
-          }
-        },
-        values: displayedLayerState?.params ?? selectedLayer.params,
-        visibleParams: selectedVisibleParams,
-      }
-    : null
+  const selectedLayerContentProps =
+    selectedLayer && selectedLayer.kind !== "group"
+      ? {
+          blendMode: selectedLayer.blendMode,
+          compositeMode: selectedLayer.compositeMode,
+          maskConfig: selectedLayer.maskConfig,
+          setLayerMaskConfig,
+          definitionName: selectedDefinition?.defaultName ?? selectedLayer.type,
+          expandedParamGroups,
+          hue: displayedLayerState?.hue ?? selectedLayer.hue,
+          onInteractionEnd: endPropertyGesture,
+          onInteractionStart: beginPropertyGesture,
+          layerId: selectedLayer.id,
+          layerKind: selectedDefinition?.kind ?? "effect",
+          layerName: selectedLayer.name,
+          layerRuntimeError: selectedLayer.runtimeError,
+          layerSubtitle:
+            selectedAsset?.fileName ??
+            (selectedLayer.type === "custom-shader" &&
+            typeof selectedLayer.params.sourceFileName === "string"
+              ? selectedLayer.params.sourceFileName
+              : ""),
+          layerType: selectedLayer.type,
+          onToggleParamGroup: handleToggleParamGroup,
+          onTimelineKeyframe: handleTimelineKeyframe,
+          opacity: displayedLayerState?.opacity ?? selectedLayer.opacity,
+          reduceMotion,
+          saturation:
+            displayedLayerState?.saturation ?? selectedLayer.saturation,
+          setLayerBlendMode,
+          setLayerCompositeMode,
+          setLayerHue: (id: string, value: number) =>
+            handleTimelineAwareLayerAdjustment(
+              createLayerPropertyBinding("hue"),
+              value,
+              () => setLayerHue(id, value)
+            ),
+          setLayerOpacity: (id: string, value: number) =>
+            handleTimelineAwareLayerAdjustment(
+              createLayerPropertyBinding("opacity"),
+              value,
+              () => setLayerOpacity(id, value)
+            ),
+          setLayerSaturation: (id: string, value: number) =>
+            handleTimelineAwareLayerAdjustment(
+              createLayerPropertyBinding("saturation"),
+              value,
+              () => setLayerSaturation(id, value)
+            ),
+          timelinePanelOpen,
+          updateLayerParam: (id: string, key: string, value: ParameterValue) => {
+            if (id === selectedLayer.id) {
+              handleTimelineAwareParamChange(key, value)
+            }
+          },
+          values: displayedLayerState?.params ?? selectedLayer.params,
+          visibleParams: selectedVisibleParams,
+        }
+      : null
+
+  const selectedGroupContentProps =
+    selectedLayer && selectedLayer.kind === "group"
+      ? {
+          blendMode: selectedLayer.blendMode,
+          compositeMode: selectedLayer.compositeMode,
+          maskConfig: selectedLayer.maskConfig,
+          layerId: selectedLayer.id,
+          layerName: selectedLayer.name,
+          onInteractionEnd: endPropertyGesture,
+          onInteractionStart: beginPropertyGesture,
+          onTimelineKeyframe: handleTimelineKeyframe,
+          opacity: displayedLayerState?.opacity ?? selectedLayer.opacity,
+          reduceMotion,
+          setLayerBlendMode,
+          setLayerCompositeMode,
+          setLayerMaskConfig,
+          setLayerOpacity: (id: string, value: number) =>
+            handleTimelineAwareLayerAdjustment(
+              createLayerPropertyBinding("opacity"),
+              value,
+              () => setLayerOpacity(id, value)
+            ),
+          setLayerVisibility: (id: string, value: boolean) =>
+            handleTimelineAwareLayerAdjustment(
+              createLayerPropertyBinding("visible"),
+              value,
+              () => setLayerVisibility(id, value)
+            ),
+          timelinePanelOpen,
+          visible: displayedLayerState?.visible ?? selectedLayer.visible,
+        }
+      : null
 
   const renderInvisibleContent = () => {
     if (sidebarView === "scene") return <SceneConfigContent />
+    if (selectedGroupContentProps) {
+      return <SelectedGroupPropertiesContent {...selectedGroupContentProps} />
+    }
     if (selectedLayerContentProps) {
       return <SelectedLayerPropertiesContent {...selectedLayerContentProps} />
     }

@@ -18,7 +18,7 @@ export class CustomShaderPass extends PassNode {
   private isEffectMode = false
 
   constructor(layerId: string) {
-    super(layerId)
+    super(layerId, "source")
     this.timeUniform = uniform(0)
     this.inputTextureNode = tslTexture(
       new THREE.Texture(),
@@ -32,7 +32,14 @@ export class CustomShaderPass extends PassNode {
   }
 
   override updateParams(params: LayerParameterValues): void {
-    this.isEffectMode = params.effectMode === true
+    const nextEffectMode = params.effectMode === true
+    const modeChanged = nextEffectMode !== this.isEffectMode
+    this.isEffectMode = nextEffectMode
+    this.setCompositionStrategy(this.isEffectMode ? "effect" : "source")
+
+    if (modeChanged) {
+      this.rebuildEffectNode()
+    }
 
     const sourceCode =
       typeof params.sourceCode === "string" ? params.sourceCode : ""

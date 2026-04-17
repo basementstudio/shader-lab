@@ -97,6 +97,11 @@ const GENERAL_TIMELINE_PROPERTIES = [
   { color: "#F7B365", property: "saturation" },
 ] as const
 
+const GROUP_TIMELINE_PROPERTIES = [
+  { color: "#8DB1FF", property: "opacity" },
+  { color: "#E7D9A2", property: "visible" },
+] as const
+
 const COLLAPSED_SHELL_HEIGHT = 46
 const COLLAPSED_SHELL_WIDTH = 580
 const EXPANDED_SHELL_HEIGHT = 380
@@ -188,7 +193,12 @@ function buildTimelineProperties(
     return []
   }
 
-  const properties: TimelinePropertyItem[] = GENERAL_TIMELINE_PROPERTIES.map(
+  const layerProperties =
+    layer.kind === "group"
+      ? GROUP_TIMELINE_PROPERTIES
+      : GENERAL_TIMELINE_PROPERTIES
+
+  const properties: TimelinePropertyItem[] = layerProperties.map(
     (entry) => {
       const binding = createLayerPropertyBinding(entry.property)
       const id = getPropertyId(binding)

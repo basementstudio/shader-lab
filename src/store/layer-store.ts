@@ -5,6 +5,14 @@ import {
   getDefaultProjectSelectedLayerId,
 } from "@/lib/editor/default-project"
 import {
+  getDescendantLayerIds,
+  getIndexAfterSubtree,
+  getSubtreeLayerIds,
+  isDescendantLayer,
+  isGroupLayer,
+  normalizeParentGroupId,
+} from "@/lib/editor/layer-groups"
+import {
   clampLayerAdjustments,
   cloneLayer,
   createLayer,
@@ -16,6 +24,7 @@ import {
 } from "@/lib/editor/parameter-schema"
 import { normalizeTextFontWeight } from "@/lib/editor/text-fonts"
 import { useEditorStore } from "@/store/editor-store"
+import { useTimelineStore } from "@/store/timeline-store"
 import type {
   BlendMode,
   EditorLayer,
@@ -35,11 +44,25 @@ export interface LayerStoreState {
 }
 
 export interface LayerStoreActions {
-  addLayer: (type: LayerType, insertIndex?: number) => string
+  addLayer: (
+    type: LayerType,
+    insertIndex?: number,
+    parentGroupId?: string | null
+  ) => string
+  createGroup: (insertIndex?: number) => string
   duplicateLayer: (id: string) => string | null
+  getLayerDescendantIds: (id: string) => string[]
   getLayerById: (id: string) => EditorLayer | null
   getRenderableLayers: () => EditorLayer[]
   getSelectedLayer: () => EditorLayer | null
+  moveLayerAfter: (id: string, targetId: string) => void
+  moveLayerBefore: (id: string, targetId: string) => void
+  moveLayerIntoGroup: (
+    id: string,
+    groupId: string,
+    beforeLayerId?: string | null
+  ) => void
+  moveLayerToRoot: (id: string, beforeLayerId?: string | null) => void
   removeLayer: (id: string) => void
   removeLayers: (ids: string[]) => void
   renameLayer: (id: string, name: string) => void
@@ -70,6 +93,7 @@ export interface LayerStoreActions {
   setLayerSaturation: (id: string, saturation: number) => void
   setLayerVisibility: (id: string, visible: boolean) => void
   setLayersVisibility: (ids: string[], visible: boolean) => void
+  ungroupLayer: (id: string) => void
   updateLayerParam: (id: string, key: string, value: ParameterValue) => void
 }
 
@@ -348,18 +372,159 @@ function getSelectionAfterRemoval(
   return getNeighborSelection(layers, Math.min(...removedIndices))
 }
 
+function normalizeLayers(layers: EditorLayer[]): EditorLayer[] {
+  const groupIds = new Set(
+    layers.filter((layer) => isGroupLayer(layer)).map((layer) => layer.id)
+  )
+
+  return cloneLayerList(layers).map((layer) => {
+    const parentGroupId = normalizeParentGroupId(layer, groupIds)
+
+    if (isGroupLayer(layer)) {
+      return {
+        ...layer,
+        assetId: null,
+        expanded: typeof layer.expanded === "boolean" ? layer.expanded : true,
+        maskConfig: layer.maskConfig ?? { ...DEFAULT_MASK_CONFIG },
+        parentGroupId,
+        params: {},
+        runtimeError: layer.runtimeError ?? null,
+      }
+    }
+
+    return {
+      ...layer,
+      expanded: typeof layer.expanded === "boolean" ? layer.expanded : true,
+      maskConfig: layer.maskConfig ?? { ...DEFAULT_MASK_CONFIG },
+      parentGroupId,
+      runtimeError: layer.runtimeError ?? null,
+    }
+  })
+}
+
+function getSelectionIdsForRemoval(
+  layers: EditorLayer[],
+  ids: readonly string[]
+): string[] {
+  const idSet = new Set(ids)
+  const nextIds = new Set<string>(ids)
+
+  for (const id of idSet) {
+    for (const descendantId of getDescendantLayerIds(layers, id)) {
+      nextIds.add(descendantId)
+    }
+  }
+
+  return [...nextIds]
+}
+
+function getValidatedParentGroupId(
+  layers: EditorLayer[],
+  layerId: string,
+  parentGroupId: string | null
+): string | null {
+  if (!parentGroupId) {
+    return null
+  }
+
+  const parent = layers.find((layer) => layer.id === parentGroupId)
+  if (!(parent && isGroupLayer(parent))) {
+    return null
+  }
+
+  if (layerId === parentGroupId || isDescendantLayer(layers, parentGroupId, layerId)) {
+    return null
+  }
+
+  return parentGroupId
+}
+
+function getContainerInsertIndex(
+  layers: EditorLayer[],
+  parentGroupId: string | null,
+  beforeLayerId: string | null
+): number {
+  if (beforeLayerId) {
+    const beforeIndex = layers.findIndex((layer) => layer.id === beforeLayerId)
+    if (beforeIndex !== -1) {
+      return beforeIndex
+    }
+  }
+
+  if (!parentGroupId) {
+    return layers.length
+  }
+
+  const childIds = layers
+    .filter((layer) => layer.parentGroupId === parentGroupId)
+    .map((layer) => layer.id)
+
+  if (childIds.length === 0) {
+    const parentIndex = layers.findIndex((layer) => layer.id === parentGroupId)
+    return parentIndex === -1 ? layers.length : parentIndex + 1
+  }
+
+  const lastChildId = childIds[childIds.length - 1]
+  if (!lastChildId) {
+    return layers.length
+  }
+
+  return getIndexAfterSubtree(layers, lastChildId)
+}
+
+function moveLayerBlock(
+  layers: EditorLayer[],
+  id: string,
+  parentGroupId: string | null,
+  beforeLayerId: string | null
+): EditorLayer[] {
+  const movingLayer = layers.find((layer) => layer.id === id)
+  if (!movingLayer) {
+    return layers
+  }
+
+  const validatedParentGroupId = getValidatedParentGroupId(
+    layers,
+    id,
+    parentGroupId
+  )
+  const movingIds = new Set(getSubtreeLayerIds(layers, id))
+  const movingBlock = layers.filter((layer) => movingIds.has(layer.id))
+  const remainingLayers = layers.filter((layer) => !movingIds.has(layer.id))
+  const safeBeforeLayerId =
+    beforeLayerId && !movingIds.has(beforeLayerId) ? beforeLayerId : null
+  const insertIndex = getContainerInsertIndex(
+    remainingLayers,
+    validatedParentGroupId,
+    safeBeforeLayerId
+  )
+  const nextBlock = movingBlock.map((layer, index) =>
+    index === 0 ? { ...layer, parentGroupId: validatedParentGroupId } : layer
+  )
+  const nextLayers = [...remainingLayers]
+
+  nextLayers.splice(insertIndex, 0, ...nextBlock)
+
+  return nextLayers
+}
+
 export const useLayerStore = create<LayerStore>((set, get) => ({
   hoveredLayerId: null,
-  layers: getDefaultProjectLayers(),
+  layers: normalizeLayers(getDefaultProjectLayers()),
   selectedLayerIds: DEFAULT_SELECTED_LAYER_ID
     ? [DEFAULT_SELECTED_LAYER_ID]
     : [],
   selectedLayerId: DEFAULT_SELECTED_LAYER_ID,
   selectionAnchorId: DEFAULT_SELECTED_LAYER_ID,
 
-  addLayer: (type, insertIndex) => {
+  addLayer: (type, insertIndex, parentGroupId = null) => {
     const existingLayers = get().layers
     const nextLayer = createLayer(type, countLayersOfType(existingLayers, type))
+    nextLayer.parentGroupId = getValidatedParentGroupId(
+      existingLayers,
+      nextLayer.id,
+      parentGroupId
+    )
 
     set((state) => {
       const layers = [...state.layers]
@@ -375,7 +540,7 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
       }
 
       return {
-        layers,
+        layers: normalizeLayers(layers),
         selectedLayerIds: [nextLayer.id],
         selectedLayerId: nextLayer.id,
         selectionAnchorId: nextLayer.id,
@@ -387,16 +552,52 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
     return nextLayer.id
   },
 
+  createGroup: (insertIndex) => {
+    const existingLayers = get().layers
+    const nextGroup = createLayer(
+      "group",
+      countLayersOfType(existingLayers, "group")
+    )
+
+    set((state) => {
+      const layers = [...state.layers]
+
+      if (
+        insertIndex === undefined ||
+        insertIndex < 0 ||
+        insertIndex > layers.length
+      ) {
+        layers.unshift(nextGroup)
+      } else {
+        layers.splice(insertIndex, 0, nextGroup)
+      }
+
+      return {
+        layers: normalizeLayers(layers),
+        selectedLayerIds: [nextGroup.id],
+        selectedLayerId: nextGroup.id,
+        selectionAnchorId: nextGroup.id,
+      }
+    })
+
+    useEditorStore.getState().dismissStartupPreview()
+
+    return nextGroup.id
+  },
+
   removeLayer: (id) => {
     get().removeLayers([id])
   },
 
   removeLayers: (ids) => {
-    const idSet = new Set(ids)
+    const idsToRemove = getSelectionIdsForRemoval(get().layers, ids)
+    const idSet = new Set(idsToRemove)
 
     if (idSet.size === 0) {
       return
     }
+
+    let nextLayersSnapshot: EditorLayer[] | null = null
 
     set((state) => {
       const removedIndices = state.layers.flatMap((layer, index) =>
@@ -408,6 +609,7 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
       }
 
       const layers = state.layers.filter((layer) => !idSet.has(layer.id))
+      nextLayersSnapshot = layers
       const selectedLayerIds = state.selectedLayerIds.filter(
         (selectedId) => !idSet.has(selectedId)
       )
@@ -439,6 +641,10 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
             : state.selectionAnchorId,
       }
     })
+
+    if (nextLayersSnapshot) {
+      useTimelineStore.getState().pruneTracks(nextLayersSnapshot)
+    }
   },
 
   duplicateLayer: (id) => {
@@ -451,13 +657,13 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
     const duplicatedLayer = cloneLayer(sourceLayer)
 
     set((state) => {
-      const sourceIndex = state.layers.findIndex((layer) => layer.id === id)
+      const sourceIndex = getIndexAfterSubtree(state.layers, id)
       const layers = [...state.layers]
 
-      layers.splice(sourceIndex + 1, 0, duplicatedLayer)
+      layers.splice(sourceIndex, 0, duplicatedLayer)
 
       return {
-        layers,
+        layers: normalizeLayers(layers),
         selectedLayerIds: [duplicatedLayer.id],
         selectedLayerId: duplicatedLayer.id,
         selectionAnchorId: duplicatedLayer.id,
@@ -490,6 +696,116 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
 
       return { layers }
     })
+  },
+
+  moveLayerBefore: (id, targetId) => {
+    if (id === targetId) {
+      return
+    }
+
+    set((state) => {
+      const targetLayer = state.layers.find((layer) => layer.id === targetId)
+      if (!targetLayer) {
+        return state
+      }
+
+      const layers = moveLayerBlock(
+        state.layers,
+        id,
+        targetLayer.parentGroupId ?? null,
+        targetId
+      )
+
+      return layers === state.layers ? state : { layers: normalizeLayers(layers) }
+    })
+  },
+
+  moveLayerAfter: (id, targetId) => {
+    if (id === targetId) {
+      return
+    }
+
+    set((state) => {
+      const targetLayer = state.layers.find((layer) => layer.id === targetId)
+      if (!targetLayer) {
+        return state
+      }
+
+      const movingIds = new Set(getSubtreeLayerIds(state.layers, id))
+      const nextLayersWithoutMove = state.layers.filter(
+        (layer) => !movingIds.has(layer.id)
+      )
+      const targetIndex = nextLayersWithoutMove.findIndex(
+        (layer) => layer.id === targetId
+      )
+      const nextSibling = nextLayersWithoutMove
+        .slice(targetIndex + 1)
+        .find(
+          (layer) => (layer.parentGroupId ?? null) === (targetLayer.parentGroupId ?? null)
+        )
+      const layers = moveLayerBlock(
+        state.layers,
+        id,
+        targetLayer.parentGroupId ?? null,
+        nextSibling?.id ?? null
+      )
+
+      return layers === state.layers ? state : { layers: normalizeLayers(layers) }
+    })
+  },
+
+  moveLayerIntoGroup: (id, groupId, beforeLayerId = null) => {
+    set((state) => {
+      const groupLayer = state.layers.find((layer) => layer.id === groupId)
+      if (!(groupLayer && isGroupLayer(groupLayer))) {
+        return state
+      }
+
+      const layers = moveLayerBlock(state.layers, id, groupId, beforeLayerId)
+      return layers === state.layers ? state : { layers: normalizeLayers(layers) }
+    })
+  },
+
+  moveLayerToRoot: (id, beforeLayerId = null) => {
+    set((state) => {
+      const layers = moveLayerBlock(state.layers, id, null, beforeLayerId)
+      return layers === state.layers ? state : { layers: normalizeLayers(layers) }
+    })
+  },
+
+  ungroupLayer: (id) => {
+    let nextLayersSnapshot: EditorLayer[] | null = null
+
+    set((state) => {
+      const groupLayer = state.layers.find((layer) => layer.id === id)
+      if (!(groupLayer && isGroupLayer(groupLayer))) {
+        return state
+      }
+
+      const firstChildId =
+        state.layers.find((layer) => layer.parentGroupId === id)?.id ?? null
+
+      const layers = state.layers
+        .filter((layer) => layer.id !== id)
+        .map((layer) =>
+          layer.parentGroupId === id
+            ? { ...layer, parentGroupId: groupLayer.parentGroupId ?? null }
+            : layer
+        )
+
+      nextLayersSnapshot = layers
+
+      return {
+        layers: normalizeLayers(layers),
+        selectedLayerIds: firstChildId ? [firstChildId] : [],
+        selectedLayerId: firstChildId,
+        selectionAnchorId: firstChildId,
+      }
+    })
+
+    if (nextLayersSnapshot) {
+      useTimelineStore.getState().pruneTracks(nextLayersSnapshot)
+    }
   },
 
   selectLayer: (selectedLayerId) => {
@@ -714,7 +1030,9 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
   setLayerAsset: (id, assetId) => {
     set((state) => ({
       layers: state.layers.map((layer) =>
-        layer.id === id ? { ...layer, assetId, runtimeError: null } : layer
+        layer.id === id && !isGroupLayer(layer)
+          ? { ...layer, assetId, runtimeError: null }
+          : layer
       ),
     }))
   },
@@ -857,10 +1175,7 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
 
     set({
       hoveredLayerId,
-      layers: cloneLayerList(layers).map((layer) => ({
-        ...layer,
-        maskConfig: layer.maskConfig ?? { ...DEFAULT_MASK_CONFIG },
-      })),
+      layers: normalizeLayers(layers),
       selectedLayerIds: nextSelectedLayerIds,
       selectedLayerId:
         (selectedLayerId &&
@@ -887,7 +1202,11 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
     return get().layers.find((layer) => layer.id === id) ?? null
   },
 
+  getLayerDescendantIds: (id) => {
+    return getDescendantLayerIds(get().layers, id)
+  },
+
   getRenderableLayers: () => {
-    return get().layers.filter((layer) => layer.visible)
+    return get().layers
   },
 }))

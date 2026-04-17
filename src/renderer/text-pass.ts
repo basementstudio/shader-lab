@@ -126,7 +126,7 @@ export class TextPass extends PassNode {
   private dirty = true
 
   constructor(layerId: string) {
-    super(layerId)
+    super(layerId, "source")
     this.placeholder = new THREE.Texture()
     this.textureNode = tslTexture(
       this.placeholder,

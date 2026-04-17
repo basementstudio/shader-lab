@@ -46,6 +46,7 @@ export function createLayer(type: LayerType, existingCount = 0): EditorLayer {
     maskConfig: { ...DEFAULT_MASK_CONFIG },
     name: getDefaultLayerName(type, existingCount),
     opacity: 1,
+    parentGroupId: null,
     params: buildParameterValues(definition.params),
     runtimeError: null,
     saturation: 1,

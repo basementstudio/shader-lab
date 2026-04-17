@@ -296,9 +296,19 @@ export function SelectedLayerPropertiesContent({
   values: Record<string, ParameterValue>
   visibleParams: ParameterDefinition[]
 }) {
+  const isEffectLayer = layerKind === "effect"
+  const opaqueBackground =
+    typeof values.opaqueBackground === "boolean" ? values.opaqueBackground : true
+  const filteredVisibleParams = useMemo(
+    () =>
+      visibleParams.filter(
+        (param) => !(isEffectLayer && param.key === "opaqueBackground")
+      ),
+    [isEffectLayer, visibleParams]
+  )
   const groupedParams = useMemo(
-    () => groupVisibleParams(visibleParams),
-    [visibleParams]
+    () => groupVisibleParams(filteredVisibleParams),
+    [filteredVisibleParams]
   )
   const showGroupedParams =
     groupedParams.length > 1 || groupedParams[0]?.label !== DEFAULT_PARAM_GROUP
@@ -438,6 +448,25 @@ export function SelectedLayerPropertiesContent({
               />
             </div>
 
+            {isEffectLayer ? (
+              <div className="grid items-center gap-[10px] [grid-template-columns:minmax(0,1fr)_132px]">
+                <Typography
+                  className="min-w-0"
+                  tone="secondary"
+                  variant="label"
+                >
+                  Opaque Background
+                </Typography>
+                <Toggle
+                  checked={opaqueBackground}
+                  className="justify-self-end"
+                  onCheckedChange={(nextValue) =>
+                    updateLayerParam(layerId, "opaqueBackground", nextValue)
+                  }
+                />
+              </div>
+            ) : null}
+
             {compositeMode === "mask" && (
               <>
                 <div className="grid items-center gap-[10px] [grid-template-columns:minmax(0,1fr)_132px]">
@@ -544,7 +573,7 @@ export function SelectedLayerPropertiesContent({
           />
         ) : null}
 
-        {visibleParams.length > 0 ? (
+        {filteredVisibleParams.length > 0 ? (
           <section className="flex flex-col gap-3 border-t border-[var(--ds-border-divider)] px-4 pt-[14px] pb-4 first:border-t-0">
             {!showGroupedParams && (
               <Typography
@@ -653,7 +682,7 @@ export function SelectedLayerPropertiesContent({
               </div>
             ) : (
               <div className="flex flex-col gap-[10px]">
-                {visibleParams.map((param) => (
+                {filteredVisibleParams.map((param) => (
                   <ParameterField
                     definition={param}
                     key={param.key}
@@ -672,6 +701,250 @@ export function SelectedLayerPropertiesContent({
             )}
           </section>
         ) : null}
+      </div>
+    </>
+  )
+}
+
+export function SelectedGroupPropertiesContent({
+  blendMode,
+  compositeMode,
+  maskConfig,
+  setLayerMaskConfig,
+  layerId,
+  layerName,
+  opacity,
+  onInteractionEnd,
+  onInteractionStart,
+  onTimelineKeyframe,
+  reduceMotion,
+  setLayerBlendMode,
+  setLayerCompositeMode,
+  setLayerOpacity,
+  setLayerVisibility,
+  timelinePanelOpen,
+  visible,
+}: {
+  blendMode: BlendMode
+  compositeMode: LayerCompositeMode
+  maskConfig: MaskConfig
+  layerId: string
+  layerName: string
+  opacity: number
+  onInteractionEnd?: (() => void) | undefined
+  onInteractionStart?: (() => void) | undefined
+  onTimelineKeyframe: (
+    binding: AnimatedPropertyBinding,
+    layerId: string,
+    value: ParameterValue
+  ) => void
+  reduceMotion: boolean
+  setLayerBlendMode: (id: string, value: BlendMode) => void
+  setLayerCompositeMode: (id: string, value: LayerCompositeMode) => void
+  setLayerMaskConfig: (id: string, updates: Partial<MaskConfig>) => void
+  setLayerOpacity: (id: string, value: number) => void
+  setLayerVisibility: (id: string, value: boolean) => void
+  timelinePanelOpen: boolean
+  visible: boolean
+}) {
+  const visibleBinding = useMemo(
+    () => ({
+      kind: "layer" as const,
+      label: "Visible" as const,
+      property: "visible" as const,
+      valueType: "boolean" as const,
+    }),
+    []
+  )
+  const opacityBinding = useMemo(
+    () => ({
+      kind: "layer" as const,
+      label: "Opacity" as const,
+      property: "opacity" as const,
+      valueType: "number" as const,
+    }),
+    []
+  )
+  const timelineTracks = useTimelineStore((state) => state.tracks)
+
+  const hasTrack = useCallback(
+    (binding: AnimatedPropertyBinding) =>
+      hasTrackForBinding(timelineTracks, layerId, binding),
+    [layerId, timelineTracks]
+  )
+
+  const buildTimelineControl = useCallback(
+    (
+      binding: AnimatedPropertyBinding | null,
+      value: ParameterValue
+    ): TimelineKeyframeControl | null => {
+      if (!binding) {
+        return null
+      }
+
+      return {
+        binding,
+        hasTrack: hasTrack(binding),
+        layerId,
+        onKeyframe: onTimelineKeyframe,
+        reduceMotion,
+        timelinePanelOpen,
+        value,
+      }
+    },
+    [hasTrack, layerId, onTimelineKeyframe, reduceMotion, timelinePanelOpen]
+  )
+
+  return (
+    <>
+      <div className="flex flex-col gap-2 border-b border-[var(--ds-border-divider)] px-4 pt-[14px] pb-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex flex-col gap-1">
+            <Typography variant="title">{layerName}</Typography>
+          </div>
+          <span className="inline-flex min-h-5 items-center rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-active)] px-[7px] font-[var(--ds-font-mono)] text-[10px] leading-3 text-[var(--ds-color-text-secondary)] capitalize">
+            Group
+          </span>
+        </div>
+      </div>
+
+      <div className="flex min-h-0 flex-col gap-0 overflow-x-hidden overflow-y-auto">
+        <section className="flex flex-col gap-3 border-t border-[var(--ds-border-divider)] px-4 pt-[14px] pb-4 first:border-t-0">
+          <Typography className="uppercase" tone="secondary" variant="overline">
+            General
+          </Typography>
+
+          <div className="flex flex-col gap-[10px]">
+            <div className="grid items-center gap-[10px] [grid-template-columns:minmax(0,1fr)_132px]">
+              <Typography className="min-w-0" tone="secondary" variant="label">
+                {renderFieldLabel(
+                  "Visible",
+                  buildTimelineControl(visibleBinding, visible)
+                )}
+              </Typography>
+              <Toggle
+                checked={visible}
+                className="justify-self-end"
+                onCheckedChange={(nextValue) =>
+                  setLayerVisibility(layerId, nextValue)
+                }
+              />
+            </div>
+
+            <Slider
+              label={renderFieldLabel(
+                "Opacity",
+                buildTimelineControl(opacityBinding, opacity)
+              )}
+              max={100}
+              min={0}
+              onInteractionStart={onInteractionStart}
+              onValueChange={(value) => setLayerOpacity(layerId, value / 100)}
+              onValueCommitted={() => onInteractionEnd?.()}
+              value={opacity * 100}
+              valueSuffix="%"
+            />
+
+            <div className="grid items-center gap-[10px] [grid-template-columns:minmax(0,1fr)_132px]">
+              <Typography className="min-w-0" tone="secondary" variant="label">
+                Blend
+              </Typography>
+              <Select
+                className="w-[132px]"
+                onValueChange={(value) => {
+                  if (value) {
+                    setLayerBlendMode(layerId, value as BlendMode)
+                  }
+                }}
+                options={blendModeOptions}
+                triggerClassName="w-[132px]"
+                value={blendMode}
+              />
+            </div>
+
+            <div className="grid items-center gap-[10px] [grid-template-columns:minmax(0,1fr)_132px]">
+              <Typography className="min-w-0" tone="secondary" variant="label">
+                Mode
+              </Typography>
+              <Select
+                className="w-[132px]"
+                onValueChange={(value) => {
+                  if (value) {
+                    setLayerCompositeMode(layerId, value as LayerCompositeMode)
+                  }
+                }}
+                options={compositeModeOptions}
+                triggerClassName="w-[132px]"
+                value={compositeMode}
+              />
+            </div>
+
+            {compositeMode === "mask" && (
+              <>
+                <div className="grid items-center gap-[10px] [grid-template-columns:minmax(0,1fr)_132px]">
+                  <Typography
+                    className="min-w-0"
+                    tone="secondary"
+                    variant="label"
+                  >
+                    Source
+                  </Typography>
+                  <Select
+                    className="w-[132px]"
+                    onValueChange={(value) => {
+                      if (value) {
+                        setLayerMaskConfig(layerId, {
+                          source: value as MaskSource,
+                        })
+                      }
+                    }}
+                    options={maskSourceOptions}
+                    triggerClassName="w-[132px]"
+                    value={maskConfig.source}
+                  />
+                </div>
+
+                <div className="grid items-center gap-[10px] [grid-template-columns:minmax(0,1fr)_132px]">
+                  <Typography
+                    className="min-w-0"
+                    tone="secondary"
+                    variant="label"
+                  >
+                    Mask Mode
+                  </Typography>
+                  <Select
+                    className="w-[132px]"
+                    onValueChange={(value) => {
+                      if (value) {
+                        setLayerMaskConfig(layerId, { mode: value as MaskMode })
+                      }
+                    }}
+                    options={maskModeOptions}
+                    triggerClassName="w-[132px]"
+                    value={maskConfig.mode}
+                  />
+                </div>
+
+                <div className="grid items-center gap-[10px] [grid-template-columns:minmax(0,1fr)_132px]">
+                  <Typography
+                    className="min-w-0"
+                    tone="secondary"
+                    variant="label"
+                  >
+                    Invert
+                  </Typography>
+                  <Toggle
+                    checked={maskConfig.invert}
+                    className="justify-self-end"
+                    onCheckedChange={(nextValue) =>
+                      setLayerMaskConfig(layerId, { invert: nextValue })
+                    }
+                  />
+                </div>
+              </>
+            )}
+          </div>
+        </section>
       </div>
     </>
   )

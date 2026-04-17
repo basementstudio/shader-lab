@@ -88,9 +88,7 @@ export function buildRendererFrame(
     evaluatedLayers.map((state) => [state.layerId, state])
   )
 
-  const layers = input.layers
-    .filter((layer) => layer.visible)
-    .map((layer) => {
+  const layers = input.layers.map((layer) => {
       const evaluation = evaluatedById.get(layer.id)
       const params = evaluation
         ? { ...getCachedClone(layer.params), ...evaluation.params }
@@ -120,7 +118,6 @@ export function buildRendererFrame(
         params,
       }
     })
-    .filter((entry) => entry.layer.visible)
 
   return {
     clock: createProjectClock(input.timeline, input.delta, input.clockTime),

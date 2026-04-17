@@ -3,7 +3,10 @@ import {
   clamp,
   cos,
   float,
+  max,
+  min,
   mix,
+  select,
   sin,
   texture as tslTexture,
   type TSLNode,
@@ -13,7 +16,7 @@ import {
   vec3,
   vec4,
 } from "three/tsl"
-import { buildBlendNode } from "@/renderer/blend-modes"
+import { buildBlendColorNode, buildBlendNode } from "@/renderer/blend-modes"
 import type {
   LayerCompositeMode,
   LayerParameterValues,
@@ -22,6 +25,7 @@ import type {
 } from "@/types/editor"
 
 type Node = TSLNode
+type PassCompositionStrategy = "effect" | "source"
 
 export class PassNode {
   readonly layerId: string
@@ -37,19 +41,26 @@ export class PassNode {
   protected readonly saturationUniform: Node
 
   private readonly opacityUniform: Node
+  private readonly opaqueBackgroundUniform: Node
   private blendMode = "normal"
   private compositeMode: LayerCompositeMode = "filter"
+  private compositionStrategy: PassCompositionStrategy
   private maskSource = "luminance"
   private maskMode = "multiply"
   private maskInvert = false
   private colorNodeDirty = false
 
-  constructor(layerId: string) {
+  constructor(layerId: string, compositionStrategy: PassCompositionStrategy = "effect") {
     this.layerId = layerId
+    this.compositionStrategy = compositionStrategy
     this.scene = new THREE.Scene()
     this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
     this.material = new THREE.MeshBasicNodeMaterial()
+    this.material.blending = THREE.NoBlending
+    this.material.depthWrite = false
+    this.material.transparent = true
     this.opacityUniform = uniform(1)
+    this.opaqueBackgroundUniform = uniform(1)
     this.hueUniform = uniform(0)
     this.saturationUniform = uniform(1)
 
@@ -131,6 +142,10 @@ export class PassNode {
     this.saturationUniform.value = Math.max(0, saturation)
   }
 
+  updateCommonParams(params: LayerParameterValues): void {
+    this.opaqueBackgroundUniform.value = params.opaqueBackground === false ? 0 : 1
+  }
+
   updateParams(_params: LayerParameterValues): void {
     // Default pass has no per-layer parameter handling.
   }
@@ -176,6 +191,15 @@ export class PassNode {
     // Default pass has no per-frame work.
   }
 
+  protected setCompositionStrategy(strategy: PassCompositionStrategy): void {
+    if (strategy === this.compositionStrategy) {
+      return
+    }
+
+    this.compositionStrategy = strategy
+    this.colorNodeDirty = true
+  }
+
   protected buildEffectNode(): Node {
     return this.inputNode
   }
@@ -189,20 +213,77 @@ export class PassNode {
 
   protected rebuildColorNode(): void {
     const adjustedEffectNode = this.applySharedColorAdjustments(this.effectNode)
-    this.material.colorNode = buildBlendNode(
-      this.blendMode,
-      this.inputNode,
-      adjustedEffectNode,
-      this.opacityUniform,
-      this.compositeMode,
+    if (
+      this.compositionStrategy === "source" ||
       this.compositeMode === "mask"
-        ? {
-            invert: this.maskInvert,
-            mode: this.maskMode,
-            source: this.maskSource,
-          }
-        : undefined,
+    ) {
+      const blendedNode = buildBlendNode(
+        this.blendMode,
+        this.inputNode,
+        adjustedEffectNode,
+        this.opacityUniform,
+        this.compositeMode,
+        this.compositeMode === "mask"
+          ? {
+              invert: this.maskInvert,
+              mode: this.maskMode,
+              source: this.maskSource,
+            }
+          : undefined,
+      ) as Node
+
+      this.material.colorNode = vec3(
+        float(blendedNode.r),
+        float(blendedNode.g),
+        float(blendedNode.b)
+      )
+      this.material.opacityNode = float(blendedNode.a)
+      return
+    }
+
+    const baseColor = vec3(
+      float(this.inputNode.r),
+      float(this.inputNode.g),
+      float(this.inputNode.b),
+    )
+    const baseAlpha = clamp(float(this.inputNode.a), float(0), float(1))
+    const effectColor = vec3(
+      float(adjustedEffectNode.r),
+      float(adjustedEffectNode.g),
+      float(adjustedEffectNode.b),
+    )
+    const effectAlpha = clamp(float(adjustedEffectNode.a), float(0), float(1))
+    const normalizedOpacity = clamp(float(this.opacityUniform), float(0), float(1))
+    const preservedEffectAlpha = min(effectAlpha, baseAlpha)
+    const visibleEffectAlpha = mix(
+      preservedEffectAlpha,
+      effectAlpha,
+      this.opaqueBackgroundUniform,
+    )
+    const effectColorCoverage = select(
+      effectAlpha.greaterThan(float(1e-6)),
+      visibleEffectAlpha.div(max(effectAlpha, float(1e-6))),
+      float(0),
+    )
+    const alphaAwareEffectColor = mix(baseColor, effectColor, effectColorCoverage)
+    const transformedColor = buildBlendColorNode(
+      this.blendMode,
+      baseColor,
+      alphaAwareEffectColor,
     ) as Node
+    const resultColor = mix(baseColor, transformedColor, normalizedOpacity)
+    const resultAlpha = mix(baseAlpha, visibleEffectAlpha, normalizedOpacity)
+
+    this.material.colorNode = clamp(
+      vec3(
+        float(resultColor.x),
+        float(resultColor.y),
+        float(resultColor.z),
+      ),
+      vec3(float(0), float(0), float(0)),
+      vec3(float(1), float(1), float(1)),
+    )
+    this.material.opacityNode = clamp(resultAlpha, float(0), float(1))
   }
 
   private applySharedColorAdjustments(sourceNode: Node): Node {

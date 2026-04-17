@@ -256,6 +256,7 @@ export class DitheringPass extends PassNode {
     this.ditherNodeB = tslTexture(this.currentTexture, ditherUvB)
 
     const src = this.sourceTextureNode
+    const sourceAlpha = clamp(float(src.a), float(0), float(1))
     const thresholdR = float(this.ditherNode.r).sub(float(0.5))
     const thresholdG = float(this.ditherNodeG.r).sub(float(0.5))
     const thresholdB = float(this.ditherNodeB.r).sub(float(0.5))
@@ -317,6 +318,9 @@ export class DitheringPass extends PassNode {
     const halfSize = float(0.5).mul(this.dotScaleUniform)
     const mask = smoothstep(halfSize, halfSize.sub(float(0.01)), dist)
 
-    return vec4(vec3(colorResult).mul(mask), float(1))
+    return vec4(
+      vec3(colorResult).mul(mask).mul(sourceAlpha),
+      sourceAlpha.mul(mask)
+    )
   }
 }

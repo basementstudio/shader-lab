@@ -34,7 +34,7 @@ export class LivePass extends PassNode {
   private activeFacingMode: string | null = null
 
   constructor(layerId: string) {
-    super(layerId)
+    super(layerId, "source")
     this.placeholder = new THREE.Texture()
     this.canvasAspectUniform = uniform(1)
     this.fitModeUniform = uniform(0)

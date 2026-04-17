@@ -111,6 +111,14 @@ export function validateShaderExportSupport(
   const assetById = new Map(assets.map((asset) => [asset.id, asset]))
 
   for (const layer of layers) {
+    if (layer.kind === "group") {
+      issues.push({
+        layerId: layer.id,
+        message: `Layer "${layer.name}" is a group, which is not supported by shader export yet.`,
+      })
+      continue
+    }
+
     if (UNSUPPORTED_SHADER_EXPORT_LAYER_TYPES.has(layer.type)) {
       issues.push({
         layerId: layer.id,

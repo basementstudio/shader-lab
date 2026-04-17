@@ -70,6 +70,7 @@ export class HalftonePass extends PassNode {
   private readonly duotoneDarkUniform: Node
 
   private readonly customBgColorUniform: Node
+  private readonly backgroundAlphaUniform: Node
   private readonly customColorCountUniform: Node
   private readonly customLuminanceBiasUniform: Node
   private readonly customColor1Uniform: Node
@@ -129,6 +130,7 @@ export class HalftonePass extends PassNode {
     this.customBgColorUniform = uniform(
       new THREE.Vector3(customBgR, customBgG, customBgB)
     )
+    this.backgroundAlphaUniform = uniform(1)
     this.customColorCountUniform = uniform(4)
     this.customLuminanceBiasUniform = uniform(0)
 
@@ -213,6 +215,10 @@ export class HalftonePass extends PassNode {
     this.softnessUniform.value =
       typeof params.softness === "number" ? params.softness : 0.25
     this.invertUniform.value = params.invertLuma === true ? 1 : 0
+    this.backgroundAlphaUniform.value =
+      typeof params.backgroundAlpha === "number"
+        ? clamp01(params.backgroundAlpha)
+        : 1
     this.angleUniform.value =
       typeof params.angle === "number" ? (params.angle * Math.PI) / 180 : 0
 
@@ -528,9 +534,15 @@ export class HalftonePass extends PassNode {
     }
 
     const baseColor = mix(bgColor, dotColor, grid.coverage)
+    const sourceAlpha = clamp(float(this.inputNode.a), float(0), float(1))
+    const outputAlpha = mix(
+      this.backgroundAlphaUniform.mul(sourceAlpha),
+      sourceAlpha,
+      grid.coverage
+    )
 
     if (!(this.colorMode === "custom" && this.bloomEnabled)) {
-      return vec4(baseColor, float(1))
+      return vec4(baseColor, outputAlpha)
     }
 
     const bloomInput = vec4(emissiveColor, float(1))
@@ -550,7 +562,7 @@ export class HalftonePass extends PassNode {
         vec3(float(0), float(0), float(0)),
         vec3(float(1), float(1), float(1))
       ),
-      float(1)
+      outputAlpha
     )
   }
 

@@ -155,6 +155,43 @@ function luminosity(base: Node, blend: Node): Node {
   return setLum(base, lum(blend))
 }
 
+export function buildBlendColorNode(mode: string, base: Node, blend: Node): Node {
+  switch (mode) {
+    case "multiply":
+      return multiply(base, blend)
+    case "screen":
+      return screen(base, blend)
+    case "overlay":
+      return overlay(base, blend)
+    case "darken":
+      return darken(base, blend)
+    case "lighten":
+      return lighten(base, blend)
+    case "color-dodge":
+      return colorDodge(base, blend)
+    case "color-burn":
+      return colorBurn(base, blend)
+    case "hard-light":
+      return hardLight(base, blend)
+    case "soft-light":
+      return softLight(base, blend)
+    case "difference":
+      return difference(base, blend)
+    case "exclusion":
+      return exclusion(base, blend)
+    case "hue":
+      return hue(base, blend)
+    case "saturation":
+      return saturation(base, blend)
+    case "color":
+      return color(base, blend)
+    case "luminosity":
+      return luminosity(base, blend)
+    default:
+      return normal(base, blend)
+  }
+}
+
 export type MaskNodeConfig = {
   invert: boolean
   mode: string
@@ -170,65 +207,28 @@ export function buildBlendNode(
   maskConfig?: MaskNodeConfig,
 ): Node {
   const baseRgb = base.rgb
+  const baseAlpha = float(clamp(base.a, float(0), float(1)))
   const blendRgb = blend.rgb
   const normalizedOpacity = float(clamp(opacity, float(0), float(1)))
   const blendAlpha = float(clamp(blend.a, float(0), float(1)))
-
-  let composited: Node
-
-  switch (mode) {
-    case "multiply":
-      composited = multiply(baseRgb, blendRgb)
-      break
-    case "screen":
-      composited = screen(baseRgb, blendRgb)
-      break
-    case "overlay":
-      composited = overlay(baseRgb, blendRgb)
-      break
-    case "darken":
-      composited = darken(baseRgb, blendRgb)
-      break
-    case "lighten":
-      composited = lighten(baseRgb, blendRgb)
-      break
-    case "color-dodge":
-      composited = colorDodge(baseRgb, blendRgb)
-      break
-    case "color-burn":
-      composited = colorBurn(baseRgb, blendRgb)
-      break
-    case "hard-light":
-      composited = hardLight(baseRgb, blendRgb)
-      break
-    case "soft-light":
-      composited = softLight(baseRgb, blendRgb)
-      break
-    case "difference":
-      composited = difference(baseRgb, blendRgb)
-      break
-    case "exclusion":
-      composited = exclusion(baseRgb, blendRgb)
-      break
-    case "hue":
-      composited = hue(baseRgb, blendRgb)
-      break
-    case "saturation":
-      composited = saturation(baseRgb, blendRgb)
-      break
-    case "color":
-      composited = color(baseRgb, blendRgb)
-      break
-    case "luminosity":
-      composited = luminosity(baseRgb, blendRgb)
-      break
-    default:
-      composited = normal(baseRgb, blendRgb)
-      break
-  }
+  const composited = buildBlendColorNode(mode, baseRgb, blendRgb)
 
   if (compositeMode === "filter") {
-    return vec4(mix(baseRgb, composited, normalizedOpacity.mul(blendAlpha)), float(1))
+    const effectiveBlendAlpha = normalizedOpacity.mul(blendAlpha)
+    const resultAlpha = effectiveBlendAlpha.add(
+      baseAlpha.mul(float(1).sub(effectiveBlendAlpha))
+    )
+    const premultipliedRgb = baseRgb
+      .mul(baseAlpha)
+      .mul(float(1).sub(effectiveBlendAlpha))
+      .add(composited.mul(effectiveBlendAlpha))
+    const resultRgb = select(
+      resultAlpha.greaterThan(float(1e-6)),
+      premultipliedRgb.div(resultAlpha),
+      vec3(0)
+    )
+
+    return vec4(resultRgb, resultAlpha)
   }
 
   const source = maskConfig?.source ?? "luminance"
@@ -238,16 +238,18 @@ export function buildBlendNode(
       maskValue = float(blend.a)
       break
     case "red":
-      maskValue = float(blendRgb.x)
+      maskValue = float(blendRgb.x).mul(blendAlpha)
       break
     case "green":
-      maskValue = float(blendRgb.y)
+      maskValue = float(blendRgb.y).mul(blendAlpha)
       break
     case "blue":
-      maskValue = float(blendRgb.z)
+      maskValue = float(blendRgb.z).mul(blendAlpha)
       break
     default:
-      maskValue = float(dot(blendRgb, vec3(0.2126, 0.7152, 0.0722)))
+      maskValue = float(dot(blendRgb, vec3(0.2126, 0.7152, 0.0722))).mul(
+        blendAlpha
+      )
       break
   }
 
@@ -259,8 +261,13 @@ export function buildBlendNode(
 
   const maskMode = maskConfig?.mode ?? "multiply"
   if (maskMode === "stencil") {
-    return vec4(baseRgb.mul(step(float(0.5), maskStrength)), float(1))
+    const stencilStrength = step(float(0.5), maskStrength)
+
+    return vec4(
+      baseRgb.mul(stencilStrength),
+      baseAlpha.mul(stencilStrength)
+    )
   }
 
-  return vec4(baseRgb.mul(maskStrength), float(1))
+  return vec4(baseRgb.mul(maskStrength), baseAlpha.mul(maskStrength))
 }

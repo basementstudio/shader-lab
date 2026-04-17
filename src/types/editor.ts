@@ -17,7 +17,7 @@ export type ColorCurve = _ColorCurve
 export type ColorCurveChannelId = _ColorCurveChannelId
 export type SceneColorCurves = _SceneColorCurves
 
-export const LAYER_KINDS = ["source", "effect", "model"] as const
+export const LAYER_KINDS = ["source", "effect", "model", "group"] as const
 export type LayerKind = (typeof LAYER_KINDS)[number]
 
 export const SOURCE_LAYER_TYPES = [
@@ -59,7 +59,14 @@ export type EffectLayerType = (typeof EFFECT_LAYER_TYPES)[number]
 export const MODEL_LAYER_TYPES = ["model"] as const
 export type ModelLayerType = (typeof MODEL_LAYER_TYPES)[number]
 
-export type LayerType = SourceLayerType | EffectLayerType | ModelLayerType
+export const GROUP_LAYER_TYPES = ["group"] as const
+export type GroupLayerType = (typeof GROUP_LAYER_TYPES)[number]
+
+export type LayerType =
+  | SourceLayerType
+  | EffectLayerType
+  | ModelLayerType
+  | GroupLayerType
 
 export const BLEND_MODES = [
   "normal",
@@ -252,6 +259,7 @@ export interface BaseLayer {
   maskConfig: MaskConfig
   name: string
   opacity: number
+  parentGroupId: string | null
   params: LayerParameterValues
   runtimeError: string | null
   saturation: number
@@ -274,7 +282,13 @@ export interface ModelLayer extends BaseLayer {
   type: "model"
 }
 
-export type EditorLayer = SourceLayer | EffectLayer | ModelLayer
+export interface GroupLayer extends BaseLayer {
+  assetId: null
+  kind: "group"
+  type: "group"
+}
+
+export type EditorLayer = SourceLayer | EffectLayer | ModelLayer | GroupLayer
 
 export type AssetStatus = "idle" | "loading" | "ready" | "error"
 

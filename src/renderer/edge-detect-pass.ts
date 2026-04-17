@@ -52,6 +52,7 @@ export class EdgeDetectPass extends PassNode {
   private readonly bgColorRUniform: Node
   private readonly bgColorGUniform: Node
   private readonly bgColorBUniform: Node
+  private readonly backgroundAlphaUniform: Node
   private readonly logicalWidthUniform: Node
   private readonly logicalHeightUniform: Node
 
@@ -70,6 +71,7 @@ export class EdgeDetectPass extends PassNode {
     this.bgColorRUniform = uniform(0)
     this.bgColorGUniform = uniform(0)
     this.bgColorBUniform = uniform(0)
+    this.backgroundAlphaUniform = uniform(1)
     this.logicalWidthUniform = uniform(1)
     this.logicalHeightUniform = uniform(1)
     this.rebuildEffectNode()
@@ -104,6 +106,10 @@ export class EdgeDetectPass extends PassNode {
         ? Math.max(0.1, Math.min(5, params.strength))
         : 1
     this.invertUniform.value = params.invert === true ? 1 : 0
+    this.backgroundAlphaUniform.value =
+      typeof params.backgroundAlpha === "number"
+        ? Math.max(0, Math.min(1, params.backgroundAlpha))
+        : 1
 
     const nextColorMode = toColorModeValue(params.colorMode)
     if (nextColorMode !== this.colorMode) {
@@ -195,6 +201,7 @@ export class EdgeDetectPass extends PassNode {
 
     // Source color at center
     const centerColor = this.trackSourceTextureNode(renderTargetUv)
+    const centerAlpha = clamp(float(centerColor.a), float(0), float(1))
 
     if (this.colorMode === COLOR_MODE_MONO) {
       const lineCol = vec3(
@@ -207,17 +214,22 @@ export class EdgeDetectPass extends PassNode {
         this.bgColorGUniform,
         this.bgColorBUniform
       )
-      return vec4(mix(bgCol, lineCol, finalEdge), float(1))
+      const outputAlpha = mix(
+        this.backgroundAlphaUniform.mul(centerAlpha),
+        centerAlpha,
+        finalEdge
+      )
+      return vec4(mix(bgCol, lineCol, finalEdge), outputAlpha)
     }
 
     if (this.colorMode === COLOR_MODE_SOURCE) {
-      return vec4(centerColor.rgb.mul(finalEdge), float(1))
+      return vec4(centerColor.rgb.mul(finalEdge), centerAlpha.mul(finalEdge))
     }
 
     // Overlay: white edges on source
     return vec4(
       mix(centerColor.rgb, vec3(float(1), float(1), float(1)), finalEdge),
-      float(1)
+      centerAlpha
     )
   }
 }

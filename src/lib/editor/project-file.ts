@@ -3,9 +3,12 @@ import { useEditorStore } from "@/store/editor-store"
 import { useLayerStore } from "@/store/layer-store"
 import { useTimelineStore } from "@/store/timeline-store"
 import { createDefaultColorCurves } from "@/lib/color-curves"
+import { getLayerDefinition } from "@/lib/editor/config/layer-registry"
+import { buildParameterValues } from "@/lib/editor/parameter-schema"
 import type {
   EditorAsset,
   EditorLayer,
+  LayerParameterValues,
   ProjectPresetConfig,
   SceneConfig,
   Size,
@@ -41,7 +44,7 @@ export function buildLabProjectFile(): LabProjectFile {
       loop: timelineState.loop,
       tracks: timelineState.tracks,
     }),
-    version: 2,
+    version: 3,
   }
 }
 
@@ -64,7 +67,13 @@ export function parseLabProjectFile(input: string): LabProjectFile {
     throw new Error("This file is not a Shader Lab `.lab` project.")
   }
 
-  if (!(candidate.version === 1 || candidate.version === 2)) {
+  if (
+    !(
+      candidate.version === 1 ||
+      candidate.version === 2 ||
+      candidate.version === 3
+    )
+  ) {
     throw new Error("Unsupported Shader Lab project version.")
   }
 
@@ -178,9 +187,12 @@ function hydrateImportedLayer(
   assetIds: Set<string>,
   assetRefById: Map<string, LabProjectFile["assets"][number]>
 ): EditorLayer {
+  const normalizedParams = normalizeLayerParams(layer)
+
   if (!(layer.assetId && !assetIds.has(layer.assetId))) {
     return {
       ...layer,
+      params: normalizedParams,
       runtimeError: layer.runtimeError ?? null,
     }
   }
@@ -189,8 +201,16 @@ function hydrateImportedLayer(
 
   return {
     ...layer,
+    params: normalizedParams,
     runtimeError: assetRef
       ? `Missing asset: ${assetRef.fileName}`
       : "Missing asset reference",
+  }
+}
+
+function normalizeLayerParams(layer: EditorLayer): LayerParameterValues {
+  return {
+    ...buildParameterValues(getLayerDefinition(layer.type).params),
+    ...(layer.params ?? {}),
   }
 }

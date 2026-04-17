@@ -74,6 +74,7 @@ export class PatternPass extends PassNode {
   private sourceTextureNodes: Node[] = []
 
   private readonly bgOpacityUniform: Node
+  private readonly backgroundAlphaUniform: Node
   private readonly cellSizeUniform: Node
   private readonly colorModeUniform: Node
   private readonly customBgColorUniform: Node
@@ -106,6 +107,7 @@ export class PatternPass extends PassNode {
     this.bloomSoftnessUniform = uniform(0.35)
     this.bloomThresholdUniform = uniform(0.6)
     this.bgOpacityUniform = uniform(0)
+    this.backgroundAlphaUniform = uniform(1)
     this.cellSizeUniform = uniform(12)
     this.colorModeUniform = uniform(0)
     this.customColorCountUniform = uniform(4)
@@ -154,6 +156,10 @@ export class PatternPass extends PassNode {
     const nextColorMode = this.resolveColorMode(params.colorMode)
     const nextBgOpacity =
       typeof params.bgOpacity === "number" ? clamp01(params.bgOpacity) : 0
+    const nextBackgroundAlpha =
+      typeof params.backgroundAlpha === "number"
+        ? clamp01(params.backgroundAlpha)
+        : 1
     const nextCustomColorCount =
       typeof params.customColorCount === "number"
         ? Math.min(4, Math.max(2, Math.round(params.customColorCount)))
@@ -176,6 +182,7 @@ export class PatternPass extends PassNode {
     )
 
     this.bgOpacityUniform.value = nextBgOpacity
+    this.backgroundAlphaUniform.value = nextBackgroundAlpha
     this.bloomIntensityUniform.value = nextBloomIntensity
     this.bloomRadiusUniform.value = nextBloomRadius
     this.bloomSoftnessUniform.value = nextBloomSoftness
@@ -406,6 +413,7 @@ export class PatternPass extends PassNode {
         ),
       )
       const sourceBackground = sourceColor.mul(this.bgOpacityUniform)
+      const sourceAlpha = clamp(float(this.inputNode.a), float(0), float(1))
       const backgroundColor = select(
         this.colorModeUniform.lessThan(float(0.5)),
         sourceBackground,
@@ -415,8 +423,18 @@ export class PatternPass extends PassNode {
           customBgVec,
         ),
       )
+      const effectiveBackgroundAlpha = select(
+        this.colorModeUniform.lessThan(float(0.5)),
+        this.backgroundAlphaUniform.mul(this.bgOpacityUniform),
+        this.backgroundAlphaUniform,
+      )
+      const outputAlpha = mix(
+        effectiveBackgroundAlpha.mul(sourceAlpha),
+        sourceAlpha,
+        patternMask,
+      )
 
-      return vec4(mix(backgroundColor, patternColor, patternMask), float(1))
+      return vec4(mix(backgroundColor, patternColor, patternMask), outputAlpha)
     }
 
     const baseSample = samplePattern(renderTargetUv)
@@ -441,7 +459,7 @@ export class PatternPass extends PassNode {
         vec3(float(0), float(0), float(0)),
         vec3(float(1), float(1), float(1)),
       ),
-      float(1),
+      baseSample.a,
     )
   }
 

@@ -167,19 +167,22 @@ export class InkPass extends PassNode {
     this.compositeTarget = new THREE.WebGLRenderTarget(1, 1, INTERNAL_TARGET_OPTIONS)
 
     this.blurMaterial = new THREE.MeshBasicNodeMaterial()
-    this.blurMaterial.colorNode = this.buildBlurNode()
+    this.configureInternalMaterial(this.blurMaterial, this.buildBlurNode())
     const blurMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.blurMaterial)
     blurMesh.frustumCulled = false
     this.blurScene.add(blurMesh)
 
     this.copyMaterial = new THREE.MeshBasicNodeMaterial()
-    this.copyMaterial.colorNode = vec4(this.copyInputNode.rgb, float(1))
+    this.configureInternalMaterial(
+      this.copyMaterial,
+      vec4(this.copyInputNode.rgb, this.copyInputNode.a)
+    )
     const copyMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.copyMaterial)
     copyMesh.frustumCulled = false
     this.copyScene.add(copyMesh)
 
     this.compositeMaterial = new THREE.MeshBasicNodeMaterial()
-    this.compositeMaterial.colorNode = this.buildCompositeNode()
+    this.configureInternalMaterial(this.compositeMaterial, this.buildCompositeNode())
     const compositeMesh = new THREE.Mesh(
       new THREE.PlaneGeometry(2, 2),
       this.compositeMaterial,
@@ -372,20 +375,21 @@ export class InkPass extends PassNode {
 
   protected override buildEffectNode(): Node {
     if (!this.finalInputNode) {
-      return vec4(float(0), float(0), float(0), float(1))
+      return vec4(float(0), float(0), float(0), float(0))
     }
 
     this.disposeBloomNode()
     this.bloomNode = null
 
     const baseColor = vec3(this.finalInputNode.r, this.finalInputNode.g, this.finalInputNode.b)
+    const baseAlpha = float(this.finalInputNode.a)
 
     if (!this.bloomEnabled) {
-      return vec4(baseColor, float(1))
+      return vec4(baseColor, baseAlpha)
     }
 
     this.bloomNode = bloom(
-      vec4(baseColor, float(1)),
+      vec4(baseColor, baseAlpha),
       this.bloomIntensityUniform.value as number,
       this.normalizeBloomRadius(this.bloomRadiusUniform.value as number),
       this.bloomThresholdUniform.value as number,
@@ -400,7 +404,7 @@ export class InkPass extends PassNode {
         vec3(float(0), float(0), float(0)),
         vec3(float(1), float(1), float(1)),
       ),
-      float(1),
+      baseAlpha,
     )
   }
 
@@ -414,7 +418,10 @@ export class InkPass extends PassNode {
       float(1).div(this.resolutionHeightUniform),
     )
     const original = this.blurInputNode
-    const originalIntensity = max(max(original.r, original.g), original.b)
+    const originalAlpha = clamp(float(original.a), float(0), float(1))
+    const originalIntensity = max(max(original.r, original.g), original.b).mul(
+      originalAlpha
+    )
     const rotatedUv = vec2(
       texUv.x.mul(float(Math.cos(0.7854))).sub(texUv.y.mul(float(Math.sin(0.7854)))),
       texUv.x.mul(float(Math.sin(0.7854))).add(texUv.y.mul(float(Math.cos(0.7854)))),
@@ -505,7 +512,12 @@ export class InkPass extends PassNode {
 
     const blurred = result.div(max(totalWeight, float(0.0001)))
     const lifted = max(blurred, original)
-    return vec4(mix(blurred.rgb, lifted.rgb, originalIntensity.mul(0.5)), float(1))
+    const outputAlpha = clamp(max(blurred.a, originalAlpha), float(0), float(1))
+
+    return vec4(
+      mix(blurred.rgb, lifted.rgb, originalIntensity.mul(0.5)),
+      outputAlpha
+    )
   }
 
   private buildCompositeNode(): Node {
@@ -514,8 +526,14 @@ export class InkPass extends PassNode {
     const texUv = vec2(uv().x, float(1).sub(uv().y))
     const blurSample = this.finalInputNode
     const crispSample = this.crispInputNode
-    const blurIntensity = max(max(blurSample.r, blurSample.g), blurSample.b)
-    const crispIntensity = max(max(crispSample.r, crispSample.g), crispSample.b)
+    const blurAlpha = clamp(float(blurSample.a), float(0), float(1))
+    const crispAlpha = clamp(float(crispSample.a), float(0), float(1))
+    const blurIntensity = max(max(blurSample.r, blurSample.g), blurSample.b).mul(
+      blurAlpha
+    )
+    const crispIntensity = max(max(crispSample.r, crispSample.g), crispSample.b).mul(
+      crispAlpha
+    )
     const texelSize = vec2(
       float(1).div(this.resolutionWidthUniform),
       float(1).div(this.resolutionHeightUniform),
@@ -580,12 +598,15 @@ export class InkPass extends PassNode {
       combined,
     )
 
-    const alpha = max(fluidMask, crispMask)
+    const alpha = clamp(max(blurAlpha, crispAlpha), float(0), float(1))
     let finalColor = mix(backgroundColor, combined, smoothstep(float(0.01), float(0.85), alpha))
     const vignetteUv = texUv.mul(2).sub(vec2(1, 1))
     finalColor = finalColor.mul(float(1).sub(vignetteUv.dot(vignetteUv).mul(0.15)))
 
-    return vec4(clamp(finalColor, vec3(0, 0, 0), vec3(1, 1, 1)), float(1))
+    return vec4(
+      clamp(finalColor, vec3(0, 0, 0), vec3(1, 1, 1)),
+      alpha
+    )
   }
 
   private applyColorGradient(
@@ -619,6 +640,21 @@ export class InkPass extends PassNode {
       .catch(() => {
         this.needsRefresh = true
       })
+  }
+
+  private configureInternalMaterial(
+    material: THREE.MeshBasicNodeMaterial,
+    outputNode: Node
+  ): void {
+    material.blending = THREE.NoBlending
+    material.depthWrite = false
+    material.transparent = true
+    material.colorNode = vec3(
+      float(outputNode.r),
+      float(outputNode.g),
+      float(outputNode.b)
+    )
+    material.opacityNode = float(outputNode.a)
   }
 
   private trackBlurSampleNode(sampleUv: Node): Node {

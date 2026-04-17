@@ -70,6 +70,8 @@ export function formatLayerKind(kind: string): string {
   switch (kind) {
     case "effect":
       return "Effect"
+    case "group":
+      return "Group"
     case "model":
       return "3D Model"
     case "source":

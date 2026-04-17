@@ -35,8 +35,8 @@ export class DirectionalBlurPass extends PassNode {
   private readonly modeUniform: Node
   private readonly centerXUniform: Node
   private readonly centerYUniform: Node
-  private readonly widthUniform: Node
-  private readonly heightUniform: Node
+  private readonly logicalWidthUniform: Node
+  private readonly logicalHeightUniform: Node
 
   private sourceTextureNodes: Node[] = []
   private readonly placeholder: THREE.Texture
@@ -50,8 +50,8 @@ export class DirectionalBlurPass extends PassNode {
     this.modeUniform = uniform(BLUR_MODE_LINEAR)
     this.centerXUniform = uniform(0.5)
     this.centerYUniform = uniform(0.5)
-    this.widthUniform = uniform(1)
-    this.heightUniform = uniform(1)
+    this.logicalWidthUniform = uniform(1)
+    this.logicalHeightUniform = uniform(1)
     this.rebuildEffectNode()
   }
 
@@ -69,9 +69,9 @@ export class DirectionalBlurPass extends PassNode {
     super.render(renderer, inputTexture, outputTarget, time, delta)
   }
 
-  override resize(width: number, height: number): void {
-    this.widthUniform.value = Math.max(1, width)
-    this.heightUniform.value = Math.max(1, height)
+  override updateLogicalSize(width: number, height: number): void {
+    this.logicalWidthUniform.value = Math.max(1, width)
+    this.logicalHeightUniform.value = Math.max(1, height)
   }
 
   override updateParams(params: LayerParameterValues): void {
@@ -117,10 +117,13 @@ export class DirectionalBlurPass extends PassNode {
       renderTargetUv.x.sub(centerUv.x),
       renderTargetUv.y.sub(centerUv.y)
     )
-    const minDimension = min(this.widthUniform, this.heightUniform)
+    const minDimension = min(
+      this.logicalWidthUniform,
+      this.logicalHeightUniform
+    )
     const linearOffset = vec2(
-      linearDirection.x.mul(this.strengthUniform.div(this.widthUniform)),
-      linearDirection.y.mul(this.strengthUniform.div(this.heightUniform))
+      linearDirection.x.mul(this.strengthUniform.div(this.logicalWidthUniform)),
+      linearDirection.y.mul(this.strengthUniform.div(this.logicalHeightUniform))
     )
     const radialOffset = vec2(
       centeredUv.x.mul(this.strengthUniform.div(minDimension)),

@@ -37,8 +37,8 @@ export class SmearPass extends PassNode {
   private readonly endUniform: Node
   private readonly strengthUniform: Node
   private readonly samplesUniform: Node
-  private readonly widthUniform: Node
-  private readonly heightUniform: Node
+  private readonly logicalWidthUniform: Node
+  private readonly logicalHeightUniform: Node
 
   private readonly placeholder: THREE.Texture
   private sourceTextureNodes: Node[] = []
@@ -51,8 +51,8 @@ export class SmearPass extends PassNode {
     this.endUniform = uniform(0.75)
     this.strengthUniform = uniform(24)
     this.samplesUniform = uniform(12)
-    this.widthUniform = uniform(1)
-    this.heightUniform = uniform(1)
+    this.logicalWidthUniform = uniform(1)
+    this.logicalHeightUniform = uniform(1)
     this.rebuildEffectNode()
   }
 
@@ -70,9 +70,9 @@ export class SmearPass extends PassNode {
     super.render(renderer, inputTexture, outputTarget, time, delta)
   }
 
-  override resize(width: number, height: number): void {
-    this.widthUniform.value = Math.max(1, width)
-    this.heightUniform.value = Math.max(1, height)
+  override updateLogicalSize(width: number, height: number): void {
+    this.logicalWidthUniform.value = Math.max(1, width)
+    this.logicalHeightUniform.value = Math.max(1, height)
   }
 
   override updateParams(params: LayerParameterValues): void {
@@ -113,8 +113,8 @@ export class SmearPass extends PassNode {
 
     const renderTargetUv = vec2(uv().x, float(1).sub(uv().y))
     const pixelCoord = vec2(
-      renderTargetUv.x.mul(this.widthUniform),
-      renderTargetUv.y.mul(this.heightUniform)
+      renderTargetUv.x.mul(this.logicalWidthUniform),
+      renderTargetUv.y.mul(this.logicalHeightUniform)
     )
     const angleRadians = this.angleUniform.mul(Math.PI / 180)
     const cosA = cos(angleRadians)
@@ -161,12 +161,16 @@ export class SmearPass extends PassNode {
       )
       const sampleUv = vec2(
         clamp(
-          renderTargetUv.x.add(axisX.mul(sampleRadius).div(this.widthUniform)),
+          renderTargetUv.x.add(
+            axisX.mul(sampleRadius).div(this.logicalWidthUniform)
+          ),
           float(0),
           float(1)
         ),
         clamp(
-          renderTargetUv.y.add(axisY.mul(sampleRadius).div(this.heightUniform)),
+          renderTargetUv.y.add(
+            axisY.mul(sampleRadius).div(this.logicalHeightUniform)
+          ),
           float(0),
           float(1)
         )

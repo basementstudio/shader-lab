@@ -52,8 +52,8 @@ export class EdgeDetectPass extends PassNode {
   private readonly bgColorRUniform: Node
   private readonly bgColorGUniform: Node
   private readonly bgColorBUniform: Node
-  private readonly widthUniform: Node
-  private readonly heightUniform: Node
+  private readonly logicalWidthUniform: Node
+  private readonly logicalHeightUniform: Node
 
   private sourceTextureNodes: Node[] = []
   private readonly placeholder: THREE.Texture
@@ -70,8 +70,8 @@ export class EdgeDetectPass extends PassNode {
     this.bgColorRUniform = uniform(0)
     this.bgColorGUniform = uniform(0)
     this.bgColorBUniform = uniform(0)
-    this.widthUniform = uniform(1)
-    this.heightUniform = uniform(1)
+    this.logicalWidthUniform = uniform(1)
+    this.logicalHeightUniform = uniform(1)
     this.rebuildEffectNode()
   }
 
@@ -89,9 +89,9 @@ export class EdgeDetectPass extends PassNode {
     super.render(renderer, inputTexture, outputTarget, time, delta)
   }
 
-  override resize(width: number, height: number): void {
-    this.widthUniform.value = width
-    this.heightUniform.value = height
+  override updateLogicalSize(width: number, height: number): void {
+    this.logicalWidthUniform.value = Math.max(1, width)
+    this.logicalHeightUniform.value = Math.max(1, height)
   }
 
   override updateParams(params: LayerParameterValues): void {
@@ -139,8 +139,8 @@ export class EdgeDetectPass extends PassNode {
     this.sourceTextureNodes = []
 
     const renderTargetUv = vec2(uv().x, float(1).sub(uv().y))
-    const texelX = float(1).div(this.widthUniform)
-    const texelY = float(1).div(this.heightUniform)
+    const texelX = float(1).div(this.logicalWidthUniform)
+    const texelY = float(1).div(this.logicalHeightUniform)
 
     // Sample 3x3 neighborhood luminances
     const sampleLuma = (dx: Node, dy: Node) => {

@@ -62,8 +62,8 @@ export class PlotterPass extends PassNode {
   private readonly inkColorRUniform: Node
   private readonly inkColorGUniform: Node
   private readonly inkColorBUniform: Node
-  private readonly widthUniform: Node
-  private readonly heightUniform: Node
+  private readonly logicalWidthUniform: Node
+  private readonly logicalHeightUniform: Node
 
   constructor(layerId: string) {
     super(layerId)
@@ -81,14 +81,14 @@ export class PlotterPass extends PassNode {
     this.inkColorRUniform = uniform(0.1)
     this.inkColorGUniform = uniform(0.1)
     this.inkColorBUniform = uniform(0.1)
-    this.widthUniform = uniform(1)
-    this.heightUniform = uniform(1)
+    this.logicalWidthUniform = uniform(1)
+    this.logicalHeightUniform = uniform(1)
     this.rebuildEffectNode()
   }
 
-  override resize(width: number, height: number): void {
-    this.widthUniform.value = Math.max(1, width)
-    this.heightUniform.value = Math.max(1, height)
+  override updateLogicalSize(width: number, height: number): void {
+    this.logicalWidthUniform.value = Math.max(1, width)
+    this.logicalHeightUniform.value = Math.max(1, height)
   }
 
   override updateParams(params: LayerParameterValues): void {
@@ -175,8 +175,8 @@ export class PlotterPass extends PassNode {
 
     const renderTargetUv = vec2(uv().x, float(1).sub(uv().y))
     const pixelCoord = vec2(
-      renderTargetUv.x.mul(this.widthUniform),
-      renderTargetUv.y.mul(this.heightUniform)
+      renderTargetUv.x.mul(this.logicalWidthUniform),
+      renderTargetUv.y.mul(this.logicalHeightUniform)
     )
 
     const sourceColor = vec3(

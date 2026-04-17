@@ -29,8 +29,8 @@ export class ThresholdPass extends PassNode {
   private readonly softnessUniform: Node
   private readonly noiseUniform: Node
   private readonly invertUniform: Node
-  private readonly widthUniform: Node
-  private readonly heightUniform: Node
+  private readonly logicalWidthUniform: Node
+  private readonly logicalHeightUniform: Node
 
   constructor(layerId: string) {
     super(layerId)
@@ -38,14 +38,14 @@ export class ThresholdPass extends PassNode {
     this.softnessUniform = uniform(0.02)
     this.noiseUniform = uniform(0.08)
     this.invertUniform = uniform(0)
-    this.widthUniform = uniform(1)
-    this.heightUniform = uniform(1)
+    this.logicalWidthUniform = uniform(1)
+    this.logicalHeightUniform = uniform(1)
     this.rebuildEffectNode()
   }
 
-  override resize(width: number, height: number): void {
-    this.widthUniform.value = Math.max(1, width)
-    this.heightUniform.value = Math.max(1, height)
+  override updateLogicalSize(width: number, height: number): void {
+    this.logicalWidthUniform.value = Math.max(1, width)
+    this.logicalHeightUniform.value = Math.max(1, height)
   }
 
   override updateParams(params: LayerParameterValues): void {
@@ -71,8 +71,8 @@ export class ThresholdPass extends PassNode {
 
     const renderTargetUv = vec2(uv().x, float(1).sub(uv().y))
     const pixelCoord = vec2(
-      renderTargetUv.x.mul(this.widthUniform),
-      renderTargetUv.y.mul(this.heightUniform)
+      renderTargetUv.x.mul(this.logicalWidthUniform),
+      renderTargetUv.y.mul(this.logicalHeightUniform)
     )
     const sourceColor = vec3(
       float(this.inputNode.r),

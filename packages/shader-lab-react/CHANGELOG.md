@@ -1,5 +1,11 @@
 # @basementstudio/shader-lab
 
+## 1.3.10
+
+### Patch Changes
+
+- 768c7e9: ink pass updates and new standalone bloom layer
+
 ## 1.3.9
 
 ### Patch Changes

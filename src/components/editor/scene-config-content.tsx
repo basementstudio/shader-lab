@@ -156,6 +156,7 @@ export function SceneConfigContent() {
                 hue: DEFAULT_SCENE_CONFIG.hue,
                 invert: DEFAULT_SCENE_CONFIG.invert,
                 saturation: DEFAULT_SCENE_CONFIG.saturation,
+                vibrance: DEFAULT_SCENE_CONFIG.vibrance,
                 temperature: DEFAULT_SCENE_CONFIG.temperature,
                 tint: DEFAULT_SCENE_CONFIG.tint,
               })
@@ -194,6 +195,13 @@ export function SceneConfigContent() {
           min={0}
           onValueChange={(value) => handleUpdate("saturation", value / 100)}
           value={sceneConfig.saturation * 100}
+        />
+        <Slider
+          label="Vibrance"
+          max={100}
+          min={-100}
+          onValueChange={(value) => handleUpdate("vibrance", value / 100)}
+          value={sceneConfig.vibrance * 100}
         />
         <Slider
           label="Hue"

@@ -4,6 +4,7 @@ import {
   float,
   floor,
   max,
+  min,
   mix,
   pow,
   sin,
@@ -97,6 +98,7 @@ function isDefaultConfig(config: SceneConfig): boolean {
     config.brightness === 0 &&
     config.contrast === 0 &&
     config.saturation === 1 &&
+    config.vibrance === 0 &&
     config.hue === 0 &&
     config.temperature === 0 &&
     config.tint === 0 &&
@@ -138,6 +140,7 @@ export class ScenePostProcess {
   private readonly brightnessUniform: Node
   private readonly contrastUniform: Node
   private readonly saturationUniform: Node
+  private readonly vibranceUniform: Node
   private readonly hueUniform: Node
   private readonly temperatureUniform: Node
   private readonly tintUniform: Node
@@ -172,6 +175,7 @@ export class ScenePostProcess {
     this.brightnessUniform = uniform(0)
     this.contrastUniform = uniform(0)
     this.saturationUniform = uniform(1)
+    this.vibranceUniform = uniform(0)
     this.hueUniform = uniform(0)
     this.temperatureUniform = uniform(0)
     this.tintUniform = uniform(0)
@@ -255,6 +259,7 @@ export class ScenePostProcess {
     this.brightnessUniform.value = config.brightness
     this.contrastUniform.value = config.contrast
     this.saturationUniform.value = Math.max(0, config.saturation)
+    this.vibranceUniform.value = config.vibrance
     this.hueUniform.value = (config.hue * Math.PI) / 180
     this.temperatureUniform.value = config.temperature
     this.tintUniform.value = config.tint
@@ -351,15 +356,39 @@ export class ScenePostProcess {
       .mul(vec3(contrastScale, contrastScale, contrastScale))
       .add(vec3(float(0.5), float(0.5), float(0.5)))
 
-    // Saturation + Hue
+    // Saturation + Vibrance + Hue
     const lumaPreGrade = float(color.x)
       .mul(float(0.2126))
       .add(float(color.y).mul(float(0.7152)))
       .add(float(color.z).mul(float(0.0722)))
-    const saturated = mix(
+    const saturatedColor = mix(
       vec3(lumaPreGrade, lumaPreGrade, lumaPreGrade),
       color,
       this.saturationUniform
+    )
+    const saturatedLuma = float(saturatedColor.x)
+      .mul(float(0.2126))
+      .add(float(saturatedColor.y).mul(float(0.7152)))
+      .add(float(saturatedColor.z).mul(float(0.0722)))
+    const saturatedGray = vec3(saturatedLuma, saturatedLuma, saturatedLuma)
+    const colorMax = max(
+      float(saturatedColor.x),
+      max(float(saturatedColor.y), float(saturatedColor.z))
+    )
+    const colorMin = min(
+      float(saturatedColor.x),
+      min(float(saturatedColor.y), float(saturatedColor.z))
+    )
+    const colorSaturation = clamp(colorMax.sub(colorMin), float(0), float(1))
+    const vibranceFactor = clamp(
+      float(1).add(this.vibranceUniform.mul(float(1).sub(colorSaturation))),
+      float(0),
+      float(2)
+    )
+    const saturated = mix(
+      saturatedGray,
+      saturatedColor,
+      vibranceFactor
     )
     const hueCos = float(cos(this.hueUniform))
     const hueSin = float(sin(this.hueUniform))

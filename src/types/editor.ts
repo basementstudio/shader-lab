@@ -374,6 +374,7 @@ export interface SceneConfig {
   brightness: number
   contrast: number
   saturation: number
+  vibrance: number
   hue: number
   temperature: number
   tint: number
@@ -407,6 +408,7 @@ export const DEFAULT_SCENE_CONFIG: SceneConfig = {
   brightness: 0,
   contrast: 0,
   saturation: 1,
+  vibrance: 0,
   hue: 0,
   temperature: 0,
   tint: 0,

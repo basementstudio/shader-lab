@@ -1,11 +1,11 @@
-import { cos, Fn, length, pow, sin, vec2 } from "three/tsl"
+import { cos, Fn, length, pow, sin, type TSLNode, vec2 } from "three/tsl"
 import { atan2 } from "./atan2"
 
 /**
  * Complex power: z^n
  * Let z = r(cos θ + i sin θ), then z^n = r^n (cos nθ + i sin nθ)
  */
-export const complexPow = Fn(([z, n]) => {
+export const complexPow = Fn(([z, n]: [TSLNode, TSLNode]) => {
   const angle = atan2(z.y, z.x)
   const r = length(z)
   const rn = pow(r, n)

@@ -6,6 +6,7 @@ declare module "three/webgpu" {
     ColorRepresentation,
     Material,
     Scene,
+    Texture,
     TypedArray,
     WebGLRendererParameters,
     WebGLRenderTarget,
@@ -29,9 +30,20 @@ declare module "three/webgpu" {
     sizeAttenuation: boolean
   }
 
-  export class WebGPURenderer {
-    constructor(options?: WebGLRendererParameters & { canvas?: HTMLCanvasElement })
+  export class StorageTexture extends Texture {
+    constructor(width?: number, height?: number)
+    isStorageTexture: true
+  }
 
+  export class WebGPURenderer {
+    constructor(
+      options?: WebGLRendererParameters & { canvas?: HTMLCanvasElement }
+    )
+
+    // biome-ignore lint/suspicious/noExplicitAny: compute node type from Fn().compute() is opaque
+    compute(computeNodes: any): void
+    // biome-ignore lint/suspicious/noExplicitAny: compute node type from Fn().compute() is opaque
+    computeAsync(computeNodes: any): Promise<void>
     dispose(): void
     init(): Promise<void>
     readRenderTargetPixelsAsync(
@@ -39,7 +51,7 @@ declare module "three/webgpu" {
       x: number,
       y: number,
       width: number,
-      height: number,
+      height: number
     ): Promise<TypedArray>
     render(scene: Scene, camera: Camera): void
     setAnimationLoop(callback: ((time: number) => void) | null): void

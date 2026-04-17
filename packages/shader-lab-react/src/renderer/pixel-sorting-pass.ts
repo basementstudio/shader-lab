@@ -32,8 +32,8 @@ export class PixelSortingPass extends PassNode {
   private readonly sortTexNodeB: Node
 
   private readonly passOffsetUniform: Node
-  private readonly widthUniform: Node
-  private readonly heightUniform: Node
+  private readonly logicalWidthUniform: Node
+  private readonly logicalHeightUniform: Node
   private readonly thresholdUniform: Node
   private readonly upperThresholdUniform: Node
   private readonly directionUniform: Node
@@ -51,8 +51,8 @@ export class PixelSortingPass extends PassNode {
     this.sortCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
 
     this.passOffsetUniform = uniform(0)
-    this.widthUniform = uniform(1)
-    this.heightUniform = uniform(1)
+    this.logicalWidthUniform = uniform(1)
+    this.logicalHeightUniform = uniform(1)
     this.thresholdUniform = uniform(0.25)
     this.upperThresholdUniform = uniform(1)
     this.directionUniform = uniform(0)
@@ -63,13 +63,17 @@ export class PixelSortingPass extends PassNode {
 
     // Compute pixel coordinates from flipped UVs
     const texUv = vec2(uv().x, float(1).sub(uv().y))
-    const dims = vec2(this.widthUniform, this.heightUniform)
+    const dims = vec2(this.logicalWidthUniform, this.logicalHeightUniform)
     const pixelCoord = floor(texUv.mul(dims))
 
     // Sort axis: horizontal (x) or vertical (y)
     const isHorizontal = this.directionUniform.lessThan(float(0.5))
     const sortIdx = select(isHorizontal, pixelCoord.x, pixelCoord.y)
-    const maxIdx = select(isHorizontal, this.widthUniform, this.heightUniform)
+    const maxIdx = select(
+      isHorizontal,
+      this.logicalWidthUniform,
+      this.logicalHeightUniform
+    )
 
     // Odd-even transposition: alternate pair groupings each pass
     const pairMod = mod(sortIdx.add(this.passOffsetUniform), float(2))
@@ -249,10 +253,13 @@ export class PixelSortingPass extends PassNode {
   override resize(width: number, height: number): void {
     this.width = Math.max(1, width)
     this.height = Math.max(1, height)
-    this.widthUniform.value = this.width
-    this.heightUniform.value = this.height
     this.sortRtA.setSize(this.width, this.height)
     this.sortRtB.setSize(this.width, this.height)
+  }
+
+  override updateLogicalSize(width: number, height: number): void {
+    this.logicalWidthUniform.value = Math.max(1, width)
+    this.logicalHeightUniform.value = Math.max(1, height)
   }
 
   override dispose(): void {

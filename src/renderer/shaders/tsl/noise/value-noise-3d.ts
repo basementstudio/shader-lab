@@ -1,11 +1,11 @@
-import { dot, Fn, floor, fract, mix, sin, vec3 } from "three/tsl"
+import { dot, Fn, floor, fract, mix, sin, type TSLNode, vec3 } from "three/tsl"
 import { fade } from "./common"
 
-const hash31 = Fn(([p]) => {
+const hash31 = Fn(([p]: [TSLNode]) => {
   return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))).mul(43758.5453123))
 })
 
-export const valueNoise3d = Fn(([pImmutable]) => {
+export const valueNoise3d = Fn(([pImmutable]: [TSLNode]) => {
   const p = vec3(pImmutable).toVar()
   const cell = vec3(floor(p)).toVar()
   const local = vec3(fract(p)).toVar()

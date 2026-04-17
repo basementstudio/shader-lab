@@ -1,6 +1,6 @@
-import { div, dot, Fn, vec2 } from "three/tsl"
+import { div, dot, Fn, type TSLNode, vec2 } from "three/tsl"
 
-export const complexDiv = Fn(([a, b]) => {
+export const complexDiv = Fn(([a, b]: [TSLNode, TSLNode]) => {
   const denominator = dot(b, b)
 
   return vec2(

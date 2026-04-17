@@ -1,10 +1,20 @@
-import { dot, exp, Fn, float, mix, pow, smoothstep, vec3 } from "three/tsl"
+import {
+  dot,
+  exp,
+  Fn,
+  float,
+  mix,
+  pow,
+  smoothstep,
+  type TSLNode,
+  vec3,
+} from "three/tsl"
 
-export const reinhardTonemap = Fn(([color]) => {
+export const reinhardTonemap = Fn(([color]: [TSLNode]) => {
   return color.div(color.add(1.0))
 })
 
-export const totosTonemap = Fn(([color]) => {
+export const totosTonemap = Fn(([color]: [TSLNode]) => {
   const compressed = color
     .mul(vec3(1.18, 1.04, 0.94))
     .div(color.mul(vec3(0.82, 0.9, 0.98)).add(vec3(0.78, 0.68, 0.6)))
@@ -33,7 +43,7 @@ export const totosTonemap = Fn(([color]) => {
   return bleach.clamp(0.0, 1.0)
 })
 
-export const acesTonemap = Fn(([color]) => {
+export const acesTonemap = Fn(([color]: [TSLNode]) => {
   const a = 2.51
   const b = 0.03
   const c = 2.43
@@ -46,7 +56,7 @@ export const acesTonemap = Fn(([color]) => {
     .clamp(0.0, 1.0)
 })
 
-export const crossProcessTonemap = Fn(([color]) => {
+export const crossProcessTonemap = Fn(([color]: [TSLNode]) => {
   const r = pow(color.x, 0.8)
   const g = pow(color.y, 1.2)
   const b = pow(color.z, 1.5)
@@ -54,14 +64,14 @@ export const crossProcessTonemap = Fn(([color]) => {
   return vec3(r, g, b).clamp(0.0, 1.0)
 })
 
-export const bleachBypassTonemap = Fn(([color]) => {
+export const bleachBypassTonemap = Fn(([color]: [TSLNode]) => {
   const lum = dot(color, vec3(0.2126, 0.7152, 0.0722))
   const mixAmount = 0.7
 
   return mix(vec3(lum), color, mixAmount).mul(1.2).clamp(0.0, 1.0)
 })
 
-export const technicolorTonemap = Fn(([color]) => {
+export const technicolorTonemap = Fn(([color]: [TSLNode]) => {
   const r = color.x.mul(1.5)
   const g = color.y.mul(1.2)
   const b = color.z.mul(0.8).add(color.x.mul(0.2))
@@ -69,7 +79,7 @@ export const technicolorTonemap = Fn(([color]) => {
   return vec3(r, g, b).clamp(0.0, 1.0)
 })
 
-export const cinematicTonemap = Fn(([color]) => {
+export const cinematicTonemap = Fn(([color]: [TSLNode]) => {
   const r = smoothstep(0.05, 0.95, color.x.mul(0.95).add(0.02))
   const g = smoothstep(0.05, 0.95, color.y.mul(1.05))
   const b = smoothstep(0.05, 0.95, color.z.mul(1.1))
@@ -77,7 +87,7 @@ export const cinematicTonemap = Fn(([color]) => {
   return vec3(r, g, b).clamp(0.0, 1.0)
 })
 
-export const tanh = Fn(([x]) => {
+export const tanh = Fn(([x]: [TSLNode]) => {
   const tmp = exp(x).toVar()
 
   return tmp.sub(float(1).div(tmp)).div(tmp.add(float(1).div(tmp)))

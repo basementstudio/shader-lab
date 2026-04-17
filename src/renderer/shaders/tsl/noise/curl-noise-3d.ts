@@ -1,7 +1,7 @@
-import { EPSILON, Fn, cross, vec3 } from "three/tsl"
+import { cross, EPSILON, Fn, type TSLNode, vec3 } from "three/tsl"
 import { simplexNoise3d } from "./simplex-noise-3d"
 
-export const curlNoise3d = Fn(([inputA]) => {
+export const curlNoise3d = Fn(([inputA]: [TSLNode]) => {
   const aXPos = simplexNoise3d(inputA.add(vec3(EPSILON, 0, 0)))
   const aXNeg = simplexNoise3d(inputA.sub(vec3(EPSILON, 0, 0)))
   const aXAverage = aXPos.sub(aXNeg).div(EPSILON.mul(2))

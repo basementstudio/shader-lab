@@ -1,7 +1,7 @@
 import {
-  Fn,
   abs,
   dot,
+  Fn,
   float,
   floor,
   max,
@@ -10,13 +10,14 @@ import {
   mul,
   step,
   sub,
+  type TSLNode,
   vec2,
   vec3,
   vec4,
 } from "three/tsl"
 import { permute, taylorInvSqrt } from "./common"
 
-export const simplexNoise3d = Fn(([vImmutable]) => {
+export const simplexNoise3d = Fn(([vImmutable]: [TSLNode]) => {
   const v = vec3(vImmutable).toVar()
   const c = vec2(1.0 / 6.0, 1.0 / 3.0)
   const d = vec4(0.0, 0.5, 1.0, 2.0)
@@ -35,16 +36,22 @@ export const simplexNoise3d = Fn(([vImmutable]) => {
   const p = vec4(
     permute(
       permute(
-        permute(i.z.add(vec4(0.0, i1.z, i2.z, 1.0))).add(i.y.add(vec4(0.0, i1.y, i2.y, 1.0))),
-      ).add(i.x.add(vec4(0.0, i1.x, i2.x, 1.0))),
-    ),
+        permute(i.z.add(vec4(0.0, i1.z, i2.z, 1.0))).add(
+          i.y.add(vec4(0.0, i1.y, i2.y, 1.0))
+        )
+      ).add(i.x.add(vec4(0.0, i1.x, i2.x, 1.0)))
+    )
   ).toVar()
 
   const n = float(1.0 / 7.0).toVar()
   const ns = vec3(n.mul(d.wyz).sub(d.xzx)).toVar()
   const j = vec4(p.sub(mul(49.0, floor(p.mul(ns.z.mul(ns.z)))))).toVar()
   const x = vec4(floor(j.mul(ns.z)).mul(ns.x).add(ns.yyyy)).toVar()
-  const y = vec4(floor(j.sub(mul(7.0, floor(j.mul(ns.z))))).mul(ns.x).add(ns.yyyy)).toVar()
+  const y = vec4(
+    floor(j.sub(mul(7.0, floor(j.mul(ns.z)))))
+      .mul(ns.x)
+      .add(ns.yyyy)
+  ).toVar()
   const h = vec4(sub(1.0, abs(x).sub(abs(y)))).toVar()
   const b0 = vec4(x.xy, y.xy).toVar()
   const b1 = vec4(x.zw, y.zw).toVar()
@@ -58,7 +65,7 @@ export const simplexNoise3d = Fn(([vImmutable]) => {
   const p2 = vec3(a1.xy, h.z).toVar()
   const p3 = vec3(a1.zw, h.w).toVar()
   const norm = vec4(
-    taylorInvSqrt(vec4(dot(p0, p0), dot(p1, p1), dot(p2, p2), dot(p3, p3))),
+    taylorInvSqrt(vec4(dot(p0, p0), dot(p1, p1), dot(p2, p2), dot(p3, p3)))
   ).toVar()
 
   p0.mulAssign(norm.x)
@@ -67,12 +74,12 @@ export const simplexNoise3d = Fn(([vImmutable]) => {
   p3.mulAssign(norm.w)
 
   const m = vec4(
-    max(sub(0.6, vec4(dot(x0, x0), dot(x1, x1), dot(x2, x2), dot(x3, x3))), 0.0),
+    max(sub(0.6, vec4(dot(x0, x0), dot(x1, x1), dot(x2, x2), dot(x3, x3))), 0.0)
   ).toVar()
   m.assign(m.mul(m))
 
   return mul(
     42.0,
-    dot(m.mul(m), vec4(dot(p0, x0), dot(p1, x1), dot(p2, x2), dot(p3, x3))),
+    dot(m.mul(m), vec4(dot(p0, x0), dot(p1, x1), dot(p2, x2), dot(p3, x3)))
   )
 })

@@ -1,6 +1,6 @@
-import { dot, Fn, float, floor, fract, length, min, sin, vec3 } from "three/tsl"
+import { dot, Fn, float, floor, fract, length, min, sin, type TSLNode, vec3 } from "three/tsl"
 
-const random3 = Fn(([p]) => {
+const random3 = Fn(([p]: [TSLNode]) => {
   return fract(
     sin(
       vec3(
@@ -12,14 +12,14 @@ const random3 = Fn(([p]) => {
   )
 })
 
-const checkNeighbor = Fn(([i, f, neighbor, currentMin]) => {
+const checkNeighbor = Fn(([i, f, neighbor, currentMin]: [TSLNode, TSLNode, TSLNode, TSLNode]) => {
   const point = random3(i.add(neighbor))
   const diff = neighbor.add(point).sub(f)
 
   return min(currentMin, length(diff))
 })
 
-export const voronoiNoise3d = Fn(([pImmutable]) => {
+export const voronoiNoise3d = Fn(([pImmutable]: [TSLNode]) => {
   const p = vec3(pImmutable).toVar()
   const i = vec3(floor(p)).toVar()
   const f = vec3(fract(p)).toVar()

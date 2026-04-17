@@ -100,6 +100,171 @@ type HevcVideoEncoderConfig = VideoEncoderConfig & {
   }
 }
 
+type EncoderProbeResult =
+  | {
+      encoder: VideoEncoder
+      error: () => Error | null
+    }
+  | {
+      encoder: null
+      error: () => Error | null
+    }
+
+function getAppliedEncoderConfig(
+  config: VideoEncoderConfig,
+  options: CreateVideoExportEncoderOptions
+): VideoEncoderConfig {
+  return {
+    ...config,
+    bitrate: options.bitrate,
+    framerate: options.fps,
+    height: options.height,
+    width: options.width,
+  } as VideoEncoderConfig
+}
+
+async function resolveSupportedMp4Configs(
+  width: number,
+  height: number,
+  fps: number,
+  bitrate: number
+): Promise<SupportedVideoExportConfig[]> {
+  const configs: SupportedVideoExportConfig[] = []
+
+  if (
+    typeof VideoEncoder === "undefined" ||
+    typeof VideoFrame === "undefined"
+  ) {
+    return configs
+  }
+
+  for (const codec of HEVC_MP4_CODEC_CANDIDATES) {
+    const support = await VideoEncoder.isConfigSupported({
+      bitrate,
+      codec,
+      framerate: fps,
+      height,
+      width,
+      hevc: {
+        format: "hevc",
+      },
+    } as HevcVideoEncoderConfig).catch(() => null)
+
+    if (!support?.config) {
+      continue
+    }
+
+    configs.push({
+      encoderConfig: support.config as VideoEncoderConfig,
+      format: "mp4",
+      mimeType: "video/mp4",
+      muxerCodec: "hevc",
+    })
+  }
+
+  for (const codec of getMp4CodecCandidates(width, height)) {
+    const support = await VideoEncoder.isConfigSupported({
+      avc: {
+        format: "avc",
+      },
+      bitrate,
+      codec,
+      framerate: fps,
+      height,
+      width,
+    }).catch(() => null)
+
+    if (!support?.config) {
+      continue
+    }
+
+    configs.push({
+      encoderConfig: support.config,
+      format: "mp4",
+      mimeType: "video/mp4",
+      muxerCodec: "avc",
+    })
+  }
+
+  return configs
+}
+
+function createProbeCanvas(width: number, height: number): HTMLCanvasElement {
+  const canvas = document.createElement("canvas")
+  canvas.width = width
+  canvas.height = height
+  return canvas
+}
+
+function createConfiguredEncoder(
+  config: VideoEncoderConfig,
+  output: (chunk: EncodedVideoChunk, meta?: EncodedVideoChunkMetadata) => void
+): EncoderProbeResult {
+  let encoderError: Error | null = null
+
+  try {
+    const encoder = new VideoEncoder({
+      error(error) {
+        encoderError = error
+      },
+      output(chunk, meta) {
+        output(chunk, meta)
+      },
+    })
+
+    encoder.configure(config)
+
+    return {
+      encoder,
+      error: () => encoderError,
+    }
+  } catch (error) {
+    encoderError = error instanceof Error ? error : new Error(String(error))
+
+    return {
+      encoder: null,
+      error: () => encoderError,
+    }
+  }
+}
+
+async function probeEncoderConfig(
+  config: VideoEncoderConfig,
+  canvas: HTMLCanvasElement
+): Promise<boolean> {
+  const result = createConfiguredEncoder(config, () => {})
+
+  if (!result.encoder) {
+    return false
+  }
+
+  const frame = new VideoFrame(canvas, {
+    duration: 1,
+    timestamp: 0,
+  })
+
+  try {
+    result.encoder.encode(frame, { keyFrame: true })
+    await result.encoder.flush()
+    return result.error() === null
+  } catch {
+    return false
+  } finally {
+    frame.close()
+
+    if (result.encoder.state !== "closed") {
+      result.encoder.close()
+    }
+  }
+}
+
+function getMp4RuntimeFailureMessage(
+  options: CreateVideoExportEncoderOptions
+): string {
+  const sizeLabel = `${options.width}×${options.height}`
+  return `MP4 export failed at ${sizeLabel}. Try 16:9, WebM, or a smaller height.`
+}
+
 async function resolveSupportedWebMConfig(
   width: number,
   height: number,
@@ -143,62 +308,8 @@ async function resolveSupportedMp4Config(
   fps: number,
   bitrate: number
 ): Promise<SupportedVideoExportConfig | null> {
-  if (
-    typeof VideoEncoder === "undefined" ||
-    typeof VideoFrame === "undefined"
-  ) {
-    return null
-  }
-
-  for (const codec of HEVC_MP4_CODEC_CANDIDATES) {
-    const support = await VideoEncoder.isConfigSupported({
-      bitrate,
-      codec,
-      framerate: fps,
-      height,
-      width,
-      hevc: {
-        format: "hevc",
-      },
-    } as HevcVideoEncoderConfig).catch(() => null)
-
-    if (!support?.config) {
-      continue
-    }
-
-    return {
-      encoderConfig: support.config as VideoEncoderConfig,
-      format: "mp4",
-      mimeType: "video/mp4",
-      muxerCodec: "hevc",
-    }
-  }
-
-  for (const codec of getMp4CodecCandidates(width, height)) {
-    const support = await VideoEncoder.isConfigSupported({
-      avc: {
-        format: "avc",
-      },
-      bitrate,
-      codec,
-      framerate: fps,
-      height,
-      width,
-    }).catch(() => null)
-
-    if (!support?.config) {
-      continue
-    }
-
-    return {
-      encoderConfig: support.config,
-      format: "mp4",
-      mimeType: "video/mp4",
-      muxerCodec: "avc",
-    }
-  }
-
-  return null
+  const configs = await resolveSupportedMp4Configs(width, height, fps, bitrate)
+  return configs[0] ?? null
 }
 
 export async function getSupportedVideoExportConfig(
@@ -276,21 +387,24 @@ function createMuxer(
 export async function createVideoExportEncoder(
   options: CreateVideoExportEncoderOptions
 ): Promise<VideoExportEncoder> {
-  const support = await (options.format === "mp4"
-    ? resolveSupportedMp4Config(
-        options.width,
-        options.height,
-        options.fps,
-        options.bitrate
-      )
-    : resolveSupportedWebMConfig(
-        options.width,
-        options.height,
-        options.fps,
-        options.bitrate
-      ))
+  const supports =
+    options.format === "mp4"
+      ? await resolveSupportedMp4Configs(
+          options.width,
+          options.height,
+          options.fps,
+          options.bitrate
+        )
+      : [
+          await resolveSupportedWebMConfig(
+            options.width,
+            options.height,
+            options.fps,
+            options.bitrate
+          ),
+        ].filter((value): value is SupportedVideoExportConfig => value !== null)
 
-  if (!support) {
+  if (supports.length === 0) {
     throw new Error(
       options.format === "mp4"
         ? "MP4 export is not supported in this browser."
@@ -298,27 +412,81 @@ export async function createVideoExportEncoder(
     )
   }
 
-  const muxer = createMuxer(support, options)
-  let encoderError: Error | null = null
-  const encoder = new VideoEncoder({
-    error(error) {
-      encoderError = error
-    },
-    output(chunk, meta) {
-      muxer.addVideoChunk(chunk, meta)
-    },
-  })
+  let support: SupportedVideoExportConfig | null = null
 
-  encoder.configure({
-    ...support.encoderConfig,
-    bitrate: options.bitrate,
-    framerate: options.fps,
-    height: options.height,
-    width: options.width,
-  } as VideoEncoderConfig)
+  if (options.format === "mp4") {
+    const probeCanvas = createProbeCanvas(options.width, options.height)
+
+    for (const candidate of supports) {
+      const config = getAppliedEncoderConfig(candidate.encoderConfig, options)
+
+      if (await probeEncoderConfig(config, probeCanvas)) {
+        support = candidate
+        break
+      }
+    }
+
+    if (!support) {
+      throw new Error(getMp4RuntimeFailureMessage(options))
+    }
+  } else {
+    support = supports[0] ?? null
+  }
+
+  if (!support) {
+    throw new Error(
+      options.format === "mp4"
+        ? getMp4RuntimeFailureMessage(options)
+        : "WebM export is not supported in this browser."
+    )
+  }
+
+  let muxer: VideoMuxer | null = null
+  let encoder: VideoEncoder | null = null
+  let encoderError: Error | null = null
+  let getEncoderError: (() => Error | null) | null = null
+
+  for (const candidate of options.format === "mp4" ? supports : [support]) {
+    const nextMuxer = createMuxer(candidate, options)
+    const result = createConfiguredEncoder(
+      getAppliedEncoderConfig(candidate.encoderConfig, options),
+      (chunk, meta) => {
+        nextMuxer.addVideoChunk(chunk, meta)
+      }
+    )
+
+    if (!result.encoder) {
+      encoderError = result.error()
+      continue
+    }
+
+    if (result.error()) {
+      result.encoder.close()
+      encoderError = result.error()
+      continue
+    }
+
+    support = candidate
+    muxer = nextMuxer
+    encoder = result.encoder
+    getEncoderError = result.error
+    encoderError = getEncoderError()
+    break
+  }
+
+  if (!(muxer && encoder)) {
+    throw new Error(
+      options.format === "mp4"
+        ? getMp4RuntimeFailureMessage(options)
+        : encoderError?.message ||
+            "WebM export is not supported in this browser."
+    )
+  }
 
   return {
     async encodeCanvasFrame(canvas, frameIndex, duration, timestamp) {
+      encoderError = getEncoderError?.() ?? encoderError
+
       if (encoderError) {
         throw encoderError
       }
@@ -336,9 +504,11 @@ export async function createVideoExportEncoder(
         frame.close()
       }
 
-      if (encoder.encodeQueueSize > 2) {
+      if (frameIndex === 0 || encoder.encodeQueueSize > 2) {
         await encoder.flush()
       }
+
+      encoderError = getEncoderError?.() ?? encoderError
 
       if (encoderError) {
         throw encoderError
@@ -347,6 +517,7 @@ export async function createVideoExportEncoder(
 
     async finalize() {
       await encoder.flush()
+      encoderError = getEncoderError?.() ?? encoderError
 
       if (encoderError) {
         throw encoderError

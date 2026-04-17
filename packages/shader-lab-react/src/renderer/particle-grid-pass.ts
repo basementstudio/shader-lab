@@ -1,25 +1,32 @@
-import * as THREE from "three/webgpu"
 import { bloom } from "three/examples/jsm/tsl/display/BloomNode.js"
 import {
-  attribute,
   clamp,
+  Fn,
   float,
+  floor,
+  instanceIndex,
   positionLocal,
   smoothstep,
-  texture as tslTexture,
   type TSLNode,
+  textureStore,
+  texture as tslTexture,
   uniform,
   uv,
+  uvec2,
   vec2,
   vec3,
   vec4,
 } from "three/tsl"
+import * as THREE from "three/webgpu"
+import type { LayerParameterValues } from "../types/editor"
 import { createPipelinePlaceholder, PassNode } from "./pass-node"
 import { simplexNoise3d } from "./shaders/tsl/noise/simplex-noise-3d"
-import type { LayerParameterValues } from "../types/editor"
 
 type Node = TSLNode
-const PARTICLE_GRID_RESOLUTIONS = [32, 64, 128, 256, 512, 1024, 2048, 4096] as const
+const PARTICLE_GRID_RESOLUTIONS = [
+  32, 64, 128, 256, 512, 1024, 2048, 4096,
+] as const
+const NOISE_TEX_SIZE = 512
 
 function resolveGridResolution(value: unknown): number {
   let requested = Number.NaN
@@ -66,14 +73,20 @@ export class ParticleGridPass extends PassNode {
   private readonly noiseAmountUniform: Node
   private readonly noiseScaleUniform: Node
   private readonly noiseSpeedUniform: Node
+  private readonly resolutionUniform: Node
+  private readonly halfWUniform: Node
+  private readonly halfHUniform: Node
+  private readonly quadSizeUniform: Node
 
-  // Bloom
   private bloomEnabled = false
   private bloomNode: ReturnType<typeof bloom> | null = null
   private readonly bloomIntensityUniform: Node
   private readonly bloomRadiusUniform: Node
   private readonly bloomSoftnessUniform: Node
   private readonly bloomThresholdUniform: Node
+
+  private readonly noiseTexture: THREE.StorageTexture
+  private noiseComputeNode: unknown = null
 
   private mesh: THREE.Mesh | null = null
   private meshMaterial: THREE.MeshBasicNodeMaterial | null = null
@@ -112,6 +125,15 @@ export class ParticleGridPass extends PassNode {
     this.noiseScaleUniform = uniform(3.0)
     this.noiseSpeedUniform = uniform(0.5)
 
+    const halfH = Math.tan((45 * Math.PI) / 360) * 1.2
+    this.resolutionUniform = uniform(64)
+    this.halfHUniform = uniform(halfH)
+    this.halfWUniform = uniform(halfH)
+    this.quadSizeUniform = uniform(1.0)
+
+    this.noiseTexture = new THREE.StorageTexture(NOISE_TEX_SIZE, NOISE_TEX_SIZE)
+    this.noiseComputeNode = this.buildNoiseCompute()
+
     this.bloomIntensityUniform = uniform(1.25)
     this.bloomRadiusUniform = uniform(6)
     this.bloomSoftnessUniform = uniform(0.35)
@@ -128,7 +150,7 @@ export class ParticleGridPass extends PassNode {
     inputTexture: THREE.Texture,
     outputTarget: THREE.WebGLRenderTarget,
     time: number,
-    delta: number,
+    delta: number
   ): void {
     if (this.needsRebuild) {
       this.rebuildGrid()
@@ -137,6 +159,10 @@ export class ParticleGridPass extends PassNode {
 
     if (this.inputSamplerNode) {
       this.inputSamplerNode.value = inputTexture
+    }
+
+    if (this.isAnimated) {
+      renderer.compute(this.noiseComputeNode)
     }
 
     renderer.setClearColor(this.bgColor, 1)
@@ -161,18 +187,28 @@ export class ParticleGridPass extends PassNode {
       typeof params.pointSize === "number" ? params.pointSize : 3
     const nextBloomEnabled = params.bloomEnabled === true
 
-    if (nextResolution !== this.gridResolution || nextPointSize !== (this.pointSizeUniform.value as number)) {
+    if (nextResolution !== this.gridResolution) {
       this.gridResolution = nextResolution
-      this.pointSizeUniform.value = nextPointSize
+      this.resolutionUniform.value = nextResolution
       this.needsRebuild = true
+    }
+
+    if (nextPointSize !== (this.pointSizeUniform.value as number)) {
+      this.pointSizeUniform.value = nextPointSize
+      this.updateFrustumUniforms()
     }
 
     this.displacementUniform.value =
       typeof params.displacement === "number" ? params.displacement : 0.5
 
-    this.bgColor.set(typeof params.backgroundColor === "string" ? params.backgroundColor : "#000000")
+    this.bgColor.set(
+      typeof params.backgroundColor === "string"
+        ? params.backgroundColor
+        : "#000000"
+    )
 
-    const noiseAmount = typeof params.noiseAmount === "number" ? params.noiseAmount : 0
+    const noiseAmount =
+      typeof params.noiseAmount === "number" ? params.noiseAmount : 0
     this.noiseAmountUniform.value = noiseAmount
     this.noiseScaleUniform.value =
       typeof params.noiseScale === "number" ? params.noiseScale : 3
@@ -181,13 +217,21 @@ export class ParticleGridPass extends PassNode {
     this.isAnimated = noiseAmount > 0
 
     this.bloomIntensityUniform.value =
-      typeof params.bloomIntensity === "number" ? Math.max(0, params.bloomIntensity) : 1.25
+      typeof params.bloomIntensity === "number"
+        ? Math.max(0, params.bloomIntensity)
+        : 1.25
     this.bloomThresholdUniform.value =
-      typeof params.bloomThreshold === "number" ? clamp01(params.bloomThreshold) : 0.6
+      typeof params.bloomThreshold === "number"
+        ? clamp01(params.bloomThreshold)
+        : 0.6
     this.bloomRadiusUniform.value =
-      typeof params.bloomRadius === "number" ? Math.max(0, params.bloomRadius) : 6
+      typeof params.bloomRadius === "number"
+        ? Math.max(0, params.bloomRadius)
+        : 6
     this.bloomSoftnessUniform.value =
-      typeof params.bloomSoftness === "number" ? clamp01(params.bloomSoftness) : 0.35
+      typeof params.bloomSoftness === "number"
+        ? clamp01(params.bloomSoftness)
+        : 0.35
 
     if (nextBloomEnabled !== this.bloomEnabled) {
       this.bloomEnabled = nextBloomEnabled
@@ -196,9 +240,14 @@ export class ParticleGridPass extends PassNode {
 
     if (this.bloomNode) {
       this.bloomNode.strength.value = this.bloomIntensityUniform.value as number
-      this.bloomNode.radius.value = this.normalizeBloomRadius(this.bloomRadiusUniform.value as number)
-      this.bloomNode.threshold.value = this.bloomThresholdUniform.value as number
-      this.bloomNode.smoothWidth.value = this.normalizeBloomSoftness(this.bloomSoftnessUniform.value as number)
+      this.bloomNode.radius.value = this.normalizeBloomRadius(
+        this.bloomRadiusUniform.value as number
+      )
+      this.bloomNode.threshold.value = this.bloomThresholdUniform
+        .value as number
+      this.bloomNode.smoothWidth.value = this.normalizeBloomSoftness(
+        this.bloomSoftnessUniform.value as number
+      )
     }
   }
 
@@ -208,12 +257,13 @@ export class ParticleGridPass extends PassNode {
     this.internalRT.setSize(this.width, this.height)
     this.perspCamera.aspect = this.width / this.height
     this.perspCamera.updateProjectionMatrix()
-    this.needsRebuild = true
+    this.updateFrustumUniforms()
   }
 
   override dispose(): void {
     this.disposeBloomNode()
     this.clearGrid()
+    this.noiseTexture.dispose()
     this.placeholder.dispose()
     this.internalRT.dispose()
     super.dispose()
@@ -227,7 +277,11 @@ export class ParticleGridPass extends PassNode {
     this.disposeBloomNode()
     this.bloomNode = null
 
-    const baseColor = vec3(this.blitInputNode.r, this.blitInputNode.g, this.blitInputNode.b)
+    const baseColor = vec3(
+      this.blitInputNode.r,
+      this.blitInputNode.g,
+      this.blitInputNode.b
+    )
 
     if (!this.bloomEnabled) {
       return vec4(baseColor, float(1))
@@ -238,19 +292,19 @@ export class ParticleGridPass extends PassNode {
       bloomInput,
       this.bloomIntensityUniform.value as number,
       this.normalizeBloomRadius(this.bloomRadiusUniform.value as number),
-      this.bloomThresholdUniform.value as number,
+      this.bloomThresholdUniform.value as number
     )
     this.bloomNode.smoothWidth.value = this.normalizeBloomSoftness(
-      this.bloomSoftnessUniform.value as number,
+      this.bloomSoftnessUniform.value as number
     )
 
     return vec4(
       clamp(
         baseColor.add(this.getBloomTextureNode().rgb),
         vec3(float(0), float(0), float(0)),
-        vec3(float(1), float(1), float(1)),
+        vec3(float(1), float(1), float(1))
       ),
-      float(1),
+      float(1)
     )
   }
 
@@ -259,91 +313,57 @@ export class ParticleGridPass extends PassNode {
 
     const res = this.gridResolution
     const count = res * res
-    const aspect = this.width / this.height
-    const pointSize = this.pointSizeUniform.value as number
 
-    // Camera frustum at z=0
-    const halfH = Math.tan((45 * Math.PI) / 360) * 1.2
-    const halfW = halfH * aspect
+    this.resolutionUniform.value = res
+    this.updateFrustumUniforms()
 
-    // Size of each quad in world units — convert point size from pixels to world
-    // At z=0 with camera at 1.2, 1 world unit = canvas_height / (2 * halfH) pixels
-    const pixelsPerUnit = this.height / (2 * halfH)
-    const quadWorldSize = pointSize / pixelsPerUnit
-
-    // Base quad: unit plane centered at origin
-    const baseGeo = new THREE.PlaneGeometry(1, 1)
-
-    // Instance attributes
-    const offsets = new Float32Array(count * 3)
-    const gridUvs = new Float32Array(count * 2)
-
-    for (let row = 0; row < res; row++) {
-      for (let col = 0; col < res; col++) {
-        const i = row * res + col
-        const u = col / (res - 1)
-        const v = row / (res - 1)
-
-        offsets[i * 3] = (u * 2 - 1) * halfW
-        offsets[i * 3 + 1] = (v * 2 - 1) * halfH
-        offsets[i * 3 + 2] = 0
-
-        gridUvs[i * 2] = u
-        gridUvs[i * 2 + 1] = 1 - v
-      }
-    }
+    const positions = new Float32Array([
+      -0.5, -0.5, 0, 0.5, -0.5, 0, 0.5, 0.5, 0, -0.5, 0.5, 0,
+    ])
+    const uvs = new Float32Array([0, 0, 1, 0, 1, 1, 0, 1])
+    const indices = new Uint16Array([0, 1, 2, 0, 2, 3])
+    const baseGeo = new THREE.BufferGeometry()
+    baseGeo.setAttribute("position", new THREE.BufferAttribute(positions, 3))
+    baseGeo.setAttribute("uv", new THREE.BufferAttribute(uvs, 2))
+    baseGeo.setIndex(new THREE.BufferAttribute(indices, 1))
 
     const instancedGeo = new THREE.InstancedBufferGeometry()
-    instancedGeo.index = baseGeo.index
     instancedGeo.setAttribute("position", baseGeo.getAttribute("position")!)
-    instancedGeo.setAttribute("normal", baseGeo.getAttribute("normal")!)
     instancedGeo.setAttribute("uv", baseGeo.getAttribute("uv")!)
-    instancedGeo.setAttribute("instanceOffset", new THREE.InstancedBufferAttribute(offsets, 3))
-    instancedGeo.setAttribute("instanceGridUv", new THREE.InstancedBufferAttribute(gridUvs, 2))
+    instancedGeo.setIndex(baseGeo.getIndex()!)
     instancedGeo.instanceCount = count
 
-    // GPU material
-    const instanceOffset = attribute("instanceOffset", "vec3")
-    const instanceGridUv = attribute("instanceGridUv", "vec2")
+    const idx = float(instanceIndex)
+    const resF = float(this.resolutionUniform)
+    const col = idx.mod(resF)
+    const row = floor(idx.div(resF))
+    const u = col.div(resF.sub(1.0))
+    const v = row.div(resF.sub(1.0))
 
-    // Sample input texture per instance
-    this.inputSamplerNode = tslTexture(this.placeholder, instanceGridUv)
+    const gridUv = vec2(u, float(1).sub(v))
+
+    this.inputSamplerNode = tslTexture(this.placeholder, gridUv)
     const sampledColor = this.inputSamplerNode
 
-    // Luma for Z displacement
     const luma = sampledColor.r
       .mul(0.2126)
       .add(sampledColor.g.mul(0.7152))
       .add(sampledColor.b.mul(0.0722))
 
-    // Per-particle noise using instance grid UV scaled by resolution
-    const noiseUv = vec2(
-      instanceGridUv.x.mul(float(res)).mul(this.noiseScaleUniform),
-      instanceGridUv.y.mul(float(res)).mul(this.noiseScaleUniform),
-    )
-    const noiseInputX = vec3(
-      noiseUv.x,
-      noiseUv.y,
-      this.timeUniform.mul(this.noiseSpeedUniform),
-    )
-    const noiseInputY = vec3(
-      noiseUv.x,
-      noiseUv.y,
-      this.timeUniform.mul(this.noiseSpeedUniform).add(float(100)),
-    )
-    const noiseOffsetX = simplexNoise3d(noiseInputX).mul(this.noiseAmountUniform).mul(0.01)
-    const noiseOffsetY = simplexNoise3d(noiseInputY).mul(this.noiseAmountUniform).mul(0.01)
+    const noiseSample = tslTexture(this.noiseTexture, gridUv)
+    const noiseOffsetX = noiseSample.r.mul(this.noiseAmountUniform).mul(0.01)
+    const noiseOffsetY = noiseSample.g.mul(this.noiseAmountUniform).mul(0.01)
 
-    // Scale quad vertices by world size, then offset to instance position + noise + displacement
-    const scaledPos = positionLocal.mul(float(quadWorldSize))
+    const offsetX = u.mul(2).sub(1).mul(this.halfWUniform)
+    const offsetY = v.mul(2).sub(1).mul(this.halfHUniform)
+
+    const scaledPos = positionLocal.mul(this.quadSizeUniform)
     const finalPos = vec3(
-      scaledPos.x.add(instanceOffset.x).add(noiseOffsetX),
-      scaledPos.y.add(instanceOffset.y).add(noiseOffsetY),
-      scaledPos.z.add(instanceOffset.z).add(luma.mul(this.displacementUniform)),
+      scaledPos.x.add(offsetX).add(noiseOffsetX),
+      scaledPos.y.add(offsetY).add(noiseOffsetY),
+      scaledPos.z.add(luma.mul(this.displacementUniform))
     )
 
-    // Circle mask using quad UV (0–1 per quad)
-    // Edge width scales with point size so anti-aliasing is always ~1.5px
     const quadUv = uv()
     const dist = vec2(quadUv.x.sub(0.5), quadUv.y.sub(0.5)).length()
     const aaWidth = float(1.5).div(this.pointSizeUniform)
@@ -351,7 +371,12 @@ export class ParticleGridPass extends PassNode {
 
     const material = new THREE.MeshBasicNodeMaterial()
     material.positionNode = finalPos as Node
-    material.colorNode = vec4(sampledColor.r, sampledColor.g, sampledColor.b, circleMask) as Node
+    material.colorNode = vec4(
+      sampledColor.r,
+      sampledColor.g,
+      sampledColor.b,
+      circleMask
+    ) as Node
     material.transparent = true
     material.alphaTest = 0.01
     material.depthWrite = false
@@ -378,6 +403,56 @@ export class ParticleGridPass extends PassNode {
     this.inputSamplerNode = null
   }
 
+  private buildNoiseCompute(): unknown {
+    const computeNoiseFn = Fn(({ noiseTex }: { noiseTex: Node }) => {
+      const posX = instanceIndex.mod(NOISE_TEX_SIZE)
+      const posY = instanceIndex.div(NOISE_TEX_SIZE)
+      const nuv = vec2(
+        float(posX).div(float(NOISE_TEX_SIZE)),
+        float(posY).div(float(NOISE_TEX_SIZE))
+      )
+      const noiseCoord = nuv
+        .mul(float(NOISE_TEX_SIZE))
+        .mul(this.noiseScaleUniform)
+      const nx = simplexNoise3d(
+        vec3(
+          noiseCoord.x,
+          noiseCoord.y,
+          this.timeUniform.mul(this.noiseSpeedUniform)
+        )
+      )
+      const ny = simplexNoise3d(
+        vec3(
+          noiseCoord.x,
+          noiseCoord.y,
+          this.timeUniform.mul(this.noiseSpeedUniform).add(float(100))
+        )
+      )
+      textureStore(
+        noiseTex,
+        uvec2(posX, posY),
+        vec4(nx, ny, float(0), float(1))
+      ).toWriteOnly()
+    })
+
+    return computeNoiseFn({ noiseTex: this.noiseTexture }).compute(
+      NOISE_TEX_SIZE * NOISE_TEX_SIZE
+    )
+  }
+
+  private updateFrustumUniforms(): void {
+    const halfH = Math.tan((45 * Math.PI) / 360) * 1.2
+    const halfW = halfH * (this.width / this.height)
+    this.halfHUniform.value = halfH
+    this.halfWUniform.value = halfW
+    const pixelsPerUnit = this.height / (2 * halfH)
+    const requestedSize =
+      (this.pointSizeUniform.value as number) / pixelsPerUnit
+    const gridSpacing = (2 * halfW) / Math.max(1, this.gridResolution - 1)
+    const maxSize = gridSpacing * 2
+    this.quadSizeUniform.value = Math.min(requestedSize, maxSize)
+  }
+
   private normalizeBloomRadius(value: number): number {
     return clamp01(value / 24)
   }
@@ -402,11 +477,17 @@ export class ParticleGridPass extends PassNode {
       throw new Error("Bloom node is not initialized")
     }
 
-    if ("getTextureNode" in bloomNode && typeof bloomNode.getTextureNode === "function") {
+    if (
+      "getTextureNode" in bloomNode &&
+      typeof bloomNode.getTextureNode === "function"
+    ) {
       return bloomNode.getTextureNode()
     }
 
-    if ("getTexture" in bloomNode && typeof bloomNode.getTexture === "function") {
+    if (
+      "getTexture" in bloomNode &&
+      typeof bloomNode.getTexture === "function"
+    ) {
       return bloomNode.getTexture()
     }
 

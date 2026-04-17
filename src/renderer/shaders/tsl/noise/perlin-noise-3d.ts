@@ -9,13 +9,14 @@ import {
   mul,
   step,
   sub,
+  type TSLNode,
   vec2,
   vec3,
   vec4,
 } from "three/tsl"
 import { fade, permute, taylorInvSqrt } from "./common"
 
-export const perlinNoise3d = Fn(([pImmutable]) => {
+export const perlinNoise3d = Fn(([pImmutable]: [TSLNode]) => {
   const P = vec3(pImmutable).toVar()
 
   const Pi0 = vec3(mod(floor(P), 289.0)).toVar()

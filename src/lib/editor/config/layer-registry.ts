@@ -300,7 +300,7 @@ const inkParams = [
     defaultValue: 0.81,
     group: "Ink Bleed",
     key: "crispBlend",
-    label: "Text Clarity",
+    label: "Detail Blend",
     max: 1,
     min: 0,
     step: 0.01,
@@ -397,11 +397,26 @@ const inkParams = [
     type: "number",
   },
   {
+    defaultValue: "gradient",
+    group: "Colors",
+    key: "colorMode",
+    label: "Color Mode",
+    options: [
+      { label: "Gradient", value: "gradient" },
+      { label: "Source", value: "source" },
+    ],
+    type: "select",
+  },
+  {
     defaultValue: "#fffde8",
     group: "Glow Colors",
     key: "coreColor",
     label: "Core Color",
     type: "color",
+    visibleWhen: {
+      equals: "gradient",
+      key: "colorMode",
+    },
   },
   {
     defaultValue: "#FFA700",
@@ -409,6 +424,10 @@ const inkParams = [
     key: "midColor",
     label: "Mid Color",
     type: "color",
+    visibleWhen: {
+      equals: "gradient",
+      key: "colorMode",
+    },
   },
   {
     defaultValue: "#7192F1",
@@ -416,6 +435,10 @@ const inkParams = [
     key: "edgeColor",
     label: "Edge Color",
     type: "color",
+    visibleWhen: {
+      equals: "gradient",
+      key: "colorMode",
+    },
   },
   {
     defaultValue: "#000000",

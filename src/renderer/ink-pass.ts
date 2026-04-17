@@ -23,6 +23,10 @@ import { grainTexturePattern } from "@/renderer/shaders/tsl/patterns/grain-textu
 import type { LayerParameterValues } from "@/types/editor"
 
 type Node = TSLNode
+type InkColorMode = "gradient" | "source"
+
+const INK_COLOR_MODE_GRADIENT = 0
+const INK_COLOR_MODE_SOURCE = 1
 
 const INTERNAL_TARGET_OPTIONS = {
   depthBuffer: false,
@@ -51,6 +55,14 @@ function hexToRgb(hex: string): [number, number, number] {
   const color = new THREE.Color(`#${value}`)
 
   return [color.r, color.g, color.b]
+}
+
+function resolveInkColorMode(value: unknown): InkColorMode {
+  return value === "source" ? "source" : "gradient"
+}
+
+function toInkColorModeValue(mode: InkColorMode): number {
+  return mode === "source" ? INK_COLOR_MODE_SOURCE : INK_COLOR_MODE_GRADIENT
 }
 
 export class InkPass extends PassNode {
@@ -101,6 +113,7 @@ export class InkPass extends PassNode {
   private readonly smokeSpeedUniform: Node
   private readonly smokeTurbulenceUniform: Node
   private readonly timeUniform: Node
+  private readonly colorModeUniform: Node
 
   private blurPassCount = 12
   private crispPassCount = 3
@@ -160,6 +173,7 @@ export class InkPass extends PassNode {
     this.smokeSpeedUniform = uniform(0.2)
     this.smokeTurbulenceUniform = uniform(0.25)
     this.timeUniform = uniform(0)
+    this.colorModeUniform = uniform(INK_COLOR_MODE_GRADIENT)
 
     this.readTarget = new THREE.WebGLRenderTarget(1, 1, INTERNAL_TARGET_OPTIONS)
     this.writeTarget = new THREE.WebGLRenderTarget(1, 1, INTERNAL_TARGET_OPTIONS)
@@ -297,6 +311,7 @@ export class InkPass extends PassNode {
       typeof params.grainIntensity === "number" ? clamp01(params.grainIntensity) : 0.3
     this.grainScaleUniform.value =
       typeof params.grainScale === "number" ? Math.max(0.5, params.grainScale) : 1.5
+    this.colorModeUniform.value = toInkColorModeValue(resolveInkColorMode(params.colorMode))
 
     this.setColorUniform(
       this.backgroundColorUniform,
@@ -548,23 +563,32 @@ export class InkPass extends PassNode {
       float(this.coreColorUniform.z),
     )
 
-    const fluidColor = this.applyColorGradient(blurIntensity, backgroundColor, edgeColor, midColor, coreColor)
-    const crispColor = this.applyColorGradient(
+    const fluidGradientColor = this.applyColorGradient(
+      blurIntensity,
+      backgroundColor,
+      edgeColor,
+      midColor,
+      coreColor,
+    )
+    const crispGradientColor = this.applyColorGradient(
       crispIntensity,
       backgroundColor,
       edgeColor,
       midColor,
       coreColor,
     )
-    const fluidColorChroma = vec3(
-      mix(fluidColor.x, fluidColor.x.mul(1.1), blurR.mul(0.3)),
-      fluidColor.y,
-      mix(fluidColor.z, fluidColor.z.mul(1.15), blurB.mul(0.3)),
+    const fluidSourceColor = vec3(
+      mix(blurSample.r, blurSample.r.mul(1.1), blurR.mul(0.3)),
+      blurSample.g,
+      mix(blurSample.b, blurSample.b.mul(1.15), blurB.mul(0.3)),
     )
+    const useSourceColor = this.colorModeUniform.greaterThan(float(0.5))
+    const fluidColor = select(useSourceColor, fluidSourceColor, fluidGradientColor)
+    const crispColor = select(useSourceColor, crispSample.rgb, crispGradientColor)
 
     const fluidMask = pow(clamp(blurIntensity, float(0), float(1)), float(1.2))
     const crispMask = pow(clamp(crispIntensity, float(0), float(1)), float(0.96))
-    const fluidGlow = fluidColorChroma.mul(fluidMask).mul(1.8)
+    const fluidGlow = fluidColor.mul(fluidMask).mul(1.8)
     const crispGlow = crispColor.mul(crispMask).mul(1.95)
     const crispWeight = crispMask.mul(this.crispBlendUniform)
     let combined = mix(fluidGlow, crispGlow, crispWeight).add(fluidGlow.mul(0.15))

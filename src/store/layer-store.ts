@@ -20,6 +20,7 @@ import type {
   BlendMode,
   EditorLayer,
   LayerCompositeMode,
+  LayerParameterValues,
   LayerType,
   MaskConfig,
   ParameterValue,
@@ -70,6 +71,7 @@ export interface LayerStoreActions {
   setLayerSaturation: (id: string, saturation: number) => void
   setLayerVisibility: (id: string, visible: boolean) => void
   setLayersVisibility: (ids: string[], visible: boolean) => void
+  randomizeGradientParams: (id: string) => void
   updateLayerParam: (id: string, key: string, value: ParameterValue) => void
 }
 
@@ -254,6 +256,134 @@ function getGradientPresetDefaults(
     default:
       return null
   }
+}
+
+function randomBetween(min: number, max: number): number {
+  return min + Math.random() * (max - min)
+}
+
+function randomInt(min: number, max: number): number {
+  return Math.floor(randomBetween(min, max + 1))
+}
+
+function clampValue(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value))
+}
+
+function randomChoice<T>(values: readonly T[]): T {
+  return values[Math.floor(Math.random() * values.length)] as T
+}
+
+function randomHexColor(): string {
+  const hue = randomInt(0, 359)
+  const saturation = randomInt(45, 95) / 100
+  const lightness = randomInt(30, 78) / 100
+  const chroma = (1 - Math.abs(2 * lightness - 1)) * saturation
+  const hueSector = hue / 60
+  const x = chroma * (1 - Math.abs((hueSector % 2) - 1))
+  const match = lightness - chroma / 2
+
+  let r = 0
+  let g = 0
+  let b = 0
+
+  if (hueSector < 1) {
+    r = chroma
+    g = x
+  } else if (hueSector < 2) {
+    r = x
+    g = chroma
+  } else if (hueSector < 3) {
+    g = chroma
+    b = x
+  } else if (hueSector < 4) {
+    g = x
+    b = chroma
+  } else if (hueSector < 5) {
+    r = x
+    b = chroma
+  } else {
+    r = chroma
+    b = x
+  }
+
+  const toHex = (channel: number) =>
+    Math.round((channel + match) * 255)
+      .toString(16)
+      .padStart(2, "0")
+
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`
+}
+
+function buildRandomGradientParams(): LayerParameterValues {
+  const params = resetLayerParameters("gradient")
+  const noiseType = randomChoice([
+    "simplex",
+    "perlin",
+    "value",
+    "voronoi",
+    "ridge",
+    "turbulence",
+  ] as const)
+  const noiseDefaults = getGradientNoiseDefaults(noiseType)
+
+  params.preset = "custom"
+  params.activePoints = randomInt(2, 5)
+
+  for (let index = 1; index <= 5; index += 1) {
+    params[`point${index}Color`] = randomHexColor()
+    params[`point${index}Position`] = [
+      Number(randomBetween(-1.1, 1.1).toFixed(2)),
+      Number(randomBetween(-1.1, 1.1).toFixed(2)),
+    ]
+    params[`point${index}Weight`] = Number(randomBetween(0.2, 2.4).toFixed(2))
+  }
+
+  params.noiseType = noiseType
+  params.noiseSeed = Number(randomBetween(0, 100).toFixed(1))
+  params.warpAmount = Number(
+    clampValue(
+      randomBetween(
+        (noiseDefaults?.warpAmount ?? 0.3) * 0.6,
+        (noiseDefaults?.warpAmount ?? 0.3) * 1.4 + 0.08
+      ),
+      0,
+      1
+    ).toFixed(2)
+  )
+  params.warpScale = Number(
+    clampValue(
+      randomBetween(
+        (noiseDefaults?.warpScale ?? 2.5) * 0.6,
+        (noiseDefaults?.warpScale ?? 2.5) * 1.4 + 0.2
+      ),
+      0.1,
+      6
+    ).toFixed(2)
+  )
+  params.warpIterations = randomInt(1, 4)
+  params.warpDecay = Number(randomBetween(0.4, 1.8).toFixed(2))
+  params.warpBias = Number(randomBetween(0, 1).toFixed(2))
+  params.vortexAmount = Number(randomBetween(-1, 1).toFixed(2))
+  params.animate = Math.random() > 0.2
+  params.motionAmount = Number(randomBetween(0, 1).toFixed(2))
+  params.motionSpeed = Number(randomBetween(0, 2).toFixed(2))
+  params.falloff = Number(randomBetween(0.8, 3.8).toFixed(2))
+  params.tonemapMode = randomChoice([
+    "none",
+    "aces",
+    "reinhard",
+    "totos",
+    "cinematic",
+  ] as const)
+  params.glowStrength = Number(randomBetween(0, 0.45).toFixed(2))
+  params.glowThreshold = Number(randomBetween(0, 0.6).toFixed(2))
+  params.grainAmount = Number(randomBetween(0, 0.25).toFixed(2))
+  params.vignetteStrength = Number(randomBetween(0, 0.35).toFixed(2))
+  params.vignetteRadius = Number(randomBetween(0.6, 1.5).toFixed(2))
+  params.vignetteSoftness = Number(randomBetween(0.2, 1).toFixed(2))
+
+  return params
 }
 
 function getDitheringPresetDefaults(
@@ -715,6 +845,20 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
     set((state) => ({
       layers: state.layers.map((layer) =>
         layer.id === id ? { ...layer, assetId, runtimeError: null } : layer
+      ),
+    }))
+  },
+
+  randomizeGradientParams: (id) => {
+    set((state) => ({
+      layers: state.layers.map((layer) =>
+        layer.id === id && layer.type === "gradient"
+          ? {
+              ...layer,
+              params: buildRandomGradientParams(),
+              runtimeError: null,
+            }
+          : layer
       ),
     }))
   },

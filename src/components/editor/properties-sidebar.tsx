@@ -70,6 +70,9 @@ export function PropertiesSidebar() {
   const setLayerMaskConfig = useLayerStore((state) => state.setLayerMaskConfig)
   const setLayerHue = useLayerStore((state) => state.setLayerHue)
   const setLayerOpacity = useLayerStore((state) => state.setLayerOpacity)
+  const randomizeGradientParams = useLayerStore(
+    (state) => state.randomizeGradientParams
+  )
   const setLayerSaturation = useLayerStore((state) => state.setLayerSaturation)
   const updateLayerParam = useLayerStore((state) => state.updateLayerParam)
   const currentTime = useTimelineStore((state) => state.currentTime)
@@ -492,6 +495,7 @@ export function PropertiesSidebar() {
         onToggleParamGroup: handleToggleParamGroup,
         onTimelineKeyframe: handleTimelineKeyframe,
         opacity: displayedLayerState?.opacity ?? selectedLayer.opacity,
+        randomizeGradientParams,
         reduceMotion,
         saturation: displayedLayerState?.saturation ?? selectedLayer.saturation,
         setLayerBlendMode,

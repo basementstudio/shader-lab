@@ -344,10 +344,13 @@ export class ParticleGridPass extends PassNode {
     const resF = float(this.resolutionUniform)
     const col = idx.mod(resF)
     const row = floor(idx.div(resF))
-    const u = col.div(resF.sub(1.0))
-    const v = row.div(resF.sub(1.0))
+    const uPos = col.div(resF.sub(1.0))
+    const vPos = row.div(resF.sub(1.0))
+    const halfTexel = float(0.5).div(resF)
+    const uSample = col.div(resF).add(halfTexel)
+    const vSample = row.div(resF).add(halfTexel)
 
-    const gridUv = vec2(u, float(1).sub(v))
+    const gridUv = vec2(uSample, float(1).sub(vSample))
 
     // Sample input texture per instance
     this.inputSamplerNode = tslTexture(this.placeholder, gridUv)
@@ -365,8 +368,8 @@ export class ParticleGridPass extends PassNode {
     const noiseOffsetY = noiseSample.g.mul(this.noiseAmountUniform).mul(0.01)
 
     // World-space offset from instanceIndex
-    const offsetX = u.mul(2).sub(1).mul(this.halfWUniform)
-    const offsetY = v.mul(2).sub(1).mul(this.halfHUniform)
+    const offsetX = uPos.mul(2).sub(1).mul(this.halfWUniform)
+    const offsetY = vPos.mul(2).sub(1).mul(this.halfHUniform)
 
     // Scale quad vertices by world size, then offset + noise + displacement
     const scaledPos = positionLocal.mul(this.quadSizeUniform)

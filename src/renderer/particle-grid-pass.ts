@@ -96,6 +96,7 @@ export class ParticleGridPass extends PassNode {
   private gridResolution = 64
   private isAnimated = false
   private needsRebuild = true
+  private logicalHeight = 1
   private width = 1
   private height = 1
   private readonly placeholder: THREE.Texture
@@ -259,6 +260,11 @@ export class ParticleGridPass extends PassNode {
     this.internalRT.setSize(this.width, this.height)
     this.perspCamera.aspect = this.width / this.height
     this.perspCamera.updateProjectionMatrix()
+    this.updateFrustumUniforms()
+  }
+
+  override updateLogicalSize(_width: number, height: number): void {
+    this.logicalHeight = Math.max(1, height)
     this.updateFrustumUniforms()
   }
 
@@ -463,8 +469,11 @@ export class ParticleGridPass extends PassNode {
     this.halfHUniform.value = halfH
     this.halfWUniform.value = halfW
     const pixelsPerUnit = this.height / (2 * halfH)
+    const logicalToRenderScale = this.height / this.logicalHeight
     const requestedSize =
-      (this.pointSizeUniform.value as number) / pixelsPerUnit
+      (this.pointSizeUniform.value as number) *
+      logicalToRenderScale /
+      pixelsPerUnit
     // Cap quad size at 2× grid spacing to prevent catastrophic overdraw.
     // Beyond this point particles fully tile the viewport and extra size
     // only adds invisible overlapping fragments.

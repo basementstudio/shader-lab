@@ -1,27 +1,30 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import {
-  buildRendererFrame,
-  type EditorRenderer,
-} from "@/renderer/contracts"
+import { buildRendererFrame, type EditorRenderer } from "@/renderer/contracts"
 import {
   browserSupportsWebGPU,
   createWebGPURenderer,
 } from "@/renderer/create-webgpu-renderer"
-import type { Size } from "@/types/editor"
 import { useAssetStore } from "@/store/asset-store"
 import { useEditorStore } from "@/store/editor-store"
+import {
+  getActivePresetSettings,
+  useGraphicsPresetStore,
+} from "@/store/graphics-preset-store"
 import { useLayerStore } from "@/store/layer-store"
 import { useMetricsStore } from "@/store/metrics-store"
 import { useTimelineStore } from "@/store/timeline-store"
+import type { Size } from "@/types/editor"
 
 function getPixelRatio(): number {
   if (typeof window === "undefined") {
     return 1
   }
 
-  return Math.min(window.devicePixelRatio || 1, 2)
+  const preset = getActivePresetSettings()
+  const base = Math.min(window.devicePixelRatio || 1, preset.pixelRatioCap)
+  return Math.max(0.25, base * preset.renderScale)
 }
 
 function measureElement(element: HTMLElement): Size {
@@ -57,7 +60,7 @@ export function useEditorRenderer() {
     if (!browserSupportsWebGPU()) {
       editorStore.setWebGPUStatus(
         "unsupported",
-        "This browser does not expose WebGPU yet.",
+        "This browser does not expose WebGPU yet."
       )
       setFallbackMessage("WebGPU is not available in this browser.")
       return
@@ -67,6 +70,7 @@ export function useEditorRenderer() {
     let lastFrameTime = performance.now()
     let previewTime = 0
     let resizeObserver: ResizeObserver | null = null
+    let unsubscribePreset: (() => void) | null = null
 
     editorStore.setWebGPUStatus("initializing")
 
@@ -105,11 +109,21 @@ export function useEditorRenderer() {
             width: Math.max(1, Math.round(entry.contentRect.width)),
           }
 
-          useEditorStore.getState().setCanvasSize(nextSize.width, nextSize.height)
+          useEditorStore
+            .getState()
+            .setCanvasSize(nextSize.width, nextSize.height)
           renderer.resize(nextSize, getPixelRatio())
         })
 
         resizeObserver.observe(viewportElement)
+
+        unsubscribePreset = useGraphicsPresetStore.subscribe((state, prev) => {
+          if (state.mode === prev.mode && state.detected === prev.detected) {
+            return
+          }
+          const size = useEditorStore.getState().canvasSize
+          renderer.resize(size, getPixelRatio())
+        })
 
         const renderFrame = async (now: number) => {
           const layerState = useLayerStore.getState()
@@ -162,9 +176,11 @@ export function useEditorRenderer() {
           }
 
           renderer.render(frame)
-          animationFrameRef.current = window.requestAnimationFrame((nextNow) => {
-            void renderFrame(nextNow)
-          })
+          animationFrameRef.current = window.requestAnimationFrame(
+            (nextNow) => {
+              void renderFrame(nextNow)
+            }
+          )
         }
 
         animationFrameRef.current = window.requestAnimationFrame((nextNow) => {
@@ -172,7 +188,9 @@ export function useEditorRenderer() {
         })
       } catch (error) {
         const message =
-          error instanceof Error ? error.message : "Renderer initialization failed."
+          error instanceof Error
+            ? error.message
+            : "Renderer initialization failed."
 
         useEditorStore.getState().setWebGPUStatus("error", message)
         setFallbackMessage(message)
@@ -187,6 +205,8 @@ export function useEditorRenderer() {
       if (resizeObserver) {
         resizeObserver.disconnect()
       }
+
+      unsubscribePreset?.()
 
       if (animationFrameRef.current !== null) {
         window.cancelAnimationFrame(animationFrameRef.current)

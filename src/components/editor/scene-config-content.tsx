@@ -2,15 +2,21 @@
 
 import { useCallback } from "react"
 import { ChannelMixerMatrix } from "@/components/ui/channel-mixer-matrix"
-import { ColorPicker } from "@/components/ui/color-picker"
 import { ColorCurvesEditor } from "@/components/ui/color-curves"
+import { ColorPicker } from "@/components/ui/color-picker"
 import { GradientRamp, type GradientStop } from "@/components/ui/gradient-ramp"
 import { NumberInput } from "@/components/ui/number-input"
 import { Select } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
 import { Toggle } from "@/components/ui/toggle"
 import { Typography } from "@/components/ui/typography"
+import {
+  GRAPHICS_PRESET_LABELS,
+  type GraphicsPreset,
+  type GraphicsPresetMode,
+} from "@/lib/editor/graphics-preset"
 import { useEditorStore } from "@/store/editor-store"
+import { useGraphicsPresetStore } from "@/store/graphics-preset-store"
 import type { CompositionAspect, SceneConfig } from "@/types/editor"
 import { COMPOSITION_ASPECTS, DEFAULT_SCENE_CONFIG } from "@/types/editor"
 
@@ -23,6 +29,19 @@ const aspectOptions = COMPOSITION_ASPECTS.map((aspect) => ({
   label: ASPECT_LABELS[aspect] ?? aspect,
   value: aspect,
 }))
+
+function buildGraphicsPresetOptions(detected: GraphicsPreset | null) {
+  const autoLabel = detected
+    ? `Auto (${GRAPHICS_PRESET_LABELS[detected]})`
+    : "Auto"
+
+  return [
+    { label: autoLabel, value: "auto" },
+    { label: GRAPHICS_PRESET_LABELS.performance, value: "performance" },
+    { label: GRAPHICS_PRESET_LABELS.balanced, value: "balanced" },
+    { label: GRAPHICS_PRESET_LABELS.quality, value: "quality" },
+  ]
+}
 
 const inputClassName =
   "h-7 w-14 rounded-[var(--ds-radius-control)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-2 text-center font-[var(--ds-font-mono)] text-[11px] leading-4 text-[var(--ds-color-text-primary)] outline-none focus:border-[var(--ds-border-active)]"
@@ -64,6 +83,42 @@ function Row({
       <Typography variant="label">{label}</Typography>
       {children}
     </div>
+  )
+}
+
+function GraphicsSection() {
+  const mode = useGraphicsPresetStore((state) => state.mode)
+  const detected = useGraphicsPresetStore((state) => state.detected)
+  const setMode = useGraphicsPresetStore((state) => state.setMode)
+  const resetDetection = useGraphicsPresetStore((state) => state.resetDetection)
+
+  const options = buildGraphicsPresetOptions(detected)
+
+  const handleChange = useCallback(
+    (value: string | null) => {
+      if (!value) return
+      const next = value as GraphicsPresetMode
+      if (next === "auto") {
+        resetDetection()
+      }
+      setMode(next)
+    },
+    [setMode, resetDetection]
+  )
+
+  const detectedLabel = detected ? GRAPHICS_PRESET_LABELS[detected] : null
+
+  return (
+    <Section title="Graphics">
+      <Row label="Graphics Preset">
+        <Select onValueChange={handleChange} options={options} value={mode} />
+      </Row>
+      <Typography tone="muted" variant="monoXs">
+        {detectedLabel
+          ? `Recommended for this device: ${detectedLabel}. Auto applies the detected recommendation.`
+          : "Detecting recommended settings for this device…"}
+      </Typography>
+    </Section>
   )
 }
 
@@ -142,6 +197,8 @@ export function SceneConfigContent() {
           />
         </Row>
       </Section>
+
+      <GraphicsSection />
 
       {/* Color Adjustments */}
       <Section

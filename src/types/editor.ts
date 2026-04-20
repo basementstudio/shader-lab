@@ -434,7 +434,6 @@ export const DEFAULT_SCENE_CONFIG: SceneConfig = {
   colorMap: null,
 }
 
-export type RenderScale = 1 | 0.75 | 0.5
 export type WebGPUStatus =
   | "idle"
   | "unsupported"
@@ -448,7 +447,6 @@ export interface EditorStateSnapshot {
   interactiveEditDepth: number
   outputSize: Size
   panOffset: Vector2
-  renderScale: RenderScale
   sceneConfig: SceneConfig
   sidebars: {
     left: boolean

@@ -19,7 +19,16 @@ export async function createWebGPURenderer(
 
   function renderFrame(frame: RendererFrame) {
     if (!pipeline) {
-      pipeline = new PipelineManager(renderer, frame.viewportSize)
+      pipeline = new PipelineManager(renderer, {
+        width: Math.max(
+          1,
+          Math.round(frame.viewportSize.width * frame.pixelRatio)
+        ),
+        height: Math.max(
+          1,
+          Math.round(frame.viewportSize.height * frame.pixelRatio)
+        ),
+      })
     }
 
     pipeline.updateLogicalSize(frame.logicalSize)
@@ -62,7 +71,10 @@ export async function createWebGPURenderer(
     resize(size: Size, pixelRatio: number) {
       renderer.setPixelRatio(pixelRatio)
       renderer.setSize(size.width, size.height, false)
-      pipeline?.resize(size)
+      pipeline?.resize({
+        width: Math.max(1, Math.round(size.width * pixelRatio)),
+        height: Math.max(1, Math.round(size.height * pixelRatio)),
+      })
     },
 
     render(frame: RendererFrame) {

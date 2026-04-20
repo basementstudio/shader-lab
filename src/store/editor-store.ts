@@ -5,7 +5,6 @@ import type { EditorRenderer } from "@/renderer/contracts"
 import type {
   EditorStateSnapshot,
   MobileEditorPanel,
-  RenderScale,
   SceneConfig,
   SidebarView,
   WebGPUStatus,
@@ -62,7 +61,6 @@ export interface EditorStoreActions {
   setImmersiveCanvas: (immersiveCanvas: boolean) => void
   setOutputSize: (width: number, height: number) => void
   setPan: (x: number, y: number) => void
-  setRenderScale: (scale: RenderScale) => void
   setSidebarOpen: (side: "left" | "right", open: boolean) => void
   setTheme: (theme: "dark" | "light") => void
   setTimelineAutoKey: (enabled: boolean) => void
@@ -111,7 +109,6 @@ export const useEditorStore = create<EditorStore>((set) => ({
   mobilePanel: "none",
   outputSize: DEFAULT_PROJECT_COMPOSITION,
   panOffset: { x: 0, y: 0 },
-  renderScale: 1,
   sceneConfig: DEFAULT_SCENE_CONFIG,
   sidebars: {
     left: true,
@@ -255,12 +252,6 @@ export const useEditorStore = create<EditorStore>((set) => ({
         height: clampCanvasDimension(height),
         width: clampCanvasDimension(width),
       },
-    })
-  },
-
-  setRenderScale: (renderScale) => {
-    set({
-      renderScale,
     })
   },
 

@@ -1,3 +1,4 @@
+import { DEFAULT_RENDERER_SIZE } from "./renderer/contracts"
 import { createRuntimeClock } from "./runtime-clock"
 import { resolveEvaluatedLayers } from "./timeline"
 import type { ShaderLabConfig, ShaderLabLayerConfig } from "./types"
@@ -8,22 +9,26 @@ export interface ShaderLabRenderableLayer {
 
 export interface ShaderLabRuntimeFrame {
   clock: ReturnType<typeof createRuntimeClock>
-  composition: ShaderLabConfig["composition"]
+  composition: NonNullable<ShaderLabConfig["composition"]>
   layers: ShaderLabRenderableLayer[]
 }
 
 export function buildRuntimeFrame(
   config: ShaderLabConfig,
   time: number,
-  delta: number,
+  delta: number
 ): ShaderLabRuntimeFrame {
-  const layers = resolveEvaluatedLayers(config.layers, config.timeline.tracks, time)
+  const layers = resolveEvaluatedLayers(
+    config.layers,
+    config.timeline.tracks,
+    time
+  )
     .filter((layer) => layer.visible)
     .map((layer) => ({ layer }))
 
   return {
     clock: createRuntimeClock(config.timeline, time, delta),
-    composition: config.composition,
+    composition: config.composition ?? DEFAULT_RENDERER_SIZE,
     layers,
   }
 }

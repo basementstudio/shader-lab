@@ -67,10 +67,6 @@ import {
 } from "@basementstudio/shader-lab"
 
 const config: ShaderLabConfig = {
-  composition: {
-    width: 1512,
-    height: 909,
-  },
   layers: [],
   timeline: {
     duration: 6,
@@ -647,7 +643,7 @@ export const sketch = Fn(() => {
 
 ## Notes
 
-- `ShaderLabComposition` preserves the exported aspect ratio and fills its container width
+- `ShaderLabComposition` preserves aspect ratio only when `config.composition` is provided, and otherwise fills the size defined by your layout
 - `useShaderLab` is the recommended entry point for most app integrations
 - If you only need direct composition rendering in the DOM, use `ShaderLabComposition`
 - If you need full manual control, use the lower-level source APIs

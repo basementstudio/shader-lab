@@ -13,6 +13,25 @@ export interface ShaderLabCompositionProps {
   style?: CSSProperties
 }
 
+export function getShaderLabCompositionStyle(
+  composition: ShaderLabConfig["composition"],
+  style?: CSSProperties
+): CSSProperties {
+  return {
+    ...(composition
+      ? {
+          aspectRatio: `${composition.width} / ${composition.height}`,
+        }
+      : {
+          height: "100%",
+        }),
+    overflow: "hidden",
+    position: "relative",
+    width: "100%",
+    ...style,
+  }
+}
+
 export function ShaderLabComposition({
   className,
   config,
@@ -71,6 +90,7 @@ export function ShaderLabComposition({
 
       const devicePixelRatio = window.devicePixelRatio || 1
       const viewportSize = getViewportSize()
+      const logicalSize = config.composition ?? viewportSize
 
       runtimeRenderer.resize(viewportSize, devicePixelRatio)
       runtimeRenderer.render(
@@ -79,7 +99,8 @@ export function ShaderLabComposition({
           now / 1000,
           delta,
           devicePixelRatio,
-          viewportSize
+          viewportSize,
+          { logicalSize }
         )
       )
 
@@ -127,13 +148,7 @@ export function ShaderLabComposition({
     <div
       className={className}
       data-shader-lab-composition="true"
-      style={{
-        aspectRatio: `${config.composition.width} / ${config.composition.height}`,
-        overflow: "hidden",
-        position: "relative",
-        width: "100%",
-        ...style,
-      }}
+      style={getShaderLabCompositionStyle(config.composition, style)}
     >
       <canvas
         ref={canvasRef}

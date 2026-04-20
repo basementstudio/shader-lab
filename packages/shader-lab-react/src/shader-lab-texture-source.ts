@@ -1,5 +1,5 @@
 import type * as THREE from "three/webgpu"
-import { buildRendererFrame } from "./renderer/contracts"
+import { buildRendererFrame, DEFAULT_RENDERER_SIZE } from "./renderer/contracts"
 import {
   createHeadlessRenderer,
   type HeadlessRenderer,
@@ -28,8 +28,12 @@ export class ShaderLabTextureSource {
     options?: ShaderLabTextureSourceOptions
   ) {
     this.config = config
-    this.width = options?.width ?? config.composition.width
-    this.height = options?.height ?? config.composition.height
+    this.width =
+      options?.width ?? config.composition?.width ?? DEFAULT_RENDERER_SIZE.width
+    this.height =
+      options?.height ??
+      config.composition?.height ??
+      DEFAULT_RENDERER_SIZE.height
     this.pixelRatio = options?.pixelRatio ?? 1
 
     this.headless = createHeadlessRenderer({

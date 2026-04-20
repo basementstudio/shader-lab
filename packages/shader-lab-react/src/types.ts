@@ -168,7 +168,7 @@ export interface ShaderLabLayerConfig {
 }
 
 export interface ShaderLabConfig {
-  composition: {
+  composition?: {
     height: number
     width: number
   }

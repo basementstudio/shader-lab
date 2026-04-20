@@ -1,5 +1,11 @@
 # @basementstudio/shader-lab
 
+## 1.3.12
+
+### Patch Changes
+
+- f94e6f2: Allow ShaderLabComposition to infer size from its container when composition is omitted
+
 ## 1.3.11
 
 ### Patch Changes

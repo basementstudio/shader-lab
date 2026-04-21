@@ -14,7 +14,10 @@ import {
 } from "react"
 import { cn } from "@/lib/cn"
 import type { UISoundId } from "@/lib/audio/shader-lab-sounds"
-import { playOptionalUISound } from "@/lib/audio/shader-lab-sounds"
+import {
+  playOptionalUISound,
+  playSliderStepSound,
+} from "@/lib/audio/shader-lab-sounds"
 import {
   formatNumberForDisplay,
   formatNumberForLocale,
@@ -36,8 +39,48 @@ type SliderProps = Omit<
 
 const MAX_PULL = 8
 const PULL_DAMPING = 0.22
+const CONTINUOUS_STEP_BUCKETS = 24
+
 function clampPullOffset(value: number) {
   return Math.max(-MAX_PULL, Math.min(MAX_PULL, value * PULL_DAMPING))
+}
+
+function clampNormalizedValue(value: number) {
+  return Math.max(0, Math.min(1, value))
+}
+
+function getSliderStepIndex(
+  value: number,
+  min: number,
+  max: number,
+  step: number | undefined
+) {
+  if (typeof step === "number" && Number.isFinite(step) && step > 0) {
+    return Math.round((value - min) / step)
+  }
+
+  const range = max - min
+
+  if (!(Number.isFinite(range) && range > 0)) {
+    return 0
+  }
+
+  const normalized = clampNormalizedValue((value - min) / range)
+
+  return Math.min(
+    CONTINUOUS_STEP_BUCKETS - 1,
+    Math.floor(normalized * CONTINUOUS_STEP_BUCKETS)
+  )
+}
+
+function getSliderNormalizedProgress(value: number, min: number, max: number) {
+  const range = max - min
+
+  if (!(Number.isFinite(range) && range > 0)) {
+    return 0
+  }
+
+  return clampNormalizedValue((value - min) / range)
 }
 
 function parseDraftValue(value: string) {
@@ -73,6 +116,8 @@ export function Slider({
   const controlRef = useRef<HTMLDivElement | null>(null)
   const gestureActiveRef = useRef(false)
   const inputRef = useRef<HTMLInputElement | null>(null)
+  const lastStepIndexRef = useRef(0)
+  const lastValueRef = useRef(0)
   const inputId = useId()
   const [isVisualDragging, setIsVisualDragging] = useState(false)
   const [isEditingValue, setIsEditingValue] = useState(false)
@@ -153,6 +198,15 @@ export function Slider({
     inputRef.current?.select()
   }, [isEditingValue])
 
+  useEffect(() => {
+    if (gestureActiveRef.current || isEditingValue) {
+      return
+    }
+
+    lastValueRef.current = currentValue
+    lastStepIndexRef.current = getSliderStepIndex(currentValue, min, max, props.step)
+  }, [currentValue, isEditingValue, max, min, props.step])
+
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     setIsVisualDragging((current) => (current ? current : true))
     updatePullOffset(event.clientX)
@@ -172,11 +226,33 @@ export function Slider({
     nextValue: number,
     eventDetails: BaseSlider.Root.ChangeEventDetails
   ) => {
+    const previousValue = lastValueRef.current
+    const previousStepIndex = lastStepIndexRef.current
+    const nextStepIndex = getSliderStepIndex(nextValue, min, max, props.step)
+
     if (!gestureActiveRef.current) {
       gestureActiveRef.current = true
       onInteractionStart?.()
       playOptionalUISound(uiSoundStart)
     }
+
+    if (nextValue > previousValue && nextStepIndex !== previousStepIndex) {
+      playSliderStepSound(
+        "up",
+        getSliderNormalizedProgress(nextValue, min, max)
+      )
+    } else if (
+      nextValue < previousValue &&
+      nextStepIndex !== previousStepIndex
+    ) {
+      playSliderStepSound(
+        "down",
+        getSliderNormalizedProgress(nextValue, min, max)
+      )
+    }
+
+    lastValueRef.current = nextValue
+    lastStepIndexRef.current = nextStepIndex
 
     onValueChange?.(nextValue, eventDetails)
   }
@@ -188,6 +264,8 @@ export function Slider({
     >[1]
   ) => {
     onValueCommitted?.(nextValue, eventDetails)
+    lastValueRef.current = nextValue
+    lastStepIndexRef.current = getSliderStepIndex(nextValue, min, max, props.step)
     if (gestureActiveRef.current) {
       playOptionalUISound(uiSoundEnd)
     }

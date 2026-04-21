@@ -19,6 +19,8 @@ export type UISoundId =
   | "generic.numberCommit"
   | "generic.dragStart"
   | "generic.dragEnd"
+  | "generic.dragStepUp"
+  | "generic.dragStepDown"
   | "action.randomize"
   | "action.play"
   | "action.pause"
@@ -47,10 +49,14 @@ export type UISoundId =
 
 type OptionalUISoundId = UISoundId | "none" | undefined
 type GenericUISoundId = Extract<UISoundId, `generic.${string}`>
+type LocalGenericUISoundId = "generic.dragStepUp" | "generic.dragStepDown"
+type PatchGenericUISoundId = Exclude<GenericUISoundId, LocalGenericUISoundId>
 type ActionUISoundId = Extract<UISoundId, `action.${string}`>
+type LocalUISoundId = ActionUISoundId | LocalGenericUISoundId
 type GMajorPitchClass = "G" | "A" | "B" | "C" | "D" | "E" | "F#"
 type GMajorOctave = 2 | 3 | 4 | 5 | 6
 export type GMajorNote = `${GMajorPitchClass}${GMajorOctave}`
+type SliderStepDirection = "up" | "down"
 
 const NOTE_OFFSETS = {
   C: -9,
@@ -67,6 +73,21 @@ const NOTE_OFFSETS = {
   B: 2,
 } as const
 
+const SLIDER_STEP_NOTES: readonly GMajorNote[] = [
+  "G4",
+  "A4",
+  "B4",
+  "C5",
+  "D5",
+  "E5",
+  "F#5",
+  "G5",
+  "A5",
+  "B5",
+  "C6",
+  "D6",
+]
+
 export const GENERIC_UI_SOUND_MAP = {
   "generic.press": "click",
   "generic.toggleOn": "toggle-on",
@@ -75,7 +96,7 @@ export const GENERIC_UI_SOUND_MAP = {
   "generic.numberCommit": "key-press",
   "generic.dragStart": "slide",
   "generic.dragEnd": "pop",
-} as const satisfies Record<GenericUISoundId, string>
+} as const satisfies Record<PatchGenericUISoundId, string>
 
 function tone(
   type: "sine" | "triangle" | "square" | "sawtooth",
@@ -150,6 +171,18 @@ function ping(
   })
 }
 
+function clampNormalizedValue(value: number) {
+  return Math.max(0, Math.min(1, value))
+}
+
+function getSliderStepNote(normalizedProgress: number) {
+  const index = Math.round(
+    clampNormalizedValue(normalizedProgress) * (SLIDER_STEP_NOTES.length - 1)
+  )
+
+  return SLIDER_STEP_NOTES[index] ?? "G4"
+}
+
 function glass(
   base: GMajorNote,
   peak: GMajorNote,
@@ -188,6 +221,8 @@ function glass(
 }
 
 export const UI_SOUND_DEFINITIONS = {
+  "generic.dragStepUp": ping("D5", 0.03, 0.012),
+  "generic.dragStepDown": ping("B4", 0.03, 0.012),
   "action.randomize": {
     effects: [{ depth: 0.0022, mix: 0.18, rate: 1.8, type: "chorus" }],
     layers: [
@@ -347,17 +382,18 @@ export const UI_SOUND_DEFINITIONS = {
       }),
     ],
   },
-} satisfies Record<ActionUISoundId, SoundDefinition>
+} satisfies Record<LocalUISoundId, SoundDefinition>
 
 const UI_SOUND_PLAYERS = Object.fromEntries(
   Object.entries(UI_SOUND_DEFINITIONS).map(([soundId, definition]) => [
     soundId,
     defineSound(definition),
   ])
-) as Record<ActionUISoundId, ReturnType<typeof defineSound>>
+) as Record<LocalUISoundId, ReturnType<typeof defineSound>>
 
 let readyPromise: Promise<void> | null = null
 let genericPatch: ReturnType<typeof definePatch> | null = null
+const sliderStepPlayerCache = new Map<string, ReturnType<typeof defineSound>>()
 
 function ensureAudioReady() {
   if (typeof window === "undefined") {
@@ -383,6 +419,39 @@ function getGenericPatch() {
   return genericPatch
 }
 
+function getSliderStepPlayer(
+  direction: SliderStepDirection,
+  normalizedProgress: number
+) {
+  const note = getSliderStepNote(normalizedProgress)
+  const cacheKey = `${direction}:${note}`
+  const existingPlayer = sliderStepPlayerCache.get(cacheKey)
+
+  if (existingPlayer) {
+    return existingPlayer
+  }
+
+  const targetFrequency = gMajor(note)
+  const startFrequency =
+    direction === "up" ? targetFrequency * 0.985 : targetFrequency * 1.015
+
+  const player = defineSound({
+    envelope: { attack: 0, decay: 0.012, release: 0.004, sustain: 0 },
+    gain: 0.026,
+    source: {
+      frequency: {
+        end: targetFrequency,
+        start: startFrequency,
+      },
+      type: "sine",
+    },
+  })
+
+  sliderStepPlayerCache.set(cacheKey, player)
+
+  return player
+}
+
 export function playUISound(soundId: UISoundId) {
   if (typeof window === "undefined") {
     return
@@ -393,14 +462,27 @@ export function playUISound(soundId: UISoundId) {
   }
 
   if (soundId.startsWith("generic.")) {
-    const patchSound = GENERIC_UI_SOUND_MAP[soundId as GenericUISoundId]
-    const patch = getGenericPatch()
-
+    const localPlayer = UI_SOUND_PLAYERS[soundId as LocalGenericUISoundId]
     const maybeReady = ensureAudioReady()
 
     if (!maybeReady) {
       return
     }
+
+    if (localPlayer) {
+      void maybeReady.then(() => {
+        if (!useSoundStore.getState().enabled) {
+          return
+        }
+
+        localPlayer()
+      })
+
+      return
+    }
+
+    const patchSound = GENERIC_UI_SOUND_MAP[soundId as PatchGenericUISoundId]
+    const patch = getGenericPatch()
 
     void maybeReady.then(() => {
       if (!useSoundStore.getState().enabled) {
@@ -426,6 +508,34 @@ export function playUISound(soundId: UISoundId) {
     }
 
     player?.()
+  })
+}
+
+export function playSliderStepSound(
+  direction: SliderStepDirection,
+  normalizedProgress: number
+) {
+  if (typeof window === "undefined") {
+    return
+  }
+
+  if (!useSoundStore.getState().enabled) {
+    return
+  }
+
+  const player = getSliderStepPlayer(direction, normalizedProgress)
+  const maybeReady = ensureAudioReady()
+
+  if (!maybeReady) {
+    return
+  }
+
+  void maybeReady.then(() => {
+    if (!useSoundStore.getState().enabled) {
+      return
+    }
+
+    player()
   })
 }
 

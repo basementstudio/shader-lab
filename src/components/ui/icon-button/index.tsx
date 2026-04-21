@@ -1,9 +1,11 @@
+"use client"
+
 import { cva, type VariantProps } from "class-variance-authority"
-import type { ButtonHTMLAttributes, Ref, ReactNode } from "react"
-import { cn } from "@/lib/cn"
+import type { ButtonHTMLAttributes, ReactNode, Ref } from "react"
+import { HoverTooltip } from "@/components/ui/tooltip"
 import type { UISoundId } from "@/lib/audio/shader-lab-sounds"
 import { playOptionalUISound } from "@/lib/audio/shader-lab-sounds"
-import { HoverTooltip } from "@/components/ui/tooltip"
+import { cn } from "@/lib/cn"
 
 const iconButtonVariants = cva(
   "inline-flex h-7 w-7 shrink-0 origin-center cursor-pointer items-center justify-center rounded-[var(--ds-radius-icon)] border-0 bg-transparent text-[var(--ds-color-text-tertiary)] transition-[background-color,box-shadow,color,transform] duration-160 ease-[var(--ease-out-cubic)] will-change-transform disabled:cursor-not-allowed [&_svg]:h-3.5 [&_svg]:w-3.5 hover:not-disabled:shadow-[inset_0_0_0_1px_rgb(255_255_255_/_0.04)] active:not-disabled:scale-[0.96]",

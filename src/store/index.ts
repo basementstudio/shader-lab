@@ -24,6 +24,12 @@ export {
   type LayerStoreState,
 } from "./layer-store"
 export {
+  useSoundStore,
+  type SoundStore,
+  type SoundStoreActions,
+  type SoundStoreState,
+} from "./sound-store"
+export {
   useTimelineStore,
   type TimelineStore,
   type TimelineStoreActions,

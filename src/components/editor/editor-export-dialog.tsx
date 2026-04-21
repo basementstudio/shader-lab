@@ -24,7 +24,9 @@ import { GlassPanel } from "@/components/ui/glass-panel"
 import { IconButton } from "@/components/ui/icon-button"
 import { NumberInput as EditableNumberInput } from "@/components/ui/number-input"
 import { Typography } from "@/components/ui/typography"
+import type { UISoundId } from "@/lib/audio/shader-lab-sounds"
 import { cn } from "@/lib/cn"
+import { playOptionalUISound } from "@/lib/audio/shader-lab-sounds"
 import {
   ASPECT_PRESET_LABELS,
   clampExportSize,
@@ -94,6 +96,13 @@ const FOCUSABLE_SELECTOR = [
   "[href]",
   '[tabindex]:not([tabindex="-1"])',
 ].join(", ")
+
+const QUALITY_SOUND_MAP: Record<ExportQualityPreset, UISoundId> = {
+  draft: "action.qualityDraft",
+  standard: "action.qualityStandard",
+  high: "action.qualityHigh",
+  ultra: "action.qualityUltra",
+}
 
 function roundDurationForExport(value: number): number {
   if (!Number.isFinite(value) || value <= 0) {
@@ -404,6 +413,7 @@ export function EditorExportDialog({
 
       clearFeedback()
       setActiveTab(nextTab)
+      playOptionalUISound("generic.press")
     },
     [activeTab, clearFeedback]
   )
@@ -975,6 +985,9 @@ function ImageTabContent({
               key={preset}
               label={QUALITY_LABELS[preset]}
               onClick={() => onImageQualityChange(preset)}
+              uiSound={
+                imageQuality === preset ? "none" : QUALITY_SOUND_MAP[preset]
+              }
             />
           ))}
         </PresetRow>
@@ -991,7 +1004,11 @@ function ImageTabContent({
         Uses the current playhead frame.
       </Typography>
 
-      <Button disabled={isWorking} onClick={() => void onExport()}>
+      <Button
+        disabled={isWorking}
+        onClick={() => void onExport()}
+        uiSound="action.export"
+      >
         <DownloadIcon height={16} width={16} />
         Export PNG
       </Button>
@@ -1084,6 +1101,9 @@ function VideoTabContent({
               key={preset}
               label={QUALITY_LABELS[preset]}
               onClick={() => onVideoQualityChange(preset)}
+              uiSound={
+                videoQuality === preset ? "none" : QUALITY_SOUND_MAP[preset]
+              }
             />
           ))}
         </PresetRow>
@@ -1141,6 +1161,7 @@ function VideoTabContent({
       <Button
         disabled={!(isWorking || selectedFormatSupported)}
         onClick={() => void onExport()}
+        uiSound="action.export"
       >
         {isWorking ? (
           <Cross2Icon height={16} width={16} />
@@ -1174,7 +1195,11 @@ function ProjectTabContent({
 }) {
   return (
     <section className="flex flex-col gap-[14px]">
-      <Button disabled={isWorking} onClick={() => void onExport()}>
+      <Button
+        disabled={isWorking}
+        onClick={() => void onExport()}
+        uiSound="action.export"
+      >
         <DownloadIcon height={16} width={16} />
         Export .lab file
       </Button>
@@ -1307,11 +1332,13 @@ function PillButton({
   disabled = false,
   label,
   onClick,
+  uiSound = "generic.press",
 }: {
   active: boolean
   disabled?: boolean
   label: string
   onClick: () => void
+  uiSound?: UISoundId | "none"
 }) {
   return (
     <button
@@ -1321,7 +1348,12 @@ function PillButton({
           "bg-[var(--ds-color-surface-active)] border-[var(--ds-border-active)]"
       )}
       disabled={disabled}
-      onClick={onClick}
+      onClick={() => {
+        onClick()
+        if (!(disabled || active)) {
+          playOptionalUISound(uiSound)
+        }
+      }}
       type="button"
     >
       <Typography

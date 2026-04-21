@@ -13,6 +13,8 @@ import {
   useState,
 } from "react"
 import { cn } from "@/lib/cn"
+import type { UISoundId } from "@/lib/audio/shader-lab-sounds"
+import { playOptionalUISound } from "@/lib/audio/shader-lab-sounds"
 import {
   formatNumberForDisplay,
   formatNumberForLocale,
@@ -25,6 +27,8 @@ type SliderProps = Omit<
   className?: string
   label?: ReactNode
   onInteractionStart?: (() => void) | undefined
+  uiSoundEnd?: UISoundId | "none"
+  uiSoundStart?: UISoundId | "none"
   valueFormatOptions?: Intl.NumberFormatOptions
   valuePrefix?: string
   valueSuffix?: string
@@ -58,6 +62,8 @@ export function Slider({
   onValueCommitted,
   onValueChange,
   style,
+  uiSoundEnd = "generic.dragEnd",
+  uiSoundStart = "generic.dragStart",
   value,
   valueFormatOptions,
   valuePrefix,
@@ -169,6 +175,7 @@ export function Slider({
     if (!gestureActiveRef.current) {
       gestureActiveRef.current = true
       onInteractionStart?.()
+      playOptionalUISound(uiSoundStart)
     }
 
     onValueChange?.(nextValue, eventDetails)
@@ -181,6 +188,9 @@ export function Slider({
     >[1]
   ) => {
     onValueCommitted?.(nextValue, eventDetails)
+    if (gestureActiveRef.current) {
+      playOptionalUISound(uiSoundEnd)
+    }
     resetPull()
   }
 

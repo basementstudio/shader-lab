@@ -558,6 +558,7 @@ export function SelectedLayerPropertiesContent({
               <Button
                 onClick={() => randomizeGradientParams(layerId)}
                 size="compact"
+                uiSound="action.randomize"
                 variant="secondary"
               >
                 Randomize

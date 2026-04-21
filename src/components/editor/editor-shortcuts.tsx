@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useEffectEvent } from "react"
+import { playUISound } from "@/lib/audio/shader-lab-sounds"
 import { useEditorStore } from "@/store/editor-store"
 import { useLayerStore } from "@/store/layer-store"
 import { useTimelineStore } from "@/store/timeline-store"
@@ -50,6 +51,7 @@ export function EditorShortcuts() {
         exitImmersiveCanvas()
       } else {
         enterImmersiveCanvas()
+        playUISound("action.hideUI")
       }
 
       return
@@ -62,7 +64,9 @@ export function EditorShortcuts() {
       !event.metaKey
     ) {
       event.preventDefault()
+      const playing = useTimelineStore.getState().isPlaying
       togglePlaying()
+      playUISound(playing ? "action.pause" : "action.play")
       return
     }
 
@@ -73,6 +77,7 @@ export function EditorShortcuts() {
     ) {
       event.preventDefault()
       removeLayers(selectedLayerIds)
+      playUISound("action.deleteLayer")
     }
   })
 

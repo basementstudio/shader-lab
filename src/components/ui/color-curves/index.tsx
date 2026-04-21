@@ -8,6 +8,11 @@ import {
   useState,
 } from "react"
 import { cn } from "@/lib/cn"
+import type { UISoundId } from "@/lib/audio/shader-lab-sounds"
+import {
+  playOptionalUISound,
+  playUISound,
+} from "@/lib/audio/shader-lab-sounds"
 import {
   cloneColorCurves,
   COLOR_CURVE_CHANNELS,
@@ -22,6 +27,8 @@ import {
 type ColorCurvesEditorProps = {
   className?: string
   onChange: (nextValue: SceneColorCurves) => void
+  uiSoundEnd?: UISoundId | "none"
+  uiSoundStart?: UISoundId | "none"
   value: SceneColorCurves
 }
 
@@ -129,6 +136,8 @@ function findClosestPointIndex(
 export function ColorCurvesEditor({
   className,
   onChange,
+  uiSoundEnd = "generic.dragEnd",
+  uiSoundStart = "generic.dragStart",
   value,
 }: ColorCurvesEditorProps) {
   const svgRef = useRef<SVGSVGElement | null>(null)
@@ -204,6 +213,7 @@ export function ColorCurvesEditor({
     }
 
     const handlePointerEnd = () => {
+      playOptionalUISound(uiSoundEnd)
       setDragState(null)
     }
 
@@ -216,7 +226,7 @@ export function ColorCurvesEditor({
       window.removeEventListener("pointerup", handlePointerEnd)
       window.removeEventListener("pointercancel", handlePointerEnd)
     }
-  }, [dragState, onChange, value])
+  }, [dragState, onChange, uiSoundEnd, value])
 
   useEffect(() => {
     if (!dragState) {
@@ -263,6 +273,7 @@ export function ColorCurvesEditor({
       updateChannelPoints(activeChannel, nextPoints)
       setSelectedPointIndex(0)
       setDragState({ channel: activeChannel, index: 0 })
+      playOptionalUISound(uiSoundStart)
       return
     }
 
@@ -275,6 +286,7 @@ export function ColorCurvesEditor({
         channel: activeChannel,
         index: nextPoints.length - 1,
       })
+      playOptionalUISound(uiSoundStart)
       return
     }
 
@@ -287,6 +299,7 @@ export function ColorCurvesEditor({
     const nextIndex = findClosestPointIndex(normalizedPoints, x, y)
     setSelectedPointIndex(nextIndex)
     setDragState({ channel: activeChannel, index: nextIndex })
+    playOptionalUISound(uiSoundStart)
   }
 
   const handlePointPointerDown =
@@ -295,6 +308,7 @@ export function ColorCurvesEditor({
       event.stopPropagation()
       setSelectedPointIndex(index)
       setDragState({ channel: activeChannel, index })
+      playOptionalUISound(uiSoundStart)
     }
 
   const handleRemoveSelectedPoint = () => {
@@ -332,6 +346,9 @@ export function ColorCurvesEditor({
               onClick={() => {
                 setActiveChannel(channelId)
                 setSelectedPointIndex(null)
+                if (!isActive) {
+                  playUISound("generic.press")
+                }
               }}
               type="button"
             >
@@ -519,7 +536,10 @@ export function ColorCurvesEditor({
             selectedPointIndex === 0 ||
             selectedPointIndex === activePoints.length - 1
           }
-          onClick={handleRemoveSelectedPoint}
+          onClick={() => {
+            handleRemoveSelectedPoint()
+            playUISound("generic.press")
+          }}
           type="button"
         >
           Remove
@@ -533,6 +553,7 @@ export function ColorCurvesEditor({
               createDefaultColorCurves()[activeChannel]
             onChange(nextCurves)
             setSelectedPointIndex(null)
+            playUISound("action.reset")
           }}
           type="button"
         >

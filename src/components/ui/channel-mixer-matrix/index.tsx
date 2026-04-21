@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react"
 import { Slider } from "@/components/ui/slider"
+import { playUISound } from "@/lib/audio/shader-lab-sounds"
 import { cn } from "@/lib/cn"
 import type { SceneConfig } from "@/types/editor"
 
@@ -79,16 +80,21 @@ export function ChannelMixerMatrix({
             return (
               <button
                 aria-pressed={isActive}
-                className={cn(
-                  "inline-flex h-7  items-center justify-center rounded-full border px-3 text-[11px] leading-none transition-[background-color,border-color,color] duration-160 ease-[var(--ease-out-cubic)]",
-                  isActive
-                    ? "border-white/18 bg-white/10 text-[var(--ds-color-text-primary)]"
-                    : "border-white/8 bg-white/[0.03] text-[var(--ds-color-text-secondary)] hover:border-white/14 hover:bg-white/[0.06]"
-                )}
-                key={channel.id}
-                onClick={() => setActiveChannel(channel.id)}
-                type="button"
-              >
+              className={cn(
+                "inline-flex h-7  items-center justify-center rounded-full border px-3 text-[11px] leading-none transition-[background-color,border-color,color] duration-160 ease-[var(--ease-out-cubic)]",
+                isActive
+                  ? "border-white/18 bg-white/10 text-[var(--ds-color-text-primary)]"
+                  : "border-white/8 bg-white/[0.03] text-[var(--ds-color-text-secondary)] hover:border-white/14 hover:bg-white/[0.06]"
+              )}
+              key={channel.id}
+              onClick={() => {
+                setActiveChannel(channel.id)
+                if (!isActive) {
+                  playUISound("generic.press")
+                }
+              }}
+              type="button"
+            >
                 <span
                   className="mr-1.5 h-2 w-2 rounded-full"
                   style={{ backgroundColor: channel.accent }}
@@ -102,7 +108,10 @@ export function ChannelMixerMatrix({
         <button
           aria-label="Reset output mix"
           className="text-[11px] leading-none text-[var(--ds-color-text-muted)] underline decoration-white/24 underline-offset-3 transition-[color,text-decoration-color] duration-160 ease-[var(--ease-out-cubic)] hover:text-[var(--ds-color-text-secondary)] hover:decoration-white/40"
-          onClick={() => onChange({ ...DEFAULT_MIXER })}
+          onClick={() => {
+            onChange({ ...DEFAULT_MIXER })
+            playUISound("action.reset")
+          }}
           type="button"
         >
           Reset

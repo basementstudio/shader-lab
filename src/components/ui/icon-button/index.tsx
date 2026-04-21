@@ -1,6 +1,8 @@
 import { cva, type VariantProps } from "class-variance-authority"
 import type { ButtonHTMLAttributes, Ref, ReactNode } from "react"
 import { cn } from "@/lib/cn"
+import type { UISoundId } from "@/lib/audio/shader-lab-sounds"
+import { playOptionalUISound } from "@/lib/audio/shader-lab-sounds"
 import { HoverTooltip } from "@/components/ui/tooltip"
 
 const iconButtonVariants = cva(
@@ -33,6 +35,7 @@ type CommonIconButtonProps = {
   tooltip?: ReactNode
   tooltipAlign?: "center" | "start" | "end"
   tooltipSide?: "top" | "right" | "bottom" | "left"
+  uiSound?: UISoundId | "none"
 } & VariantProps<typeof iconButtonVariants>
 
 type IconButtonProps = CommonIconButtonProps &
@@ -46,6 +49,7 @@ export function IconButton({
   tooltip,
   tooltipAlign,
   tooltipSide,
+  uiSound = "generic.press",
   variant,
   ...props
 }: IconButtonProps) {
@@ -57,9 +61,18 @@ export function IconButton({
   const button = (
     <button
       className={cn(iconButtonVariants({ variant }), className)}
-      ref={ref}
       type="button"
       {...props}
+      onClick={(event) => {
+        props.onClick?.(event)
+
+        if (event.defaultPrevented || props["aria-disabled"] === true) {
+          return
+        }
+
+        playOptionalUISound(uiSound)
+      }}
+      ref={ref}
     >
       {children}
     </button>

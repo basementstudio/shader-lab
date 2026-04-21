@@ -9,6 +9,8 @@ import {
   useRef,
 } from "react"
 import { cn } from "@/lib/cn"
+import type { UISoundId } from "@/lib/audio/shader-lab-sounds"
+import { playOptionalUISound } from "@/lib/audio/shader-lab-sounds"
 
 type XYPadProps = {
   className?: string
@@ -19,6 +21,8 @@ type XYPadProps = {
   onInteractionStart?: (() => void) | undefined
   onValueChange: (value: [number, number]) => void
   step?: number
+  uiSoundEnd?: UISoundId | "none"
+  uiSoundStart?: UISoundId | "none"
   value: [number, number]
 }
 
@@ -47,6 +51,8 @@ export function XYPad({
   onInteractionStart,
   onValueChange,
   step = 0.01,
+  uiSoundEnd = "generic.dragEnd",
+  uiSoundStart = "generic.dragStart",
   value,
 }: XYPadProps) {
   const surfaceRef = useRef<HTMLButtonElement | null>(null)
@@ -95,6 +101,7 @@ export function XYPad({
     if (!gestureActiveRef.current) {
       gestureActiveRef.current = true
       onInteractionStart?.()
+      playOptionalUISound(uiSoundStart)
     }
 
     event.currentTarget.setPointerCapture(event.pointerId)
@@ -116,6 +123,7 @@ export function XYPad({
 
     gestureActiveRef.current = false
     onInteractionEnd?.()
+    playOptionalUISound(uiSoundEnd)
   }
 
   const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {

@@ -4,6 +4,8 @@ import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { GlassPanel } from "@/components/ui/glass-panel"
 import { cn } from "@/lib/cn"
+import type { UISoundId } from "@/lib/audio/shader-lab-sounds"
+import { playOptionalUISound } from "@/lib/audio/shader-lab-sounds"
 
 type HsvColor = {
   h: number
@@ -21,6 +23,8 @@ type ColorPickerProps = {
   onInteractionEnd?: (() => void) | undefined
   onInteractionStart?: (() => void) | undefined
   onValueChange: (value: string) => void
+  uiSoundEnd?: UISoundId | "none"
+  uiSoundStart?: UISoundId | "none"
   value: string
 }
 
@@ -143,6 +147,8 @@ export function ColorPicker({
   onInteractionEnd,
   onInteractionStart,
   onValueChange,
+  uiSoundEnd = "generic.dragEnd",
+  uiSoundStart = "generic.dragStart",
   value,
 }: ColorPickerProps) {
   const triggerRef = useRef<HTMLButtonElement | null>(null)
@@ -251,6 +257,7 @@ export function ColorPicker({
 
     gestureActiveRef.current = true
     onInteractionStart?.()
+    playOptionalUISound(uiSoundStart)
   }
 
   const endInteraction = () => {
@@ -260,6 +267,7 @@ export function ColorPicker({
 
     gestureActiveRef.current = false
     onInteractionEnd?.()
+    playOptionalUISound(uiSoundEnd)
   }
 
   const updateSurface = (clientX: number, clientY: number) => {
@@ -387,18 +395,15 @@ export function ColorPicker({
                   <input
                     className="min-h-[30px] w-full rounded-[var(--ds-radius-control)] border border-[var(--ds-border-divider)] bg-white/4 px-[10px] font-[var(--ds-font-mono)] text-[11px] leading-[14px] text-[var(--ds-color-text-secondary)] uppercase outline-none focus:border-[var(--ds-border-active)]"
                     onChange={(event) => {
-                      beginInteraction()
                       const nextValue = event.target.value.toUpperCase()
                       setInputValue(nextValue)
                       const nextHex = normalizeHex(nextValue)
                       if (!nextHex) {
-                        endInteraction()
                         return
                       }
                       const rgb = hexToRgb(nextHex)
                       setColor(rgbToHsv(rgb.r, rgb.g, rgb.b))
                       onValueChange(nextHex)
-                      endInteraction()
                     }}
                     spellCheck={false}
                     type="text"

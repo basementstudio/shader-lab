@@ -30,8 +30,6 @@ const ACCEPTED_TYPES = new Set([
   "application/octet-stream",
 ])
 
-const MAX_SIZE_BYTES = 100 * 1024 * 1024
-
 function inferAssetKind(file: File): AssetKind | null {
   const mimeType = file.type.toLowerCase()
   const fileName = file.name.toLowerCase()
@@ -76,12 +74,6 @@ function validateFile(file: File): AssetKind {
   ) {
     throw new Error(
       `Unsupported file type "${file.type || "unknown"}". Accepted: PNG, JPG, WebP, GIF, SVG, MP4, WebM, MOV, GLB, GLTF, OBJ.`
-    )
-  }
-
-  if (file.size > MAX_SIZE_BYTES) {
-    throw new Error(
-      `File is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum size is 100 MB.`
     )
   }
 

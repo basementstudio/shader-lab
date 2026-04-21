@@ -34,6 +34,7 @@ import { IconButton } from "@/components/ui/icon-button"
 import { Select } from "@/components/ui/select"
 import { HoverTooltip } from "@/components/ui/tooltip"
 import { Typography } from "@/components/ui/typography"
+import { playUISound } from "@/lib/audio/shader-lab-sounds"
 import { cn } from "@/lib/cn"
 import { inferFileAssetKind } from "@/lib/editor/media-file"
 import { useAssetStore } from "@/store/asset-store"
@@ -241,6 +242,7 @@ const LayerListItem = memo(function LayerListItem({
           popupClassName="min-w-[152px]"
           triggerAriaLabel={`Layer actions for ${layer.name}`}
           triggerVariant="icon"
+          uiSound="none"
           valueClassName="inline-flex items-center justify-center leading-none text-[var(--ds-color-text-tertiary)] [&_svg]:h-[14px] [&_svg]:w-[14px]"
         />
 
@@ -251,6 +253,7 @@ const LayerListItem = memo(function LayerListItem({
               event.stopPropagation()
               onRelinkPick(layer)
             }}
+            uiSound="none"
             variant="ghost"
           >
             <FileIcon height={14} width={14} />
@@ -263,6 +266,7 @@ const LayerListItem = memo(function LayerListItem({
               onSetLayerVisibility(layer.id, !layer.visible)
             }}
             tooltip="Toggle visibility"
+            uiSound={layer.visible ? "action.visibilityOff" : "action.visibilityOn"}
             variant="ghost"
           >
             {layer.visible ? (
@@ -280,6 +284,7 @@ const LayerListItem = memo(function LayerListItem({
             onLayerAction(layer.id, "delete")
           }}
           tooltip="Delete layer"
+          uiSound="none"
           variant="ghost"
         >
           <TrashIcon height={14} width={14} />
@@ -348,6 +353,7 @@ const LayerListItem = memo(function LayerListItem({
         popupClassName="min-w-[152px]"
         triggerAriaLabel={`Layer actions for ${layer.name}`}
         triggerVariant="icon"
+        uiSound="none"
         valueClassName="inline-flex items-center justify-center leading-none text-[var(--ds-color-text-tertiary)] [&_svg]:h-[14px] [&_svg]:w-[14px]"
       />
 
@@ -358,6 +364,7 @@ const LayerListItem = memo(function LayerListItem({
             event.stopPropagation()
             onRelinkPick(layer)
           }}
+          uiSound="none"
           variant="ghost"
         >
           <FileIcon height={14} width={14} />
@@ -370,6 +377,7 @@ const LayerListItem = memo(function LayerListItem({
             onSetLayerVisibility(layer.id, !layer.visible)
           }}
           tooltip="Toggle visibility"
+          uiSound={layer.visible ? "action.visibilityOff" : "action.visibilityOn"}
           variant="ghost"
         >
           {layer.visible ? (
@@ -387,6 +395,7 @@ const LayerListItem = memo(function LayerListItem({
           onLayerAction(layer.id, "delete")
         }}
         tooltip="Delete layer"
+        uiSound="none"
         variant="ghost"
       >
         <TrashIcon height={14} width={14} />
@@ -486,6 +495,7 @@ export function LayerSidebar() {
       const asset = await loadAsset(file)
       const layerId = addLayer(layerType)
       setLayerAsset(layerId, asset.id)
+      playUISound("action.addLayer")
     } catch {
       // No-op.
     }
@@ -506,6 +516,7 @@ export function LayerSidebar() {
       handleVideoPick()
     } else {
       addLayer(action)
+      playUISound("action.addLayer")
     }
   }
 
@@ -516,10 +527,12 @@ export function LayerSidebar() {
 
     if (action === "delete") {
       removeLayers(targetLayerIds)
+      playUISound("action.deleteLayer")
     } else {
       targetLayerIds.forEach((targetLayerId) => {
         resetLayerParams(targetLayerId)
       })
+      playUISound("action.reset")
     }
 
     setLayerActionSelectKeys((current) => ({
@@ -584,6 +597,7 @@ export function LayerSidebar() {
       }
 
       setLayerAsset(target.layerId, asset.id)
+      playUISound("action.relinkAsset")
     } catch (error) {
       setLayerRuntimeError(
         target.layerId,
@@ -682,8 +696,12 @@ export function LayerSidebar() {
               <IconButton
                 aria-label="Hide UI (Cmd + .)"
                 className="pointer-events-auto"
-                onClick={enterImmersiveCanvas}
+                onClick={() => {
+                  enterImmersiveCanvas()
+                  playUISound("action.hideUI")
+                }}
                 tooltip="Hide UI (Cmd + .)"
+                uiSound="none"
                 variant="ghost"
               >
                 <LayoutIcon height={14} width={14} />
@@ -765,8 +783,12 @@ export function LayerSidebar() {
                   <IconButton
                     aria-label="Hide UI (Cmd + .)"
                     className="pointer-events-auto"
-                    onClick={enterImmersiveCanvas}
+                    onClick={() => {
+                      enterImmersiveCanvas()
+                      playUISound("action.hideUI")
+                    }}
                     tooltip="Hide UI (Cmd + .)"
+                    uiSound="none"
                     variant="ghost"
                   >
                     <LayoutIcon height={14} width={14} />

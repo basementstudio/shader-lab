@@ -4,6 +4,8 @@ import { Select as BaseSelect } from "@base-ui/react/select"
 import type { ReactNode } from "react"
 import { HoverTooltip } from "@/components/ui/tooltip"
 import { cn } from "@/lib/cn"
+import type { UISoundId } from "@/lib/audio/shader-lab-sounds"
+import { playOptionalUISound } from "@/lib/audio/shader-lab-sounds"
 
 export interface SelectOption {
   disabled?: boolean
@@ -25,6 +27,7 @@ type SelectProps = Omit<
   triggerClassName?: string
   triggerTooltip?: ReactNode
   triggerVariant?: "default" | "icon"
+  uiSound?: UISoundId | "none"
   valueClassName?: string
 }
 
@@ -53,7 +56,9 @@ export function Select({
   triggerClassName,
   triggerTooltip,
   triggerVariant = "default",
+  uiSound = "generic.selectCommit",
   valueClassName,
+  onValueChange,
   ...props
 }: SelectProps) {
   const isIconTrigger = triggerVariant === "icon"
@@ -99,6 +104,10 @@ export function Select({
       }))}
       modal={false}
       {...props}
+      onValueChange={(value, eventDetails) => {
+        onValueChange?.(value, eventDetails)
+        playOptionalUISound(uiSound)
+      }}
     >
       <div className={cn("flex w-fit flex-col gap-1", className)}>
         {label ? (

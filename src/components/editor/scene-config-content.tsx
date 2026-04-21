@@ -10,6 +10,7 @@ import { Select } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
 import { Toggle } from "@/components/ui/toggle"
 import { Typography } from "@/components/ui/typography"
+import { playUISound } from "@/lib/audio/shader-lab-sounds"
 import { useEditorStore } from "@/store/editor-store"
 import type { CompositionAspect, SceneConfig } from "@/types/editor"
 import { COMPOSITION_ASPECTS, DEFAULT_SCENE_CONFIG } from "@/types/editor"
@@ -148,7 +149,7 @@ export function SceneConfigContent() {
         action={
           <button
             className={sectionActionClassName}
-            onClick={() =>
+            onClick={() => {
               updateSceneConfig({
                 brightness: DEFAULT_SCENE_CONFIG.brightness,
                 contrast: DEFAULT_SCENE_CONFIG.contrast,
@@ -156,11 +157,12 @@ export function SceneConfigContent() {
                 hue: DEFAULT_SCENE_CONFIG.hue,
                 invert: DEFAULT_SCENE_CONFIG.invert,
                 saturation: DEFAULT_SCENE_CONFIG.saturation,
-                vibrance: DEFAULT_SCENE_CONFIG.vibrance,
                 temperature: DEFAULT_SCENE_CONFIG.temperature,
                 tint: DEFAULT_SCENE_CONFIG.tint,
+                vibrance: DEFAULT_SCENE_CONFIG.vibrance,
               })
-            }
+              playUISound("action.reset")
+            }}
             type="button"
           >
             Reset
@@ -254,13 +256,14 @@ export function SceneConfigContent() {
         action={
           <button
             className={sectionActionClassName}
-            onClick={() =>
+            onClick={() => {
               updateSceneConfig({
                 clampGamma: DEFAULT_SCENE_CONFIG.clampGamma,
                 clampMax: DEFAULT_SCENE_CONFIG.clampMax,
                 clampMin: DEFAULT_SCENE_CONFIG.clampMin,
               })
-            }
+              playUISound("action.reset")
+            }}
             type="button"
           >
             Reset

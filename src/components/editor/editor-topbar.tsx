@@ -6,6 +6,8 @@ import {
   GearIcon,
   GitHubLogoIcon,
   ResetIcon,
+  SpeakerLoudIcon,
+  SpeakerOffIcon,
   ZoomInIcon,
   ZoomOutIcon,
 } from "@radix-ui/react-icons"
@@ -17,6 +19,7 @@ import { GlassPanel } from "@/components/ui/glass-panel"
 import { IconButton } from "@/components/ui/icon-button"
 import { HoverTooltip } from "@/components/ui/tooltip"
 import { Typography } from "@/components/ui/typography"
+import { playUISound } from "@/lib/audio/shader-lab-sounds"
 import { cn } from "@/lib/cn"
 import {
   applyEditorHistorySnapshot,
@@ -30,6 +33,7 @@ import {
   useEditorStore,
   useHistoryStore,
   useLayerStore,
+  useSoundStore,
   useTimelineStore,
 } from "@/store"
 import { EditorExportDialog } from "./editor-export-dialog"
@@ -86,6 +90,8 @@ export function EditorTopBar() {
   const pushSnapshot = useHistoryStore((state) => state.pushSnapshot)
   const redo = useHistoryStore((state) => state.redo)
   const undo = useHistoryStore((state) => state.undo)
+  const soundEnabled = useSoundStore((state) => state.enabled)
+  const toggleSoundEnabled = useSoundStore((state) => state.toggleEnabled)
 
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false)
   const applyingHistoryRef = useRef(false)
@@ -176,6 +182,7 @@ export function EditorTopBar() {
     syncHistorySnapshotRefs()
     pendingBaseSnapshotRef.current = null
     applyingHistoryRef.current = false
+    playUISound("action.undo")
   }, [flushPendingHistory, syncHistorySnapshotRefs, undo])
 
   const handleRedo = useCallback(() => {
@@ -192,6 +199,7 @@ export function EditorTopBar() {
     syncHistorySnapshotRefs()
     pendingBaseSnapshotRef.current = null
     applyingHistoryRef.current = false
+    playUISound("action.redo")
   }, [flushPendingHistory, redo, syncHistorySnapshotRefs])
 
   useEffect(() => {
@@ -263,6 +271,11 @@ export function EditorTopBar() {
 
   function applyZoomStep(direction: "in" | "out") {
     const nextZoom = getNextZoomStep(zoom, direction)
+
+    if (nextZoom === zoom) {
+      return
+    }
+
     const nextState = applyZoomAtPoint(
       zoom,
       panOffset,
@@ -271,6 +284,7 @@ export function EditorTopBar() {
     )
     setZoom(nextState.zoom)
     setPan(nextState.panOffset.x, nextState.panOffset.y)
+    playUISound(direction === "in" ? "action.zoomIn" : "action.zoomOut")
   }
 
   const toggleSidebarView = () => {
@@ -312,6 +326,7 @@ export function EditorTopBar() {
                 onClick={handleUndo}
                 tooltip="Revert"
                 tooltipSide="bottom"
+                uiSound="none"
                 variant="default"
               >
                 <ResetIcon height={18} width={18} />
@@ -322,6 +337,7 @@ export function EditorTopBar() {
                 disabled={!canRedo}
                 onClick={handleRedo}
                 tooltipSide="bottom"
+                uiSound="none"
                 variant="default"
               >
                 <ResetIcon className="scale-x-[-1]" height={18} width={18} />
@@ -334,6 +350,7 @@ export function EditorTopBar() {
                 className="h-7 w-7 disabled:opacity-45"
                 onClick={() => applyZoomStep("out")}
                 tooltipSide="bottom"
+                uiSound="none"
                 variant="default"
               >
                 <ZoomOutIcon height={18} width={18} />
@@ -345,7 +362,10 @@ export function EditorTopBar() {
               >
                 <button
                   className="inline-flex h-7 min-w-16 cursor-pointer items-center justify-center rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-[10px] transition-[background-color,border-color,color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:bg-white/8 hover:border-[var(--ds-border-hover)] active:scale-[0.98] max-[899px]:min-w-14"
-                  onClick={resetView}
+                  onClick={() => {
+                    resetView()
+                    playUISound("action.reset")
+                  }}
                   type="button"
                 >
                   <Typography as="span" tone="secondary" variant="monoSm">
@@ -358,6 +378,7 @@ export function EditorTopBar() {
                 className="h-7 w-7 disabled:opacity-45"
                 onClick={() => applyZoomStep("in")}
                 tooltipSide="bottom"
+                uiSound="none"
                 variant="default"
               >
                 <ZoomInIcon height={18} width={18} />
@@ -381,7 +402,10 @@ export function EditorTopBar() {
                     <HoverTooltip content="Reset layout" side="bottom">
                       <button
                         className="inline-flex h-7 cursor-pointer items-center justify-center whitespace-nowrap rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-[10px] transition-[background-color,border-color,color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:bg-white/8 hover:border-[var(--ds-border-hover)] active:scale-[0.98]"
-                        onClick={resetFloatingPanels}
+                        onClick={() => {
+                          resetFloatingPanels()
+                          playUISound("action.reset")
+                        }}
                         type="button"
                       >
                         <Typography
@@ -407,18 +431,39 @@ export function EditorTopBar() {
                     "h-7 w-7",
                     sidebarView === "scene" && "bg-white/10"
                   )}
-                  onClick={toggleSidebarView}
+                  onClick={() => {
+                    toggleSidebarView()
+                    playUISound("action.panelSwitch")
+                  }}
+                  uiSound="none"
                   variant="default"
                 >
                   <GearIcon height={16} width={16} />
                 </IconButton>
               ) : null}
               <IconButton
+                aria-label={soundEnabled ? "Mute interface sounds" : "Unmute interface sounds"}
+                aria-pressed={!soundEnabled}
+                className={cn("h-7 w-7", !soundEnabled && "bg-white/10")}
+                onClick={() => toggleSoundEnabled()}
+                tooltip={soundEnabled ? "Mute sounds" : "Unmute sounds"}
+                tooltipSide="bottom"
+                uiSound="none"
+                variant={!soundEnabled ? "active" : "default"}
+              >
+                {soundEnabled ? (
+                  <SpeakerLoudIcon height={16} width={16} />
+                ) : (
+                  <SpeakerOffIcon height={16} width={16} />
+                )}
+              </IconButton>
+              <IconButton
                 aria-label="Export"
                 className="h-7 w-7 disabled:opacity-45"
                 onClick={() => setIsExportDialogOpen(true)}
                 tooltip="Export"
                 tooltipSide="bottom"
+                uiSound="action.export"
                 variant="default"
               >
                 <DownloadIcon height={16} width={16} />
@@ -442,6 +487,7 @@ export function EditorTopBar() {
                 disabled={!canUndo}
                 onClick={handleUndo}
                 tooltip="Revert"
+                uiSound="none"
                 variant="default"
               >
                 <ResetIcon height={18} width={18} />
@@ -451,6 +497,7 @@ export function EditorTopBar() {
                 className="h-7 w-7 disabled:opacity-45"
                 disabled={!canRedo}
                 onClick={handleRedo}
+                uiSound="none"
                 variant="default"
               >
                 <ResetIcon className="scale-x-[-1]" height={18} width={18} />
@@ -469,7 +516,10 @@ export function EditorTopBar() {
               <HoverTooltip content="Reset view" disabled={!hasResettableView}>
                 <button
                   className="inline-flex h-7 min-w-16 cursor-pointer items-center justify-center rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-[10px] transition-[background-color,border-color,color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:bg-white/8 hover:border-[var(--ds-border-hover)] active:scale-[0.98]"
-                  onClick={resetView}
+                  onClick={() => {
+                    resetView()
+                    playUISound("action.reset")
+                  }}
                   type="button"
                 >
                   <Typography as="span" tone="secondary" variant="monoSm">
@@ -494,9 +544,25 @@ export function EditorTopBar() {
                 className="h-7 w-7 disabled:opacity-45"
                 onClick={() => setIsExportDialogOpen(true)}
                 tooltip="Download"
+                uiSound="action.export"
                 variant="default"
               >
                 <DownloadIcon height={16} width={16} />
+              </IconButton>
+              <IconButton
+                aria-label={soundEnabled ? "Mute interface sounds" : "Unmute interface sounds"}
+                aria-pressed={!soundEnabled}
+                className={cn("h-7 w-7", !soundEnabled && "bg-white/10")}
+                onClick={() => toggleSoundEnabled()}
+                tooltip={soundEnabled ? "Mute sounds" : "Unmute sounds"}
+                uiSound="none"
+                variant={!soundEnabled ? "active" : "default"}
+              >
+                {soundEnabled ? (
+                  <SpeakerLoudIcon height={16} width={16} />
+                ) : (
+                  <SpeakerOffIcon height={16} width={16} />
+                )}
               </IconButton>
               <GitHubStarLink mobile />
             </div>

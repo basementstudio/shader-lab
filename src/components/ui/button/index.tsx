@@ -1,7 +1,11 @@
+"use client"
+
 import { cva, type VariantProps } from "class-variance-authority"
 import type { ButtonHTMLAttributes, ReactNode } from "react"
-import { cn } from "@/lib/cn"
 import { HoverTooltip } from "@/components/ui/tooltip"
+import type { UISoundId } from "@/lib/audio/shader-lab-sounds"
+import { playOptionalUISound } from "@/lib/audio/shader-lab-sounds"
+import { cn } from "@/lib/cn"
 
 const buttonVariants = cva(
   "inline-flex origin-center cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-[var(--ds-radius-control)] border border-transparent font-[var(--ds-font-sans)] text-[12px] font-medium leading-4 text-decoration-none transition-[background-color,border-color,color,opacity,transform] duration-160 ease-[var(--ease-out-cubic)] will-change-transform disabled:cursor-not-allowed disabled:opacity-100 aria-disabled:cursor-not-allowed aria-disabled:opacity-100 active:scale-[0.98] data-[state=active]:scale-[0.98]",
@@ -37,6 +41,7 @@ type CommonButtonProps = {
   tooltip?: ReactNode
   tooltipAlign?: "center" | "start" | "end"
   tooltipSide?: "top" | "right" | "bottom" | "left"
+  uiSound?: UISoundId | "none"
 } & VariantProps<typeof buttonVariants>
 
 type ButtonProps = CommonButtonProps &
@@ -51,6 +56,7 @@ export function Button({
   tooltip,
   tooltipAlign,
   tooltipSide,
+  uiSound = "generic.press",
   variant,
   ...props
 }: ButtonProps) {
@@ -64,6 +70,15 @@ export function Button({
       className={cn(buttonVariants({ variant, size, fullWidth }), className)}
       type="button"
       {...props}
+      onClick={(event) => {
+        props.onClick?.(event)
+
+        if (event.defaultPrevented || props["aria-disabled"] === true) {
+          return
+        }
+
+        playOptionalUISound(uiSound)
+      }}
     >
       {children}
     </button>

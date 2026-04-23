@@ -4,6 +4,7 @@ import { isSvgMediaSource } from "@/lib/editor/media-file"
 import { parameterValuesSignature } from "@/lib/editor/parameter-schema"
 import type { RenderableLayerPass } from "@/renderer/contracts"
 import { CustomShaderPass } from "@/renderer/custom-shader-pass"
+import { FluidPass } from "@/renderer/fluid-pass"
 import { GradientPass } from "@/renderer/gradient-pass"
 import { LivePass } from "@/renderer/live-pass"
 import { MediaPass } from "@/renderer/media-pass"
@@ -13,7 +14,7 @@ import { ScenePostProcess } from "@/renderer/scene-post-process"
 import { TextPass } from "@/renderer/text-pass"
 import type { EditorLayer, SceneConfig, Size } from "@/types/editor"
 
-type LayerPassNode = LivePass | MediaPass | PassNode
+type LayerPassNode = FluidPass | LivePass | MediaPass | PassNode
 
 const RENDER_TARGET_OPTIONS = {
   depthBuffer: false,
@@ -495,6 +496,10 @@ export class PipelineManager {
 
     if (layer.kind === "source" && layer.type === "gradient") {
       return new GradientPass(layer.id)
+    }
+
+    if (layer.kind === "source" && layer.type === "fluid") {
+      return new FluidPass(layer.id, this.renderer)
     }
 
     if (layer.kind === "source" && layer.type === "text") {

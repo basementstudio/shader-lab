@@ -22,6 +22,7 @@ const SUPPORTED_SHADER_EXPORT_LAYER_TYPES = new Set<LayerType>([
   "image",
   "video",
   "gradient",
+  "fluid",
   "text",
   "live",
   "custom-shader",
@@ -49,7 +50,6 @@ const SUPPORTED_SHADER_EXPORT_LAYER_TYPES = new Set<LayerType>([
 ] as const)
 
 const UNSUPPORTED_SHADER_EXPORT_LAYER_TYPES = new Set<LayerType>([
-  "fluid",
   "model",
   "blur",
 ] as const)
@@ -67,6 +67,7 @@ type SupportedShaderExportLayerType = Extract<
   | "dithering"
   | "edge-detect"
   | "fluted-glass"
+  | "fluid"
   | "gradient"
   | "halftone"
   | "image"

@@ -701,7 +701,9 @@ export function SelectedLayerPropertiesContent({
           </section>
         ) : null}
 
-        {layerType === "fluid" ? (
+        {layerType === "fluid" ||
+        layerType === "pixel-trail" ||
+        layerType === "magnify-lens" ? (
           <section className="flex flex-col gap-3 border-t border-[var(--ds-border-divider)] px-4 pt-[14px] pb-4 first:border-t-0">
             <Typography
               className="uppercase"

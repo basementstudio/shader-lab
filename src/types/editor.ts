@@ -26,6 +26,8 @@ export const SOURCE_LAYER_TYPES = [
   "gradient",
   "text",
   "fluid",
+  "pixel-trail",
+  "magnify-lens",
   "live",
   "custom-shader",
 ] as const

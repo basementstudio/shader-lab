@@ -1002,22 +1002,6 @@ const gradientParams = [
 
 const fluidParams = [
   {
-    defaultValue: 1337,
-    input: "int",
-    key: "seed",
-    label: "Seed",
-    max: 999999,
-    min: 0,
-    step: 1,
-    type: "number",
-  },
-  {
-    defaultValue: false,
-    key: "paused",
-    label: "Paused",
-    type: "boolean",
-  },
-  {
     defaultValue: 192,
     key: "simRes",
     label: "Sim Resolution",
@@ -2488,6 +2472,103 @@ const pixelationParams = [
   },
 ] as const satisfies ParameterDefinitions
 
+const pixelTrailParams = [
+  {
+    defaultValue: 24,
+    key: "cellSize",
+    label: "Cell Size",
+    max: 128,
+    min: 4,
+    step: 1,
+    type: "number",
+    unit: "px",
+  },
+  {
+    defaultValue: 0.04,
+    key: "radius",
+    label: "Radius",
+    max: 0.3,
+    min: 0.005,
+    step: 0.005,
+    type: "number",
+  },
+  {
+    defaultValue: 0.9,
+    key: "decay",
+    label: "Decay",
+    max: 0.999,
+    min: 0.5,
+    step: 0.001,
+    type: "number",
+  },
+  {
+    defaultValue: 0.02,
+    key: "displaceAmount",
+    label: "Displace",
+    max: 0.2,
+    min: 0,
+    step: 0.001,
+    type: "number",
+  },
+  {
+    defaultValue: 1,
+    key: "intensity",
+    label: "Intensity",
+    max: 2,
+    min: 0,
+    step: 0.05,
+    type: "number",
+  },
+] as const satisfies ParameterDefinitions
+
+const magnifyLensParams = [
+  {
+    defaultValue: 0.18,
+    key: "radius",
+    label: "Radius",
+    max: 0.5,
+    min: 0.02,
+    step: 0.005,
+    type: "number",
+  },
+  {
+    defaultValue: 0.4,
+    key: "softness",
+    label: "Softness",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+  },
+  {
+    defaultValue: 1.8,
+    key: "zoom",
+    label: "Zoom",
+    max: 4,
+    min: 1,
+    step: 0.05,
+    type: "number",
+  },
+  {
+    defaultValue: 0.012,
+    key: "chromaStrength",
+    label: "Chromatic Edge",
+    max: 0.05,
+    min: 0,
+    step: 0.001,
+    type: "number",
+  },
+  {
+    defaultValue: 0.2,
+    key: "followLag",
+    label: "Follow Lag",
+    max: 0.95,
+    min: 0,
+    step: 0.01,
+    type: "number",
+  },
+] as const satisfies ParameterDefinitions
+
 const directionalBlurParams = [
   {
     defaultValue: "linear",
@@ -3537,6 +3618,18 @@ const layerDefinitions: Record<LayerType, LayerDefinition> = {
     kind: "effect",
     params: chromaticAberrationParams,
     type: "chromatic-aberration",
+  },
+  "pixel-trail": {
+    defaultName: "Pixel Trail",
+    kind: "source",
+    params: pixelTrailParams,
+    type: "pixel-trail",
+  },
+  "magnify-lens": {
+    defaultName: "Magnify Lens",
+    kind: "source",
+    params: magnifyLensParams,
+    type: "magnify-lens",
   },
 }
 

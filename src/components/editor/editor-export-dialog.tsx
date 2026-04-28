@@ -211,7 +211,14 @@ export function EditorExportDialog({
     [assets, layers]
   )
   const hasFluidLayer = useMemo(
-    () => layers.some((layer) => layer.visible && layer.type === "fluid"),
+    () =>
+      layers.some(
+        (layer) =>
+          layer.visible &&
+          (layer.type === "fluid" ||
+            layer.type === "pixel-trail" ||
+            layer.type === "magnify-lens")
+      ),
     [layers]
   )
   const derivedVideoDuration = useMemo(

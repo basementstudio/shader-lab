@@ -1,5 +1,11 @@
 # @basementstudio/shader-lab
 
+## 1.3.13
+
+### Patch Changes
+
+- 7257f2a: new interactive layers - fluid, magnifying, and pixel trail
+
 ## 1.3.12
 
 ### Patch Changes

@@ -13,6 +13,8 @@ export type ShaderLabSourceLayerType =
   | "gradient"
   | "image"
   | "live"
+  | "magnify-lens"
+  | "pixel-trail"
   | "text"
   | "video"
 

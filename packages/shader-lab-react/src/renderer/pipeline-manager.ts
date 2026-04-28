@@ -18,11 +18,13 @@ import { GradientPass } from "./gradient-pass"
 import { HalftonePass } from "./halftone-pass"
 import { InkPass } from "./ink-pass"
 import { LivePass } from "./live-pass"
+import { MagnifyLensPass } from "./magnify-lens-pass"
 import { MediaPass } from "./media-pass"
 import { ParticleGridPass } from "./particle-grid-pass"
 import { createPipelinePlaceholder, type PassNode } from "./pass-node"
 import { PatternPass } from "./pattern-pass"
 import { PixelSortingPass } from "./pixel-sorting-pass"
+import { PixelTrailPass } from "./pixel-trail-pass"
 import { PixelationPass } from "./pixelation-pass"
 import { PlotterPass } from "./plotter-pass"
 import { PosterizePass } from "./posterize-pass"
@@ -48,12 +50,14 @@ type LayerPassNode =
   | HalftonePass
   | InkPass
   | LivePass
+  | MagnifyLensPass
   | MediaPass
   | ParticleGridPass
   | PassNode
   | PatternPass
   | PixelationPass
   | PixelSortingPass
+  | PixelTrailPass
   | PlotterPass
   | PosterizePass
   | SlicePass
@@ -546,6 +550,14 @@ export class PipelineManager {
 
     if (layer.kind === "source" && layer.type === "fluid") {
       return new FluidPass(layer.id, this.renderer)
+    }
+
+    if (layer.kind === "source" && layer.type === "pixel-trail") {
+      return new PixelTrailPass(layer.id, this.renderer)
+    }
+
+    if (layer.kind === "source" && layer.type === "magnify-lens") {
+      return new MagnifyLensPass(layer.id, this.renderer)
     }
 
     if (layer.kind === "source" && layer.type === "text") {

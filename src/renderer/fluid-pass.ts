@@ -5,8 +5,15 @@ import {
   defaultShaderLabFluidControls,
   type ShaderLabFluidControls,
 } from "@/fluid/types"
+import {
+  getFluidInteractionRecordingLayerId,
+  recordFluidInteractionEvent,
+} from "@/lib/editor/fluid-interaction-recorder"
 import { PassNode } from "@/renderer/pass-node"
-import type { LayerParameterValues } from "@/types/editor"
+import type {
+  FluidInteractionEvent,
+  LayerParameterValues,
+} from "@/types/editor"
 
 function createPipelinePlaceholder(): THREE.Texture {
   const texture = new THREE.Texture()
@@ -31,6 +38,9 @@ export class FluidPass extends PassNode {
   private readonly onPointerLeave: (() => void) | null
   private lastPointerX: number | null = null
   private lastPointerY: number | null = null
+  private lastReplayTimelineTime: number | null = null
+  private replayCursor = 0
+  private replayEvents: FluidInteractionEvent[] = []
 
   constructor(layerId: string, renderer: THREE.WebGPURenderer) {
     super(layerId)
@@ -40,8 +50,9 @@ export class FluidPass extends PassNode {
       this.initPromise = null
     })
 
-    const domElement = (renderer as unknown as { domElement?: HTMLCanvasElement })
-      .domElement ?? null
+    const domElement =
+      (renderer as unknown as { domElement?: HTMLCanvasElement }).domElement ??
+      null
     this.canvas = domElement
     if (domElement) {
       this.onPointerMove = (event: PointerEvent) => {
@@ -67,10 +78,14 @@ export class FluidPass extends PassNode {
     inputTexture: THREE.Texture,
     outputTarget: THREE.WebGLRenderTarget,
     time: number,
-    delta: number
+    delta: number,
+    timelineTime = time
   ): void {
     if (this.runtime.isReady) {
-      this.runtime.step(delta)
+      this.replayRecordedInteractions(timelineTime)
+      if (delta > 0) {
+        this.runtime.step(delta)
+      }
       this.outputTextureNode.value =
         this.runtime.outputTexture ?? this.placeholder
     }
@@ -80,6 +95,18 @@ export class FluidPass extends PassNode {
 
   override updateParams(params: LayerParameterValues): void {
     this.runtime.updateControls(resolveFluidControls(params))
+  }
+
+  updateFluidInteractionEvents(events: readonly FluidInteractionEvent[]): void {
+    this.replayEvents = [...events].sort(
+      (left, right) => left.time - right.time
+    )
+    this.replayCursor = 0
+    this.lastReplayTimelineTime = null
+
+    if (this.runtime.isReady) {
+      this.runtime.reset()
+    }
   }
 
   override resize(width: number, height: number): void {
@@ -133,11 +160,40 @@ export class FluidPass extends PassNode {
       const dy = -((localY - this.lastPointerY) / rect.height) * force
       if (dx !== 0 || dy !== 0) {
         this.runtime.splat(ux, uy, dx, dy)
+        recordFluidInteractionEvent(this.layerId, { dx, dy, x: ux, y: uy })
       }
     }
 
     this.lastPointerX = localX
     this.lastPointerY = localY
+  }
+
+  private replayRecordedInteractions(timelineTime: number): void {
+    if (
+      this.replayEvents.length === 0 ||
+      getFluidInteractionRecordingLayerId() === this.layerId
+    ) {
+      return
+    }
+
+    if (
+      this.lastReplayTimelineTime === null ||
+      timelineTime < this.lastReplayTimelineTime
+    ) {
+      this.replayCursor = 0
+      this.runtime.reset()
+    }
+
+    this.lastReplayTimelineTime = timelineTime
+
+    while (
+      this.replayCursor < this.replayEvents.length &&
+      this.replayEvents[this.replayCursor]!.time <= timelineTime
+    ) {
+      const event = this.replayEvents[this.replayCursor]!
+      this.runtime.splat(event.x, event.y, event.dx, event.dy)
+      this.replayCursor += 1
+    }
   }
 }
 

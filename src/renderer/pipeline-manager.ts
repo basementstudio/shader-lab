@@ -77,6 +77,9 @@ function createLayerSignature(layer: RenderableLayerPass): string {
     ].join("|")
   }
 
+  const fluidInteractions = layer.layer.fluidInteractionEvents
+  const lastFluidInteraction = fluidInteractions?.at(-1)
+
   return [
     layer.layer.id,
     layer.layer.kind,
@@ -92,6 +95,10 @@ function createLayerSignature(layer: RenderableLayerPass): string {
     layer.layer.maskConfig.source,
     layer.layer.maskConfig.mode,
     layer.layer.maskConfig.invert ? "1" : "0",
+    fluidInteractions?.length ?? 0,
+    lastFluidInteraction
+      ? `${lastFluidInteraction.time}:${lastFluidInteraction.x}:${lastFluidInteraction.y}:${lastFluidInteraction.dx}:${lastFluidInteraction.dy}`
+      : "",
     parameterValuesSignature(layer.params),
   ].join("|")
 }
@@ -228,7 +235,7 @@ export class PipelineManager {
     }
   }
 
-  render(time: number, delta: number): boolean {
+  render(time: number, delta: number, timelineTime = time): boolean {
     if (this.activePassesDirty) {
       this.cachedActivePasses = this.passes.filter(
         (pass) => pass.enabled && !this.compilingPasses.has(pass.layerId)
@@ -259,7 +266,23 @@ export class PipelineManager {
     let writeTarget = this.rtB
 
     for (const pass of activePasses) {
-      pass.render(this.renderer, readTarget.texture, writeTarget, time, delta)
+      ;(
+        pass.render as (
+          renderer: THREE.WebGPURenderer,
+          inputTexture: THREE.Texture,
+          outputTarget: THREE.WebGLRenderTarget,
+          time: number,
+          delta: number,
+          timelineTime: number
+        ) => void
+      )(
+        this.renderer,
+        readTarget.texture,
+        writeTarget,
+        time,
+        delta,
+        timelineTime
+      )
       const previousRead = readTarget
       readTarget = writeTarget
       writeTarget = previousRead
@@ -402,6 +425,11 @@ export class PipelineManager {
       renderableLayer.layer.saturation
     )
     pass.updateParams(renderableLayer.params)
+    if (pass instanceof FluidPass) {
+      pass.updateFluidInteractionEvents(
+        renderableLayer.layer.fluidInteractionEvents ?? []
+      )
+    }
     pass.flushColorNode()
 
     if (pass instanceof MediaPass) {

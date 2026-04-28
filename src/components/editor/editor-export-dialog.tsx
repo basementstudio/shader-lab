@@ -4,6 +4,7 @@ import {
   CopyIcon,
   Cross2Icon,
   DownloadIcon,
+  ExclamationTriangleIcon,
   FileIcon,
   UploadIcon,
 } from "@radix-ui/react-icons"
@@ -25,8 +26,8 @@ import { IconButton } from "@/components/ui/icon-button"
 import { NumberInput as EditableNumberInput } from "@/components/ui/number-input"
 import { Typography } from "@/components/ui/typography"
 import type { UISoundId } from "@/lib/audio/shader-lab-sounds"
-import { cn } from "@/lib/cn"
 import { playOptionalUISound } from "@/lib/audio/shader-lab-sounds"
+import { cn } from "@/lib/cn"
 import {
   ASPECT_PRESET_LABELS,
   clampExportSize,
@@ -41,6 +42,11 @@ import {
   getSupportedVideoMimeType,
   type VideoExportFormat,
 } from "@/lib/editor/export"
+import {
+  getSupportedLiveVideoMimeTypes,
+  type LiveVideoRecordingProgress,
+  recordLiveCanvasVideo,
+} from "@/lib/editor/live-video-recorder"
 import {
   applyLabProjectFile,
   buildLabProjectFile,
@@ -127,6 +133,7 @@ export function EditorExportDialog({
   const reduceMotion = useReducedMotion() ?? false
   const outputSize = useEditorStore((state) => state.outputSize)
   const sceneConfig = useEditorStore((state) => state.sceneConfig)
+  const liveCanvas = useEditorStore((state) => state.liveCanvas)
   const compositionSize = outputSize
   const suggestedAspectPreset = useMemo(
     () => getSuggestedExportAspectPreset(sceneConfig),
@@ -181,8 +188,19 @@ export function EditorExportDialog({
     mp4: false,
     webm: false,
   })
+  const [liveVideoSupport, setLiveVideoSupport] = useState({
+    mp4: null as string | null,
+    webm: null as string | null,
+  })
+  const [liveRecordingProgress, setLiveRecordingProgress] =
+    useState<LiveVideoRecordingProgress | null>(null)
+  const [liveRecordingStatus, setLiveRecordingStatus] = useState<
+    "idle" | "recording"
+  >("idle")
   const [isCopyingShader, setIsCopyingShader] = useState(false)
   const videoExportAbortRef = useRef<AbortController | null>(null)
+  const liveRecordingAbortRef = useRef<AbortController | null>(null)
+  const liveRecordingStopRef = useRef<AbortController | null>(null)
   const importInputRef = useRef<HTMLInputElement | null>(null)
   const measureRef = useRef<HTMLDivElement | null>(null)
   const dialogRef = useRef<HTMLDivElement | null>(null)
@@ -191,6 +209,10 @@ export function EditorExportDialog({
   const shaderExportIssues = useMemo(
     () => validateShaderExportSupport(layers, assets),
     [assets, layers]
+  )
+  const hasFluidLayer = useMemo(
+    () => layers.some((layer) => layer.visible && layer.type === "fluid"),
+    [layers]
   )
   const derivedVideoDuration = useMemo(
     () => getLongestVideoLayerDuration(layers, assets),
@@ -272,6 +294,10 @@ export function EditorExportDialog({
     return () => {
       cancelled = true
     }
+  }, [])
+
+  useEffect(() => {
+    setLiveVideoSupport(getSupportedLiveVideoMimeTypes())
   }, [])
 
   useEffect(() => {
@@ -564,6 +590,81 @@ export function EditorExportDialog({
     }
   }
 
+  async function handleLiveVideoRecording() {
+    clearFeedback()
+
+    if (!liveCanvas) {
+      setErrorMessage("Live recording requires the visible canvas to be ready.")
+      return
+    }
+
+    const mimeType =
+      videoFormat === "mp4"
+        ? (liveVideoSupport.mp4 ?? liveVideoSupport.webm)
+        : (liveVideoSupport.webm ?? liveVideoSupport.mp4)
+
+    if (!mimeType) {
+      setErrorMessage("Live recording is not supported in this browser.")
+      return
+    }
+
+    const abortController = new AbortController()
+    const stopController = new AbortController()
+    liveRecordingAbortRef.current = abortController
+    liveRecordingStopRef.current = stopController
+    setLiveRecordingProgress({
+      duration: Math.max(0.25, videoDuration),
+      elapsed: 0,
+      value: 0,
+    })
+    setLiveRecordingStatus("recording")
+
+    const timelineStore = useTimelineStore.getState()
+    if (timelineStore.currentTime >= timelineStore.duration) {
+      timelineStore.setCurrentTime(0)
+    }
+    timelineStore.setPlaying(true)
+    onOpenChange(false)
+
+    try {
+      const blob = await recordLiveCanvasVideo({
+        canvas: liveCanvas,
+        duration: Math.max(0.25, videoDuration),
+        fps: Math.max(1, videoFps),
+        mimeType,
+        onProgress: setLiveRecordingProgress,
+        signal: abortController.signal,
+        stopSignal: stopController.signal,
+      })
+
+      useTimelineStore.getState().setPlaying(false)
+      const extension = mimeType.includes("mp4") ? "mp4" : "webm"
+      downloadBlob(blob, buildDownloadName(extension))
+      setStatusMessage(`Live ${extension.toUpperCase()} recording exported.`)
+    } catch (error) {
+      useTimelineStore.getState().setPlaying(false)
+      if (!(error instanceof DOMException && error.name === "AbortError")) {
+        setErrorMessage(
+          error instanceof Error ? error.message : "Live recording failed."
+        )
+      }
+    } finally {
+      liveRecordingAbortRef.current = null
+      liveRecordingStopRef.current = null
+      setLiveRecordingProgress(null)
+      setLiveRecordingStatus("idle")
+    }
+  }
+
+  function stopLiveVideoRecording() {
+    liveRecordingStopRef.current?.abort()
+  }
+
+  function cancelLiveVideoRecording() {
+    liveRecordingAbortRef.current?.abort()
+    useTimelineStore.getState().setPlaying(false)
+  }
+
   async function handleProjectExport() {
     clearFeedback()
 
@@ -785,9 +886,14 @@ export function EditorExportDialog({
                       ) : null}
                       {activeTab === "video" ? (
                         <VideoTabContent
+                          hasFluidLayer={hasFluidLayer}
                           isWorking={isWorking}
+                          liveRecordingSupported={Boolean(
+                            liveVideoSupport.webm || liveVideoSupport.mp4
+                          )}
                           mp4Supported={videoSupport.mp4}
                           onExport={handleVideoExport}
+                          onLiveRecord={handleLiveVideoRecording}
                           onVideoAspectChange={setVideoAspect}
                           onVideoDurationChange={(value) => {
                             setVideoDurationDirty(true)
@@ -861,9 +967,14 @@ export function EditorExportDialog({
                         ) : null}
                         {activeTab === "video" ? (
                           <VideoTabContent
+                            hasFluidLayer={hasFluidLayer}
                             isWorking={isWorking}
+                            liveRecordingSupported={Boolean(
+                              liveVideoSupport.webm || liveVideoSupport.mp4
+                            )}
                             mp4Supported={videoSupport.mp4}
                             onExport={handleVideoExport}
+                            onLiveRecord={handleLiveVideoRecording}
                             onVideoAspectChange={setVideoAspect}
                             onVideoDurationChange={(value) => {
                               setVideoDurationDirty(true)
@@ -936,9 +1047,75 @@ export function EditorExportDialog({
           </div>
         </div>
       ) : null}
+      {liveRecordingStatus === "recording" && liveRecordingProgress ? (
+        <LiveRecordingHud
+          onCancel={cancelLiveVideoRecording}
+          onStop={stopLiveVideoRecording}
+          progress={liveRecordingProgress}
+        />
+      ) : null}
     </AnimatePresence>,
     document.body
   )
+}
+
+function LiveRecordingHud({
+  onCancel,
+  onStop,
+  progress,
+}: {
+  onCancel: () => void
+  onStop: () => void
+  progress: LiveVideoRecordingProgress
+}) {
+  return (
+    <motion.div
+      animate={{ opacity: 1, y: 0 }}
+      className="fixed right-4 bottom-4 z-90 w-[min(360px,calc(100vw-32px))]"
+      exit={{ opacity: 0, y: 8 }}
+      initial={{ opacity: 0, y: 8 }}
+      transition={{ duration: 0.16, ease: "easeOut" }}
+    >
+      <GlassPanel className="flex flex-col gap-3 p-3" variant="panel">
+        <div className="flex items-center justify-between gap-3">
+          <Typography tone="secondary" variant="label">
+            Live recording
+          </Typography>
+          <Typography tone="muted" variant="caption">
+            {formatSeconds(progress.elapsed)} /{" "}
+            {formatSeconds(progress.duration)}
+          </Typography>
+        </div>
+        <div className="h-1.5 overflow-hidden rounded-full bg-white/8">
+          <div
+            className="h-full rounded-full bg-[var(--ds-color-text-primary)]"
+            style={{
+              width: `${Math.max(0, Math.min(progress.value, 1)) * 100}%`,
+            }}
+          />
+        </div>
+        <div className="flex items-center justify-end gap-2">
+          <Button onClick={onCancel} size="compact" variant="ghost">
+            Cancel
+          </Button>
+          <Button onClick={onStop} size="compact" variant="primary">
+            Stop
+          </Button>
+        </div>
+      </GlassPanel>
+    </motion.div>
+  )
+}
+
+function formatSeconds(value: number): string {
+  if (!Number.isFinite(value)) {
+    return "0:00"
+  }
+
+  const totalSeconds = Math.max(0, Math.floor(value))
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`
 }
 
 function ImageTabContent({
@@ -1017,9 +1194,12 @@ function ImageTabContent({
 }
 
 function VideoTabContent({
+  hasFluidLayer,
   isWorking,
+  liveRecordingSupported,
   mp4Supported,
   onExport,
+  onLiveRecord,
   onVideoAspectChange,
   onVideoDurationChange,
   onVideoFpsChange,
@@ -1037,9 +1217,12 @@ function VideoTabContent({
   videoSize,
   webmSupported,
 }: {
+  hasFluidLayer: boolean
   isWorking: boolean
+  liveRecordingSupported: boolean
   mp4Supported: boolean
   onExport: () => Promise<void>
+  onLiveRecord: () => Promise<void>
   onVideoAspectChange: (preset: ExportAspectPreset) => void
   onVideoDurationChange: (value: number) => void
   onVideoFpsChange: (value: number) => void
@@ -1063,6 +1246,38 @@ function VideoTabContent({
 
   return (
     <section className="flex flex-col gap-[14px]">
+      {hasFluidLayer ? (
+        <div className="flex flex-col gap-3 rounded-[var(--ds-radius-control)] border border-[rgb(255_190_92_/_0.22)] p-3">
+          <Typography
+            className="flex items-center gap-2 leading-[14px] text-[rgb(255_219_166_/_0.92)]"
+            variant="caption"
+          >
+            <ExclamationTriangleIcon height={14} width={14} />
+            Fluid layers use a live simulation. Offline video export can capture
+            incomplete fluid motion.
+          </Typography>
+          <Button
+            disabled={!liveRecordingSupported || isWorking}
+            onClick={() => void onLiveRecord()}
+            size="compact"
+            uiSound="action.play"
+            variant="neutral"
+          >
+            <DownloadIcon height={16} width={16} />
+            Record Live Video
+          </Button>
+          {!liveRecordingSupported ? (
+            <Typography
+              className="leading-[14px]"
+              tone="muted"
+              variant="caption"
+            >
+              Live recording is not supported in this browser.
+            </Typography>
+          ) : null}
+        </div>
+      ) : null}
+
       <FieldLabel label="Format">
         <PresetRow>
           <PillButton

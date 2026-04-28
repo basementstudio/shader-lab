@@ -7,9 +7,11 @@ import { CustomShaderPass } from "@/renderer/custom-shader-pass"
 import { FluidPass } from "@/renderer/fluid-pass"
 import { GradientPass } from "@/renderer/gradient-pass"
 import { LivePass } from "@/renderer/live-pass"
+import { MagnifyLensPass } from "@/renderer/magnify-lens-pass"
 import { MediaPass } from "@/renderer/media-pass"
 import type { PassNode } from "@/renderer/pass-node"
 import { createPassNode } from "@/renderer/pass-node-factory"
+import { PixelTrailPass } from "@/renderer/pixel-trail-pass"
 import { ScenePostProcess } from "@/renderer/scene-post-process"
 import { TextPass } from "@/renderer/text-pass"
 import type { EditorLayer, SceneConfig, Size } from "@/types/editor"
@@ -425,7 +427,11 @@ export class PipelineManager {
       renderableLayer.layer.saturation
     )
     pass.updateParams(renderableLayer.params)
-    if (pass instanceof FluidPass) {
+    if (
+      pass instanceof FluidPass ||
+      pass instanceof PixelTrailPass ||
+      pass instanceof MagnifyLensPass
+    ) {
       pass.updateFluidInteractionEvents(
         renderableLayer.layer.fluidInteractionEvents ?? []
       )
@@ -528,6 +534,14 @@ export class PipelineManager {
 
     if (layer.kind === "source" && layer.type === "fluid") {
       return new FluidPass(layer.id, this.renderer)
+    }
+
+    if (layer.kind === "source" && layer.type === "pixel-trail") {
+      return new PixelTrailPass(layer.id, this.renderer)
+    }
+
+    if (layer.kind === "source" && layer.type === "magnify-lens") {
+      return new MagnifyLensPass(layer.id, this.renderer)
     }
 
     if (layer.kind === "source" && layer.type === "text") {

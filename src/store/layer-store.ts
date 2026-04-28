@@ -769,7 +769,10 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
   setFluidInteractionEvents: (id, events) => {
     set((state) => ({
       layers: state.layers.map((layer) =>
-        layer.id === id && layer.type === "fluid"
+        layer.id === id &&
+        (layer.type === "fluid" ||
+          layer.type === "pixel-trail" ||
+          layer.type === "magnify-lens")
           ? { ...layer, fluidInteractionEvents: structuredClone(events) }
           : layer
       ),

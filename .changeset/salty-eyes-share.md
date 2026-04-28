@@ -2,4 +2,4 @@
 "@basementstudio/shader-lab": patch
 ---
 
-new interactive layer - fluid
+new interactive layers - fluid, magnifying, and pixel trail

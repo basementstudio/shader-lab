@@ -13,6 +13,7 @@ import { DisplacementMapPass } from "./displacement-map-pass"
 import { DitheringPass } from "./dithering-pass"
 import { EdgeDetectPass } from "./edge-detect-pass"
 import { FlutedGlassPass } from "./fluted-glass-pass"
+import { FluidPass } from "./fluid-pass"
 import { GradientPass } from "./gradient-pass"
 import { HalftonePass } from "./halftone-pass"
 import { InkPass } from "./ink-pass"
@@ -42,6 +43,7 @@ type LayerPassNode =
   | DitheringPass
   | EdgeDetectPass
   | FlutedGlassPass
+  | FluidPass
   | GradientPass
   | HalftonePass
   | InkPass
@@ -540,6 +542,10 @@ export class PipelineManager {
 
     if (layer.kind === "source" && layer.type === "gradient") {
       return new GradientPass(layer.id)
+    }
+
+    if (layer.kind === "source" && layer.type === "fluid") {
+      return new FluidPass(layer.id, this.renderer)
     }
 
     if (layer.kind === "source" && layer.type === "text") {

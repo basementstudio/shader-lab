@@ -27,7 +27,11 @@ export async function createWebGPURenderer(
     pipeline.updateSceneConfig(frame.sceneConfig)
     pipeline.updateOutputCropAspectRatio(frame.cropAspectRatio)
     pipeline.syncLayers([...frame.layers].reverse())
-    pipeline.render(frame.clock.time, frame.clock.delta)
+    pipeline.render(
+      frame.clock.time,
+      frame.clock.delta,
+      frame.clock.timelineTime
+    )
   }
 
   return {

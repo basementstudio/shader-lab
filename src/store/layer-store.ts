@@ -19,6 +19,7 @@ import { useEditorStore } from "@/store/editor-store"
 import type {
   BlendMode,
   EditorLayer,
+  FluidInteractionEvent,
   LayerCompositeMode,
   LayerParameterValues,
   LayerType,
@@ -30,6 +31,7 @@ import { DEFAULT_MASK_CONFIG } from "@/types/editor"
 export interface LayerStoreState {
   hoveredLayerId: string | null
   layers: EditorLayer[]
+  recordingFluidLayerId: string | null
   selectedLayerIds: string[]
   selectedLayerId: string | null
   selectionAnchorId: string | null
@@ -64,6 +66,11 @@ export interface LayerStoreActions {
   setLayerCompositeMode: (id: string, compositeMode: LayerCompositeMode) => void
   setLayerMaskConfig: (id: string, updates: Partial<MaskConfig>) => void
   setLayerExpanded: (id: string, expanded: boolean) => void
+  setFluidInteractionEvents: (
+    id: string,
+    events: FluidInteractionEvent[]
+  ) => void
+  setRecordingFluidLayer: (id: string | null) => void
   setLayerHue: (id: string, hue: number) => void
   setLayerLocked: (id: string, locked: boolean) => void
   setLayerOpacity: (id: string, opacity: number) => void
@@ -481,6 +488,7 @@ function getSelectionAfterRemoval(
 export const useLayerStore = create<LayerStore>((set, get) => ({
   hoveredLayerId: null,
   layers: getDefaultProjectLayers(),
+  recordingFluidLayerId: null,
   selectedLayerIds: DEFAULT_SELECTED_LAYER_ID
     ? [DEFAULT_SELECTED_LAYER_ID]
     : [],
@@ -758,6 +766,20 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
     }))
   },
 
+  setFluidInteractionEvents: (id, events) => {
+    set((state) => ({
+      layers: state.layers.map((layer) =>
+        layer.id === id && layer.type === "fluid"
+          ? { ...layer, fluidInteractionEvents: structuredClone(events) }
+          : layer
+      ),
+    }))
+  },
+
+  setRecordingFluidLayer: (id) => {
+    set({ recordingFluidLayerId: id })
+  },
+
   setLayerOpacity: (id, opacity) => {
     set((state) => ({
       layers: state.layers.map((layer) => {
@@ -1016,6 +1038,7 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
           nextSelectedLayerIds.find((id) => id === selectedLayerId)) ??
         nextSelectedLayerIds.at(-1) ??
         null,
+      recordingFluidLayerId: null,
     })
   },
 

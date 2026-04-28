@@ -11,20 +11,22 @@ const MIN_DURATION = 0.25
 export function createProjectClock(
   timeline: TimelineClockState,
   delta: number,
-  explicitTime?: number,
+  explicitTime?: number
 ): ProjectClock {
   return {
     delta,
     duration: timeline.duration,
     isPlaying: timeline.isPlaying,
     loop: timeline.loop,
-    time: typeof explicitTime === "number" ? explicitTime : timeline.currentTime,
+    timelineTime: timeline.currentTime,
+    time:
+      typeof explicitTime === "number" ? explicitTime : timeline.currentTime,
   }
 }
 
 export function advanceProjectTimeline(
   timeline: TimelineClockState,
-  delta: number,
+  delta: number
 ): Pick<TimelineClockState, "currentTime" | "isPlaying"> {
   if (!Number.isFinite(delta) || delta <= 0 || !timeline.isPlaying) {
     return {

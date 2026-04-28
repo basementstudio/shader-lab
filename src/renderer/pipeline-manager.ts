@@ -4,6 +4,7 @@ import { isSvgMediaSource } from "@/lib/editor/media-file"
 import { parameterValuesSignature } from "@/lib/editor/parameter-schema"
 import type { RenderableLayerPass } from "@/renderer/contracts"
 import { CustomShaderPass } from "@/renderer/custom-shader-pass"
+import { FluidPass } from "@/renderer/fluid-pass"
 import { GradientPass } from "@/renderer/gradient-pass"
 import { LivePass } from "@/renderer/live-pass"
 import { MediaPass } from "@/renderer/media-pass"
@@ -13,7 +14,7 @@ import { ScenePostProcess } from "@/renderer/scene-post-process"
 import { TextPass } from "@/renderer/text-pass"
 import type { EditorLayer, SceneConfig, Size } from "@/types/editor"
 
-type LayerPassNode = LivePass | MediaPass | PassNode
+type LayerPassNode = FluidPass | LivePass | MediaPass | PassNode
 
 const RENDER_TARGET_OPTIONS = {
   depthBuffer: false,
@@ -76,6 +77,9 @@ function createLayerSignature(layer: RenderableLayerPass): string {
     ].join("|")
   }
 
+  const fluidInteractions = layer.layer.fluidInteractionEvents
+  const lastFluidInteraction = fluidInteractions?.at(-1)
+
   return [
     layer.layer.id,
     layer.layer.kind,
@@ -91,6 +95,10 @@ function createLayerSignature(layer: RenderableLayerPass): string {
     layer.layer.maskConfig.source,
     layer.layer.maskConfig.mode,
     layer.layer.maskConfig.invert ? "1" : "0",
+    fluidInteractions?.length ?? 0,
+    lastFluidInteraction
+      ? `${lastFluidInteraction.time}:${lastFluidInteraction.x}:${lastFluidInteraction.y}:${lastFluidInteraction.dx}:${lastFluidInteraction.dy}`
+      : "",
     parameterValuesSignature(layer.params),
   ].join("|")
 }
@@ -227,7 +235,7 @@ export class PipelineManager {
     }
   }
 
-  render(time: number, delta: number): boolean {
+  render(time: number, delta: number, timelineTime = time): boolean {
     if (this.activePassesDirty) {
       this.cachedActivePasses = this.passes.filter(
         (pass) => pass.enabled && !this.compilingPasses.has(pass.layerId)
@@ -258,7 +266,23 @@ export class PipelineManager {
     let writeTarget = this.rtB
 
     for (const pass of activePasses) {
-      pass.render(this.renderer, readTarget.texture, writeTarget, time, delta)
+      ;(
+        pass.render as (
+          renderer: THREE.WebGPURenderer,
+          inputTexture: THREE.Texture,
+          outputTarget: THREE.WebGLRenderTarget,
+          time: number,
+          delta: number,
+          timelineTime: number
+        ) => void
+      )(
+        this.renderer,
+        readTarget.texture,
+        writeTarget,
+        time,
+        delta,
+        timelineTime
+      )
       const previousRead = readTarget
       readTarget = writeTarget
       writeTarget = previousRead
@@ -401,6 +425,11 @@ export class PipelineManager {
       renderableLayer.layer.saturation
     )
     pass.updateParams(renderableLayer.params)
+    if (pass instanceof FluidPass) {
+      pass.updateFluidInteractionEvents(
+        renderableLayer.layer.fluidInteractionEvents ?? []
+      )
+    }
     pass.flushColorNode()
 
     if (pass instanceof MediaPass) {
@@ -495,6 +524,10 @@ export class PipelineManager {
 
     if (layer.kind === "source" && layer.type === "gradient") {
       return new GradientPass(layer.id)
+    }
+
+    if (layer.kind === "source" && layer.type === "fluid") {
+      return new FluidPass(layer.id, this.renderer)
     }
 
     if (layer.kind === "source" && layer.type === "text") {

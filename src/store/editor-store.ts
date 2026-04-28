@@ -33,6 +33,7 @@ export interface EditorStoreState extends EditorStateSnapshot {
   floatingPanelsResetting: boolean
   floatingPanelsResetToken: number
   liveRenderer: EditorRenderer | null
+  liveCanvas: HTMLCanvasElement | null
   mobilePanel: MobileEditorPanel
   startupPreviewDismissed: boolean
 }
@@ -69,6 +70,7 @@ export interface EditorStoreActions {
   setTimelinePanelOpen: (open: boolean) => void
   setSidebarView: (view: SidebarView) => void
   setLiveRenderer: (renderer: EditorRenderer | null) => void
+  setLiveCanvas: (canvas: HTMLCanvasElement | null) => void
   setMobilePanel: (panel: MobileEditorPanel) => void
   setWebGPUStatus: (status: WebGPUStatus, error?: string | null) => void
   setZoom: (zoom: number) => void
@@ -108,6 +110,7 @@ export const useEditorStore = create<EditorStore>((set) => ({
   immersiveCanvas: false,
   interactiveEditDepth: 0,
   liveRenderer: null,
+  liveCanvas: null,
   mobilePanel: "none",
   outputSize: DEFAULT_PROJECT_COMPOSITION,
   panOffset: { x: 0, y: 0 },
@@ -386,6 +389,10 @@ export const useEditorStore = create<EditorStore>((set) => ({
 
   setLiveRenderer: (liveRenderer) => {
     set({ liveRenderer })
+  },
+
+  setLiveCanvas: (liveCanvas) => {
+    set({ liveCanvas })
   },
 
   setWebGPUStatus: (webgpuStatus, webgpuError = null) => {

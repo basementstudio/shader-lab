@@ -2,7 +2,7 @@
 
 import { TextAlignRightIcon } from "@radix-ui/react-icons"
 import { AnimatePresence, motion } from "motion/react"
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { IconButton } from "@/components/ui/icon-button"
 import { Select } from "@/components/ui/select"
@@ -15,7 +15,13 @@ import {
   CUSTOM_SHADER_ENTRY_EXPORT,
   CUSTOM_SHADER_STARTER,
 } from "@/lib/editor/custom-shader/shared"
+import {
+  cancelFluidInteractionRecording,
+  startFluidInteractionRecording,
+  stopFluidInteractionRecording,
+} from "@/lib/editor/fluid-interaction-recorder"
 import { formatCustomShaderSource } from "@/renderer/custom-shader-runtime"
+import { useLayerStore } from "@/store/layer-store"
 import { useTimelineStore } from "@/store/timeline-store"
 import type {
   AnimatedPropertyBinding,
@@ -298,12 +304,135 @@ export function SelectedLayerPropertiesContent({
   values: Record<string, ParameterValue>
   visibleParams: ParameterDefinition[]
 }) {
+  const fluidInteractionEventCount = useLayerStore(
+    (state) =>
+      state.layers.find((layer) => layer.id === layerId)?.fluidInteractionEvents
+        ?.length ?? 0
+  )
+  const recordingFluidLayerId = useLayerStore(
+    (state) => state.recordingFluidLayerId
+  )
+  const setFluidInteractionEvents = useLayerStore(
+    (state) => state.setFluidInteractionEvents
+  )
+  const setRecordingFluidLayer = useLayerStore(
+    (state) => state.setRecordingFluidLayer
+  )
+  const setTimelinePlaying = useTimelineStore((state) => state.setPlaying)
+  const setTimelineCurrentTime = useTimelineStore(
+    (state) => state.setCurrentTime
+  )
+  const timelineCurrentTime = useTimelineStore((state) => state.currentTime)
+  const timelineDuration = useTimelineStore((state) => state.duration)
+  const timelineIsPlaying = useTimelineStore((state) => state.isPlaying)
+  const timelineLoop = useTimelineStore((state) => state.loop)
+  const previousFluidRecordingTimeRef = useRef<number | null>(null)
   const groupedParams = useMemo(
     () => groupVisibleParams(visibleParams),
     [visibleParams]
   )
   const showGroupedParams =
     groupedParams.length > 1 || groupedParams[0]?.label !== DEFAULT_PARAM_GROUP
+  const isRecordingFluidLayer = recordingFluidLayerId === layerId
+  let fluidInteractionMessage = "No recording"
+
+  if (isRecordingFluidLayer) {
+    fluidInteractionMessage = "Recording"
+  } else if (fluidInteractionEventCount > 0) {
+    fluidInteractionMessage = `${fluidInteractionEventCount} samples`
+  }
+
+  const finishFluidRecording = useCallback(() => {
+    const events = stopFluidInteractionRecording()
+    setFluidInteractionEvents(layerId, events)
+    setRecordingFluidLayer(null)
+    setTimelinePlaying(false)
+    previousFluidRecordingTimeRef.current = null
+  }, [
+    layerId,
+    setFluidInteractionEvents,
+    setRecordingFluidLayer,
+    setTimelinePlaying,
+  ])
+
+  const handleToggleFluidRecording = useCallback(() => {
+    if (isRecordingFluidLayer) {
+      finishFluidRecording()
+      return
+    }
+
+    if (recordingFluidLayerId) {
+      cancelFluidInteractionRecording()
+    }
+
+    setFluidInteractionEvents(layerId, [])
+    const timeline = useTimelineStore.getState()
+    if (timeline.currentTime >= timeline.duration) {
+      setTimelineCurrentTime(0)
+    }
+    startFluidInteractionRecording(layerId)
+    setRecordingFluidLayer(layerId)
+    previousFluidRecordingTimeRef.current = timeline.currentTime
+    setTimelinePlaying(true)
+  }, [
+    finishFluidRecording,
+    isRecordingFluidLayer,
+    layerId,
+    recordingFluidLayerId,
+    setFluidInteractionEvents,
+    setRecordingFluidLayer,
+    setTimelineCurrentTime,
+    setTimelinePlaying,
+  ])
+
+  const handleClearFluidRecording = useCallback(() => {
+    if (isRecordingFluidLayer) {
+      cancelFluidInteractionRecording()
+      setRecordingFluidLayer(null)
+      setTimelinePlaying(false)
+    }
+
+    setFluidInteractionEvents(layerId, [])
+  }, [
+    isRecordingFluidLayer,
+    layerId,
+    setFluidInteractionEvents,
+    setRecordingFluidLayer,
+    setTimelinePlaying,
+  ])
+
+  useEffect(() => {
+    if (!isRecordingFluidLayer) {
+      previousFluidRecordingTimeRef.current = null
+      return
+    }
+
+    const previousTime = previousFluidRecordingTimeRef.current
+
+    if (previousTime === null) {
+      previousFluidRecordingTimeRef.current = timelineCurrentTime
+      return
+    }
+
+    const looped = timelineLoop && timelineCurrentTime < previousTime
+    const reachedEnd =
+      !(timelineLoop || timelineIsPlaying) &&
+      timelineCurrentTime >= timelineDuration - 0.001
+
+    if (looped || reachedEnd) {
+      finishFluidRecording()
+      return
+    }
+
+    previousFluidRecordingTimeRef.current = timelineCurrentTime
+  }, [
+    finishFluidRecording,
+    isRecordingFluidLayer,
+    timelineCurrentTime,
+    timelineDuration,
+    timelineIsPlaying,
+    timelineLoop,
+  ])
 
   const opacityBinding = useMemo(
     () => ({
@@ -548,12 +677,17 @@ export function SelectedLayerPropertiesContent({
 
         {layerType === "gradient" ? (
           <section className="flex flex-col gap-3 border-t border-[var(--ds-border-divider)] px-4 pt-[14px] pb-4 first:border-t-0">
-            <Typography className="uppercase" tone="secondary" variant="overline">
+            <Typography
+              className="uppercase"
+              tone="secondary"
+              variant="overline"
+            >
               Gradient
             </Typography>
             <div className="flex items-center justify-between gap-3">
               <Typography tone="muted" variant="caption">
-                Randomize all points, distortion, animation, and finish settings.
+                Randomize all points, distortion, animation, and finish
+                settings.
               </Typography>
               <Button
                 onClick={() => randomizeGradientParams(layerId)}
@@ -563,6 +697,45 @@ export function SelectedLayerPropertiesContent({
               >
                 Randomize
               </Button>
+            </div>
+          </section>
+        ) : null}
+
+        {layerType === "fluid" ? (
+          <section className="flex flex-col gap-3 border-t border-[var(--ds-border-divider)] px-4 pt-[14px] pb-4 first:border-t-0">
+            <Typography
+              className="uppercase"
+              tone="secondary"
+              variant="overline"
+            >
+              Interaction
+            </Typography>
+            <div className="flex items-center justify-between gap-3">
+              <Typography tone="muted" variant="caption">
+                {fluidInteractionMessage}
+              </Typography>
+              <div className="flex shrink-0 items-center gap-2">
+                <Button
+                  onClick={handleToggleFluidRecording}
+                  size="compact"
+                  uiSound={
+                    isRecordingFluidLayer ? "action.stop" : "action.play"
+                  }
+                  variant={isRecordingFluidLayer ? "primary" : "secondary"}
+                >
+                  {isRecordingFluidLayer ? "Stop" : "Record"}
+                </Button>
+                <Button
+                  disabled={
+                    !isRecordingFluidLayer && fluidInteractionEventCount === 0
+                  }
+                  onClick={handleClearFluidRecording}
+                  size="compact"
+                  variant="ghost"
+                >
+                  Clear
+                </Button>
+              </div>
             </div>
           </section>
         ) : null}

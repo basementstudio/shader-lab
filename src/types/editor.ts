@@ -1,14 +1,14 @@
 import type {
-  CubicBezierPoints as _CubicBezierPoints,
-  KeyframeEasing as _KeyframeEasing,
-} from "@/lib/easing-curve"
-import type {
   ColorCurve as _ColorCurve,
   ColorCurveChannelId as _ColorCurveChannelId,
   ColorCurvePoint as _ColorCurvePoint,
   SceneColorCurves as _SceneColorCurves,
 } from "@/lib/color-curves"
 import { createDefaultColorCurves } from "@/lib/color-curves"
+import type {
+  CubicBezierPoints as _CubicBezierPoints,
+  KeyframeEasing as _KeyframeEasing,
+} from "@/lib/easing-curve"
 
 export type CubicBezierPoints = _CubicBezierPoints
 export type KeyframeEasing = _KeyframeEasing
@@ -235,6 +235,14 @@ export type LayerFrameAdjustment = {
   saturation: number
 }
 
+export type FluidInteractionEvent = {
+  dx: number
+  dy: number
+  time: number
+  x: number
+  y: number
+}
+
 export const DEFAULT_MASK_CONFIG: MaskConfig = {
   invert: false,
   mode: "multiply",
@@ -248,6 +256,7 @@ export interface BaseLayer {
   expanded: boolean
   hue: number
   id: string
+  fluidInteractionEvents?: FluidInteractionEvent[]
   kind: LayerKind
   locked: boolean
   maskConfig: MaskConfig

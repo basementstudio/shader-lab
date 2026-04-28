@@ -9,6 +9,7 @@ export type ShaderLabLayerKind = "effect" | "source"
 
 export type ShaderLabSourceLayerType =
   | "custom-shader"
+  | "fluid"
   | "gradient"
   | "image"
   | "live"

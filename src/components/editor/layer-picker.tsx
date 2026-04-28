@@ -3,6 +3,7 @@
 import {
   CameraIcon,
   CodeIcon,
+  CursorArrowIcon,
   ImageIcon,
   MagicWandIcon,
   PlusIcon,
@@ -90,7 +91,7 @@ const SOURCE_ITEMS: readonly SourceItem[] = [
   { icon: VideoIcon, label: "Video", value: "video" },
   { icon: CameraIcon, label: "Camera", value: "live" },
   { icon: TextIcon, label: "Text", value: "text" },
-  { icon: MagicWandIcon, label: "Fluid", value: "fluid" },
+  { icon: CursorArrowIcon, label: "Fluid", value: "fluid" },
   { icon: MagicWandIcon, label: "Mesh Gradient", value: "gradient" },
   { icon: CodeIcon, label: "Custom Shader", value: "custom-shader" },
 ] as const

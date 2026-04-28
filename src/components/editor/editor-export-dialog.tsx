@@ -1253,8 +1253,9 @@ function VideoTabContent({
             variant="caption"
           >
             <ExclamationTriangleIcon height={14} width={14} />
-            Fluid layers use a live simulation. Offline video export can capture
-            incomplete fluid motion.
+            Interactive layers use a live simulation. Normal video export can
+            capture incomplete or broken fluid motion. Use live recording
+            instead.
           </Typography>
           <Button
             disabled={!liveRecordingSupported || isWorking}

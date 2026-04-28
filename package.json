@@ -39,6 +39,7 @@
     "@react-three/fiber": "^9.5.0",
     "@react-three/postprocessing": "^3.0.4",
     "@vercel/analytics": "^2.0.1",
+    "@web-kits/audio": "^0.1.0",
     "class-variance-authority": "^0.7.1",
     "motion": "^12.38.0",
     "mp4-muxer": "^5.2.2",

@@ -251,14 +251,20 @@ async function exportStillWithNewRenderer(
 
   try {
     await prewarmExportFrame(renderer, renderCanvas, projectState, {
-      cropAspectRatio: getAspectRatio(projectState.compositionSize, options.aspectPreset),
+      cropAspectRatio: getAspectRatio(
+        projectState.compositionSize,
+        options.aspectPreset
+      ),
       logicalSize: projectState.compositionSize,
       renderSize: sourceRenderSize,
       time: options.time,
     })
 
     await renderFrameToCanvas(renderer, renderCanvas, projectState, {
-      cropAspectRatio: getAspectRatio(projectState.compositionSize, options.aspectPreset),
+      cropAspectRatio: getAspectRatio(
+        projectState.compositionSize,
+        options.aspectPreset
+      ),
       logicalSize: projectState.compositionSize,
       renderSize: sourceRenderSize,
       time: options.time,
@@ -337,7 +343,10 @@ export async function exportVideo(
   try {
     throwIfAborted(options.abortSignal)
     await prewarmExportFrame(renderer, renderCanvas, projectState, {
-      cropAspectRatio: getAspectRatio(projectState.compositionSize, options.aspectPreset),
+      cropAspectRatio: getAspectRatio(
+        projectState.compositionSize,
+        options.aspectPreset
+      ),
       logicalSize: projectState.compositionSize,
       renderSize: sourceRenderSize,
       time: options.startTime,
@@ -363,7 +372,11 @@ export async function exportVideo(
       )
 
       await renderFrameToCanvas(renderer, renderCanvas, projectState, {
-        cropAspectRatio: getAspectRatio(projectState.compositionSize, options.aspectPreset),
+        cropAspectRatio: getAspectRatio(
+          projectState.compositionSize,
+          options.aspectPreset
+        ),
+        delta: frameIndex === 0 ? 0 : 1 / options.fps,
         logicalSize: projectState.compositionSize,
         renderSize: sourceRenderSize,
         time,
@@ -426,6 +439,7 @@ async function renderFrameToCanvas(
   projectState: RenderProjectState,
   options: {
     cropAspectRatio: number | null
+    delta?: number
     logicalSize: Size
     renderSize: Size
     time: number
@@ -442,7 +456,7 @@ async function renderFrameToCanvas(
   canvas.width = options.renderSize.width
   canvas.height = options.renderSize.height
   renderer.resize(options.renderSize, 1)
-  const frame = buildRendererFrame({
+  const prepareFrame = buildRendererFrame({
     assets: projectState.assets,
     clockTime: timelineState.currentTime,
     cropAspectRatio: options.cropAspectRatio,
@@ -455,11 +469,25 @@ async function renderFrameToCanvas(
     timeline: timelineState,
     viewportSize: options.renderSize,
   })
-  renderer.render(frame)
+  renderer.render(prepareFrame)
   await renderer.prepareForExportFrame(
     timelineState.currentTime,
     timelineState.loop
   )
+
+  const frame = buildRendererFrame({
+    assets: projectState.assets,
+    clockTime: timelineState.currentTime,
+    cropAspectRatio: options.cropAspectRatio,
+    delta: options.delta ?? 0,
+    layers: projectState.layers,
+    logicalSize: options.logicalSize,
+    outputSize: options.renderSize,
+    pixelRatio: 1,
+    sceneConfig: projectState.sceneConfig,
+    timeline: timelineState,
+    viewportSize: options.renderSize,
+  })
   renderer.render(frame)
 
   await waitForRenderedFrame()

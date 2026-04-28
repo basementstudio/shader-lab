@@ -1,5 +1,5 @@
 import type * as THREE from "three/webgpu"
-import { buildRendererFrame } from "./renderer/contracts"
+import { buildRendererFrame, DEFAULT_RENDERER_SIZE } from "./renderer/contracts"
 import {
   createHeadlessRenderer,
   type HeadlessRenderer,
@@ -39,11 +39,18 @@ export class ShaderLabPostProcessingSource {
     options?: ShaderLabPostProcessingSourceOptions
   ) {
     this.config = config
-    this.width = options?.width ?? config.composition.width
-    this.height = options?.height ?? config.composition.height
+    this.width =
+      options?.width ?? config.composition?.width ?? DEFAULT_RENDERER_SIZE.width
+    this.height =
+      options?.height ??
+      config.composition?.height ??
+      DEFAULT_RENDERER_SIZE.height
     this.pixelRatio = options?.pixelRatio ?? 1
 
-    if (options?.renderer !== undefined && !isWebGPURenderer(options.renderer)) {
+    if (
+      options?.renderer !== undefined &&
+      !isWebGPURenderer(options.renderer)
+    ) {
       throw new Error(
         "ShaderLab postprocessing requires a THREE.WebGPURenderer. Canvas-backed texture output can be used in WebGL scenes, but postprocessing cannot."
       )

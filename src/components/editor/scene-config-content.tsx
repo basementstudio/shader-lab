@@ -15,6 +15,7 @@ import {
   type GraphicsPreset,
   type GraphicsPresetMode,
 } from "@/lib/editor/graphics-preset"
+import { playUISound } from "@/lib/audio/shader-lab-sounds"
 import { useEditorStore } from "@/store/editor-store"
 import { useGraphicsPresetStore } from "@/store/graphics-preset-store"
 import type { CompositionAspect, SceneConfig } from "@/types/editor"
@@ -205,7 +206,7 @@ export function SceneConfigContent() {
         action={
           <button
             className={sectionActionClassName}
-            onClick={() =>
+            onClick={() => {
               updateSceneConfig({
                 brightness: DEFAULT_SCENE_CONFIG.brightness,
                 contrast: DEFAULT_SCENE_CONFIG.contrast,
@@ -213,11 +214,12 @@ export function SceneConfigContent() {
                 hue: DEFAULT_SCENE_CONFIG.hue,
                 invert: DEFAULT_SCENE_CONFIG.invert,
                 saturation: DEFAULT_SCENE_CONFIG.saturation,
-                vibrance: DEFAULT_SCENE_CONFIG.vibrance,
                 temperature: DEFAULT_SCENE_CONFIG.temperature,
                 tint: DEFAULT_SCENE_CONFIG.tint,
+                vibrance: DEFAULT_SCENE_CONFIG.vibrance,
               })
-            }
+              playUISound("action.reset")
+            }}
             type="button"
           >
             Reset
@@ -311,13 +313,14 @@ export function SceneConfigContent() {
         action={
           <button
             className={sectionActionClassName}
-            onClick={() =>
+            onClick={() => {
               updateSceneConfig({
                 clampGamma: DEFAULT_SCENE_CONFIG.clampGamma,
                 clampMax: DEFAULT_SCENE_CONFIG.clampMax,
                 clampMin: DEFAULT_SCENE_CONFIG.clampMin,
               })
-            }
+              playUISound("action.reset")
+            }}
             type="button"
           >
             Reset

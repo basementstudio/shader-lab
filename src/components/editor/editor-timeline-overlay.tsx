@@ -327,6 +327,7 @@ function TimelineTransport({
           aria-label={isPlaying ? "Pause playback" : "Play timeline"}
           className="h-7 w-7"
           onClick={onTogglePlaying}
+          uiSound={isPlaying ? "action.pause" : "action.play"}
           variant="default"
         >
           {isPlaying ? (
@@ -339,6 +340,7 @@ function TimelineTransport({
           aria-label="Stop playback"
           className="h-7 w-7"
           onClick={onStop}
+          uiSound="action.stop"
           variant="default"
         >
           <StopIcon height={14} width={14} />
@@ -350,6 +352,7 @@ function TimelineTransport({
             loop && "bg-white/12 text-[var(--ds-color-text-primary)]"
           )}
           onClick={onToggleLoop}
+          uiSound={loop ? "action.loopOff" : "action.loopOn"}
           variant={loop ? "active" : "default"}
         >
           <LoopIcon height={14} width={14} />
@@ -369,6 +372,7 @@ function TimelineTransport({
             autoKey && "bg-white/12 text-[var(--ds-color-text-primary)]"
           )}
           onClick={onToggleAutoKey}
+          uiSound={autoKey ? "action.autoKeyOff" : "action.autoKeyOn"}
           variant={autoKey ? "active" : "default"}
         >
           {autoKey ? (
@@ -1393,6 +1397,7 @@ export function EditorTimelineOverlay() {
                                     setTrackEnabled(track.id, !track.enabled)
                                   }}
                                   tooltip={track.enabled ? "Disable track" : "Enable track"}
+                                  uiSound={track.enabled ? "action.visibilityOff" : "action.visibilityOn"}
                                   variant="ghost"
                                 >
                                   {track.enabled ? (

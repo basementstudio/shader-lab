@@ -9,6 +9,8 @@ import {
 } from "react"
 import { ColorPicker } from "@/components/ui/color-picker"
 import { cn } from "@/lib/cn"
+import type { UISoundId } from "@/lib/audio/shader-lab-sounds"
+import { playOptionalUISound } from "@/lib/audio/shader-lab-sounds"
 
 export type GradientStop = { color: string; position: number }
 
@@ -18,6 +20,8 @@ type GradientRampProps = {
   maxStops?: number
   onChange: (stops: GradientStop[]) => void
   stops: GradientStop[]
+  uiSoundEnd?: UISoundId | "none"
+  uiSoundStart?: UISoundId | "none"
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -38,6 +42,8 @@ export function GradientRamp({
   maxStops = 5,
   onChange,
   stops,
+  uiSoundEnd = "generic.dragEnd",
+  uiSoundStart = "generic.dragStart",
 }: GradientRampProps) {
   const barRef = useRef<HTMLDivElement | null>(null)
   const [dragIndex, setDragIndex] = useState<number | null>(null)
@@ -60,8 +66,9 @@ export function GradientRamp({
       ;(e.target as HTMLButtonElement).setPointerCapture(e.pointerId)
       setDragIndex(index)
       setSelectedIndex(index)
+      playOptionalUISound(uiSoundStart)
     },
-    []
+    [uiSoundStart]
   )
 
   const handlePointerMove = useCallback(
@@ -77,8 +84,11 @@ export function GradientRamp({
   )
 
   const handlePointerUp = useCallback(() => {
+    if (dragIndex !== null) {
+      playOptionalUISound(uiSoundEnd)
+    }
     setDragIndex(null)
-  }, [])
+  }, [dragIndex, uiSoundEnd])
 
   const handleBarClick = useCallback(
     (e: PointerEvent<HTMLDivElement>) => {
@@ -93,7 +103,7 @@ export function GradientRamp({
         (a, b) => a.position - b.position
       )
       onChange(updated)
-      setSelectedIndex(updated.findIndex((s) => s === newStop))
+      setSelectedIndex(updated.indexOf(newStop))
     },
     [dragIndex, maxStops, onChange, stops, toPosition]
   )

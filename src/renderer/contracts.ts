@@ -15,6 +15,7 @@ export interface ProjectClock {
   duration: number
   isPlaying: boolean
   loop: boolean
+  timelineTime: number
   time: number
 }
 

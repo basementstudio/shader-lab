@@ -7,7 +7,8 @@ export function generateShaderExportSnippet(
   componentName = DEFAULT_COMPONENT_NAME
 ): string {
   const safeComponentName = sanitizeShaderExportComponentName(componentName)
-  const serializedConfig = JSON.stringify(config, null, 2)
+  const { composition: _composition, ...configWithoutComposition } = config
+  const serializedConfig = JSON.stringify(configWithoutComposition, null, 2)
 
   return [
     'import { ShaderLabComposition, type ShaderLabConfig } from "@basementstudio/shader-lab"',

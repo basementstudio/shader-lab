@@ -44,6 +44,7 @@ declare module "three/webgpu" {
     compute(computeNodes: any): void
     // biome-ignore lint/suspicious/noExplicitAny: compute node type from Fn().compute() is opaque
     computeAsync(computeNodes: any): Promise<void>
+    clear(): void
     dispose(): void
     init(): Promise<void>
     readRenderTargetPixelsAsync(

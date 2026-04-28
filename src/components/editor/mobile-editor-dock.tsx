@@ -9,6 +9,7 @@ import {
 import type { ElementType } from "react"
 import { GlassPanel } from "@/components/ui/glass-panel"
 import { Typography } from "@/components/ui/typography"
+import { playUISound } from "@/lib/audio/shader-lab-sounds"
 import { cn } from "@/lib/cn"
 import { useEditorStore } from "@/store/editor-store"
 import type { MobileEditorPanel } from "@/types/editor"
@@ -59,6 +60,7 @@ export function MobileEditorDock() {
               onClick={() => {
                 closeTimelinePanel()
                 setMobilePanel(isActive ? "none" : panel)
+                playUISound("action.panelSwitch")
               }}
               type="button"
             >

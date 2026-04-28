@@ -3,6 +3,7 @@
 import {
   CameraIcon,
   CodeIcon,
+  CursorArrowIcon,
   ImageIcon,
   MagicWandIcon,
   PlusIcon,
@@ -37,13 +38,16 @@ export type AddLayerAction =
   | "dithering"
   | "edge-detect"
   | "fluted-glass"
+  | "fluid"
   | "gradient"
   | "halftone"
   | "image"
   | "ink"
   | "live"
+  | "magnify-lens"
   | "particle-grid"
   | "pixelation"
+  | "pixel-trail"
   | "pattern"
   | "pixel-sorting"
   | "plotter"
@@ -89,6 +93,9 @@ const SOURCE_ITEMS: readonly SourceItem[] = [
   { icon: VideoIcon, label: "Video", value: "video" },
   { icon: CameraIcon, label: "Camera", value: "live" },
   { icon: TextIcon, label: "Text", value: "text" },
+  { icon: CursorArrowIcon, label: "Fluid", value: "fluid" },
+  { icon: CursorArrowIcon, label: "Pixel Trail", value: "pixel-trail" },
+  { icon: CursorArrowIcon, label: "Magnify Lens", value: "magnify-lens" },
   { icon: MagicWandIcon, label: "Mesh Gradient", value: "gradient" },
   { icon: CodeIcon, label: "Custom Shader", value: "custom-shader" },
 ] as const

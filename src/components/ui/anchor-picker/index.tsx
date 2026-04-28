@@ -1,6 +1,8 @@
 "use client"
 
 import { cn } from "@/lib/cn"
+import type { UISoundId } from "@/lib/audio/shader-lab-sounds"
+import { playOptionalUISound } from "@/lib/audio/shader-lab-sounds"
 
 type AnchorPickerOption = {
   label: string
@@ -11,6 +13,7 @@ type AnchorPickerProps = {
   className?: string
   onValueChange: (value: string) => void
   options: readonly AnchorPickerOption[]
+  uiSound?: UISoundId | "none"
   value: string
 }
 
@@ -21,6 +24,7 @@ export function AnchorPicker({
   className,
   onValueChange,
   options,
+  uiSound = "generic.press",
   value,
 }: AnchorPickerProps) {
   const selectedOption = options.find((option) => option.value === value)
@@ -41,7 +45,12 @@ export function AnchorPicker({
                   "border-[var(--ds-border-active)] bg-white/10 shadow-[inset_0_0_0_1px_rgb(255_255_255_/_0.06)]"
               )}
               key={option.value}
-              onClick={() => onValueChange(option.value)}
+              onClick={() => {
+                onValueChange(option.value)
+                if (!isSelected) {
+                  playOptionalUISound(uiSound)
+                }
+              }}
               type="button"
             >
               <span

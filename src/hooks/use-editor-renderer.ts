@@ -86,9 +86,11 @@ export function useEditorRenderer() {
         rendererRef.current = renderer
         await renderer.initialize()
         editorStore.setLiveRenderer(renderer)
+        editorStore.setLiveCanvas(canvasElement)
 
         if (isDisposed) {
           editorStore.setLiveRenderer(null)
+          editorStore.setLiveCanvas(null)
           renderer.dispose()
           return
         }
@@ -213,6 +215,7 @@ export function useEditorRenderer() {
       }
 
       useEditorStore.getState().setLiveRenderer(null)
+      useEditorStore.getState().setLiveCanvas(null)
       rendererRef.current?.dispose()
       rendererRef.current = null
       setIsReady(false)

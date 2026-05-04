@@ -32,6 +32,7 @@ import { SlicePass } from "./slice-pass"
 import { SmearPass } from "./smear-pass"
 import { TextPass } from "./text-pass"
 import { ThresholdPass } from "./threshold-pass"
+import { VoxelPass } from "./voxel-pass"
 
 type LayerPassNode =
   | AsciiPass
@@ -64,6 +65,7 @@ type LayerPassNode =
   | SmearPass
   | ThresholdPass
   | TextPass
+  | VoxelPass
 
 const RENDER_TARGET_OPTIONS = {
   depthBuffer: false,
@@ -534,6 +536,8 @@ export class PipelineManager {
           return new SlicePass(layer.id)
         case "smear":
           return new SmearPass(layer.id)
+        case "voxel":
+          return new VoxelPass(layer.id)
       }
     }
 

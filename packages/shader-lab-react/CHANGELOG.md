@@ -1,5 +1,11 @@
 # @basementstudio/shader-lab
 
+## 1.3.14
+
+### Patch Changes
+
+- 23ae465: voxel pass - new shader effect that fakes isometric blocks
+
 ## 1.3.13
 
 ### Patch Changes

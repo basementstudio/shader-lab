@@ -57,6 +57,7 @@ export type AddLayerAction =
   | "threshold"
   | "text"
   | "video"
+  | "voxel"
 
 type LayerPickerCategory = "all" | "core" | "distort"
 
@@ -159,6 +160,14 @@ const EFFECT_ITEMS: readonly EffectItem[] = [
     label: "Pixelation",
     previewSrc: "/examples/pixelation.webp",
     value: "pixelation",
+  },
+  {
+    category: "core",
+    description:
+      "Quantizes the frame into isometric cubes; depth raises columns by luminance.",
+    label: "Voxel",
+    previewSrc: "/examples/voxel.webp",
+    value: "voxel",
   },
   {
     category: "core",

@@ -20,6 +20,7 @@ import { PosterizePass } from "@/renderer/posterize-pass"
 import { SlicePass } from "@/renderer/slice-pass"
 import { SmearPass } from "@/renderer/smear-pass"
 import { ThresholdPass } from "@/renderer/threshold-pass"
+import { VoxelPass } from "@/renderer/voxel-pass"
 import type { EffectLayerType } from "@/types/editor"
 
 export function createPassNode(
@@ -69,6 +70,8 @@ export function createPassNode(
       return new SlicePass(layerId)
     case "smear":
       return new SmearPass(layerId)
+    case "voxel":
+      return new VoxelPass(layerId)
     default:
       return new PassNode(layerId)
   }

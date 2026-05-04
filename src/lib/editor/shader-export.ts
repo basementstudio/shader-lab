@@ -47,6 +47,7 @@ const SUPPORTED_SHADER_EXPORT_LAYER_TYPES = new Set<LayerType>([
   "plotter",
   "slice",
   "smear",
+  "voxel",
 ] as const)
 
 const UNSUPPORTED_SHADER_EXPORT_LAYER_TYPES = new Set<LayerType>([
@@ -84,6 +85,7 @@ type SupportedShaderExportLayerType = Extract<
   | "text"
   | "threshold"
   | "video"
+  | "voxel"
 >
 
 type SupportedShaderExportLayer = EditorLayer & {

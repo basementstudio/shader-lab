@@ -56,6 +56,7 @@ export const EFFECT_LAYER_TYPES = [
   "edge-detect",
   "displacement-map",
   "chromatic-aberration",
+  "voxel",
 ] as const
 export type EffectLayerType = (typeof EFFECT_LAYER_TYPES)[number]
 

@@ -2679,6 +2679,93 @@ const pixelSortingParams = [
   },
 ] as const satisfies ParameterDefinitions
 
+const voxelParams = [
+  {
+    defaultValue: 24,
+    key: "cellSize",
+    label: "Cell Size",
+    max: 96,
+    min: 4,
+    step: 1,
+    type: "number",
+    unit: "px",
+  },
+  {
+    defaultValue: 0,
+    key: "depth",
+    label: "Depth",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+  },
+  {
+    defaultValue: 6,
+    key: "maxHeight",
+    label: "Max Height",
+    max: 8,
+    min: 1,
+    step: 1,
+    type: "number",
+    visibleWhen: { gte: 0.01, key: "depth" },
+  },
+  {
+    defaultValue: 1,
+    key: "topShade",
+    label: "Top Shade",
+    max: 1.5,
+    min: 0,
+    step: 0.01,
+    type: "number",
+  },
+  {
+    defaultValue: 0.78,
+    key: "lightShade",
+    label: "Light Side",
+    max: 1.5,
+    min: 0,
+    step: 0.01,
+    type: "number",
+  },
+  {
+    defaultValue: 0.55,
+    key: "darkShade",
+    label: "Dark Side",
+    max: 1.5,
+    min: 0,
+    step: 0.01,
+    type: "number",
+  },
+  {
+    defaultValue: false,
+    key: "flipLight",
+    label: "Flip Light",
+    type: "boolean",
+  },
+  {
+    defaultValue: false,
+    key: "lego",
+    label: "Lego",
+    type: "boolean",
+  },
+  {
+    defaultValue: 1.0,
+    key: "outlineWidth",
+    label: "Outline",
+    max: 4,
+    min: 0,
+    step: 0.1,
+    type: "number",
+    unit: "px",
+  },
+  {
+    defaultValue: "#0a0a0a",
+    key: "outlineColor",
+    label: "Outline Color",
+    type: "color",
+  },
+] as const satisfies ParameterDefinitions
+
 const posterizeParams = [
   {
     defaultValue: 5,
@@ -3630,6 +3717,12 @@ const layerDefinitions: Record<LayerType, LayerDefinition> = {
     kind: "source",
     params: magnifyLensParams,
     type: "magnify-lens",
+  },
+  voxel: {
+    defaultName: "Voxel",
+    kind: "effect",
+    params: voxelParams,
+    type: "voxel",
   },
 }
 

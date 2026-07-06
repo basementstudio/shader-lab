@@ -1,4 +1,4 @@
-import * as THREE from "three/webgpu"
+import type * as THREE from "three/webgpu"
 import {
   cos,
   float,

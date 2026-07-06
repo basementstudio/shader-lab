@@ -32,6 +32,15 @@ jobs:
       - name: Build package
         run: bun run --cwd packages/shader-lab-react build
 
+      - name: Lint app
+        run: bun run lint
+
+      - name: Type check app
+        run: bun run typecheck:tsc
+
+      - name: Test
+        run: bun test
+
       - name: Ensure changeset exists for PR changes
         if: github.event_name == 'pull_request'
         run: bunx changeset status --since=origin/${{ github.base_ref }}

@@ -12,6 +12,10 @@ describe("inner-effect set", () => {
     expect(INNER_EFFECT_TYPES).not.toContain("blur")
   })
 
+  test("excludes blob-tracking itself (no recursive children)", () => {
+    expect(INNER_EFFECT_TYPES).not.toContain("blob-tracking")
+  })
+
   test("includes a representative pass-backed effect", () => {
     expect(INNER_EFFECT_TYPES).toContain("posterize")
   })

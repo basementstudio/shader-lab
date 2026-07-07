@@ -23,9 +23,14 @@ import {
 
 export const INNER_EFFECT_NONE = "none"
 
-/** Effect types renderable as a blob interior (every effect with a pass). */
+/**
+ * Effect types renderable as a blob interior: every effect with a pass,
+ * except blob-tracking itself (no recursive children in v1).
+ */
 export const INNER_EFFECT_TYPES: readonly EffectLayerType[] =
-  EFFECT_LAYER_TYPES.filter((type) => type !== "blur")
+  EFFECT_LAYER_TYPES.filter(
+    (type) => type !== "blur" && type !== "blob-tracking"
+  )
 
 export type InnerEffectType = EffectLayerType | typeof INNER_EFFECT_NONE
 

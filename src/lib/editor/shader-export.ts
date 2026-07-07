@@ -53,6 +53,7 @@ const SUPPORTED_SHADER_EXPORT_LAYER_TYPES = new Set<LayerType>([
 const UNSUPPORTED_SHADER_EXPORT_LAYER_TYPES = new Set<LayerType>([
   "model",
   "blur",
+  "blob-tracking",
 ] as const)
 
 type SupportedShaderExportLayerType = Extract<

@@ -13,6 +13,7 @@ import type {
   ParameterDefinitions,
   SourceLayerType,
 } from "@/types/editor"
+import { EFFECT_LAYER_TYPES } from "@/types/editor"
 
 const mediaPlacementParams = [
   {
@@ -3522,12 +3523,237 @@ const sliceParams = [
   },
 ] as const satisfies ParameterDefinitions
 
+// Hidden-param sentinel (custom-shader precedent): a `visibleWhen` key that
+// never exists keeps the param out of the sidebar while it round-trips
+// through .lab files, undo and change detection like any other param.
+const BLOB_TRACKING_INTERNAL_VISIBILITY = {
+  equals: "__never__",
+  key: "__blobTrackingInternal",
+} as const
+
+function formatEffectLabel(type: string): string {
+  return type
+    .split("-")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ")
+}
+
+// Every effect with a pass implementation, minus blur (no pass exists) and
+// blob-tracking itself (no recursive children in v1). Must stay in sync with
+// INNER_EFFECT_TYPES in @/lib/blob-tracking/inner-effects (which cannot be
+// imported here — it imports this registry).
+const blobInnerEffectOptions = [
+  { label: "None", value: "none" },
+  ...EFFECT_LAYER_TYPES.filter(
+    (type) => type !== "blur" && type !== "blob-tracking"
+  ).map((type) => ({ label: formatEffectLabel(type), value: type })),
+] as const
+
+const blobTrackingParams = [
+  {
+    animatable: false,
+    defaultValue: "auto",
+    group: "Detection",
+    key: "detectionMode",
+    label: "Detection Mode",
+    options: [
+      { label: "Auto", value: "auto" },
+      { label: "Motion", value: "motion" },
+      { label: "Luminance", value: "luminance" },
+    ],
+    type: "select",
+  },
+  {
+    defaultValue: 0.5,
+    group: "Detection",
+    key: "sensitivity",
+    label: "Sensitivity",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+  },
+  {
+    defaultValue: 0.12,
+    group: "Detection",
+    key: "motionThreshold",
+    label: "Motion Threshold",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+  },
+  {
+    animatable: false,
+    defaultValue: 6,
+    group: "Detection",
+    input: "int",
+    key: "blobAmount",
+    label: "Blob Amount",
+    max: 32,
+    min: 1,
+    step: 1,
+    type: "number",
+  },
+  {
+    animatable: false,
+    defaultValue: 3,
+    group: "Detection",
+    input: "int",
+    key: "minBlobSize",
+    label: "Min Blob Size",
+    max: 64,
+    min: 1,
+    step: 1,
+    type: "number",
+  },
+  {
+    defaultValue: 0.6,
+    group: "Detection",
+    key: "smoothing",
+    label: "Smoothing",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+  },
+  {
+    animatable: false,
+    defaultValue: true,
+    group: "Detection",
+    key: "persistentTracking",
+    label: "Persistent Tracking",
+    type: "boolean",
+  },
+  {
+    animatable: false,
+    defaultValue: "square",
+    group: "Shapes",
+    key: "shapeType",
+    label: "Shape",
+    options: [
+      { label: "Square", value: "square" },
+      { label: "Circle", value: "circle" },
+      { label: "Diamond", value: "diamond" },
+    ],
+    type: "select",
+  },
+  {
+    defaultValue: 1,
+    group: "Shapes",
+    key: "shapeScale",
+    label: "Shape Scale",
+    max: 3,
+    min: 0.25,
+    step: 0.01,
+    type: "number",
+  },
+  {
+    defaultValue: false,
+    group: "Shapes",
+    key: "invert",
+    label: "Invert",
+    type: "boolean",
+  },
+  {
+    animatable: false,
+    defaultValue: "decorated",
+    group: "Shapes",
+    key: "outputMode",
+    label: "Output",
+    options: [
+      { label: "Decorated", value: "decorated" },
+      { label: "Mask", value: "mask" },
+    ],
+    type: "select",
+  },
+  {
+    animatable: false,
+    defaultValue: "none",
+    group: "Inner Effect",
+    key: "innerEffectType",
+    label: "Inner Effect",
+    options: blobInnerEffectOptions,
+    type: "select",
+  },
+  {
+    animatable: false,
+    defaultValue: "",
+    key: "innerEffectParams",
+    label: "Inner Effect Params",
+    type: "text",
+    visibleWhen: BLOB_TRACKING_INTERNAL_VISIBILITY,
+  },
+  {
+    defaultValue: true,
+    group: "Decorations",
+    key: "showOutline",
+    label: "Outline",
+    type: "boolean",
+  },
+  {
+    defaultValue: 2,
+    group: "Decorations",
+    key: "strokeWidth",
+    label: "Stroke Width",
+    max: 8,
+    min: 1,
+    step: 1,
+    type: "number",
+  },
+  {
+    defaultValue: "#7cff9b",
+    group: "Decorations",
+    key: "strokeColor",
+    label: "Stroke Color",
+    type: "color",
+  },
+  {
+    defaultValue: true,
+    group: "Decorations",
+    key: "showLabels",
+    label: "Labels",
+    type: "boolean",
+  },
+  {
+    defaultValue: true,
+    group: "Decorations",
+    key: "connectLines",
+    label: "Connect Lines",
+    type: "boolean",
+  },
+  {
+    defaultValue: false,
+    group: "Decorations",
+    key: "curvedLines",
+    label: "Curved Lines",
+    type: "boolean",
+    visibleWhen: { equals: true, key: "connectLines" },
+  },
+  {
+    defaultValue: 0.35,
+    group: "Decorations",
+    key: "trailDecay",
+    label: "Trail Decay",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+  },
+] as const satisfies ParameterDefinitions
+
 const layerDefinitions: Record<LayerType, LayerDefinition> = {
   ascii: {
     defaultName: "ASCII",
     kind: "effect",
     params: asciiParams,
     type: "ascii",
+  },
+  "blob-tracking": {
+    defaultName: "Blob Tracking",
+    kind: "effect",
+    params: blobTrackingParams,
+    type: "blob-tracking",
   },
   bloom: {
     defaultName: "Bloom",

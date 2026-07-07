@@ -1,5 +1,16 @@
 # @basementstudio/shader-lab
 
+## 1.4.0
+
+### Minor Changes
+
+- 6f06d73: Add the blob-tracking effect layer: motion-first detection with automatic luminance fallback, persistent tracking with stable ids and smoothing, square/circle/diamond shape framing, one configurable inner effect rendered inside the detected shapes (`params.innerEffectType` / `params.innerEffectParams`), CCTV-style decorations (outlines, id+coordinate labels, straight or curved connecting lines, decaying trails), and a `"mask"` output mode that emits white-on-black fills for `compositeMode: "mask"`. Exports the `ShaderLabBlobInnerEffect` helper type. Decorations degrade gracefully when `document` is unavailable.
+
+### Patch Changes
+
+- 6f06d73: `onRuntimeError` on `<ShaderLabComposition>` is no longer called with `null` after every successful renderer initialization. It now only fires with `null` once a previously reported error has been resolved, and consecutive identical messages are not repeated. Consumers that surfaced the message without a null check no longer show a false error state.
+- 6f06d73: Lint cleanup: convert type-only `three/webgpu` imports to `import type`, remove an unused suppression comment, and simplify a guard expression in the fluid runtime. No behavior changes.
+
 ## 1.3.14
 
 ### Patch Changes

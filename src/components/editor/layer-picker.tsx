@@ -28,6 +28,7 @@ import { cn } from "@/lib/cn"
 
 export type AddLayerAction =
   | "ascii"
+  | "blob-tracking"
   | "bloom"
   | "circuit-bent"
   | "directional-blur"
@@ -200,6 +201,14 @@ const EFFECT_ITEMS: readonly EffectItem[] = [
     label: "Plotter",
     previewSrc: "/examples/plotter.webp",
     value: "plotter",
+  },
+  {
+    category: "distort",
+    description:
+      "Tracks moving regions and frames them with CCTV-style shapes, labels, and an inner effect.",
+    label: "Blob Tracking",
+    value: "blob-tracking",
+    // previewSrc: "/examples/blob-tracking.webp" — screenshot pending first render.
   },
   {
     category: "distort",

@@ -1,4 +1,5 @@
 import { AsciiPass } from "@/renderer/ascii-pass"
+import { BlobTrackingPass } from "@/renderer/blob-tracking-pass"
 import { BloomPass } from "@/renderer/bloom-pass"
 import { CircuitBentPass } from "@/renderer/circuit-bent-pass"
 import { ChromaticAberrationPass } from "@/renderer/chromatic-aberration-pass"
@@ -30,6 +31,8 @@ export function createPassNode(
   switch (type) {
     case "ascii":
       return new AsciiPass(layerId)
+    case "blob-tracking":
+      return new BlobTrackingPass(layerId)
     case "bloom":
       return new BloomPass(layerId)
     case "circuit-bent":

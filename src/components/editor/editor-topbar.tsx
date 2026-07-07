@@ -12,6 +12,7 @@ import {
   ZoomOutIcon,
 } from "@radix-ui/react-icons"
 import { AnimatePresence, motion } from "motion/react"
+import dynamic from "next/dynamic"
 import Link from "next/link"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { FloatingDesktopPanel } from "@/components/editor/floating-desktop-panel"
@@ -36,7 +37,11 @@ import {
   useSoundStore,
   useTimelineStore,
 } from "@/store"
-import { EditorExportDialog } from "./editor-export-dialog"
+
+const EditorExportDialog = dynamic(
+  () => import("./editor-export-dialog").then((mod) => mod.EditorExportDialog),
+  { ssr: false }
+)
 
 const HISTORY_COMMIT_DEBOUNCE_MS = 220
 const GITHUB_REPO_URL = "https://github.com/basementstudio/shader-lab"
@@ -94,6 +99,14 @@ export function EditorTopBar() {
   const toggleSoundEnabled = useSoundStore((state) => state.toggleEnabled)
 
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false)
+  const [hasOpenedExport, setHasOpenedExport] = useState(false)
+
+  const handleExportDialogOpenChange = useCallback((open: boolean) => {
+    if (open) {
+      setHasOpenedExport(true)
+    }
+    setIsExportDialogOpen(open)
+  }, [])
   const applyingHistoryRef = useRef(false)
   const committedSnapshotRef = useRef(buildEditorHistorySnapshot())
   const pendingBaseSnapshotRef = useRef<ReturnType<
@@ -460,7 +473,7 @@ export function EditorTopBar() {
               <IconButton
                 aria-label="Export"
                 className="h-7 w-7 disabled:opacity-45"
-                onClick={() => setIsExportDialogOpen(true)}
+                onClick={() => handleExportDialogOpenChange(true)}
                 tooltip="Export"
                 tooltipSide="bottom"
                 uiSound="action.export"
@@ -542,7 +555,7 @@ export function EditorTopBar() {
               <IconButton
                 aria-label="Export"
                 className="h-7 w-7 disabled:opacity-45"
-                onClick={() => setIsExportDialogOpen(true)}
+                onClick={() => handleExportDialogOpenChange(true)}
                 tooltip="Download"
                 uiSound="action.export"
                 variant="default"
@@ -570,10 +583,12 @@ export function EditorTopBar() {
         </div>
       ) : null}
 
-      <EditorExportDialog
-        onOpenChange={setIsExportDialogOpen}
-        open={isExportDialogOpen}
-      />
+      {hasOpenedExport ? (
+        <EditorExportDialog
+          onOpenChange={handleExportDialogOpenChange}
+          open={isExportDialogOpen}
+        />
+      ) : null}
     </>
   )
 }

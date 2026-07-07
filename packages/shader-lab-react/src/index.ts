@@ -3,6 +3,7 @@ export {
   createRuntimeClock,
   type ShaderLabRuntimeClock,
 } from "./runtime-clock"
+export type { ShaderLabBlobInnerEffect } from "./renderer/blob-tracking-inner-effects"
 export { buildRuntimeFrame, type ShaderLabRuntimeFrame } from "./runtime-frame"
 export {
   createShaderLabFluidRuntime,

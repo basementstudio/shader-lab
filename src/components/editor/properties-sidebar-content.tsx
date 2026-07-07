@@ -34,6 +34,7 @@ import type {
   ParameterDefinition,
   ParameterValue,
 } from "@/types/editor"
+import { BlobInnerEffectSection } from "./blob-inner-effect-section"
 import {
   ParameterField,
   renderFieldLabel,
@@ -670,6 +671,16 @@ export function SelectedLayerPropertiesContent({
         {layerType === "custom-shader" ? (
           <CustomShaderSection
             layerId={layerId}
+            updateLayerParam={updateLayerParam}
+            values={values}
+          />
+        ) : null}
+
+        {layerType === "blob-tracking" ? (
+          <BlobInnerEffectSection
+            layerId={layerId}
+            onInteractionEnd={onInteractionEnd}
+            onInteractionStart={onInteractionStart}
             updateLayerParam={updateLayerParam}
             values={values}
           />

@@ -1,13 +1,5 @@
 "use client"
 
-import {
-  ArrayBufferTarget as Mp4ArrayBufferTarget,
-  Muxer as Mp4Muxer,
-} from "mp4-muxer"
-import {
-  ArrayBufferTarget as WebMArrayBufferTarget,
-  Muxer as WebMMuxer,
-} from "webm-muxer"
 import type { VideoExportFormat } from "@/lib/editor/export"
 
 type Mp4MuxerCodec = "avc" | "hevc"
@@ -29,6 +21,7 @@ type CreateVideoExportEncoderOptions = {
 }
 
 type VideoExportEncoder = {
+  close: () => void
   encodeCanvasFrame: (
     canvas: HTMLCanvasElement,
     frameIndex: number,
@@ -232,7 +225,9 @@ async function probeEncoderConfig(
   config: VideoEncoderConfig,
   canvas: HTMLCanvasElement
 ): Promise<boolean> {
-  const result = createConfiguredEncoder(config, () => {})
+  const result = createConfiguredEncoder(config, () => {
+    // Probe only; errors are reported via the returned error() accessor.
+  })
 
   if (!result.encoder) {
     return false
@@ -332,11 +327,13 @@ export async function getSupportedVideoExportConfig(
   )
 }
 
-function createMuxer(
+async function createMuxer(
   support: SupportedVideoExportConfig,
   options: CreateVideoExportEncoderOptions
-): VideoMuxer {
+): Promise<VideoMuxer> {
   if (support.format === "mp4") {
+    const { ArrayBufferTarget: Mp4ArrayBufferTarget, Muxer: Mp4Muxer } =
+      await import("mp4-muxer")
     const target = new Mp4ArrayBufferTarget()
     const muxer = new Mp4Muxer({
       fastStart: "in-memory",
@@ -361,6 +358,8 @@ function createMuxer(
     }
   }
 
+  const { ArrayBufferTarget: WebMArrayBufferTarget, Muxer: WebMMuxer } =
+    await import("webm-muxer")
   const target = new WebMArrayBufferTarget()
   const muxer = new WebMMuxer({
     firstTimestampBehavior: "offset",
@@ -447,7 +446,7 @@ export async function createVideoExportEncoder(
   let getEncoderError: (() => Error | null) | null = null
 
   for (const candidate of options.format === "mp4" ? supports : [support]) {
-    const nextMuxer = createMuxer(candidate, options)
+    const nextMuxer = await createMuxer(candidate, options)
     const result = createConfiguredEncoder(
       getAppliedEncoderConfig(candidate.encoderConfig, options),
       (chunk, meta) => {
@@ -484,6 +483,12 @@ export async function createVideoExportEncoder(
   }
 
   return {
+    close() {
+      if (encoder.state !== "closed") {
+        encoder.close()
+      }
+    },
+
     async encodeCanvasFrame(canvas, frameIndex, duration, timestamp) {
       encoderError = getEncoderError?.() ?? encoderError
 

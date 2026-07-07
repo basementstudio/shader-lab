@@ -19,7 +19,7 @@ import {
   vec3,
   vec4,
 } from "three/tsl"
-import * as THREE from "three/webgpu"
+import type * as THREE from "three/webgpu"
 import type { LayerParameterValues } from "../types/editor"
 import { createPipelinePlaceholder, PassNode } from "./pass-node"
 import { simplexNoise3d } from "./shaders/tsl/noise/simplex-noise-3d"

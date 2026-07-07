@@ -36,7 +36,9 @@ bun add @basementstudio/shader-lab three
 - Composition texture output is canvas-backed and can be consumed by WebGL or WebGPU host scenes
 - Postprocessing must run on the same `WebGPURenderer` as the scene texture you pass in
 
-Supported effect layers include ASCII, CRT, directional blur, dithering, halftone, ink, particle grid, pattern, pixelation, pixel sorting, posterize, slice, edge detect, displacement map, and chromatic aberration.
+Supported effect layers include ASCII, blob tracking, CRT, directional blur, dithering, halftone, ink, particle grid, pattern, pixelation, pixel sorting, posterize, slice, edge detect, displacement map, and chromatic aberration.
+
+The blob-tracking layer detects moving (or bright) regions of the content below and frames them with CCTV-style shapes, labels, connecting lines, and trails. One inner effect can render inside the detected shapes via `params.innerEffectType` (any pass-backed effect type) and `params.innerEffectParams` (a JSON string of that effect's parameter overrides; see the `ShaderLabBlobInnerEffect` type). Set `params.outputMode` to `"mask"` to emit white-on-black fills for use with `compositeMode: "mask"`.
 
 ## API Overview
 
@@ -90,10 +92,20 @@ Handle runtime errors:
 <ShaderLabComposition
   config={config}
   onRuntimeError={(message) => {
-    console.error(message)
+    if (message) {
+      console.error(message)
+    } else {
+      console.info("Shader Lab runtime error resolved.")
+    }
   }}
 />
 ```
+
+`onRuntimeError` is called with a string message when a runtime error occurs
+(renderer initialization failure, shader compilation error, missing WebGPU
+support). After an error has been reported, it is called once with `null` when
+the error is resolved so error UIs can recover. It is never called with `null`
+before an error has been reported.
 
 ## 2. Use a Composition as a Texture
 

@@ -130,6 +130,43 @@ canvas buffers are cleared after present): render one frame to an RT and
 the bridge. Cap at composition size, downscale to ≤1024px wide by default
 (`full: true` opt-out) to keep MCP payloads small.
 
+## Context: how the agent learns the shader API
+
+Custom shaders execute against an injected prelude with **no imports allowed**
+(`custom-shader-runtime.ts` — `PRELUDE = { ...tsl, ...shaderUtils }`): all of
+`three/tsl` (~400+ exports) plus the house barrel
+`src/renderer/shaders/tsl/utils/index.ts` (~45 functions: noise, tonemapping,
+`cosinePalette`, patterns, complex-number suite, SDFs, `rotate`, `screenAspectUV`,
+`smin`/`smax`), plus `inputTexture`/`screenSize` in effect mode. Anything outside
+that set is a `ReferenceError` at eval time. Context is layered so the agent gets
+what it needs without flooding its window:
+
+1. **Always in context (~20 lines):** the MCP server `instructions` + the
+   `write_custom_shader` tool description carry only the hard contract — no
+   `import` statements, named export `sketch`, must return a TSL node,
+   `inputTexture.sample(uv)` in effect mode, `.toVar()` before `.assign()`, and a
+   pointer to `get_shader_api_reference`.
+2. **On demand, sectioned:** `get_shader_api_reference(section?)` with sections
+   (`noise`, `color`, `patterns`, `sdf`, `complex`, `tsl-core`). House utils ship
+   **their actual source** — every util is a 200–700 byte file (~10KB total), and
+   real source beats prose: exact signatures, argument order, TSL idioms for free.
+   `three/tsl` ships **export names only** — models know TSL from training; what
+   they lack is which exports exist in this three version, so the name list plus a
+   short r183-gotchas note is enough. Both starters from
+   `src/lib/editor/custom-shader/shared.ts` are included as worked examples
+   (source mode + effect mode).
+3. **Errors as context:** the `write_custom_shader` round-trip returns the exact
+   eval message (e.g. `simplexNoise2d is not defined`), which is the backstop for
+   anything the reference didn't cover.
+
+**Nothing is hand-maintained.** The MCP server is a Bun process inside this
+workspace, so at startup it imports `three/tsl` and
+`@/renderer/shaders/tsl/utils` — the same modules the runtime injects — and
+enumerates `Object.keys()`; util sources are read from disk at runtime. A new
+util added to the barrel appears in the reference on next server start and can
+never drift from what actually executes. (This supersedes S3's "generate at build
+time" — runtime enumeration needs no script and cannot go stale.)
+
 ## Stages
 
 ### S1 — Bridge + server skeleton, structural tools
@@ -153,8 +190,8 @@ the bridge. Cap at composition size, downscale to ≤1024px wide by default
 
 ### S3 — Custom shader loop
 - `write_custom_shader` / `get_custom_shader` with the revision-ack compile signal.
-- `get_shader_api_reference` doc + MCP resource. Generate the prelude listing from
-  the actual module exports at build time (a small script), not hand-maintained.
+- `get_shader_api_reference` doc + MCP resource, built by runtime enumeration of the
+  actual prelude modules (see "Context" section) — not hand-maintained.
 - **Gate:** unit tests for the ack state machine (pure); compile round-trip verified
   manually in-browser (GPU-dependent — deferred to user per repo constraint).
 

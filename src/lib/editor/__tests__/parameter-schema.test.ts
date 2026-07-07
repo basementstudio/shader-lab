@@ -168,4 +168,22 @@ describe("parameterValuesSignature", () => {
       parameterValuesSignature(reversed)
     )
   })
+
+  test("differs when a single parameter changes", () => {
+    const before: LayerParameterValues = { alpha: 1, beta: 2, gamma: 3 }
+    const after: LayerParameterValues = { alpha: 1, beta: 9, gamma: 3 }
+
+    expect(parameterValuesSignature(before)).not.toBe(
+      parameterValuesSignature(after)
+    )
+  })
+
+  test("orders keys deterministically (lexicographic) regardless of input order", () => {
+    const forward: LayerParameterValues = { a: 1, b: 2, c: 3, z: 4 }
+    const shuffled: LayerParameterValues = { z: 4, b: 2, a: 1, c: 3 }
+    const signature = parameterValuesSignature(forward)
+
+    expect(signature).toBe(parameterValuesSignature(shuffled))
+    expect(signature).toBe("a:1|b:2|c:3|z:4")
+  })
 })

@@ -20,6 +20,7 @@ export type ShaderLabSourceLayerType =
 
 export type ShaderLabEffectLayerType =
   | "ascii"
+  | "blob-tracking"
   | "bloom"
   | "circuit-bent"
   | "directional-blur"

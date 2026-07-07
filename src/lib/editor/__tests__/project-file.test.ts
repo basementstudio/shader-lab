@@ -3,6 +3,7 @@ import {
   type LabProjectFile,
   parseLabProjectFile,
 } from "@/lib/editor/project-file"
+import type { EditorLayer } from "@/types/editor"
 
 function createValidProjectFile(): LabProjectFile {
   return {
@@ -14,6 +15,27 @@ function createValidProjectFile(): LabProjectFile {
     selectedLayerId: null,
     timeline: { duration: 6, loop: true, tracks: [] },
     version: 2,
+  }
+}
+
+function createValidLayer(): EditorLayer {
+  return {
+    assetId: null,
+    blendMode: "normal",
+    compositeMode: "filter",
+    expanded: true,
+    hue: 0,
+    id: "layer-1",
+    kind: "source",
+    locked: false,
+    maskConfig: { invert: false, mode: "multiply", source: "luminance" },
+    name: "Gradient",
+    opacity: 1,
+    params: { speed: 1 },
+    runtimeError: null,
+    saturation: 1,
+    type: "gradient",
+    visible: true,
   }
 }
 
@@ -108,5 +130,46 @@ describe("parseLabProjectFile", () => {
     expect(() => parseLabProjectFile(JSON.stringify(fixture))).toThrow(
       "Project file is missing composition dimensions."
     )
+  })
+
+  test("rejects a layer entry that is not an object", () => {
+    const fixture = { ...createValidProjectFile(), layers: ["nope"] }
+
+    expect(() => parseLabProjectFile(JSON.stringify(fixture))).toThrow(
+      "Project file is missing a valid layer stack."
+    )
+  })
+
+  test("rejects a non-finite composition dimension", () => {
+    const fixture = {
+      ...createValidProjectFile(),
+      composition: { height: 1080, width: Number.POSITIVE_INFINITY },
+    }
+
+    expect(() => parseLabProjectFile(JSON.stringify(fixture))).toThrow(
+      "Project file is missing composition dimensions."
+    )
+  })
+
+  test("rejects a timeline duration that is not a number", () => {
+    const fixture = {
+      ...createValidProjectFile(),
+      timeline: { duration: "6", loop: true, tracks: [] },
+    }
+
+    expect(() => parseLabProjectFile(JSON.stringify(fixture))).toThrow(
+      "Project file is missing timeline data."
+    )
+  })
+
+  test("preserves unknown extra keys in a layer's params", () => {
+    const layer = createValidLayer()
+    layer.params = { ...layer.params, futureParam: "kept" }
+    const fixture = { ...createValidProjectFile(), layers: [layer] }
+
+    const parsed = parseLabProjectFile(JSON.stringify(fixture))
+
+    expect(parsed.layers).toHaveLength(1)
+    expect(parsed.layers[0]?.params).toEqual({ futureParam: "kept", speed: 1 })
   })
 })

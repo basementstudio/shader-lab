@@ -90,10 +90,20 @@ Handle runtime errors:
 <ShaderLabComposition
   config={config}
   onRuntimeError={(message) => {
-    console.error(message)
+    if (message) {
+      console.error(message)
+    } else {
+      console.info("Shader Lab runtime error resolved.")
+    }
   }}
 />
 ```
+
+`onRuntimeError` is called with a string message when a runtime error occurs
+(renderer initialization failure, shader compilation error, missing WebGPU
+support). After an error has been reported, it is called once with `null` when
+the error is resolved so error UIs can recover. It is never called with `null`
+before an error has been reported.
 
 ## 2. Use a Composition as a Texture
 

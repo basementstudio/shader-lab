@@ -351,9 +351,14 @@ export class ShaderLabFluidRuntime {
     color?: ShaderLabFluidSplatColor
   ): void {
     if (
-      !(this.readyState && this.renderer && this.velocity && this.density) ||
-      !this.splatMaterial ||
-      !this.splatTargetNode
+      !(
+        this.readyState &&
+        this.renderer &&
+        this.velocity &&
+        this.density &&
+        this.splatMaterial &&
+        this.splatTargetNode
+      )
     ) {
       return
     }

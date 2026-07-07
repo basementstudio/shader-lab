@@ -232,7 +232,9 @@ async function probeEncoderConfig(
   config: VideoEncoderConfig,
   canvas: HTMLCanvasElement
 ): Promise<boolean> {
-  const result = createConfiguredEncoder(config, () => {})
+  const result = createConfiguredEncoder(config, () => {
+    // Probe only; errors are reported via the returned error() accessor.
+  })
 
   if (!result.encoder) {
     return false

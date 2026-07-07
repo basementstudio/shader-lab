@@ -207,8 +207,8 @@ const EFFECT_ITEMS: readonly EffectItem[] = [
     description:
       "Tracks moving regions and frames them with CCTV-style shapes, labels, and an inner effect.",
     label: "Blob Tracking",
+    previewSrc: "/examples/blob-tracking.webp",
     value: "blob-tracking",
-    // previewSrc: "/examples/blob-tracking.webp" — screenshot pending first render.
   },
   {
     category: "distort",

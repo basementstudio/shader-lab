@@ -2,6 +2,7 @@ import * as THREE from "three/webgpu"
 
 type VideoPlaybackMode = "export" | "live"
 const DEFAULT_SVG_RASTER_RESOLUTION = 2048
+const VIDEO_LOAD_TIMEOUT_MS = 30_000
 
 export interface ImageTextureSource {
   height?: number | null
@@ -227,6 +228,39 @@ export function createVideoTexture(url: string): Promise<VideoHandle> {
     let frozen = false
     let loop = true
     let playbackRate = 1
+    let settled = false
+
+    const timeoutId = setTimeout(() => {
+      if (settled) {
+        return
+      }
+
+      settled = true
+      video.onerror = null
+      video.src = ""
+      video.load()
+      reject(new Error(`Timed out loading video texture: ${url}`))
+    }, VIDEO_LOAD_TIMEOUT_MS)
+
+    const settleResolve = (handle: VideoHandle) => {
+      if (settled) {
+        return
+      }
+
+      settled = true
+      clearTimeout(timeoutId)
+      resolve(handle)
+    }
+
+    const settleReject = (error: Error) => {
+      if (settled) {
+        return
+      }
+
+      settled = true
+      clearTimeout(timeoutId)
+      reject(error)
+    }
 
     video.addEventListener(
       "playing",
@@ -254,7 +288,7 @@ export function createVideoTexture(url: string): Promise<VideoHandle> {
           await video.play()
         }
 
-        resolve({
+        settleResolve({
           dispose: () => {
             texture.dispose()
             video.pause()
@@ -323,13 +357,13 @@ export function createVideoTexture(url: string): Promise<VideoHandle> {
       "loadedmetadata",
       () => {
         video.playbackRate = playbackRate
-        video.play().catch(reject)
+        video.play().catch(settleReject)
       },
       { once: true }
     )
 
     video.onerror = () => {
-      reject(new Error(`Failed to load video texture: ${url}`))
+      settleReject(new Error(`Failed to load video texture: ${url}`))
     }
 
     video.src = url

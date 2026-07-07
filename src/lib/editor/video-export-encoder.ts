@@ -21,6 +21,7 @@ type CreateVideoExportEncoderOptions = {
 }
 
 type VideoExportEncoder = {
+  close: () => void
   encodeCanvasFrame: (
     canvas: HTMLCanvasElement,
     frameIndex: number,
@@ -482,6 +483,12 @@ export async function createVideoExportEncoder(
   }
 
   return {
+    close() {
+      if (encoder.state !== "closed") {
+        encoder.close()
+      }
+    },
+
     async encodeCanvasFrame(canvas, frameIndex, duration, timestamp) {
       encoderError = getEncoderError?.() ?? encoderError
 

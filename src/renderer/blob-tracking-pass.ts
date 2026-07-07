@@ -59,6 +59,12 @@ const ANALYSIS_WIDTH = 64
 const ANALYSIS_HEIGHT = 36
 // Must match the tracker's blobAmount ceiling and the blob-table texture width.
 const MAX_BLOBS = 32
+// The decoration overlay redraw + full CanvasTexture re-upload dominates busy
+// scenes (every frame changes during heavy motion), so its resolution is
+// capped and redraws are rate-limited. Shapes are unaffected — the blob table
+// updates every step.
+const OVERLAY_MAX_WIDTH = 960
+const OVERLAY_REDRAW_INTERVAL_MS = 33
 
 const ANALYSIS_RT_OPTIONS = {
   depthBuffer: false,
@@ -212,6 +218,7 @@ export class BlobTrackingPass extends PassNode {
   private overlayTexture: THREE.CanvasTexture | null = null
   private readonly overlayPlaceholder: THREE.Texture
   private overlaySignature = ""
+  private lastOverlayRedrawAt = 0
 
   // --- inner effect ---
   private innerEffectType: InnerEffectType = INNER_EFFECT_NONE
@@ -318,7 +325,9 @@ export class BlobTrackingPass extends PassNode {
         time,
         this.trackerConfig
       )
-      this.syncTrackerOutputs()
+      // Force: the live 30 Hz redraw throttle must never skip an export
+      // frame, or exports become timing-dependent.
+      this.syncTrackerOutputs(true)
     }
     await this.childPass?.prepareForExportFrame(time, loop)
   }
@@ -619,20 +628,40 @@ export class BlobTrackingPass extends PassNode {
       })
   }
 
-  private syncTrackerOutputs(): void {
+  private syncTrackerOutputs(forceRedraw = false): void {
     const blobs = this.tracker.getBlobs()
     this.updateBlobTable(blobs)
 
+    // Quantized to overlay pixels: movement below one overlay pixel is not a
+    // visible overlay change and must not pay a redraw + texture upload.
+    const overlayWidth = this.overlayCanvas?.width ?? 1
+    const overlayHeight = this.overlayCanvas?.height ?? 1
     const signature = blobs
       .map(
         (blob) =>
-          `${blob.id}:${blob.active ? 1 : 0}:${blob.cx.toFixed(3)}:${blob.cy.toFixed(3)}:${blob.halfWidth.toFixed(3)}:${blob.halfHeight.toFixed(3)}`
+          `${blob.id}:${blob.active ? 1 : 0}:${Math.round(blob.cx * overlayWidth)}:${Math.round(blob.cy * overlayHeight)}:${Math.round(blob.halfWidth * overlayWidth)}:${Math.round(blob.halfHeight * overlayHeight)}`
       )
       .join("|")
-    if (signature !== this.overlaySignature) {
-      this.overlaySignature = signature
-      this.redrawOverlay(blobs)
+    if (signature === this.overlaySignature) {
+      return
     }
+
+    // Rate-limit live redraws: during heavy motion every frame changes, and
+    // the redraw + full re-upload is the expensive part. The signature stays
+    // stale on skipped frames, so the next eligible frame catches up.
+    const now =
+      typeof performance !== "undefined" ? performance.now() : Number.NaN
+    if (
+      !forceRedraw &&
+      Number.isFinite(now) &&
+      now - this.lastOverlayRedrawAt < OVERLAY_REDRAW_INTERVAL_MS
+    ) {
+      return
+    }
+
+    this.lastOverlayRedrawAt = Number.isFinite(now) ? now : 0
+    this.overlaySignature = signature
+    this.redrawOverlay(blobs)
   }
 
   private updateBlobTable(blobs: Blob[]): void {
@@ -657,15 +686,28 @@ export class BlobTrackingPass extends PassNode {
     }
   }
 
+  private getOverlaySize(): { height: number; width: number } {
+    // The overlay renders thin strokes and monospace labels — half-ish
+    // resolution upscaled by linear filtering is visually equivalent and
+    // cuts the per-redraw texture upload by 4x+ at typical sizes.
+    const width = Math.max(1, Math.min(this.logicalWidth, OVERLAY_MAX_WIDTH))
+    const height = Math.max(
+      1,
+      Math.round((width * this.logicalHeight) / Math.max(1, this.logicalWidth))
+    )
+    return { height, width }
+  }
+
   private createOverlayResources(): void {
     if (typeof document === "undefined") {
       // Headless environments render without decorations.
       return
     }
 
+    const { height, width } = this.getOverlaySize()
     this.overlayCanvas = document.createElement("canvas")
-    this.overlayCanvas.width = this.logicalWidth
-    this.overlayCanvas.height = this.logicalHeight
+    this.overlayCanvas.width = width
+    this.overlayCanvas.height = height
     this.overlayContext = this.overlayCanvas.getContext("2d")
 
     this.overlayTexture = new THREE.CanvasTexture(this.overlayCanvas)
@@ -681,14 +723,15 @@ export class BlobTrackingPass extends PassNode {
     if (!this.overlayCanvas) {
       return
     }
+    const { height, width } = this.getOverlaySize()
     if (
-      this.overlayCanvas.width === this.logicalWidth &&
-      this.overlayCanvas.height === this.logicalHeight
+      this.overlayCanvas.width === width &&
+      this.overlayCanvas.height === height
     ) {
       return
     }
-    this.overlayCanvas.width = this.logicalWidth
-    this.overlayCanvas.height = this.logicalHeight
+    this.overlayCanvas.width = width
+    this.overlayCanvas.height = height
     this.overlaySignature = ""
     this.redrawOverlay(this.tracker.getBlobs())
   }
@@ -713,19 +756,24 @@ export class BlobTrackingPass extends PassNode {
       trailDecay,
     } = this.decorations
     const scale = this.shapeScaleUniform.value as number
+    // Stroke width is authored in logical pixels; the canvas may render at a
+    // capped resolution, so convert (upscaling restores the visual width).
+    const strokeScale = width / Math.max(1, this.logicalWidth)
+    const scaledStrokeWidth = Math.max(0.75, strokeWidth * strokeScale)
 
     context.strokeStyle = strokeColor
     context.fillStyle = strokeColor
-    context.lineWidth = strokeWidth
-    context.font = `${Math.max(10, Math.round(height / 60))}px ui-monospace, monospace`
+    context.lineWidth = scaledStrokeWidth
+    context.font = `${Math.max(9, Math.round(height / 54))}px ui-monospace, monospace`
 
     const activeBlobs = blobs.filter((blob) => blob.active)
 
-    // Trails first so live outlines draw on top of them.
+    // Trails first so live outlines draw on top of them. Every other history
+    // entry is enough visually and halves the stroke count in busy scenes.
     if (trailDecay > 0) {
       for (const blob of activeBlobs) {
         const history = blob.history
-        for (let index = 0; index < history.length - 1; index += 1) {
+        for (let index = 0; index < history.length - 1; index += 2) {
           const point = history[index]
           if (!point) continue
           const age = (index + 1) / history.length
@@ -809,7 +857,7 @@ export class BlobTrackingPass extends PassNode {
         context.fillText(
           label,
           centerX - Math.max(halfW, halfH),
-          centerY - Math.max(halfW, halfH) - strokeWidth - 3
+          centerY - Math.max(halfW, halfH) - scaledStrokeWidth - 3
         )
       }
     }

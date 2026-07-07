@@ -92,7 +92,6 @@ declare module "three/tsl" {
   export function cross(left: unknown, right: unknown): TSLNode
   export function div(left: unknown, right: unknown): TSLNode
   export function dot(left: unknown, right: unknown): TSLNode
-  // biome-ignore lint/suspicious/noExplicitAny: TSL Fn accepts both positional and destructured params
   export function Fn(
     fn: ShaderNodeFn | ((...args: never[]) => unknown),
     layout?: unknown

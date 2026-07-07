@@ -75,7 +75,9 @@ export function FloatingDesktopPanel({
   id,
   resolvePosition,
 }: FloatingDesktopPanelProps) {
-  const suppressResize = () => {}
+  const suppressResize = () => {
+    // Panels manage their own size; ignore resize requests from children.
+  }
   const panelRef = useRef<HTMLDivElement | null>(null)
   const dragStateRef = useRef<{
     pointerId: number

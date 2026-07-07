@@ -67,9 +67,21 @@ export function valueSignature(value: ParameterValue): string {
   return String(value)
 }
 
+function compareKeys(leftKey: string, rightKey: string): number {
+  if (leftKey < rightKey) {
+    return -1
+  }
+
+  if (leftKey > rightKey) {
+    return 1
+  }
+
+  return 0
+}
+
 export function parameterValuesSignature(values: LayerParameterValues): string {
   return Object.entries(values)
-    .sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey))
+    .sort(([leftKey], [rightKey]) => compareKeys(leftKey, rightKey))
     .map(([key, value]) => `${key}:${valueSignature(value)}`)
     .join("|")
 }

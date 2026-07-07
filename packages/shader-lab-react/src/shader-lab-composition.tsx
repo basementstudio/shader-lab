@@ -9,6 +9,14 @@ import type { ShaderLabConfig } from "./types"
 export interface ShaderLabCompositionProps {
   className?: string
   config: ShaderLabConfig
+  /**
+   * Called with a string message when a runtime error occurs (renderer
+   * initialization failure, shader compilation error, missing WebGPU
+   * support). After a non-null error has been reported, it is called once
+   * with `null` when the error is resolved so error UIs can recover. It is
+   * never called with `null` before an error has been reported, and it is
+   * not called again for consecutive identical messages.
+   */
   onRuntimeError?: (message: string | null) => void
   style?: CSSProperties
 }
@@ -41,6 +49,7 @@ export function ShaderLabComposition({
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const frameRef = useRef<number | null>(null)
   const lastTimeRef = useRef<number | null>(null)
+  const lastReportedErrorRef = useRef<string | null>(null)
   const [runtimeError, setRuntimeError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -50,10 +59,19 @@ export function ShaderLabComposition({
       return
     }
 
-    if (!browserSupportsWebGPU()) {
-      const message = "WebGPU is not available in this browser."
+    const handleRuntimeError = (message: string | null) => {
       setRuntimeError(message)
+
+      if (message === lastReportedErrorRef.current) {
+        return
+      }
+
+      lastReportedErrorRef.current = message
       onRuntimeError?.(message)
+    }
+
+    if (!browserSupportsWebGPU()) {
+      handleRuntimeError("WebGPU is not available in this browser.")
       return
     }
 
@@ -64,11 +82,6 @@ export function ShaderLabComposition({
     let runtimeRenderer: Awaited<
       ReturnType<typeof createWebGPURenderer>
     > | null = null
-
-    const handleRuntimeError = (message: string | null) => {
-      setRuntimeError(message)
-      onRuntimeError?.(message)
-    }
 
     const getViewportSize = (): RendererSize => {
       const bounds = canvas.getBoundingClientRect()

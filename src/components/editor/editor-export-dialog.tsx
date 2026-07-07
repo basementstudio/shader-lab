@@ -50,6 +50,7 @@ import {
 import {
   applyLabProjectFile,
   buildLabProjectFile,
+  hasImportedCustomShaderCode,
   parseLabProjectFile,
 } from "@/lib/editor/project-file"
 import {
@@ -697,6 +698,20 @@ export function EditorExportDialog({
     try {
       const input = await file.text()
       const projectFile = parseLabProjectFile(input)
+
+      // Imported custom-shader source executes in the importer's browser, so
+      // require explicit consent before applying anything from the file.
+      // TODO(design): replace window.confirm with a styled confirm dialog.
+      if (
+        hasImportedCustomShaderCode(projectFile) &&
+        !window.confirm(
+          "This project contains custom shader code that will run in your browser. Only continue if you trust the source. Run custom shaders?"
+        )
+      ) {
+        setStatusMessage("Project import cancelled.")
+        return
+      }
+
       const result = applyLabProjectFile(
         projectFile,
         useAssetStore.getState().assets

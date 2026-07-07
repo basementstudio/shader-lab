@@ -45,7 +45,7 @@ function parseSvgRasterResolution(value: unknown): number {
     return 2048
   }
 
-  return Math.round(parsed)
+  return Math.min(8192, Math.round(parsed))
 }
 
 function createLayerSignature(layer: RenderableLayerPass): string {

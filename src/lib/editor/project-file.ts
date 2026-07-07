@@ -1,8 +1,13 @@
+import { z } from "zod"
 import { useAssetStore } from "@/store/asset-store"
 import { useEditorStore } from "@/store/editor-store"
 import { useLayerStore } from "@/store/layer-store"
 import { useTimelineStore } from "@/store/timeline-store"
 import { createDefaultColorCurves } from "@/lib/color-curves"
+import {
+  CUSTOM_EFFECT_STARTER,
+  CUSTOM_SHADER_STARTER,
+} from "@/lib/editor/custom-shader/shared"
 import type {
   EditorAsset,
   EditorLayer,
@@ -10,7 +15,15 @@ import type {
   SceneConfig,
   Size,
 } from "@/types/editor"
-import { DEFAULT_SCENE_CONFIG } from "@/types/editor"
+import {
+  BLEND_MODES,
+  DEFAULT_SCENE_CONFIG,
+  EFFECT_LAYER_TYPES,
+  LAYER_COMPOSITE_MODES,
+  MASK_MODES,
+  MASK_SOURCES,
+  SOURCE_LAYER_TYPES,
+} from "@/types/editor"
 
 export interface LabProjectFile extends ProjectPresetConfig {
   composition: Size
@@ -45,6 +58,139 @@ export function buildLabProjectFile(): LabProjectFile {
   }
 }
 
+const parameterValueSchema = z.union([
+  z.number(),
+  z.string(),
+  z.boolean(),
+  z.tuple([z.number(), z.number()]),
+  z.tuple([z.number(), z.number(), z.number()]),
+])
+
+const maskConfigSchema = z.looseObject({
+  invert: z.boolean(),
+  mode: z.enum(MASK_MODES),
+  source: z.enum(MASK_SOURCES),
+})
+
+// Fields shared by every layer kind. Later additions to `BaseLayer`
+// (e.g. `maskConfig`) stay optional so legacy `.lab` files keep importing.
+const baseLayerShape = {
+  assetId: z.string().nullable(),
+  blendMode: z.enum(BLEND_MODES),
+  compositeMode: z.enum(LAYER_COMPOSITE_MODES),
+  expanded: z.boolean(),
+  fluidInteractionEvents: z.array(z.looseObject({})).optional(),
+  hue: z.number(),
+  id: z.string(),
+  locked: z.boolean(),
+  maskConfig: maskConfigSchema.optional(),
+  name: z.string(),
+  opacity: z.number(),
+  params: z.record(z.string(), parameterValueSchema),
+  runtimeError: z.string().nullable().optional(),
+  saturation: z.number(),
+  visible: z.boolean(),
+}
+
+const layerSchema = z.discriminatedUnion("kind", [
+  z.looseObject({
+    ...baseLayerShape,
+    kind: z.literal("effect"),
+    type: z.enum(EFFECT_LAYER_TYPES),
+  }),
+  z.looseObject({
+    ...baseLayerShape,
+    kind: z.literal("model"),
+    type: z.literal("model"),
+  }),
+  z.looseObject({
+    ...baseLayerShape,
+    kind: z.literal("source"),
+    type: z.enum(SOURCE_LAYER_TYPES),
+  }),
+])
+
+const timelineKeyframeSchema = z.looseObject({
+  id: z.string(),
+  time: z.number(),
+  value: parameterValueSchema,
+})
+
+const timelineTrackSchema = z.looseObject({
+  binding: z.looseObject({}),
+  enabled: z.boolean(),
+  id: z.string(),
+  keyframes: z.array(timelineKeyframeSchema),
+  layerId: z.string(),
+})
+
+const assetReferenceSchema = z.looseObject({
+  fileName: z.string(),
+  id: z.string(),
+  kind: z.string(),
+})
+
+const labProjectFileSchema = z.looseObject({
+  assets: z.array(assetReferenceSchema),
+  composition: z.looseObject({
+    height: z.number().positive(),
+    width: z.number().positive(),
+  }),
+  exportedAt: z.string().optional(),
+  format: z.literal("shader-lab"),
+  layers: z.array(layerSchema),
+  sceneConfig: z.looseObject({}).optional(),
+  selectedLayerId: z.string().nullable().optional(),
+  timeline: z.looseObject({
+    duration: z.number(),
+    loop: z.boolean(),
+    tracks: z.array(timelineTrackSchema),
+  }),
+  version: z.union([z.literal(1), z.literal(2)]),
+})
+
+// Checked in order; the first rule matching any issue path wins so the
+// user-facing wording stays identical to the pre-zod manual checks.
+const PARSE_ISSUE_MESSAGES: {
+  matches: (path: readonly PropertyKey[]) => boolean
+  message: string
+}[] = [
+  {
+    matches: (path) => path[0] === "format",
+    message: "This file is not a Shader Lab `.lab` project.",
+  },
+  {
+    matches: (path) => path[0] === "version",
+    message: "Unsupported Shader Lab project version.",
+  },
+  {
+    matches: (path) => path[0] === "layers",
+    message: "Project file is missing a valid layer stack.",
+  },
+  {
+    matches: (path) => path[0] === "timeline" && path[1] === "tracks",
+    message: "Project file is missing valid timeline tracks.",
+  },
+  {
+    matches: (path) => path[0] === "timeline",
+    message: "Project file is missing timeline data.",
+  },
+  {
+    matches: (path) => path[0] === "composition",
+    message: "Project file is missing composition dimensions.",
+  },
+]
+
+function toParseError(issues: readonly z.core.$ZodIssue[]): Error {
+  for (const rule of PARSE_ISSUE_MESSAGES) {
+    if (issues.some((issue) => rule.matches(issue.path))) {
+      return new Error(rule.message)
+    }
+  }
+
+  return new Error("The selected file is not a valid Shader Lab project.")
+}
+
 export function parseLabProjectFile(input: string): LabProjectFile {
   let parsed: unknown
 
@@ -58,37 +204,41 @@ export function parseLabProjectFile(input: string): LabProjectFile {
     throw new Error("The selected file is not a valid Shader Lab project.")
   }
 
-  const candidate = parsed as Partial<LabProjectFile>
+  const result = labProjectFileSchema.safeParse(parsed)
 
-  if (candidate.format !== "shader-lab") {
-    throw new Error("This file is not a Shader Lab `.lab` project.")
+  if (!result.success) {
+    throw toParseError(result.error.issues)
   }
 
-  if (!(candidate.version === 1 || candidate.version === 2)) {
-    throw new Error("Unsupported Shader Lab project version.")
-  }
+  return structuredClone(result.data) as unknown as LabProjectFile
+}
 
-  if (!Array.isArray(candidate.layers)) {
-    throw new Error("Project file is missing a valid layer stack.")
-  }
+const CUSTOM_SHADER_STARTER_SOURCES = new Set<string>([
+  CUSTOM_EFFECT_STARTER,
+  CUSTOM_SHADER_STARTER,
+])
 
-  if (!(candidate.timeline && typeof candidate.timeline === "object")) {
-    throw new Error("Project file is missing timeline data.")
-  }
+/**
+ * Whether the project ships custom-shader source that differs from the
+ * built-in starters — i.e. code authored elsewhere that would execute in the
+ * importer's browser and should require explicit consent first.
+ */
+export function hasImportedCustomShaderCode(
+  projectFile: LabProjectFile
+): boolean {
+  return projectFile.layers.some((layer) => {
+    if (layer.type !== "custom-shader") {
+      return false
+    }
 
-  if (!Array.isArray(candidate.timeline.tracks)) {
-    throw new Error("Project file is missing valid timeline tracks.")
-  }
+    const sourceCode = layer.params.sourceCode
 
-  if (
-    !(candidate.composition && typeof candidate.composition === "object") ||
-    typeof candidate.composition.width !== "number" ||
-    typeof candidate.composition.height !== "number"
-  ) {
-    throw new Error("Project file is missing composition dimensions.")
-  }
-
-  return structuredClone(candidate as LabProjectFile)
+    return (
+      typeof sourceCode === "string" &&
+      sourceCode.trim().length > 0 &&
+      !CUSTOM_SHADER_STARTER_SOURCES.has(sourceCode)
+    )
+  })
 }
 
 export function applyLabProjectFile(

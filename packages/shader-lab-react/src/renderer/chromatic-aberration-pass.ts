@@ -11,7 +11,7 @@ import {
   vec2,
   vec4,
 } from "three/tsl"
-import * as THREE from "three/webgpu"
+import type * as THREE from "three/webgpu"
 import type { ShaderLabLayerConfig } from "../types"
 import { createPipelinePlaceholder, PassNode } from "./pass-node"
 

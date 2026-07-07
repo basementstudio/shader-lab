@@ -340,6 +340,8 @@ export async function exportVideo(
     width: outputCanvas.width,
   })
 
+  let finalized = false
+
   try {
     throwIfAborted(options.abortSignal)
     await prewarmExportFrame(renderer, renderCanvas, projectState, {
@@ -416,8 +418,13 @@ export async function exportVideo(
     })
     throwIfAborted(options.abortSignal)
 
-    return await encoder.finalize()
+    const blob = await encoder.finalize()
+    finalized = true
+    return blob
   } finally {
+    if (!finalized) {
+      encoder.close()
+    }
     renderer.dispose()
     destroyHiddenRenderCanvas(renderCanvas)
   }

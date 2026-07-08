@@ -72,7 +72,7 @@ export function registerTools(server: McpServer, bridge: EditorBridge): void {
     "get_project_state",
     {
       description:
-        "Get the current editor state: composition size, the layer stack, and the selected layer. Layers render in array order — index 0 first (base of the chain), each later layer applies on top of the composite before it. Layer params are omitted here; use get_layer for full params.",
+        "Get the current editor state: composition size, the layer stack, and the selected layer. Layers stack like Photoshop: index 0 is the top of the sidebar (applied last), the highest index is the base/background. Layer params are omitted here; use get_layer for full params.",
       inputSchema: {},
     },
     () => proxy(bridge, "get_project_state", {})
@@ -114,7 +114,7 @@ export function registerTools(server: McpServer, bridge: EditorBridge): void {
     "add_layer",
     {
       description:
-        "Add a new layer. Without insertIndex it goes to index 0 (base of the render chain). The new layer is returned with its default params and becomes selected.",
+        "Add a new layer. Without insertIndex it goes to index 0 (top of the stack — applied last, so an effect added there transforms everything below it). The new layer is returned with its default params and becomes selected.",
       inputSchema: {
         insertIndex: z
           .number()
@@ -154,7 +154,7 @@ export function registerTools(server: McpServer, bridge: EditorBridge): void {
     "reorder_layer",
     {
       description:
-        "Move a layer to a new index in the stack. Remember: lower index renders earlier (closer to the base), higher index applies later (on top).",
+        "Move a layer to a new index in the stack. Remember: index 0 is the top (applied last), the highest index is the base — effects only affect layers below them (higher indices).",
       inputSchema: {
         id: z.string().describe("Layer id to move"),
         toIndex: z.number().int().min(0).describe("Target index"),

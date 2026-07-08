@@ -13,6 +13,16 @@ export class BridgeNotConnectedError extends Error {
   }
 }
 
+export class BridgeNotListeningError extends Error {
+  constructor(port: number) {
+    super(
+      `The agent bridge could not bind ws://127.0.0.1:${port} (port in use by another process?). It retries every few seconds — free the port or set SHADER_LAB_MCP_PORT, then try again.`
+    )
+  }
+}
+
+const BIND_RETRY_DELAY_MS = 2000
+
 interface PendingRequest {
   reject: (error: Error) => void
   resolve: (result: unknown) => void
@@ -62,6 +72,8 @@ class EditorBridge {
   private pending = new Map<string, PendingRequest>()
   private requestCounter = 0
   private server: WebSocketServer | null = null
+  private listening = false
+  private port = DEFAULT_BRIDGE_PORT
 
   get connected(): boolean {
     return this.activeSocket !== null
@@ -72,7 +84,15 @@ class EditorBridge {
       return
     }
 
+    this.port = port
     this.server = new WebSocketServer({ host: "127.0.0.1", port })
+
+    this.server.on("listening", () => {
+      this.listening = true
+      console.error(
+        `[shader-lab-mcp] bridge listening on ws://127.0.0.1:${port}`
+      )
+    })
 
     this.server.on("connection", (socket, request) => {
       const origin = request.headers.origin
@@ -117,6 +137,17 @@ class EditorBridge {
         `[shader-lab-mcp] bridge server error (is port ${port} already in use?):`,
         error.message
       )
+
+      // A failed bind (EADDRINUSE) would otherwise leave the bridge dead
+      // forever while tools report "no tab connected". Tear down and retry —
+      // the port often frees up moments later.
+      if (!this.listening) {
+        this.server?.close()
+        this.server = null
+        setTimeout(() => {
+          this.start(port, token)
+        }, BIND_RETRY_DELAY_MS)
+      }
     })
   }
 
@@ -126,6 +157,10 @@ class EditorBridge {
     timeoutMs: number = DEFAULT_REQUEST_TIMEOUT_MS
   ): Promise<unknown> {
     const socket = this.activeSocket
+
+    if (!this.listening) {
+      return Promise.reject(new BridgeNotListeningError(this.port))
+    }
 
     if (!socket || socket.readyState !== WebSocket.OPEN) {
       return Promise.reject(new BridgeNotConnectedError())
@@ -207,9 +242,6 @@ export function getBridge(): EditorBridge {
     const port = resolvePort()
 
     bridge.start(port, process.env.SHADER_LAB_AGENT_TOKEN ?? null)
-    console.error(
-      `[shader-lab-mcp] bridge listening on ws://127.0.0.1:${port} — open the editor with ?agent=1`
-    )
     globalScope[BRIDGE_KEY] = bridge
   }
 

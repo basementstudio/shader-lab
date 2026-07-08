@@ -1,4 +1,4 @@
-import type { Server, ServerWebSocket } from "bun"
+import { WebSocket, WebSocketServer } from "ws"
 
 export const DEFAULT_BRIDGE_PORT = 7420
 export const DEFAULT_REQUEST_TIMEOUT_MS = 5000
@@ -57,73 +57,67 @@ function parseBridgeResponse(raw: unknown): BridgeResponse | null {
   }
 }
 
-export class EditorBridge {
-  private activeSocket: ServerWebSocket<undefined> | null = null
+class EditorBridge {
+  private activeSocket: WebSocket | null = null
   private pending = new Map<string, PendingRequest>()
   private requestCounter = 0
-  private server: Server<undefined> | null = null
+  private server: WebSocketServer | null = null
 
   get connected(): boolean {
     return this.activeSocket !== null
   }
 
   start(port: number, token: string | null): void {
-    this.server = Bun.serve<undefined>({
-      fetch: (request, server) => {
-        const origin = request.headers.get("origin")
+    if (this.server) {
+      return
+    }
 
-        if (origin !== null && !ALLOWED_ORIGIN_PATTERN.test(origin)) {
-          return new Response("Forbidden origin", { status: 403 })
+    this.server = new WebSocketServer({ host: "127.0.0.1", port })
+
+    this.server.on("connection", (socket, request) => {
+      const origin = request.headers.origin
+
+      if (origin !== undefined && !ALLOWED_ORIGIN_PATTERN.test(origin)) {
+        socket.close(4003, "Forbidden origin")
+        return
+      }
+
+      if (token) {
+        const url = new URL(request.url ?? "/", `http://127.0.0.1:${port}`)
+
+        if (url.searchParams.get("token") !== token) {
+          socket.close(4003, "Invalid token")
+          return
         }
+      }
 
-        if (token) {
-          const requestToken = new URL(request.url).searchParams.get("token")
+      if (this.activeSocket && this.activeSocket !== socket) {
+        this.activeSocket.close(4000, "Replaced by a newer editor connection")
+      }
 
-          if (requestToken !== token) {
-            return new Response("Invalid token", { status: 403 })
-          }
+      this.activeSocket = socket
+      console.error("[shader-lab-mcp] editor tab connected")
+
+      socket.on("message", (data) => {
+        this.handleMessage(data.toString())
+      })
+
+      socket.on("close", () => {
+        if (this.activeSocket === socket) {
+          this.activeSocket = null
+          this.rejectAllPending(
+            new Error("The editor tab disconnected mid-request.")
+          )
         }
-
-        if (server.upgrade(request)) {
-          return undefined
-        }
-
-        return new Response("shader-lab-mcp bridge", { status: 200 })
-      },
-      hostname: "127.0.0.1",
-      port,
-      websocket: {
-        close: (socket) => {
-          if (this.activeSocket === socket) {
-            this.activeSocket = null
-            this.rejectAllPending(
-              new Error("The editor tab disconnected mid-request.")
-            )
-          }
-        },
-        message: (_socket, message) => {
-          this.handleMessage(message)
-        },
-        open: (socket) => {
-          if (this.activeSocket && this.activeSocket !== socket) {
-            this.activeSocket.close(
-              4000,
-              "Replaced by a newer editor connection"
-            )
-          }
-
-          this.activeSocket = socket
-          console.error("[shader-lab-mcp] editor tab connected")
-        },
-      },
+      })
     })
-  }
 
-  stop(): void {
-    this.rejectAllPending(new Error("Bridge shut down."))
-    this.server?.stop(true)
-    this.server = null
-    this.activeSocket = null
+    this.server.on("error", (error) => {
+      console.error(
+        `[shader-lab-mcp] bridge server error (is port ${port} already in use?):`,
+        error.message
+      )
+    })
   }
 
   request(
@@ -133,7 +127,7 @@ export class EditorBridge {
   ): Promise<unknown> {
     const socket = this.activeSocket
 
-    if (!socket) {
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
       return Promise.reject(new BridgeNotConnectedError())
     }
 
@@ -155,10 +149,8 @@ export class EditorBridge {
     })
   }
 
-  private handleMessage(message: string | Buffer): void {
-    const response = parseBridgeResponse(
-      typeof message === "string" ? message : message.toString("utf8")
-    )
+  private handleMessage(message: string): void {
+    const response = parseBridgeResponse(message)
 
     if (!response) {
       return
@@ -189,3 +181,41 @@ export class EditorBridge {
     this.pending.clear()
   }
 }
+
+function resolvePort(): number {
+  const raw = process.env.SHADER_LAB_MCP_PORT
+
+  if (!raw) {
+    return DEFAULT_BRIDGE_PORT
+  }
+
+  const parsed = Number.parseInt(raw, 10)
+
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : DEFAULT_BRIDGE_PORT
+}
+
+// Singleton across all tool modules (and across dev-mode reloads): every tool
+// imports this module, but only the first import starts the WS server.
+const BRIDGE_KEY = Symbol.for("shader-lab-mcp.bridge")
+const globalScope = globalThis as { [BRIDGE_KEY]?: EditorBridge }
+
+export function getBridge(): EditorBridge {
+  let bridge = globalScope[BRIDGE_KEY]
+
+  if (!bridge) {
+    bridge = new EditorBridge()
+    const port = resolvePort()
+
+    bridge.start(port, process.env.SHADER_LAB_AGENT_TOKEN ?? null)
+    console.error(
+      `[shader-lab-mcp] bridge listening on ws://127.0.0.1:${port} — open the editor with ?agent=1`
+    )
+    globalScope[BRIDGE_KEY] = bridge
+  }
+
+  return bridge
+}
+
+// Start eagerly at module load so the editor tab can connect before the first
+// tool call.
+getBridge()

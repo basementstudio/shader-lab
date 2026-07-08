@@ -3,7 +3,9 @@
 MCP server that lets an AI agent drive a running Shader Lab editor tab: create,
 remove, reorder, and tweak layers — and write custom TSL shaders with a real
 feedback loop (compile errors and canvas screenshots go straight back to the
-agent).
+agent). Built with [xmcp](https://xmcp.dev): tools live as files in
+`src/tools/`, the server config (transport, instructions) lives in
+`xmcp.config.ts`, and `xmcp build` bundles everything into `dist/stdio.js`.
 
 ## How it works
 
@@ -68,7 +70,15 @@ the real sanitizer/transpile/eval message and can iterate immediately.
 
 ## Development
 
-- `bun run --cwd packages/shader-lab-mcp typecheck`
-- `bun test packages/shader-lab-mcp` — end-to-end test that spawns the server,
-  connects an MCP client over stdio, and fakes an editor tab over the real
-  WebSocket bridge (headless stores, no GPU needed)
+- `bun run --cwd packages/shader-lab-mcp dev` — xmcp dev server with hot reload
+- `bun run --cwd packages/shader-lab-mcp build` — bundle to `dist/stdio.js`
+- `bun run --cwd packages/shader-lab-mcp typecheck` — xmcp's own build-time
+  checker is disabled (it OOMs on the zod/tsl type surface); this is the type
+  gate instead
+- `bun test packages/shader-lab-mcp` — end-to-end test that builds the bundle,
+  spawns the real `dist/stdio.js`, connects an MCP client over stdio, and fakes
+  an editor tab over the real WebSocket bridge (headless stores, no GPU needed)
+
+Layout: one file per tool in `src/tools/` (xmcp file-system routing), the
+`shader-lab://shader-api` resource in `src/resources/(shader-lab)/`, and the
+shared WebSocket bridge + shader reference in `src/lib/`.

@@ -1,12 +1,6 @@
-import {
-  CUSTOM_EFFECT_STARTER,
-  CUSTOM_SHADER_STARTER,
-} from "../../../src/lib/editor/custom-shader/shared"
-
-const TSL_SHADERS_ROOT = new URL(
-  "../../../src/renderer/shaders/tsl/",
-  import.meta.url
-)
+import { existsSync } from "node:fs"
+import { readFile } from "node:fs/promises"
+import { dirname, join } from "node:path"
 
 export const SHADER_CONTRACT = `# Custom shader contract
 
@@ -22,14 +16,16 @@ in a sandbox. The rules:
 - Extra globals beyond three/tsl:
   - \`time\` — uniform, seconds since playback start
   - \`inputTexture\` — effect mode only: the layer stack below, sample with
-    \`inputTexture.sample(vec2(x, y))\`
+    \`inputTexture.sample(vec2(x, y))\` (flip Y: \`vec2(x, float(1).sub(y))\`)
   - all house utilities (see the noise/color/patterns/sdf/complex/math sections)
 - Source mode (effectMode=false) generates imagery from scratch; the returned
   color is treated as sRGB and converted to linear (pow 2.2). Effect mode
   (effectMode=true) transforms \`inputTexture\` and skips that conversion.
 - TSL is a node graph builder, not immediate JS: use \`.toVar()\` before
   \`.assign()\`, use \`If(cond, () => {...}).Else(() => {...})\` instead of JS
-  if/else for GPU branches, and \`select(cond, a, b)\` for ternaries.
+  if/else for GPU branches, and \`select(cond, a, b)\` for ternaries. Plain JS
+  loops and helper arrow functions ARE allowed — they run at graph build time
+  and unroll into the shader.
 - Uniform-like animation comes from \`time\`; there is no frame state between
   invocations.
 `
@@ -88,6 +84,39 @@ const UTIL_SECTION_META: Record<
   },
 }
 
+let repoRoot: string | null = null
+
+function resolveRepoRoot(): string {
+  if (repoRoot) {
+    return repoRoot
+  }
+
+  let dir = process.cwd()
+
+  for (let depth = 0; depth < 6; depth += 1) {
+    if (existsSync(join(dir, "packages", "shader-lab-mcp"))) {
+      repoRoot = dir
+      return dir
+    }
+
+    const parent = dirname(dir)
+
+    if (parent === dir) {
+      break
+    }
+
+    dir = parent
+  }
+
+  throw new Error(
+    "Could not locate the shader-lab repo root. Run the MCP server from inside the repo (e.g. `bun run mcp` at the repo root)."
+  )
+}
+
+function tslShadersRoot(): string {
+  return join(resolveRepoRoot(), "src", "renderer", "shaders", "tsl")
+}
+
 function classifyModulePath(modulePath: string): UtilSectionName {
   if (modulePath.includes("/noise/")) {
     return "noise"
@@ -113,8 +142,10 @@ function classifyModulePath(modulePath: string): UtilSectionName {
 }
 
 async function readUtilBarrel(): Promise<Map<UtilSectionName, UtilEntry[]>> {
-  const barrelUrl = new URL("utils/index.ts", TSL_SHADERS_ROOT)
-  const barrelSource = await Bun.file(barrelUrl).text()
+  const barrelSource = await readFile(
+    join(tslShadersRoot(), "utils", "index.ts"),
+    "utf8"
+  )
   const sections = new Map<UtilSectionName, UtilEntry[]>()
   const exportPattern =
     /export\s*\{([^}]+)\}\s*from\s*"@\/renderer\/shaders\/tsl\/([^"]+)"/g
@@ -150,10 +181,40 @@ function stripImportLines(source: string): string {
 }
 
 async function readUtilSource(modulePath: string): Promise<string> {
-  const fileUrl = new URL(`${modulePath}.ts`, TSL_SHADERS_ROOT)
-  const source = await Bun.file(fileUrl).text()
+  const relativePath = modulePath.replace("renderer/shaders/tsl/", "")
+  const source = await readFile(
+    join(tslShadersRoot(), `${relativePath}.ts`),
+    "utf8"
+  )
 
   return stripImportLines(source)
+}
+
+async function readStarters(): Promise<{ effect: string; source: string }> {
+  const sharedSource = await readFile(
+    join(
+      resolveRepoRoot(),
+      "src",
+      "lib",
+      "editor",
+      "custom-shader",
+      "shared.ts"
+    ),
+    "utf8"
+  )
+  const extract = (constant: string): string => {
+    const pattern = new RegExp(
+      `export const ${constant} = \`([\\s\\S]*?)\`\\n`
+    )
+    const match = sharedSource.match(pattern)
+
+    return match?.[1] ?? "// starter unavailable"
+  }
+
+  return {
+    effect: extract("CUSTOM_EFFECT_STARTER"),
+    source: extract("CUSTOM_SHADER_STARTER"),
+  }
 }
 
 let tslExportNamesPromise: Promise<string[]> | null = null
@@ -280,18 +341,20 @@ async function buildTslCoreSection(): Promise<string> {
   ].join("\n")
 }
 
-function buildExamplesSection(): string {
+async function buildExamplesSection(): Promise<string> {
+  const starters = await readStarters()
+
   return [
     "# Worked examples",
     "",
     "## Source mode (generates imagery from scratch)",
     "```ts",
-    CUSTOM_SHADER_STARTER.trim(),
+    starters.source.trim(),
     "```",
     "",
     "## Effect mode (transforms the layers below via `inputTexture`)",
     "```ts",
-    CUSTOM_EFFECT_STARTER.trim(),
+    starters.effect.trim(),
     "```",
   ].join("\n")
 }

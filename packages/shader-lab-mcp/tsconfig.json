@@ -7,13 +7,14 @@
     "noEmit": true,
     "noUncheckedIndexedAccess": true,
     "paths": {
-      "@/*": ["../../src/*"]
+      "@/*": ["../../src/*"],
+      "~/*": ["./src/*"]
     },
     "skipLibCheck": true,
     "strict": true,
     "target": "ES2022",
-    "types": ["bun"]
+    "types": ["node"]
   },
   "exclude": ["src/__tests__"],
-  "include": ["src"]
+  "include": ["src", "xmcp.config.ts"]
 }

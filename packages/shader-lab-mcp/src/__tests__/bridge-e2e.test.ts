@@ -81,18 +81,29 @@ function connectFakeEditorTab(): Promise<WebSocket> {
 beforeAll(async () => {
   useLayerStore.getState().replaceState([], null, null, [])
 
+  // Build the xmcp bundle, then spawn the real production entrypoint.
+  const build = Bun.spawnSync(["bunx", "xmcp", "build"], {
+    cwd: PACKAGE_ROOT,
+    stderr: "pipe",
+    stdout: "pipe",
+  })
+
+  if (build.exitCode !== 0) {
+    throw new Error(`xmcp build failed: ${build.stderr.toString()}`)
+  }
+
   client = new Client({ name: "e2e-test", version: "0.0.0" })
 
   const transport = new StdioClientTransport({
-    args: ["run", "src/index.ts"],
-    command: "bun",
+    args: ["dist/stdio.js"],
+    command: "node",
     cwd: PACKAGE_ROOT,
     env: { ...process.env, SHADER_LAB_MCP_PORT: String(PORT) },
     stderr: "ignore",
   })
 
   await client.connect(transport)
-})
+}, 120_000)
 
 afterAll(async () => {
   fakeTab?.close()

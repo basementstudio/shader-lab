@@ -1,5 +1,6 @@
 import { clamp, float, pow, texture as tslTexture, type TSLNode, uniform, uv, vec2, vec3, vec4 } from "three/tsl"
 import * as THREE from "three/webgpu"
+import { emitCustomShaderCompileResult } from "@/lib/agent-bridge/compile-events"
 import { CUSTOM_SHADER_ENTRY_EXPORT } from "@/lib/editor/custom-shader/shared"
 import { compileCustomShaderModule } from "@/renderer/custom-shader-runtime"
 import { PassNode } from "@/renderer/pass-node"
@@ -79,22 +80,34 @@ export class CustomShaderPass extends PassNode {
         this.compiledSketch = compiled.buildNode
         useLayerStore.getState().setLayerRuntimeError(this.layerId, null)
         this.rebuildEffectNode()
+        // rebuildEffectNode can surface an execution error via
+        // setLayerRuntimeError, so read the layer state back for the ack.
+        emitCustomShaderCompileResult({
+          error:
+            useLayerStore.getState().getLayerById(this.layerId)
+              ?.runtimeError ?? null,
+          layerId: this.layerId,
+          revision: sourceRevision,
+        })
       })
       .catch((error) => {
         if (requestId !== this.compileRequestId) {
           return
         }
 
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Custom shader compilation failed."
+
         this.compiledSketch = null
-        useLayerStore
-          .getState()
-          .setLayerRuntimeError(
-            this.layerId,
-            error instanceof Error
-              ? error.message
-              : "Custom shader compilation failed."
-          )
+        useLayerStore.getState().setLayerRuntimeError(this.layerId, message)
         this.rebuildEffectNode()
+        emitCustomShaderCompileResult({
+          error: message,
+          layerId: this.layerId,
+          revision: sourceRevision,
+        })
       })
   }
 

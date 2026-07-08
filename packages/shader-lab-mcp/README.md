@@ -35,9 +35,14 @@ Environment variables:
   the editor if you change it)
 - `SHADER_LAB_AGENT_TOKEN` — optional shared secret; when set, the tab must be
   opened with `?agent=1&agentToken=<token>`
+- `SHADER_LAB_ALLOWED_ORIGINS` — extra origins allowed to connect (comma
+  separated, `https://*.vercel.app` wildcards supported). Localhost origins
+  are always allowed. Use this to drive a deployed tab (e.g. a Vercel
+  preview): the server still runs on your machine; the tab connects to your
+  loopback.
 
-Only connections from `localhost` origins are accepted, and the bridge binds
-to `127.0.0.1`.
+Only connections from `localhost` origins (plus any explicitly allowed extra
+origins) are accepted, and the bridge binds to `127.0.0.1`.
 
 ## Tools
 

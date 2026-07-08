@@ -3,7 +3,42 @@ import { WebSocket, WebSocketServer } from "ws"
 export const DEFAULT_BRIDGE_PORT = 7420
 export const DEFAULT_REQUEST_TIMEOUT_MS = 5000
 
-const ALLOWED_ORIGIN_PATTERN = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/
+const LOCALHOST_ORIGIN_PATTERN = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/
+
+function parseExtraAllowedOrigins(): string[] {
+  return (process.env.SHADER_LAB_ALLOWED_ORIGINS ?? "")
+    .split(",")
+    .map((entry) => entry.trim().replace(/\/$/, ""))
+    .filter((entry) => entry.length > 0)
+}
+
+// Localhost origins are always allowed. Additional origins (e.g. a Vercel
+// preview) come from SHADER_LAB_ALLOWED_ORIGINS — comma-separated, with
+// `https://*.example.com` wildcard support for preview subdomains.
+export function isOriginAllowed(
+  origin: string,
+  extraOrigins: string[] = parseExtraAllowedOrigins()
+): boolean {
+  if (LOCALHOST_ORIGIN_PATTERN.test(origin)) {
+    return true
+  }
+
+  return extraOrigins.some((allowed) => {
+    if (!allowed.includes("*")) {
+      return allowed === origin
+    }
+
+    const [scheme, rest] = allowed.split("://")
+
+    if (!(scheme && rest && rest.startsWith("*."))) {
+      return false
+    }
+
+    const suffix = rest.slice(1)
+
+    return origin.startsWith(`${scheme}://`) && origin.endsWith(suffix)
+  })
+}
 
 export class BridgeNotConnectedError extends Error {
   constructor() {
@@ -97,7 +132,10 @@ class EditorBridge {
     this.server.on("connection", (socket, request) => {
       const origin = request.headers.origin
 
-      if (origin !== undefined && !ALLOWED_ORIGIN_PATTERN.test(origin)) {
+      if (origin !== undefined && !isOriginAllowed(origin)) {
+        console.error(
+          `[shader-lab-mcp] refused connection from origin ${origin} — allow it with SHADER_LAB_ALLOWED_ORIGINS`
+        )
         socket.close(4003, "Forbidden origin")
         return
       }

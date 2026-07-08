@@ -15,6 +15,7 @@ import { AnimatePresence, motion } from "motion/react"
 import dynamic from "next/dynamic"
 import Link from "next/link"
 import { useCallback, useEffect, useRef, useState } from "react"
+import { AgentBridgeToggle } from "@/components/editor/agent-bridge-toggle"
 import { FloatingDesktopPanel } from "@/components/editor/floating-desktop-panel"
 import { GlassPanel } from "@/components/ui/glass-panel"
 import { IconButton } from "@/components/ui/icon-button"
@@ -454,6 +455,7 @@ export function EditorTopBar() {
                   <GearIcon height={16} width={16} />
                 </IconButton>
               ) : null}
+              <AgentBridgeToggle />
               <IconButton
                 aria-label={soundEnabled ? "Mute interface sounds" : "Unmute interface sounds"}
                 aria-pressed={!soundEnabled}

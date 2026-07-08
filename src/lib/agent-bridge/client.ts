@@ -70,7 +70,11 @@ async function handleBridgeMessage(
   }
 }
 
-export function startAgentBridgeClient(): () => void {
+export type AgentBridgeConnectionStatus = "connected" | "connecting"
+
+export function startAgentBridgeClient(
+  onStatusChange?: (status: AgentBridgeConnectionStatus) => void
+): () => void {
   let socket: WebSocket | null = null
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null
   let stopped = false
@@ -80,12 +84,20 @@ export function startAgentBridgeClient(): () => void {
       return
     }
 
+    onStatusChange?.("connecting")
+
     try {
       socket = new WebSocket(buildBridgeUrl())
     } catch {
       scheduleReconnect()
       return
     }
+
+    socket.addEventListener("open", () => {
+      if (!stopped) {
+        onStatusChange?.("connected")
+      }
+    })
 
     socket.addEventListener("message", (event) => {
       if (socket) {
@@ -95,6 +107,11 @@ export function startAgentBridgeClient(): () => void {
 
     socket.addEventListener("close", () => {
       socket = null
+
+      if (!stopped) {
+        onStatusChange?.("connecting")
+      }
+
       scheduleReconnect()
     })
 

@@ -29,6 +29,9 @@ jobs:
       - name: Type check package
         run: bun run --cwd packages/shader-lab-react typecheck
 
+      - name: Type check MCP package
+        run: bun run --cwd packages/shader-lab-mcp typecheck
+
       - name: Build package
         run: bun run --cwd packages/shader-lab-react build
 

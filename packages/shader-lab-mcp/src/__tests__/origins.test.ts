@@ -13,6 +13,11 @@ describe("isOriginAllowed", () => {
     expect(isOriginAllowed("https://shader-lab.vercel.app", [])).toBe(false)
   })
 
+  test("allows the first-party production origin without configuration", () => {
+    expect(isOriginAllowed("https://eng.basement.studio")).toBe(true)
+    expect(isOriginAllowed("https://eng.basement.studio.evil.com")).toBe(false)
+  })
+
   test("allows exact extra origins", () => {
     const extra = ["https://shader-lab.vercel.app"]
 

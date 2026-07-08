@@ -5,11 +5,16 @@ export const DEFAULT_REQUEST_TIMEOUT_MS = 5000
 
 const LOCALHOST_ORIGIN_PATTERN = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/
 
+// First-party deployments that may always drive a local bridge.
+const DEFAULT_ALLOWED_ORIGINS = ["https://eng.basement.studio"]
+
 function parseExtraAllowedOrigins(): string[] {
-  return (process.env.SHADER_LAB_ALLOWED_ORIGINS ?? "")
+  const fromEnv = (process.env.SHADER_LAB_ALLOWED_ORIGINS ?? "")
     .split(",")
     .map((entry) => entry.trim().replace(/\/$/, ""))
     .filter((entry) => entry.length > 0)
+
+  return [...DEFAULT_ALLOWED_ORIGINS, ...fromEnv]
 }
 
 // Localhost origins are always allowed. Additional origins (e.g. a Vercel

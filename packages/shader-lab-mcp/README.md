@@ -37,9 +37,9 @@ Environment variables:
   opened with `?agent=1&agentToken=<token>`
 - `SHADER_LAB_ALLOWED_ORIGINS` — extra origins allowed to connect (comma
   separated, `https://*.vercel.app` wildcards supported). Localhost origins
-  are always allowed. Use this to drive a deployed tab (e.g. a Vercel
-  preview): the server still runs on your machine; the tab connects to your
-  loopback.
+  and the production deployment (`https://eng.basement.studio`) are always
+  allowed. Use this to drive any other deployed tab (e.g. a Vercel preview):
+  the server still runs on your machine; the tab connects to your loopback.
 
 Only connections from `localhost` origins (plus any explicitly allowed extra
 origins) are accepted, and the bridge binds to `127.0.0.1`.

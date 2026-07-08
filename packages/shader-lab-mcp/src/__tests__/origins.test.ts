@@ -13,9 +13,13 @@ describe("isOriginAllowed", () => {
     expect(isOriginAllowed("https://shader-lab.vercel.app", [])).toBe(false)
   })
 
-  test("allows the first-party production origin without configuration", () => {
+  test("allows production and Vercel previews without configuration", () => {
     expect(isOriginAllowed("https://eng.basement.studio")).toBe(true)
+    expect(isOriginAllowed("https://shader-lab-git-plan-009.vercel.app")).toBe(
+      true
+    )
     expect(isOriginAllowed("https://eng.basement.studio.evil.com")).toBe(false)
+    expect(isOriginAllowed("https://vercel.app.evil.com")).toBe(false)
   })
 
   test("allows exact extra origins", () => {

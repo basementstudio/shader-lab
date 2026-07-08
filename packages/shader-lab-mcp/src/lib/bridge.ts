@@ -5,8 +5,14 @@ export const DEFAULT_REQUEST_TIMEOUT_MS = 5000
 
 const LOCALHOST_ORIGIN_PATTERN = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/
 
-// First-party deployments that may always drive a local bridge.
-const DEFAULT_ALLOWED_ORIGINS = ["https://eng.basement.studio"]
+// Deployments that may always drive a local bridge: production and Vercel
+// preview builds. No configuration needed — the bridge only ever binds
+// loopback, so these origins can only reach a bridge on the user's own
+// machine.
+const DEFAULT_ALLOWED_ORIGINS = [
+  "https://eng.basement.studio",
+  "https://*.vercel.app",
+]
 
 function parseExtraAllowedOrigins(): string[] {
   const fromEnv = (process.env.SHADER_LAB_ALLOWED_ORIGINS ?? "")

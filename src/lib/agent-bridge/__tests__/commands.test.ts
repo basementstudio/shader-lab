@@ -305,7 +305,6 @@ describe("custom shader commands", () => {
       sourceCode: "export const sketch = Fn(() => vec3(1))",
     })
 
-    // Give the handler a tick to create the layer and subscribe.
     await Bun.sleep(10)
 
     const layer = useLayerStore

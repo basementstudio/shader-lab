@@ -80,8 +80,6 @@ export class CustomShaderPass extends PassNode {
         this.compiledSketch = compiled.buildNode
         useLayerStore.getState().setLayerRuntimeError(this.layerId, null)
         this.rebuildEffectNode()
-        // rebuildEffectNode can surface an execution error via
-        // setLayerRuntimeError, so read the layer state back for the ack.
         emitCustomShaderCompileResult({
           error:
             useLayerStore.getState().getLayerById(this.layerId)

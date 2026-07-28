@@ -12,8 +12,6 @@ export function AgentBridgeMount() {
   const setEnabled = useAgentBridgeStore((state) => state.setEnabled)
   const setStatus = useAgentBridgeStore((state) => state.setStatus)
 
-  // ?agent=1 (or the env flag) force-enables the bridge, so "open this URL"
-  // onboarding from the MCP server keeps working alongside the topbar toggle.
   useEffect(() => {
     if (isAgentBridgeEnabled()) {
       setEnabled(true)

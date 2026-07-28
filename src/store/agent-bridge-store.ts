@@ -28,7 +28,7 @@ function persistEnabled(enabled: boolean): void {
       window.localStorage.removeItem(STORAGE_KEY)
     }
   } catch {
-    // Private browsing or storage quota — the toggle still works this session.
+    return
   }
 }
 

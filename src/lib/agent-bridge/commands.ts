@@ -501,13 +501,10 @@ async function writeCustomShader(payload: CommandPayload) {
   store.updateLayerParam(layerId, "sourceCode", sourceCode)
   store.updateLayerParam(layerId, "sourceRevision", revision)
 
-  // Hidden tabs have their rAF loop parked, so param sync (and with it the
-  // compile) would never start. Tick one frame manually.
   pumpAgentFrame()
 
   const result = await compileResult
 
-  // Show the compiled result even while the tab stays hidden.
   pumpAgentFrame()
 
   if (result.timedOut) {
@@ -674,8 +671,6 @@ const COMMAND_HANDLERS: Record<string, CommandHandler> = {
   screenshot: async (payload) => {
     const { captureScreenshot } = await import("@/lib/agent-bridge/screenshot")
 
-    // Unpark the render loop first so pending layer/param state is synced
-    // before the export renders (hidden tabs never tick otherwise).
     pumpAgentFrame()
 
     return captureScreenshot({

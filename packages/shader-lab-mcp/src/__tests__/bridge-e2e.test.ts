@@ -81,7 +81,6 @@ function connectFakeEditorTab(): Promise<WebSocket> {
 beforeAll(async () => {
   useLayerStore.getState().replaceState([], null, null, [])
 
-  // Build the xmcp bundle, then spawn the real production entrypoint.
   const build = Bun.spawnSync(["bunx", "xmcp", "build"], {
     cwd: PACKAGE_ROOT,
     stderr: "pipe",
@@ -226,8 +225,6 @@ describe("shader-lab MCP end to end", () => {
       name: "write_custom_shader",
     })
 
-    // The fake tab has no renderer, so ack the compile manually once the
-    // layer exists (mirrors what CustomShaderPass does after compiling).
     const ackCompile = async () => {
       for (let attempt = 0; attempt < 100; attempt += 1) {
         const shaderLayer = useLayerStore

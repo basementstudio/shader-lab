@@ -10,8 +10,6 @@ const config: XmcpConfig = {
     silent: true,
   },
   typescript: {
-    // xmcp's parallel checker OOMs on the zod/tsl type surface; the package's
-    // own `tsc --noEmit` (bun run typecheck) covers type safety instead.
     skipTypeCheck: true,
   },
   template: {

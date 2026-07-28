@@ -180,9 +180,6 @@ export function useEditorRenderer() {
           void renderFrame(nextNow)
         })
 
-        // Chrome pauses rAF in hidden tabs, parking the loop above. Agent
-        // bridge commands that need a frame (shader compiles, screenshots)
-        // pump one manually; renderFrame reparks the loop via rAF at its end.
         unregisterFramePump = registerAgentFramePump(() => {
           if (isDisposed || frameInFlight) {
             return

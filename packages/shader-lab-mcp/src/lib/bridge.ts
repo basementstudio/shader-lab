@@ -5,10 +5,6 @@ export const DEFAULT_REQUEST_TIMEOUT_MS = 5000
 
 const LOCALHOST_ORIGIN_PATTERN = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/
 
-// Deployments that may always drive a local bridge: production and Vercel
-// preview builds. No configuration needed — the bridge only ever binds
-// loopback, so these origins can only reach a bridge on the user's own
-// machine.
 const DEFAULT_ALLOWED_ORIGINS = [
   "https://eng.basement.studio",
   "https://*.vercel.app",
@@ -23,9 +19,6 @@ function parseExtraAllowedOrigins(): string[] {
   return [...DEFAULT_ALLOWED_ORIGINS, ...fromEnv]
 }
 
-// Localhost origins are always allowed. Additional origins (e.g. a Vercel
-// preview) come from SHADER_LAB_ALLOWED_ORIGINS — comma-separated, with
-// `https://*.example.com` wildcard support for preview subdomains.
 export function isOriginAllowed(
   origin: string,
   extraOrigins: string[] = parseExtraAllowedOrigins()
@@ -187,9 +180,6 @@ class EditorBridge {
         error.message
       )
 
-      // A failed bind (EADDRINUSE) would otherwise leave the bridge dead
-      // forever while tools report "no tab connected". Tear down and retry —
-      // the port often frees up moments later.
       if (!this.listening) {
         this.server?.close()
         this.server = null
@@ -278,8 +268,6 @@ function resolvePort(): number {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : DEFAULT_BRIDGE_PORT
 }
 
-// Singleton across all tool modules (and across dev-mode reloads): every tool
-// imports this module, but only the first import starts the WS server.
 const BRIDGE_KEY = Symbol.for("shader-lab-mcp.bridge")
 const globalScope = globalThis as { [BRIDGE_KEY]?: EditorBridge }
 
@@ -297,6 +285,4 @@ export function getBridge(): EditorBridge {
   return bridge
 }
 
-// Start eagerly at module load so the editor tab can connect before the first
-// tool call.
 getBridge()

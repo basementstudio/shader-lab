@@ -515,11 +515,15 @@ async function prewarmExportFrame(
 
   const maxWaitMs = 5_000
   const pollInterval = 10
-  let elapsed = 0
+  const startedAt = performance.now()
 
-  while (renderer.hasPendingResources() && elapsed < maxWaitMs) {
+  // Measure real time: hidden tabs clamp setTimeout to >=1s per tick, so
+  // counting assumed 10ms intervals would stretch this cap into minutes.
+  while (
+    renderer.hasPendingResources() &&
+    performance.now() - startedAt < maxWaitMs
+  ) {
     await wait(pollInterval)
-    elapsed += pollInterval
   }
 
   await renderFrameToCanvas(renderer, canvas, projectState, options)
@@ -632,8 +636,13 @@ function wait(durationMs: number): Promise<void> {
 
 function waitForRenderedFrame(): Promise<void> {
   return new Promise((resolve) => {
+    // rAF never fires in hidden tabs — race a timer fallback so exports
+    // (agent-bridge screenshots included) cannot hang when backgrounded.
+    const timer = window.setTimeout(resolve, 250)
+
     window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => {
+        window.clearTimeout(timer)
         resolve()
       })
     })

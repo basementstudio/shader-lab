@@ -63,6 +63,14 @@ origins) are accepted, and the bridge binds to `127.0.0.1`.
   and `three/tsl` exports are enumerated at runtime, so the reference can
   never drift from what actually executes)
 
+## Hidden tabs
+
+The editor tab does not need to stay foregrounded. Chrome pauses
+`requestAnimationFrame` in hidden tabs, which would normally park the render
+loop — bridge commands that need a frame (shader compiles, screenshots) pump
+one manually instead, so the whole loop works with the tab buried behind
+other windows.
+
 ## The shader loop
 
 ```

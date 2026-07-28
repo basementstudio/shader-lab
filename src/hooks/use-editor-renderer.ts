@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import { registerAgentFramePump } from "@/lib/agent-bridge/frame-pump"
 import { buildRendererFrame, type EditorRenderer } from "@/renderer/contracts"
 import {
   browserSupportsWebGPU,
@@ -64,6 +65,8 @@ export function useEditorRenderer() {
     let lastFrameTime = performance.now()
     let previewTime = 0
     let resizeObserver: ResizeObserver | null = null
+    let frameInFlight = false
+    let unregisterFramePump: (() => void) | null = null
 
     editorStore.setWebGPUStatus("initializing")
 
@@ -113,6 +116,8 @@ export function useEditorRenderer() {
         resizeObserver.observe(viewportElement)
 
         const renderFrame = async (now: number) => {
+          frameInFlight = true
+
           const layerState = useLayerStore.getState()
           const assetState = useAssetStore.getState()
           const editorState = useEditorStore.getState()
@@ -163,6 +168,7 @@ export function useEditorRenderer() {
           }
 
           renderer.render(frame)
+          frameInFlight = false
           animationFrameRef.current = window.requestAnimationFrame(
             (nextNow) => {
               void renderFrame(nextNow)
@@ -172,6 +178,22 @@ export function useEditorRenderer() {
 
         animationFrameRef.current = window.requestAnimationFrame((nextNow) => {
           void renderFrame(nextNow)
+        })
+
+        // Chrome pauses rAF in hidden tabs, parking the loop above. Agent
+        // bridge commands that need a frame (shader compiles, screenshots)
+        // pump one manually; renderFrame reparks the loop via rAF at its end.
+        unregisterFramePump = registerAgentFramePump(() => {
+          if (isDisposed || frameInFlight) {
+            return
+          }
+
+          if (animationFrameRef.current !== null) {
+            window.cancelAnimationFrame(animationFrameRef.current)
+            animationFrameRef.current = null
+          }
+
+          void renderFrame(performance.now())
         })
       } catch (error) {
         const message =
@@ -188,6 +210,8 @@ export function useEditorRenderer() {
 
     return () => {
       isDisposed = true
+
+      unregisterFramePump?.()
 
       if (resizeObserver) {
         resizeObserver.disconnect()

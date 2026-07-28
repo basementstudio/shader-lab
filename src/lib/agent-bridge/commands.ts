@@ -546,6 +546,73 @@ function getCustomShader(payload: CommandPayload) {
   }
 }
 
+const MEDIA_MIME_BY_EXTENSION: Record<string, string> = {
+  gif: "image/gif",
+  jpeg: "image/jpeg",
+  jpg: "image/jpeg",
+  mov: "video/quicktime",
+  mp4: "video/mp4",
+  png: "image/png",
+  svg: "image/svg+xml",
+  webm: "video/webm",
+  webp: "image/webp",
+}
+
+async function addMediaLayer(payload: CommandPayload) {
+  const fileName = requireString(payload, "fileName")
+  const base64 = requireString(payload, "base64")
+  const insertIndex = optionalNumber(payload, "insertIndex")
+  const name = optionalString(payload, "name")
+  const extension = fileName.split(".").pop()?.toLowerCase() ?? ""
+  const mimeType = MEDIA_MIME_BY_EXTENSION[extension]
+
+  if (!mimeType) {
+    throw new AgentCommandError(
+      `Unsupported media extension \`${extension}\`. Supported: ${Object.keys(MEDIA_MIME_BY_EXTENSION).join(", ")}.`
+    )
+  }
+
+  let buffer: ArrayBuffer
+
+  try {
+    const binary = atob(base64)
+    const bytes = new Uint8Array(binary.length)
+
+    for (let index = 0; index < binary.length; index += 1) {
+      bytes[index] = binary.charCodeAt(index)
+    }
+
+    buffer = bytes.buffer as ArrayBuffer
+  } catch {
+    throw new AgentCommandError("`base64` is not valid base64 data.")
+  }
+
+  const file = new File([buffer], fileName, { type: mimeType })
+  const { useAssetStore } = await import("@/store/asset-store")
+  const asset = await useAssetStore
+    .getState()
+    .loadAsset(file)
+    .catch((error: unknown) => {
+      throw new AgentCommandError(
+        error instanceof Error
+          ? error.message
+          : "Could not load the media file."
+      )
+    })
+
+  const layerType: LayerType = asset.kind === "video" ? "video" : "image"
+  const store = useLayerStore.getState()
+  const layerId = store.addLayer(layerType, insertIndex)
+
+  store.setLayerAsset(layerId, asset.id)
+
+  if (name) {
+    store.renameLayer(layerId, name)
+  }
+
+  return serializeLayer(requireLayer(layerId))
+}
+
 const COMMAND_HANDLERS: Record<string, CommandHandler> = {
   add_layer: (payload) => {
     const type = requireLayerType(payload, "type")
@@ -582,6 +649,8 @@ const COMMAND_HANDLERS: Record<string, CommandHandler> = {
       type: definition.type,
     }
   },
+
+  add_media_layer: addMediaLayer,
 
   duplicate_layer: (payload) => {
     const layer = requireLayer(requireString(payload, "id"))

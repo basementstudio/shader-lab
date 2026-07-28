@@ -116,6 +116,7 @@ describe("shader-lab MCP end to end", () => {
 
     expect(names).toEqual([
       "add_layer",
+      "add_media_layer",
       "describe_layer_type",
       "duplicate_layer",
       "get_custom_shader",

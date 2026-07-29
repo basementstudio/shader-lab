@@ -1,3 +1,4 @@
+import { AgentBridgeMount } from "@/components/editor/agent-bridge-mount"
 import { EditorCanvasViewport } from "@/components/editor/editor-canvas-viewport"
 import { MobileEditorDock } from "@/components/editor/mobile-editor-dock"
 import { EditorShortcuts } from "@/components/editor/editor-shortcuts"
@@ -12,6 +13,7 @@ export function ShaderLabPage() {
       id="main-content"
       className="relative h-screen w-screen overflow-hidden bg-[var(--ds-color-canvas)]"
     >
+      <AgentBridgeMount />
       <EditorShortcuts />
       <EditorCanvasViewport />
       <EditorTimelineOverlay />

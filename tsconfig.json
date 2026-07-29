@@ -41,6 +41,7 @@
   ],
   "exclude": [
     "node_modules",
+    "packages/shader-lab-mcp",
     "**/*.test.ts",
     "**/*.test.tsx",
     "**/*.spec.ts",

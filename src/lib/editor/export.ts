@@ -515,11 +515,13 @@ async function prewarmExportFrame(
 
   const maxWaitMs = 5_000
   const pollInterval = 10
-  let elapsed = 0
+  const startedAt = performance.now()
 
-  while (renderer.hasPendingResources() && elapsed < maxWaitMs) {
+  while (
+    renderer.hasPendingResources() &&
+    performance.now() - startedAt < maxWaitMs
+  ) {
     await wait(pollInterval)
-    elapsed += pollInterval
   }
 
   await renderFrameToCanvas(renderer, canvas, projectState, options)
@@ -632,8 +634,11 @@ function wait(durationMs: number): Promise<void> {
 
 function waitForRenderedFrame(): Promise<void> {
   return new Promise((resolve) => {
+    const timer = window.setTimeout(resolve, 250)
+
     window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => {
+        window.clearTimeout(timer)
         resolve()
       })
     })

@@ -1,0 +1,24 @@
+{
+  "name": "@basementstudio/shader-lab-mcp",
+  "description": "MCP server that drives the Shader Lab editor: layer control and custom shader authoring. Built with xmcp.",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "build": "xmcp build 1>&2",
+    "dev": "xmcp dev",
+    "start": "xmcp build 1>&2 && node dist/stdio.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "ws": "^8.21.0",
+    "xmcp": "^0.6.13",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/sdk": "1.17.5",
+    "@types/bun": "^1.3.6",
+    "@types/node": "^26.1.1",
+    "@types/ws": "^8.18.1",
+    "typescript": "^5.9.3"
+  }
+}

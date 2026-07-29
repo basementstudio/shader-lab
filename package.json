@@ -15,6 +15,7 @@
     "changeset": "changeset",
     "check": "bun run build:runtime && bun run lint && bun run typecheck:compare",
     "dev": "next dev",
+    "mcp": "bun run --cwd packages/shader-lab-mcp start",
     "dev:https": "next dev --experimental-https",
     "format": "biome format --write .",
     "lighthouse": "bunx @unlighthouse/cli --site http://localhost:3000",

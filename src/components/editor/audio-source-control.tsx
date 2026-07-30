@@ -4,12 +4,10 @@ import { Popover } from "@base-ui/react/popover"
 import { SpeakerLoudIcon, SpeakerOffIcon, TrashIcon } from "@radix-ui/react-icons"
 import { type ReactNode, useEffect, useId, useRef, useState } from "react"
 import { AudioSpectrumDisplay } from "@/components/editor/audio-spectrum-display"
+import { useBandValueElement } from "@/hooks/use-band-value-element"
 import { cn } from "@/lib/cn"
 import { MIN_RELEASE_MS } from "@/lib/editor/audio/bands"
-import {
-  acquireLiveBandDriver,
-  getBandVariableName,
-} from "@/lib/editor/audio/live-band-driver"
+import { acquireLiveBandDriver } from "@/lib/editor/audio/live-band-driver"
 import { AUDIO_FILE_ACCEPT } from "@/lib/editor/media-file"
 import { useAssetStore, useAudioStore } from "@/store"
 import { AUDIO_BAND_IDS, type AudioBandId } from "@/types/editor"
@@ -44,8 +42,12 @@ function MusicNoteIcon() {
   )
 }
 
-/** One meter bar, animated purely by CSS custom property — no re-renders. */
+/** One meter bar, written directly by the band driver — no re-renders. */
 function BandMeter({ bandId }: { bandId: AudioBandId }) {
+  const fillRef = useBandValueElement<HTMLDivElement>(bandId, (element, value) => {
+    element.style.transform = `scaleX(${value})`
+  })
+
   return (
     <div className="flex items-center gap-2">
       <Typography
@@ -59,9 +61,8 @@ function BandMeter({ bandId }: { bandId: AudioBandId }) {
       <div className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-white/8">
         <div
           className="absolute inset-0 origin-left rounded-full bg-[rgb(182_151_255)]"
-          style={{
-            transform: `scaleX(var(${getBandVariableName(bandId)}, 0))`,
-          }}
+          ref={fillRef}
+          style={{ transform: "scaleX(0)" }}
         />
       </div>
     </div>
@@ -221,6 +222,14 @@ export function AudioSourceControl({
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
 
+  const levelDotRef = useBandValueElement<HTMLSpanElement>(
+    "level",
+    (element, value) => {
+      element.style.opacity = `${0.35 + 0.65 * value}`
+      element.style.transform = `scale(${0.7 + 0.6 * value})`
+    }
+  )
+
   // Held while a track is loaded rather than for the whole component lifetime,
   // so the reactive dot keeps pulsing without running a per-frame loop for
   // every user who never touches audio.
@@ -327,14 +336,7 @@ export function AudioSourceControl({
           <span
             aria-hidden="true"
             className="h-1.5 w-1.5 shrink-0 rounded-full bg-current"
-            style={
-              active
-                ? {
-                    opacity: "calc(0.35 + 0.65 * var(--audio-band-level, 0))",
-                    transform: "scale(calc(0.7 + 0.6 * var(--audio-band-level, 0)))",
-                  }
-                : undefined
-            }
+            ref={levelDotRef}
           />
           {status === "analyzing" ? (
             <Typography as="span" tone="secondary" variant="caption">

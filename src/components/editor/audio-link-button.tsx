@@ -3,8 +3,8 @@
 import { Popover } from "@base-ui/react/popover"
 import { TrashIcon } from "@radix-ui/react-icons"
 import { useId } from "react"
+import { useBandValueElement } from "@/hooks/use-band-value-element"
 import { cn } from "@/lib/cn"
-import { getBandVariableName } from "@/lib/editor/audio/live-band-driver"
 import { findAudioLink } from "@/lib/editor/audio/links"
 import { isParameterAudioModulatable } from "@/lib/editor/parameter-schema"
 import { useIsMeasuringLayout } from "@/components/editor/properties-sidebar-measure"
@@ -67,6 +67,26 @@ function resolveDefaultRange(
   return { outMax: max ?? 1, outMin: min ?? 0 }
 }
 
+/**
+ * Its own component so the band registration mounts with the popup content
+ * rather than with the always-present trigger — a ref that only becomes
+ * non-null later would never get registered.
+ */
+function BandLevelBar({ bandId }: { bandId: AudioBandId }) {
+  const ref = useBandValueElement<HTMLSpanElement>(bandId, (element, value) => {
+    element.style.transform = `scaleY(${value})`
+  })
+
+  return (
+    <span
+      aria-hidden="true"
+      className="absolute inset-x-1 bottom-1 origin-bottom rounded-[2px] bg-[rgb(182_151_255_/_0.35)]"
+      ref={ref}
+      style={{ height: "28px", transform: "scaleY(0)" }}
+    />
+  )
+}
+
 /** Same footprint as the real button, so measured heights stay identical. */
 function AudioLinkPlaceholder() {
   return <span aria-hidden="true" className="inline-flex h-6 w-6 shrink-0" />
@@ -119,6 +139,15 @@ function AudioLinkTrigger({
   const link = findAudioLink(links, control.layerId, binding)
   const isBoolean = control.definition?.type === "boolean"
 
+  // Pulses with the linked band; written straight to the element by the driver.
+  const iconRef = useBandValueElement<HTMLSpanElement>(
+    link?.band ?? null,
+    (element, value) => {
+      element.style.opacity = `${0.55 + 0.45 * value}`
+    }
+  )
+
+
   return (
     <Popover.Root modal={false}>
       <Popover.Trigger
@@ -137,18 +166,7 @@ function AudioLinkTrigger({
           event.stopPropagation()
         }}
       >
-        <span
-          className="inline-flex"
-          style={
-            link
-              ? {
-                  // Pulses with the linked band. A CSS variable, so this costs
-                  // no React renders at 60fps.
-                  opacity: `calc(0.55 + 0.45 * var(${getBandVariableName(link.band)}, 0))`,
-                }
-              : undefined
-          }
-        >
+        <span className="inline-flex" ref={iconRef}>
           <MeterIcon />
         </span>
       </Popover.Trigger>
@@ -195,14 +213,7 @@ function AudioLinkTrigger({
                       }}
                       type="button"
                     >
-                      <span
-                        aria-hidden="true"
-                        className="absolute inset-x-1 bottom-1 origin-bottom rounded-[2px] bg-[rgb(182_151_255_/_0.35)]"
-                        style={{
-                          height: "28px",
-                          transform: `scaleY(var(${getBandVariableName(bandId)}, 0))`,
-                        }}
-                      />
+                      <BandLevelBar bandId={bandId} />
                       <Typography
                         as="span"
                         className="relative"

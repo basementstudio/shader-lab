@@ -14,47 +14,60 @@ import { useTimelineStore } from "@/store/timeline-store"
 import { AUDIO_BAND_IDS, type AudioBandId } from "@/types/editor"
 
 /**
- * Publishes live band values as CSS custom properties on the document root.
+ * Single animation-frame loop that pushes live audio values straight into the
+ * DOM elements that display them.
  *
- * Deliberately not React state. These change 60 times a second; routing them
- * through `useState` would re-render the properties sidebar every frame and make
- * any audio-driven slider fight the user's pointer. Meters and fills read
- * `var(--audio-band-bass)` directly, so the browser animates them with no React
- * involvement at all.
+ * Deliberately not React state: these change 60 times a second, and routing
+ * them through `useState` would re-render the properties sidebar every frame and
+ * make audio-driven sliders fight the pointer.
  *
- * Reference-counted singleton: many components can ask for it, one loop runs.
+ * Also deliberately not CSS custom properties on the document root, which is
+ * what this used to do. Setting a custom property there invalidates style for
+ * the entire document on every frame; writing to the ~10 elements that actually
+ * care is far cheaper and keeps the cost proportional to what is on screen.
+ *
+ * Reference-counted: many components may ask for it, one loop runs.
  */
 
-const bandVariableNames: Record<AudioBandId, string> = {
-  bass: "--audio-band-bass",
-  high: "--audio-band-high",
-  level: "--audio-band-level",
-  mid: "--audio-band-mid",
+type BandConsumer = {
+  apply: (value: number) => void
+  bandId: AudioBandId
+  /** Last written value, so a held or silent passage stops writing entirely. */
+  last: number
 }
 
-export function getBandVariableName(bandId: AudioBandId): string {
-  return bandVariableNames[bandId]
-}
-
-let subscriberCount = 0
-let frameId: number | null = null
-
-/**
- * Registered spectrum curves.
- *
- * The four band values fit in CSS custom properties, but a spectrum is ~64
- * numbers and a fresh path every frame, so it has to be written imperatively.
- * Still no React involvement — the element's `d` attribute is mutated directly.
- */
 type SpectrumTarget = {
   element: SVGPathElement
-  heights: Float32Array
   height: number
+  heights: Float32Array
   smoothed: Float32Array
   width: number
 }
 
+const bandConsumers = new Set<BandConsumer>()
 const spectrumTargets = new Set<SpectrumTarget>()
+
+let subscriberCount = 0
+let frameId: number | null = null
+
+/** Below this, a change is invisible at meter/dot size. */
+const WRITE_EPSILON = 0.004
+
+/**
+ * Drive one element from a band. `apply` receives the band value in `[0,1]` and
+ * should do nothing but write a style — it runs every frame.
+ */
+export function registerBandConsumer(
+  bandId: AudioBandId,
+  apply: (value: number) => void
+): () => void {
+  const consumer: BandConsumer = { apply, bandId, last: Number.NaN }
+  bandConsumers.add(consumer)
+
+  return () => {
+    bandConsumers.delete(consumer)
+  }
+}
 
 export function registerSpectrumPath(
   element: SVGPathElement,
@@ -75,32 +88,30 @@ export function registerSpectrumPath(
   }
 }
 
-const lastWritten: Record<AudioBandId, string> = {
-  bass: "",
-  high: "",
-  level: "",
-  mid: "",
-}
-
 function writeBandValues(): void {
-  const root = document.documentElement
+  if (bandConsumers.size === 0) {
+    return
+  }
+
   const { envelopes, offsetSeconds } = useAudioStore.getState()
   const time = useTimelineStore.getState().currentTime
 
+  const values = {} as Record<AudioBandId, number>
   for (const bandId of AUDIO_BAND_IDS) {
-    const value = envelopes
+    values[bandId] = envelopes
       ? sampleBand(envelopes, bandId, offsetSeconds, time)
       : 0
-    // Two decimals is below what is visible at meter/dot size, and coarsening
-    // here means a held or silent passage stops writing at all.
-    const next = value.toFixed(2)
+  }
 
-    // Setting a custom property on the root invalidates style for the whole
-    // document, so skip writes that would not change anything.
-    if (lastWritten[bandId] !== next) {
-      lastWritten[bandId] = next
-      root.style.setProperty(bandVariableNames[bandId], next)
+  for (const consumer of bandConsumers) {
+    const next = values[consumer.bandId]
+
+    if (Math.abs(next - consumer.last) < WRITE_EPSILON) {
+      continue
     }
+
+    consumer.last = next
+    consumer.apply(next)
   }
 }
 
@@ -185,12 +196,6 @@ export function acquireLiveBandDriver(): () => void {
       window.cancelAnimationFrame(frameId)
       frameId = null
       subscriberCount = 0
-
-      const root = document.documentElement
-      for (const bandId of AUDIO_BAND_IDS) {
-        lastWritten[bandId] = "0"
-        root.style.setProperty(bandVariableNames[bandId], "0")
-      }
     }
   }
 }

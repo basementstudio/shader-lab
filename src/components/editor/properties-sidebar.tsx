@@ -33,6 +33,7 @@ import {
   hasTrackForBinding,
   isParamVisible,
 } from "./properties-sidebar-utils"
+import { MeasuringLayoutProvider } from "./properties-sidebar-measure"
 import { SceneConfigContent } from "./scene-config-content"
 
 export function PropertiesSidebar() {
@@ -590,7 +591,7 @@ export function PropertiesSidebar() {
           className="pointer-events-none invisible absolute top-0 left-0 -z-1 w-full"
         >
           <div className="w-full" ref={bindMeasuredView}>
-            {renderInvisibleContent()}
+            <MeasuringLayoutProvider>{renderInvisibleContent()}</MeasuringLayoutProvider>
           </div>
         </div>
 
@@ -621,7 +622,7 @@ export function PropertiesSidebar() {
         className="pointer-events-none invisible absolute top-0 left-0 -z-1 hidden w-full min-[900px]:block"
       >
         <div className="w-full" ref={bindMeasuredView}>
-          {renderInvisibleContent()}
+          <MeasuringLayoutProvider>{renderInvisibleContent()}</MeasuringLayoutProvider>
         </div>
       </div>
 

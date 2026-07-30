@@ -34,6 +34,7 @@ import type {
   ParameterDefinition,
   ParameterValue,
 } from "@/types/editor"
+import type { AudioLinkControl } from "@/components/editor/audio-link-button"
 import { BlobInnerEffectSection } from "./blob-inner-effect-section"
 import {
   ParameterField,
@@ -492,6 +493,14 @@ export function SelectedLayerPropertiesContent({
     [hasTrack, layerId, onTimelineKeyframe, reduceMotion, timelinePanelOpen]
   )
 
+  // Layer properties have no ParameterDefinition; the engine clamps opacity,
+  // hue and saturation to their own documented ranges instead.
+  const buildAudioControl = useCallback(
+    (binding: AnimatedPropertyBinding | null): AudioLinkControl | null =>
+      binding ? { binding, definition: null, layerId } : null,
+    [layerId]
+  )
+
   return (
     <>
       <div className="flex flex-col gap-2 border-b border-[var(--ds-border-divider)] px-4 pt-[14px] pb-3">
@@ -525,7 +534,8 @@ export function SelectedLayerPropertiesContent({
             <Slider
               label={renderFieldLabel(
                 "Opacity",
-                buildTimelineControl(opacityBinding, opacity)
+                buildTimelineControl(opacityBinding, opacity),
+                buildAudioControl(opacityBinding)
               )}
               max={100}
               min={0}
@@ -638,7 +648,8 @@ export function SelectedLayerPropertiesContent({
             <Slider
               label={renderFieldLabel(
                 "Hue",
-                buildTimelineControl(hueBinding, hue)
+                buildTimelineControl(hueBinding, hue),
+                buildAudioControl(hueBinding)
               )}
               max={180}
               min={-180}
@@ -651,7 +662,8 @@ export function SelectedLayerPropertiesContent({
             <Slider
               label={renderFieldLabel(
                 "Saturation",
-                buildTimelineControl(saturationBinding, saturation)
+                buildTimelineControl(saturationBinding, saturation),
+                buildAudioControl(saturationBinding)
               )}
               max={2}
               min={0}

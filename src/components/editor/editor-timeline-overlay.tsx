@@ -22,16 +22,19 @@ import {
   useRef,
   useState,
 } from "react"
+import { AudioSourceControl } from "@/components/editor/audio-source-control"
 import { CurveEditorPopover } from "@/components/editor/curve-editor"
 import { FloatingDesktopPanel } from "@/components/editor/floating-desktop-panel"
 import { GlassPanel } from "@/components/ui/glass-panel"
 import { IconButton } from "@/components/ui/icon-button"
 import { NumberInput } from "@/components/ui/number-input"
 import { Typography } from "@/components/ui/typography"
+import { useAudioMonitor } from "@/hooks/use-audio-monitor"
 import { cn } from "@/lib/cn"
 import type { KeyframeEasing } from "@/lib/easing-curve"
 import { LINEAR_EASING } from "@/lib/easing-curve"
 import { getLayerDefinition } from "@/lib/editor/config/layer-registry"
+import { isEditableTarget } from "@/lib/editor/is-editable-target"
 import { getLongestVideoLayerDuration } from "@/lib/editor/timeline-duration"
 import { useEditorStore, useLayerStore, useTimelineStore } from "@/store"
 import { useAssetStore } from "@/store/asset-store"
@@ -152,17 +155,6 @@ function hexToRgbChannels(value: string): string {
   return `${red} ${green} ${blue}`
 }
 
-function isEditableTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) {
-    return false
-  }
-
-  if (target.isContentEditable) {
-    return true
-  }
-
-  return ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)
-}
 
 function getPropertyId(binding: AnimatedPropertyBinding): string {
   if (binding.kind === "layer") {
@@ -294,11 +286,13 @@ function TimelineTransport({
   expanded,
   isPlaying,
   loop,
+  monitorEnabled,
   onDurationChange,
   onStop,
   onToggleAutoKey,
   onToggleExpanded,
   onToggleLoop,
+  onToggleMonitor,
   onTogglePlaying,
 }: {
   autoKey: boolean
@@ -308,11 +302,13 @@ function TimelineTransport({
   expanded: boolean
   isPlaying: boolean
   loop: boolean
+  monitorEnabled: boolean
   onDurationChange: (value: number) => void
   onStop: () => void
   onToggleAutoKey: () => void
   onToggleExpanded: () => void
   onToggleLoop: () => void
+  onToggleMonitor: () => void
   onTogglePlaying: () => void
 }) {
   return (
@@ -385,6 +381,16 @@ function TimelineTransport({
           </Typography>
         </IconButton>
       </div>
+
+      <span
+        aria-hidden="true"
+        className="block h-4 w-px shrink-0 rounded-full bg-[var(--ds-border-divider)]"
+      />
+
+      <AudioSourceControl
+        monitorEnabled={monitorEnabled}
+        onToggleMonitor={onToggleMonitor}
+      />
 
       <span
         aria-hidden="true"
@@ -556,6 +562,11 @@ export function EditorTimelineOverlay() {
   )
   const hasDerivedVideoDuration = derivedVideoDuration !== null
   const effectiveDuration = derivedVideoDuration ?? duration
+
+  // Monitoring is on by default: audio-reactive parameters with no audible
+  // track reads as a bug rather than a feature.
+  const [monitorEnabled, setMonitorEnabled] = useState(true)
+  useAudioMonitor(monitorEnabled)
 
   const layerTracks = useMemo(
     () =>
@@ -1293,11 +1304,13 @@ export function EditorTimelineOverlay() {
                 expanded={timelinePanelOpen}
                 isPlaying={isPlaying}
                 loop={loop}
+                monitorEnabled={monitorEnabled}
                 onDurationChange={setDuration}
                 onStop={stop}
                 onToggleAutoKey={toggleTimelineAutoKey}
                 onToggleExpanded={toggleTimelinePanel}
                 onToggleLoop={() => setLoop(!loop)}
+                onToggleMonitor={() => setMonitorEnabled((enabled) => !enabled)}
                 onTogglePlaying={togglePlaying}
               />
             </div>

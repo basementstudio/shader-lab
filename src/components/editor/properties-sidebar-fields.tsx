@@ -13,6 +13,10 @@ import {
   getTextFontWeightControl,
   normalizeTextFontWeight,
 } from "@/lib/editor/text-fonts"
+import {
+  AudioLinkButton,
+  type AudioLinkControl,
+} from "@/components/editor/audio-link-button"
 import { AnchorPicker } from "@/components/ui/anchor-picker"
 import { ColorPicker } from "@/components/ui/color-picker"
 import { IconButton } from "@/components/ui/icon-button"
@@ -119,7 +123,8 @@ function TimelineKeyframeButton({
 function renderFieldLabelStack(
   label: string,
   description: string | undefined,
-  control: TimelineKeyframeControl | null
+  control: TimelineKeyframeControl | null,
+  audioControl: AudioLinkControl | null = null
 ) {
   return (
     <span
@@ -131,7 +136,7 @@ function renderFieldLabelStack(
       }}
     >
       <Typography className="min-w-0" tone="secondary" variant="label">
-        {renderFieldLabel(label, control)}
+        {renderFieldLabel(label, control, audioControl)}
       </Typography>
       {description ? (
         <Typography tone="muted" variant="caption">
@@ -208,12 +213,16 @@ function shouldRenderCustomPaletteField(
 
 export function renderFieldLabel(
   label: string,
-  control: TimelineKeyframeControl | null
+  control: TimelineKeyframeControl | null,
+  audioControl: AudioLinkControl | null = null
 ) {
   return (
     <span className="inline-flex min-w-0 w-full items-center justify-between gap-2">
       <span>{label}</span>
-      <TimelineKeyframeButton control={control} />
+      <span className="inline-flex shrink-0 items-center">
+        <AudioLinkButton control={audioControl} />
+        <TimelineKeyframeButton control={control} />
+      </span>
     </span>
   )
 }
@@ -261,6 +270,9 @@ export function ParameterField({
         value,
       }
     : null
+  const audioControl: AudioLinkControl | null = timelineBinding
+    ? { binding: timelineBinding, definition, layerId }
+    : null
 
   if (!shouldRenderCustomPaletteField(definition, layerParams)) {
     return null
@@ -287,7 +299,8 @@ export function ParameterField({
           label={renderFieldLabelStack(
             fieldLabel,
             definition.description,
-            timelineControl
+            timelineControl,
+            audioControl
           )}
           max={
             fontWeightControl?.hidden === false
@@ -340,7 +353,8 @@ export function ParameterField({
             {renderFieldLabelStack(
               fieldLabel,
               definition.description,
-              timelineControl
+              timelineControl,
+              audioControl
             )}
             <AnchorPicker
               onValueChange={(nextValue) => {
@@ -378,7 +392,8 @@ export function ParameterField({
               {renderFieldLabelStack(
                 fieldLabel,
                 definition.description,
-                timelineControl
+                timelineControl,
+                audioControl
               )}
               <Select
                 className="w-[132px]"
@@ -405,7 +420,8 @@ export function ParameterField({
           {renderFieldLabelStack(
             fieldLabel,
             definition.description,
-            timelineControl
+            timelineControl,
+            audioControl
           )}
           <Toggle
             checked={toBooleanValue(value)}
@@ -426,7 +442,8 @@ export function ParameterField({
           {renderFieldLabelStack(
             fieldLabel,
             definition.description,
-            timelineControl
+            timelineControl,
+            audioControl
           )}
           <ColorPicker
             onInteractionEnd={onInteractionEnd}
@@ -442,7 +459,7 @@ export function ParameterField({
     case "vec2":
       return (
         <XYPad
-          label={renderFieldLabel(fieldLabel, timelineControl)}
+          label={renderFieldLabel(fieldLabel, timelineControl, audioControl)}
           max={definition.max ?? 1}
           min={definition.min ?? -1}
           onInteractionEnd={onInteractionEnd}
@@ -461,7 +478,8 @@ export function ParameterField({
           {renderFieldLabelStack(
             fieldLabel,
             definition.description,
-            timelineControl
+            timelineControl,
+            audioControl
           )}
           <input
             className="min-h-9 appearance-none rounded-[var(--ds-radius-control)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-[10px] py-2 font-[var(--ds-font-mono)] text-[12px] leading-4 text-[var(--ds-color-text-primary)] outline-none transition-[border-color,background-color] duration-120 ease-[ease] focus:border-[var(--ds-color-text-secondary)] placeholder:text-[var(--ds-color-text-muted)]"

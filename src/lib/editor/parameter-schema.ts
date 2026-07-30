@@ -48,6 +48,26 @@ export function isParameterAnimatable(definition: ParameterDefinition): boolean 
   return definition.animatable ?? true
 }
 
+/**
+ * Whether a parameter can be driven by an audio band.
+ *
+ * Stricter than {@link isParameterAnimatable}: `color` has no numeric range to
+ * remap a band onto, and `select` values are not ordered. `vec3` is excluded
+ * because `ParameterField` renders no control for it, so a link would be
+ * invisible and un-editable.
+ */
+export function isParameterAudioModulatable(definition: ParameterDefinition): boolean {
+  if (
+    definition.type === "color" ||
+    definition.type === "select" ||
+    definition.type === "vec3"
+  ) {
+    return false
+  }
+
+  return isParameterAnimatable(definition)
+}
+
 export function isParameterValueEqual(left: ParameterValue, right: ParameterValue): boolean {
   if (Array.isArray(left) && Array.isArray(right)) {
     return (

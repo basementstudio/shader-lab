@@ -120,7 +120,7 @@ export interface MaskConfig {
   source: MaskSource
 }
 
-export const ASSET_KINDS = ["image", "video", "model"] as const
+export const ASSET_KINDS = ["image", "video", "model", "audio"] as const
 export type AssetKind = (typeof ASSET_KINDS)[number]
 
 export type Vector2 = { x: number; y: number }
@@ -360,6 +360,63 @@ export interface TimelineStateSnapshot {
   tracks: TimelineTrack[]
 }
 
+/**
+ * Ordered for display, not alphabetically — the UI iterates this directly and
+ * bass/mid/high/level is the order a musician expects.
+ */
+export const AUDIO_BAND_IDS = ["bass", "mid", "high", "level"] as const
+export type AudioBandId = (typeof AUDIO_BAND_IDS)[number]
+
+export interface AudioBandConfig {
+  attackMs: number
+  gainDb: number
+  /** Ignored for the `level` band, which is full-band RMS. */
+  highHz: number
+  /** Ignored for the `level` band, which is full-band RMS. */
+  lowHz: number
+  releaseMs: number
+}
+
+export type AudioSourceRef =
+  | { assetId: string; kind: "asset" }
+  | { kind: "video-layer"; layerId: string }
+
+/** Which component of a vec parameter a link drives. */
+export type AudioLinkComponent = "all" | "x" | "y" | "z"
+
+/**
+ * A link remaps one band's `[0,1]` envelope onto `[outMin, outMax]` for one
+ * bound parameter. `binding` reuses the keyframe binding type verbatim: binding
+ * describes *what is driven*, the band describes *what drives it*, so no new
+ * `AnimatedPropertyBinding` kind is needed.
+ *
+ * `component` and `threshold` must be omitted rather than set to `undefined`
+ * (`exactOptionalPropertyTypes`) — construct via `createAudioLink`.
+ */
+export interface AudioLink {
+  band: AudioBandId
+  binding: AnimatedPropertyBinding
+  /** vec2/vec3 bindings only. */
+  component?: AudioLinkComponent
+  enabled: boolean
+  id: string
+  layerId: string
+  outMax: number
+  outMin: number
+  /** Boolean bindings only; the band value at which the output flips true. */
+  threshold?: number
+  /** Opt-in snapping to the parameter definition's `step`. */
+  quantize?: boolean
+}
+
+/** The serializable slice of audio state — what lands in a `.lab` file. */
+export interface EditorAudioSnapshot {
+  bands: Record<AudioBandId, AudioBandConfig>
+  links: AudioLink[]
+  offsetSeconds: number
+  source: AudioSourceRef | null
+}
+
 export type SidebarView = "properties" | "scene"
 export type MobileEditorPanel =
   | "none"
@@ -477,6 +534,7 @@ export interface EditorStateSnapshot {
 }
 
 export interface EditorHistorySnapshot {
+  audio: EditorAudioSnapshot
   hoveredLayerId: string | null
   layers: EditorLayer[]
   selectedLayerId: string | null

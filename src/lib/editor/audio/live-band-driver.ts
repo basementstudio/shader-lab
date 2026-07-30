@@ -75,6 +75,13 @@ export function registerSpectrumPath(
   }
 }
 
+const lastWritten: Record<AudioBandId, string> = {
+  bass: "",
+  high: "",
+  level: "",
+  mid: "",
+}
+
 function writeBandValues(): void {
   const root = document.documentElement
   const { envelopes, offsetSeconds } = useAudioStore.getState()
@@ -84,8 +91,16 @@ function writeBandValues(): void {
     const value = envelopes
       ? sampleBand(envelopes, bandId, offsetSeconds, time)
       : 0
+    // Two decimals is below what is visible at meter/dot size, and coarsening
+    // here means a held or silent passage stops writing at all.
+    const next = value.toFixed(2)
 
-    root.style.setProperty(bandVariableNames[bandId], value.toFixed(4))
+    // Setting a custom property on the root invalidates style for the whole
+    // document, so skip writes that would not change anything.
+    if (lastWritten[bandId] !== next) {
+      lastWritten[bandId] = next
+      root.style.setProperty(bandVariableNames[bandId], next)
+    }
   }
 }
 
@@ -173,6 +188,7 @@ export function acquireLiveBandDriver(): () => void {
 
       const root = document.documentElement
       for (const bandId of AUDIO_BAND_IDS) {
+        lastWritten[bandId] = "0"
         root.style.setProperty(bandVariableNames[bandId], "0")
       }
     }

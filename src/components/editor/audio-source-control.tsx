@@ -221,9 +221,16 @@ export function AudioSourceControl({
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
 
-  // Held for the lifetime of the control, not just while the popover is open,
-  // so the reactive dot on the trigger keeps pulsing.
-  useEffect(() => acquireLiveBandDriver(), [])
+  // Held while a track is loaded rather than for the whole component lifetime,
+  // so the reactive dot keeps pulsing without running a per-frame loop for
+  // every user who never touches audio.
+  useEffect(() => {
+    if (status !== "ready") {
+      return
+    }
+
+    return acquireLiveBandDriver()
+  }, [status])
 
   const sourceAsset =
     source?.kind === "asset"

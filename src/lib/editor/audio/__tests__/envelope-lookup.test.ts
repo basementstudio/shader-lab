@@ -4,6 +4,7 @@ import {
   sampleAllBands,
   sampleBand,
   sampleEnvelopeToPeaks,
+  sampleEnvelopeWindow,
 } from "@/lib/editor/audio/envelope-lookup"
 import { AUDIO_BAND_IDS } from "@/types/editor"
 
@@ -82,6 +83,52 @@ describe("sampleAllBands", () => {
     for (const bandId of AUDIO_BAND_IDS) {
       expect(typeof values[bandId]).toBe("number")
     }
+  })
+})
+
+describe("sampleEnvelopeWindow", () => {
+  // 4 seconds at 60Hz; each second holds a distinct value.
+  const envelopes = makeEnvelopes(
+    Array.from({ length: 240 }, (_, index) => (Math.floor(index / 60) + 1) / 4)
+  )
+
+  test("reads only the requested window of a longer track", () => {
+    // Seconds 2..3 hold 0.75.
+    const peaks = sampleEnvelopeWindow(envelopes, "bass", 2, 1, 4)
+
+    expect(peaks).toHaveLength(4)
+    for (const peak of peaks) {
+      expect(peak).toBeCloseTo(0.75, 5)
+    }
+  })
+
+  test("the offset shifts which slice is read", () => {
+    const first = sampleEnvelopeWindow(envelopes, "bass", 0, 1, 2)
+    const last = sampleEnvelopeWindow(envelopes, "bass", 3, 1, 2)
+
+    expect(first[0]).toBeCloseTo(0.25, 5)
+    expect(last[0]).toBeCloseTo(1, 5)
+  })
+
+  test("clamps a window that runs past the end", () => {
+    const peaks = sampleEnvelopeWindow(envelopes, "bass", 3.5, 100, 4)
+
+    expect(peaks.length).toBeGreaterThan(0)
+    for (const peak of peaks) {
+      expect(peak).toBeCloseTo(1, 5)
+    }
+  })
+
+  test("returns empty for a window past the end or a non-positive duration", () => {
+    expect(sampleEnvelopeWindow(envelopes, "bass", 999, 1, 4)).toHaveLength(0)
+    expect(sampleEnvelopeWindow(envelopes, "bass", 0, 0, 4)).toHaveLength(0)
+    expect(sampleEnvelopeWindow(envelopes, "bass", 0, 1, 0)).toHaveLength(0)
+  })
+
+  test("returns empty for an empty envelope", () => {
+    expect(sampleEnvelopeWindow(makeEnvelopes([]), "bass", 0, 1, 4)).toHaveLength(
+      0
+    )
   })
 })
 

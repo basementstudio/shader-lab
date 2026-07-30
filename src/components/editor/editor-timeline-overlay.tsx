@@ -23,6 +23,7 @@ import {
   useState,
 } from "react"
 import { AudioSourceControl } from "@/components/editor/audio-source-control"
+import { AudioEnvelopeBackdrop } from "@/components/editor/timeline/audio-envelope-backdrop"
 import { CurveEditorPopover } from "@/components/editor/curve-editor"
 import { FloatingDesktopPanel } from "@/components/editor/floating-desktop-panel"
 import { GlassPanel } from "@/components/ui/glass-panel"
@@ -34,9 +35,10 @@ import { cn } from "@/lib/cn"
 import type { KeyframeEasing } from "@/lib/easing-curve"
 import { LINEAR_EASING } from "@/lib/easing-curve"
 import { getLayerDefinition } from "@/lib/editor/config/layer-registry"
+import { findAudioLink } from "@/lib/editor/audio/links"
 import { isEditableTarget } from "@/lib/editor/is-editable-target"
 import { getLongestVideoLayerDuration } from "@/lib/editor/timeline-duration"
-import { useEditorStore, useLayerStore, useTimelineStore } from "@/store"
+import { useAudioStore, useEditorStore, useLayerStore, useTimelineStore } from "@/store"
 import { useAssetStore } from "@/store/asset-store"
 import { isParamVisible } from "./properties-sidebar-utils"
 import {
@@ -46,6 +48,7 @@ import {
 } from "@/store/timeline-store"
 import type {
   AnimatedPropertyBinding,
+  AudioLink,
   EditorLayer,
   ParameterDefinition,
   TimelineKeyframe,
@@ -53,6 +56,8 @@ import type {
 } from "@/types/editor"
 
 type TimelinePropertyItem = {
+  /** Set when this parameter is driven by audio; gives it a lane of its own. */
+  audioLink: AudioLink | null
   binding: AnimatedPropertyBinding
   color: string
   id: string
@@ -174,7 +179,8 @@ function getVisibleParams(layer: EditorLayer): ParameterDefinition[] {
 
 function buildTimelineProperties(
   layer: EditorLayer | null,
-  tracks: TimelineTrack[]
+  tracks: TimelineTrack[],
+  audioLinks: AudioLink[]
 ): TimelinePropertyItem[] {
   if (!layer) {
     return []
@@ -186,6 +192,7 @@ function buildTimelineProperties(
       const id = getPropertyId(binding)
 
       return {
+        audioLink: findAudioLink(audioLinks, layer.id, binding),
         binding,
         color: entry.color,
         id,
@@ -209,6 +216,7 @@ function buildTimelineProperties(
 
     const id = getPropertyId(binding)
     properties.push({
+      audioLink: findAudioLink(audioLinks, layer.id, binding),
       binding,
       color: definition.type === "color" ? "#FF8CAB" : "#B697FF",
       id,
@@ -530,6 +538,7 @@ export function EditorTimelineOverlay() {
     (state) => state.selectedKeyframeIds
   )
   const tracks = useTimelineStore((state) => state.tracks)
+  const audioLinks = useAudioStore((state) => state.links)
   const addSelectedKeyframes = useTimelineStore(
     (state) => state.addSelectedKeyframes
   )
@@ -576,11 +585,16 @@ export function EditorTimelineOverlay() {
     [selectedLayer, tracks]
   )
   const properties = useMemo(
-    () => buildTimelineProperties(selectedLayer, tracks),
-    [selectedLayer, tracks]
+    () => buildTimelineProperties(selectedLayer, tracks, audioLinks),
+    [audioLinks, selectedLayer, tracks]
   )
+  // An audio-linked parameter gets a lane too, even with no keyframes — without
+  // it, linking a parameter to audio leaves no trace in the timeline at all.
+  // Deliberately not done by creating an empty TimelineTrack: keyframe-less
+  // tracks are filtered out by removeKeyframe/removeSelectedKeyframes, so one
+  // would be silently deleted by ordinary keyframe editing.
   const animatedProperties = useMemo(
-    () => properties.filter((entry) => entry.track),
+    () => properties.filter((entry) => entry.track ?? entry.audioLink),
     [properties]
   )
   const [focusedPropertyId, setFocusedPropertyId] = useState<string | null>(
@@ -1485,12 +1499,8 @@ export function EditorTimelineOverlay() {
                     {animatedProperties.length > 0 ? (
                       animatedProperties.map((entry) => {
                         const track = entry.track
-
-                        if (!track) {
-                          return null
-                        }
-
                         const isFocused = focusedPropertyId === entry.id
+                        const laneEnabled = track?.enabled ?? true
 
                         return (
                           <div
@@ -1498,9 +1508,9 @@ export function EditorTimelineOverlay() {
                               "relative basis-[46px] border-b border-white/4 bg-[linear-gradient(90deg,rgb(255_255_255_/_0.02)_0%,rgb(255_255_255_/_0.015)_100%)] transition-opacity duration-160 ease-[var(--ease-out-cubic)]",
                               isFocused &&
                                 "bg-[linear-gradient(90deg,rgb(var(--timeline-track-rgb,122_162_255)_/_0.12)_0%,rgb(var(--timeline-track-rgb,122_162_255)_/_0.03)_42%,rgb(255_255_255_/_0.02)_100%)]",
-                              !track.enabled && "opacity-55"
+                              !laneEnabled && "opacity-55"
                             )}
-                            key={track.id}
+                            key={entry.id}
                             style={
                               {
                                 "--timeline-track-rgb": hexToRgbChannels(
@@ -1509,13 +1519,20 @@ export function EditorTimelineOverlay() {
                               } as CSSProperties
                             }
                           >
+                            {entry.audioLink?.enabled ? (
+                              <AudioEnvelopeBackdrop
+                                bandId={entry.audioLink.band}
+                                durationSeconds={effectiveDuration}
+                              />
+                            ) : null}
                             <div
                               className={cn(
                                 "absolute top-[22px] right-0 left-0 h-0.5 rounded-full bg-[rgb(var(--timeline-track-rgb,122_162_255)_/_0.18)]",
-                                !track.enabled && "opacity-40"
+                                !laneEnabled && "opacity-40"
                               )}
                             />
-                            {track.keyframes.map((keyframe) => {
+                            {track
+                              ? track.keyframes.map((keyframe) => {
                               const isSelected = selectedKeyframeIdSet.has(
                                 keyframe.id
                               )
@@ -1622,8 +1639,9 @@ export function EditorTimelineOverlay() {
                                     )}
                                   />
                                 </button>
-                              )
-                            })}
+                                  )
+                                })
+                              : null}
                           </div>
                         )
                       })
@@ -1635,7 +1653,8 @@ export function EditorTimelineOverlay() {
                             variant="caption"
                             className="text-balance"
                           >
-                            Add your first keyframe from the properties panel.
+                            Add a keyframe or link a parameter to audio from the
+                            properties panel.
                           </Typography>
                         </div>
                       </div>

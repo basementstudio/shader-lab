@@ -12,10 +12,18 @@ import { useTimelineStore } from "@/store/timeline-store"
  * The element is always a *slave* of `timeline.currentTime`, never the clock.
  * The timeline drives rendering and the offline exporter depends on it, so
  * letting audio lead would make playback position unreproducible.
+ *
+ * Deliberately event-driven rather than a per-frame loop. Transport changes are
+ * rare, and drift correction is a ~4Hz concern; an earlier version polled this
+ * on `requestAnimationFrame`, which meant an always-on 60Hz loop doing store
+ * reads and an asset lookup even for users who never loaded any audio.
  */
 
-/** Re-seek only past this much drift; correcting every frame is very audible. */
+/** Re-seek only past this much drift; correcting constantly is very audible. */
 const MAX_DRIFT_SECONDS = 0.15
+
+/** Drift accumulates slowly, so checking this often is plenty. */
+const DRIFT_CHECK_INTERVAL_MS = 250
 
 export function useAudioMonitor(enabled: boolean): void {
   useEffect(() => {
@@ -27,54 +35,46 @@ export function useAudioMonitor(enabled: boolean): void {
     element.preload = "auto"
     element.loop = false
 
-    let disposed = false
-    let frameId: number | null = null
     let currentUrl: string | null = null
+    let lastPlaying: boolean | null = null
+    let lastFrozen: boolean | null = null
 
-    const sync = () => {
-      frameId = window.requestAnimationFrame(sync)
+    const resolveUrl = (): string | null => {
+      const source = useAudioStore.getState().source
 
-      const audioState = useAudioStore.getState()
-      const source = audioState.source
-      const url =
-        source?.kind === "asset"
-          ? (useAssetStore.getState().getAssetById(source.assetId)?.url ?? null)
-          : null
-
-      if (url !== currentUrl) {
-        currentUrl = url
-        element.src = url ?? ""
-
-        if (!url) {
-          element.pause()
-        }
+      if (source?.kind !== "asset") {
+        return null
       }
 
-      if (!(enabled && url)) {
+      return useAssetStore.getState().getAssetById(source.assetId)?.url ?? null
+    }
+
+    const targetTime = (): number => {
+      const { currentTime } = useTimelineStore.getState()
+
+      return Math.max(currentTime + useAudioStore.getState().offsetSeconds, 0)
+    }
+
+    /** Bring the element in line with the transport. Safe to call repeatedly. */
+    const apply = (): void => {
+      if (currentUrl === null) {
         if (!element.paused) {
           element.pause()
         }
         return
       }
 
-      const timeline = useTimelineStore.getState()
-      const target = timeline.currentTime + audioState.offsetSeconds
-      const clampedTarget = Math.max(0, target)
+      const { frozen, isPlaying } = useTimelineStore.getState()
 
-      if (!timeline.isPlaying || timeline.frozen) {
+      if (!(enabled && isPlaying) || frozen) {
         if (!element.paused) {
           element.pause()
-        }
-
-        // Keep position aligned while scrubbing so playback resumes in sync.
-        if (Math.abs(element.currentTime - clampedTarget) > MAX_DRIFT_SECONDS) {
-          element.currentTime = clampedTarget
         }
         return
       }
 
-      if (Math.abs(element.currentTime - clampedTarget) > MAX_DRIFT_SECONDS) {
-        element.currentTime = clampedTarget
+      if (Math.abs(element.currentTime - targetTime()) > MAX_DRIFT_SECONDS) {
+        element.currentTime = targetTime()
       }
 
       if (element.paused) {
@@ -83,20 +83,69 @@ export function useAudioMonitor(enabled: boolean): void {
       }
     }
 
-    frameId = window.requestAnimationFrame(sync)
+    const applySource = (): void => {
+      const url = resolveUrl()
+
+      if (url === currentUrl) {
+        return
+      }
+
+      currentUrl = url
+
+      if (url) {
+        element.src = url
+      } else {
+        element.pause()
+        element.removeAttribute("src")
+        element.load()
+      }
+
+      apply()
+    }
+
+    // Fires on every timeline change, including each frame of playback, so this
+    // must stay a couple of comparisons in the common case.
+    const unsubscribeTimeline = useTimelineStore.subscribe((state) => {
+      if (state.isPlaying === lastPlaying && state.frozen === lastFrozen) {
+        return
+      }
+
+      lastPlaying = state.isPlaying
+      lastFrozen = state.frozen
+      apply()
+    })
+
+    const unsubscribeAudio = useAudioStore.subscribe(applySource)
+
+    applySource()
+
+    const driftTimer = window.setInterval(() => {
+      if (currentUrl === null) {
+        return
+      }
+
+      const { frozen, isPlaying } = useTimelineStore.getState()
+
+      // While paused or scrubbing, keep the position aligned so resuming is in
+      // sync. It is inaudible either way, so precision does not matter here.
+      if (!isPlaying || frozen) {
+        if (Math.abs(element.currentTime - targetTime()) > MAX_DRIFT_SECONDS) {
+          element.currentTime = targetTime()
+        }
+        return
+      }
+
+      apply()
+    }, DRIFT_CHECK_INTERVAL_MS)
 
     return () => {
-      disposed = true
-
-      if (frameId !== null) {
-        window.cancelAnimationFrame(frameId)
-      }
+      window.clearInterval(driftTimer)
+      unsubscribeTimeline()
+      unsubscribeAudio()
 
       element.pause()
       element.removeAttribute("src")
       element.load()
-
-      void disposed
     }
   }, [enabled])
 }

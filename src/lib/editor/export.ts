@@ -1,4 +1,5 @@
 "use client"
+import type { AudioModulationInput } from "@/lib/editor/audio/links"
 import {
   createVideoExportEncoder,
   getSupportedVideoExportConfig,
@@ -39,6 +40,13 @@ export const ASPECT_PRESET_LABELS: Record<ExportAspectPreset, string> = {
 
 type RenderProjectState = {
   assets: EditorAsset[]
+  /**
+   * Deliberately a sibling of `timeline`, not a member of it: `renderFrameToCanvas`
+   * `structuredClone`s the timeline several times per frame, and cloning the
+   * band envelopes there would cost gigabytes of allocation churn over a full
+   * export. This is read by reference and never cloned.
+   */
+  audio?: AudioModulationInput | null
   compositionSize: Size
   layers: EditorLayer[]
   sceneConfig: SceneConfig
@@ -465,6 +473,7 @@ async function renderFrameToCanvas(
   renderer.resize(options.renderSize, 1)
   const prepareFrame = buildRendererFrame({
     assets: projectState.assets,
+    audio: projectState.audio ?? null,
     clockTime: timelineState.currentTime,
     cropAspectRatio: options.cropAspectRatio,
     delta: 0,
@@ -484,6 +493,7 @@ async function renderFrameToCanvas(
 
   const frame = buildRendererFrame({
     assets: projectState.assets,
+    audio: projectState.audio ?? null,
     clockTime: timelineState.currentTime,
     cropAspectRatio: options.cropAspectRatio,
     delta: options.delta ?? 0,

@@ -1,3 +1,7 @@
+import {
+  applyAudioModulation,
+  type AudioModulationInput,
+} from "@/lib/editor/audio/links"
 import { cloneParameterValues } from "@/lib/editor/parameter-schema"
 import { evaluateTimelineForLayers } from "@/lib/editor/timeline/evaluate"
 import { createProjectClock } from "@/renderer/project-clock"
@@ -48,8 +52,16 @@ export interface EditorRenderer {
   setPreviewFrozen(frozen: boolean): void
 }
 
-type BuildRendererFrameInput = {
+export type BuildRendererFrameInput = {
   assets: EditorAsset[]
+  /**
+   * Audio-reactive modulation, applied after keyframe evaluation.
+   *
+   * Passed explicitly rather than read from a store so this stays a pure
+   * function of its input — which is what lets the offline exporter reproduce a
+   * frame exactly, and what keeps the whole thing unit-testable.
+   */
+  audio?: AudioModulationInput | null
   clockTime?: number
   cropAspectRatio?: number | null
   delta: number
@@ -80,11 +92,21 @@ export function buildRendererFrame(
   input: BuildRendererFrameInput
 ): RendererFrame {
   const assetById = new Map(input.assets.map((asset) => [asset.id, asset]))
-  const evaluatedLayers = evaluateTimelineForLayers(
+  const keyframeStates = evaluateTimelineForLayers(
     input.layers,
     input.timeline.tracks,
     input.timeline.currentTime
   )
+  // Audio runs last so it wins on conflict, and so a per-component vector link
+  // merges into a keyframed value rather than discarding it.
+  const evaluatedLayers = input.audio
+    ? applyAudioModulation(
+        input.layers,
+        keyframeStates,
+        input.audio,
+        input.timeline.currentTime
+      )
+    : keyframeStates
   const evaluatedById = new Map(
     evaluatedLayers.map((state) => [state.layerId, state])
   )

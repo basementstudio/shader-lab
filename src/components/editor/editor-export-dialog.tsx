@@ -62,8 +62,10 @@ import {
   getEffectiveTimelineDuration,
   getLongestVideoLayerDuration,
 } from "@/lib/editor/timeline-duration"
+import { selectAudioModulationInput } from "@/store/audio-store"
 import {
   useAssetStore,
+  useAudioStore,
   useEditorStore,
   useLayerStore,
   useTimelineStore,
@@ -1674,6 +1676,8 @@ function buildRenderProjectState() {
 
   return {
     assets,
+    // Snapshotted once per export, so envelopes cannot change mid-render.
+    audio: selectAudioModulationInput(useAudioStore.getState()),
     compositionSize: editorState.outputSize,
     layers,
     sceneConfig: editorState.sceneConfig,

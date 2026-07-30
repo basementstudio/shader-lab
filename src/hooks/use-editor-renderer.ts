@@ -8,6 +8,10 @@ import {
   createWebGPURenderer,
 } from "@/renderer/create-webgpu-renderer"
 import { useAssetStore } from "@/store/asset-store"
+import {
+  selectAudioModulationInput,
+  useAudioStore,
+} from "@/store/audio-store"
 import { useEditorStore } from "@/store/editor-store"
 import { useLayerStore } from "@/store/layer-store"
 import { useMetricsStore } from "@/store/metrics-store"
@@ -148,6 +152,7 @@ export function useEditorRenderer() {
 
           const frame = buildRendererFrame({
             assets: assetState.assets,
+            audio: selectAudioModulationInput(useAudioStore.getState()),
             clockTime,
             delta,
             layers: layerState.layers,

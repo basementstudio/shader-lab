@@ -3,6 +3,7 @@
 import { Popover } from "@base-ui/react/popover"
 import { SpeakerLoudIcon, SpeakerOffIcon, TrashIcon } from "@radix-ui/react-icons"
 import { type ReactNode, useEffect, useId, useRef, useState } from "react"
+import { AudioSpectrumDisplay } from "@/components/editor/audio-spectrum-display"
 import { cn } from "@/lib/cn"
 import { MIN_RELEASE_MS } from "@/lib/editor/audio/bands"
 import {
@@ -402,6 +403,7 @@ export function AudioSourceControl({
 
                 {status === "ready" ? (
                   <>
+                    <AudioSpectrumDisplay />
                     <BandMeters />
 
                     {silentBands && silentBands.length > 0 ? (

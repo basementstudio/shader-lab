@@ -1,6 +1,14 @@
 "use client"
 
 import { sampleBand } from "@/lib/editor/audio/envelope-lookup"
+import {
+  buildSpectrumPath,
+  DEFAULT_SPECTRUM_DISPLAY,
+  smoothSpectrumInto,
+  spectrogramFrameAt,
+  type SpectrumDisplayOptions,
+  spectrumHeights,
+} from "@/lib/editor/audio/spectrum-path"
 import { useAudioStore } from "@/store/audio-store"
 import { useTimelineStore } from "@/store/timeline-store"
 import { AUDIO_BAND_IDS, type AudioBandId } from "@/types/editor"
@@ -31,6 +39,42 @@ export function getBandVariableName(bandId: AudioBandId): string {
 let subscriberCount = 0
 let frameId: number | null = null
 
+/**
+ * Registered spectrum curves.
+ *
+ * The four band values fit in CSS custom properties, but a spectrum is ~64
+ * numbers and a fresh path every frame, so it has to be written imperatively.
+ * Still no React involvement — the element's `d` attribute is mutated directly.
+ */
+type SpectrumTarget = {
+  element: SVGPathElement
+  heights: Float32Array
+  height: number
+  smoothed: Float32Array
+  width: number
+}
+
+const spectrumTargets = new Set<SpectrumTarget>()
+
+export function registerSpectrumPath(
+  element: SVGPathElement,
+  size: { height: number; width: number }
+): () => void {
+  const target: SpectrumTarget = {
+    element,
+    height: size.height,
+    heights: new Float32Array(0),
+    smoothed: new Float32Array(0),
+    width: size.width,
+  }
+
+  spectrumTargets.add(target)
+
+  return () => {
+    spectrumTargets.delete(target)
+  }
+}
+
 function writeBandValues(): void {
   const root = document.documentElement
   const { envelopes, offsetSeconds } = useAudioStore.getState()
@@ -45,8 +89,58 @@ function writeBandValues(): void {
   }
 }
 
+function writeSpectrumPaths(): void {
+  if (spectrumTargets.size === 0) {
+    return
+  }
+
+  const { offsetSeconds, spectrogram } = useAudioStore.getState()
+  const time = useTimelineStore.getState().currentTime + offsetSeconds
+
+  if (!spectrogram) {
+    for (const target of spectrumTargets) {
+      target.element.setAttribute("d", "")
+    }
+    return
+  }
+
+  const frame = spectrogramFrameAt(spectrogram, time)
+
+  if (!frame) {
+    return
+  }
+
+  for (const target of spectrumTargets) {
+    if (target.smoothed.length !== frame.length) {
+      target.smoothed = new Float32Array(frame.length)
+      target.heights = new Float32Array(frame.length)
+    }
+
+    smoothSpectrumInto(target.smoothed, frame)
+
+    const options: SpectrumDisplayOptions = {
+      ...DEFAULT_SPECTRUM_DISPLAY,
+      height: target.height,
+      width: target.width,
+    }
+
+    spectrumHeights(
+      target.smoothed,
+      spectrogram.centerHz,
+      options,
+      target.heights
+    )
+
+    target.element.setAttribute(
+      "d",
+      buildSpectrumPath(target.heights, spectrogram.centerHz, options)
+    )
+  }
+}
+
 function tick(): void {
   writeBandValues()
+  writeSpectrumPaths()
   frameId = window.requestAnimationFrame(tick)
 }
 

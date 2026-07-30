@@ -77,3 +77,6 @@ SESSIONS.md
 PACKAGE_PLAN.md
 packages/shader-lab-mcp/dist/
 packages/shader-lab-mcp/.xmcp/
+
+# Local Playwright UI-debug screenshots
+.ui-debug-shots/

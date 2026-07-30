@@ -36,7 +36,7 @@ export type AudioLinkControl = {
 }
 
 /** Small level-meter glyph, distinct from the keyframe rhombus. */
-function MeterIcon() {
+export function AudioMeterIcon() {
   return (
     <svg aria-hidden="true" fill="none" viewBox="0 0 14 14">
       <rect fill="currentColor" height="5" rx="0.7" width="2" x="2" y="6.5" />
@@ -167,7 +167,7 @@ function AudioLinkTrigger({
         }}
       >
         <span className="inline-flex" ref={iconRef}>
-          <MeterIcon />
+          <AudioMeterIcon />
         </span>
       </Popover.Trigger>
 

@@ -22,6 +22,7 @@ import {
   useRef,
   useState,
 } from "react"
+import { AudioMeterIcon } from "@/components/editor/audio-link-button"
 import { AudioSourceControl } from "@/components/editor/audio-source-control"
 import { AudioEnvelopeBackdrop } from "@/components/editor/timeline/audio-envelope-backdrop"
 import { CurveEditorPopover } from "@/components/editor/curve-editor"
@@ -539,6 +540,7 @@ export function EditorTimelineOverlay() {
   )
   const tracks = useTimelineStore((state) => state.tracks)
   const audioLinks = useAudioStore((state) => state.links)
+  const setLinkEnabled = useAudioStore((state) => state.setLinkEnabled)
   const addSelectedKeyframes = useTimelineStore(
     (state) => state.addSelectedKeyframes
   )
@@ -1366,9 +1368,16 @@ export function EditorTimelineOverlay() {
                       {properties.length > 0 ? (
                         properties.map((entry) => {
                           const track = entry.track
+                          const audioLink = entry.audioLink
                           const isFocused = focusedPropertyId === entry.id
-                          const hasTrack = Boolean(track)
-                          const trackEnabled = track?.enabled ?? true
+                          // Audio links are first-class here: they get the same
+                          // highlight and enable toggle a keyframe track does,
+                          // otherwise a parameter driven by audio is
+                          // indistinguishable from one that is not animated.
+                          const isAnimated = Boolean(track ?? audioLink)
+                          const animationEnabled =
+                            (track?.enabled ?? false) ||
+                            (audioLink?.enabled ?? false)
 
                           return (
                             <div
@@ -1381,7 +1390,7 @@ export function EditorTimelineOverlay() {
                               <button
                                 className={cn(
                                   "flex min-h-8 min-w-0 flex-1 cursor-pointer items-center gap-[10px] rounded-[10px] border border-transparent px-[10px] text-left transition-[background-color,border-color,color,transform,opacity] duration-160 ease-[var(--ease-out-cubic)] hover:bg-white/4 hover:border-white/5 active:scale-[0.995]",
-                                  !trackEnabled && hasTrack && "opacity-60",
+                                  isAnimated && !animationEnabled && "opacity-60",
                                 )}
                                 onClick={() => {
                                   setFocusedPropertyId(entry.id)
@@ -1403,31 +1412,48 @@ export function EditorTimelineOverlay() {
                                   <Typography
                                     as="span"
                                     className="min-w-0"
-                                    tone={hasTrack ? "primary" : "secondary"}
+                                    tone={isAnimated ? "primary" : "secondary"}
                                     variant="caption"
                                   >
                                     {entry.label}
                                   </Typography>
+                                  {audioLink ? (
+                                    <span
+                                      aria-label="Driven by audio"
+                                      className="inline-flex shrink-0 text-[rgb(182_151_255)] [&_svg]:h-2.5 [&_svg]:w-2.5"
+                                      role="img"
+                                      title="Driven by audio"
+                                    >
+                                      <AudioMeterIcon />
+                                    </span>
+                                  ) : null}
                                 </div>
                               </button>
 
-                              {track ? (
+                              {isAnimated ? (
                                 <IconButton
                                   aria-label={
-                                    track.enabled
+                                    animationEnabled
                                       ? `Disable ${entry.label} animation`
                                       : `Enable ${entry.label} animation`
                                   }
                                   className="h-7 w-7 shrink-0"
                                   onClick={(event) => {
                                     event.stopPropagation()
-                                    setTrackEnabled(track.id, !track.enabled)
+
+                                    if (track) {
+                                      setTrackEnabled(track.id, !animationEnabled)
+                                    }
+
+                                    if (audioLink) {
+                                      setLinkEnabled(audioLink.id, !animationEnabled)
+                                    }
                                   }}
-                                  tooltip={track.enabled ? "Disable track" : "Enable track"}
-                                  uiSound={track.enabled ? "action.visibilityOff" : "action.visibilityOn"}
+                                  tooltip={animationEnabled ? "Disable track" : "Enable track"}
+                                  uiSound={animationEnabled ? "action.visibilityOff" : "action.visibilityOn"}
                                   variant="ghost"
                                 >
-                                  {track.enabled ? (
+                                  {animationEnabled ? (
                                     <EyeOpenIcon height={14} width={14} />
                                   ) : (
                                     <EyeClosedIcon height={14} width={14} />

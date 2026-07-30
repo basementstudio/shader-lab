@@ -1,11 +1,26 @@
 import type {
+  EditorAudioSnapshot,
   EditorHistorySnapshot,
   TimelineStateSnapshot,
 } from "@/types/editor"
+import { useAudioStore } from "@/store/audio-store"
 import { useLayerStore } from "@/store/layer-store"
 import { useTimelineStore } from "@/store/timeline-store"
 
 type HistoryTimelineSnapshot = EditorHistorySnapshot["timeline"]
+
+/**
+ * Only the serializable slice is cloned. Envelopes and the cached spectrogram
+ * are derived and can be tens of megabytes, so they must never enter history.
+ */
+function cloneHistoryAudio(audio: EditorAudioSnapshot): EditorAudioSnapshot {
+  return structuredClone({
+    bands: audio.bands,
+    links: audio.links,
+    offsetSeconds: audio.offsetSeconds,
+    source: audio.source,
+  })
+}
 
 function cloneHistoryTimeline(
   timeline: Pick<
@@ -45,8 +60,10 @@ export function buildEditorHistorySnapshotFromState(
     | "selectedTrackId"
     | "tracks"
   >,
+  audioState: EditorAudioSnapshot,
 ): EditorHistorySnapshot {
   return {
+    audio: cloneHistoryAudio(audioState),
     hoveredLayerId: layerState.hoveredLayerId,
     layers: structuredClone(layerState.layers),
     selectedLayerId: layerState.selectedLayerId,
@@ -58,6 +75,7 @@ export function buildEditorHistorySnapshot(): EditorHistorySnapshot {
   return buildEditorHistorySnapshotFromState(
     useLayerStore.getState(),
     useTimelineStore.getState(),
+    useAudioStore.getState().getSnapshot(),
   )
 }
 
@@ -75,10 +93,14 @@ export function applyEditorHistorySnapshot(snapshot: EditorHistorySnapshot): voi
     selectedTrackId: snapshot.timeline.selectedTrackId,
     tracks: snapshot.timeline.tracks,
   })
+  useAudioStore.getState().restoreSnapshot(snapshot.audio)
 }
 
 export function getHistorySnapshotSignature(snapshot: EditorHistorySnapshot): string {
   return JSON.stringify({
+    // Audio must be included, otherwise `flushPendingHistory` treats an
+    // audio-only edit as "no change" and it becomes silently un-undoable.
+    audio: snapshot.audio,
     layers: snapshot.layers,
     timeline: snapshot.timeline,
   })

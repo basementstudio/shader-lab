@@ -2,21 +2,10 @@
 
 import { useEffect, useEffectEvent } from "react"
 import { playUISound } from "@/lib/audio/shader-lab-sounds"
+import { isEditableTarget } from "@/lib/editor/is-editable-target"
 import { useEditorStore } from "@/store/editor-store"
 import { useLayerStore } from "@/store/layer-store"
 import { useTimelineStore } from "@/store/timeline-store"
-
-function isEditableTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) {
-    return false
-  }
-
-  if (target.isContentEditable) {
-    return true
-  }
-
-  return ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)
-}
 
 export function EditorShortcuts() {
   const selectedLayerIds = useLayerStore((state) => state.selectedLayerIds)

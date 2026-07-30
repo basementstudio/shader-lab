@@ -10,6 +10,7 @@ import {
   useState,
 } from "react"
 import { useEditorRenderer } from "@/hooks/use-editor-renderer"
+import { isEditableTarget } from "@/lib/editor/is-editable-target"
 import { inferFileAssetKind } from "@/lib/editor/media-file"
 import {
   applyZoomAtPoint,
@@ -109,13 +110,6 @@ export function EditorCanvasViewport() {
   )
 
   useEffect(() => {
-    const isEditableTarget = (target: EventTarget | null): boolean =>
-      target instanceof HTMLElement &&
-      (target.isContentEditable ||
-        target instanceof HTMLInputElement ||
-        target instanceof HTMLTextAreaElement ||
-        target instanceof HTMLSelectElement)
-
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === " " && !isEditableTarget(event.target)) {
         setIsSpacePressed(true)

@@ -7,6 +7,22 @@ export function browserSupportsWebGPU(): boolean {
   return typeof navigator !== "undefined" && "gpu" in navigator
 }
 
+type GpuQueueLike = { onSubmittedWorkDone: () => Promise<unknown> }
+
+function getGpuQueue(instance: THREE.WebGPURenderer): GpuQueueLike | null {
+  const queue = (
+    instance as unknown as {
+      backend?: { device?: { queue?: GpuQueueLike } }
+    }
+  ).backend?.device?.queue
+
+  if (!queue || typeof queue.onSubmittedWorkDone !== "function") {
+    return null
+  }
+
+  return queue
+}
+
 export async function createWebGPURenderer(
   canvas: HTMLCanvasElement
 ): Promise<EditorRenderer> {
@@ -75,6 +91,17 @@ export async function createWebGPURenderer(
 
     setPreviewFrozen(frozen: boolean) {
       pipeline?.setPreviewFrozen(frozen)
+    },
+
+    async waitForGpuIdle() {
+      const queue = getGpuQueue(renderer)
+
+      if (!queue) {
+        return false
+      }
+
+      await queue.onSubmittedWorkDone()
+      return true
     },
 
     async prepareForExportFrame(time: number, loop: boolean) {

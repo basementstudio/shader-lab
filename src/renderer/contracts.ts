@@ -50,6 +50,7 @@ export interface EditorRenderer {
   render(frame: RendererFrame): void
   resize(size: Size, pixelRatio: number): void
   setPreviewFrozen(frozen: boolean): void
+  waitForGpuIdle(): Promise<boolean>
 }
 
 export type BuildRendererFrameInput = {

@@ -4,6 +4,7 @@ import {
   createVideoExportEncoder,
   getSupportedVideoExportConfig,
 } from "@/lib/editor/video-export-encoder"
+import { acquirePreviewRenderLock } from "@/lib/editor/preview-render-lock"
 import { buildRendererFrame } from "@/renderer/contracts"
 import {
   browserSupportsWebGPU,
@@ -29,6 +30,8 @@ export const EXPORT_QUALITY_LONG_EDGE: Record<ExportQualityPreset, number> = {
 }
 
 const DEFAULT_MAX_EXPORT_DIMENSION = 8192
+const PROGRESS_INTERVAL_MS = 100
+
 
 export const ASPECT_PRESET_LABELS: Record<ExportAspectPreset, string> = {
   "16:9": "16:9",
@@ -40,12 +43,6 @@ export const ASPECT_PRESET_LABELS: Record<ExportAspectPreset, string> = {
 
 type RenderProjectState = {
   assets: EditorAsset[]
-  /**
-   * Deliberately a sibling of `timeline`, not a member of it: `renderFrameToCanvas`
-   * `structuredClone`s the timeline several times per frame, and cloning the
-   * band envelopes there would cost gigabytes of allocation churn over a full
-   * export. This is read by reference and never cloned.
-   */
   audio?: AudioModulationInput | null
   compositionSize: Size
   layers: EditorLayer[]
@@ -339,6 +336,7 @@ export async function exportVideo(
   outputCanvas.width = exportSize.width
   outputCanvas.height = exportSize.height
 
+  const releasePreviewLock = acquirePreviewRenderLock()
   const renderer = await createExportRenderer(renderCanvas)
   const encoder = await createVideoExportEncoder({
     bitrate: getVideoBitrate(options.qualityPreset),
@@ -373,6 +371,8 @@ export async function exportVideo(
       value: 0.08,
     })
 
+    let lastProgressAt = performance.now()
+
     for (let frameIndex = 0; frameIndex < totalFrames; frameIndex += 1) {
       throwIfAborted(options.abortSignal)
       const time = resolveExportTime(
@@ -382,6 +382,7 @@ export async function exportVideo(
       )
 
       await renderFrameToCanvas(renderer, renderCanvas, projectState, {
+        bootstrapPasses: frameIndex === 0,
         cropAspectRatio: getAspectRatio(
           projectState.compositionSize,
           options.aspectPreset
@@ -414,10 +415,16 @@ export async function exportVideo(
       )
       throwIfAborted(options.abortSignal)
 
-      options.onProgress?.({
-        label: `Rendering frames ${frameIndex + 1}/${totalFrames}`,
-        value: 0.08 + ((frameIndex + 1) / totalFrames) * 0.88,
-      })
+      const isLastFrame = frameIndex === totalFrames - 1
+      const now = performance.now()
+
+      if (isLastFrame || now - lastProgressAt >= PROGRESS_INTERVAL_MS) {
+        lastProgressAt = now
+        options.onProgress?.({
+          label: `Rendering frames ${frameIndex + 1}/${totalFrames}`,
+          value: 0.08 + ((frameIndex + 1) / totalFrames) * 0.88,
+        })
+      }
     }
 
     options.onProgress?.({
@@ -435,6 +442,7 @@ export async function exportVideo(
     }
     renderer.dispose()
     destroyHiddenRenderCanvas(renderCanvas)
+    releasePreviewLock()
   }
 }
 
@@ -453,6 +461,7 @@ async function renderFrameToCanvas(
   canvas: HTMLCanvasElement,
   projectState: RenderProjectState,
   options: {
+    bootstrapPasses?: boolean
     cropAspectRatio: number | null
     delta?: number
     logicalSize: Size
@@ -468,46 +477,47 @@ async function renderFrameToCanvas(
   )
   timelineState.isPlaying = false
 
-  canvas.width = options.renderSize.width
-  canvas.height = options.renderSize.height
-  renderer.resize(options.renderSize, 1)
-  const prepareFrame = buildRendererFrame({
-    assets: projectState.assets,
-    audio: projectState.audio ?? null,
-    clockTime: timelineState.currentTime,
-    cropAspectRatio: options.cropAspectRatio,
-    delta: 0,
-    layers: projectState.layers,
-    logicalSize: options.logicalSize,
-    outputSize: options.renderSize,
-    pixelRatio: 1,
-    sceneConfig: projectState.sceneConfig,
-    timeline: timelineState,
-    viewportSize: options.renderSize,
-  })
-  renderer.render(prepareFrame)
+  if (
+    canvas.width !== options.renderSize.width ||
+    canvas.height !== options.renderSize.height
+  ) {
+    canvas.width = options.renderSize.width
+    canvas.height = options.renderSize.height
+    renderer.resize(options.renderSize, 1)
+  }
+
+  const buildFrame = (delta: number) =>
+    buildRendererFrame({
+      assets: projectState.assets,
+      audio: projectState.audio ?? null,
+      clockTime: timelineState.currentTime,
+      cropAspectRatio: options.cropAspectRatio,
+      delta,
+      layers: projectState.layers,
+      logicalSize: options.logicalSize,
+      outputSize: options.renderSize,
+      pixelRatio: 1,
+      sceneConfig: projectState.sceneConfig,
+      timeline: timelineState,
+      viewportSize: options.renderSize,
+    })
+
+  if (options.bootstrapPasses) {
+    renderer.render(buildFrame(0))
+  }
+
   await renderer.prepareForExportFrame(
     timelineState.currentTime,
     timelineState.loop
   )
 
-  const frame = buildRendererFrame({
-    assets: projectState.assets,
-    audio: projectState.audio ?? null,
-    clockTime: timelineState.currentTime,
-    cropAspectRatio: options.cropAspectRatio,
-    delta: options.delta ?? 0,
-    layers: projectState.layers,
-    logicalSize: options.logicalSize,
-    outputSize: options.renderSize,
-    pixelRatio: 1,
-    sceneConfig: projectState.sceneConfig,
-    timeline: timelineState,
-    viewportSize: options.renderSize,
-  })
-  renderer.render(frame)
+  renderer.render(buildFrame(options.delta ?? 0))
 
-  await waitForRenderedFrame()
+  const synced = await renderer.waitForGpuIdle()
+
+  if (!synced) {
+    await waitForPresentedFrame()
+  }
 }
 
 async function prewarmExportFrame(
@@ -521,7 +531,10 @@ async function prewarmExportFrame(
     time: number
   }
 ): Promise<void> {
-  await renderFrameToCanvas(renderer, canvas, projectState, options)
+  await renderFrameToCanvas(renderer, canvas, projectState, {
+    ...options,
+    bootstrapPasses: true,
+  })
 
   const maxWaitMs = 5_000
   const pollInterval = 10
@@ -534,10 +547,14 @@ async function prewarmExportFrame(
     await wait(pollInterval)
   }
 
-  await renderFrameToCanvas(renderer, canvas, projectState, options)
-  await waitForRenderedFrame()
-  await renderFrameToCanvas(renderer, canvas, projectState, options)
-  await waitForRenderedFrame()
+  await renderFrameToCanvas(renderer, canvas, projectState, {
+    ...options,
+    bootstrapPasses: true,
+  })
+  await renderFrameToCanvas(renderer, canvas, projectState, {
+    ...options,
+    bootstrapPasses: true,
+  })
 }
 
 function cropCanvasToAspect(
@@ -642,7 +659,7 @@ function wait(durationMs: number): Promise<void> {
   })
 }
 
-function waitForRenderedFrame(): Promise<void> {
+function waitForPresentedFrame(): Promise<void> {
   return new Promise((resolve) => {
     const timer = window.setTimeout(resolve, 250)
 

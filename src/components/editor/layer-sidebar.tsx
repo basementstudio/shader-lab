@@ -36,7 +36,7 @@ import { HoverTooltip } from "@/components/ui/tooltip"
 import { Typography } from "@/components/ui/typography"
 import { playUISound } from "@/lib/audio/shader-lab-sounds"
 import { cn } from "@/lib/cn"
-import { inferFileAssetKind } from "@/lib/editor/media-file"
+import { AUDIO_FILE_ACCEPT, inferFileAssetKind } from "@/lib/editor/media-file"
 import { useAssetStore } from "@/store/asset-store"
 import { useEditorStore } from "@/store/editor-store"
 import { useLayerStore } from "@/store/layer-store"
@@ -103,6 +103,11 @@ function getAcceptForAssetKind(kind: AssetKind): string {
       return "video/mp4,video/webm,video/quicktime,.mov"
     case "model":
       return ".glb,.gltf,.obj,model/gltf-binary,model/gltf+json,model/obj,application/octet-stream"
+    case "audio":
+      // No layer type takes an audio asset — the project audio source is picked
+      // from the timeline panel, not by attaching it to a layer. Handled here
+      // only to keep the switch exhaustive.
+      return AUDIO_FILE_ACCEPT
   }
 }
 

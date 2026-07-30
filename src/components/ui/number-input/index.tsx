@@ -17,6 +17,16 @@ type NumberInputProps = Omit<
   value: number
 }
 
+/**
+ * Standard control chrome for a number input.
+ *
+ * `NumberInput` intentionally ships unstyled so call sites can size it to their
+ * layout — but that means forgetting `className` renders an invisible field that
+ * reads as static text. Use this unless you specifically need something else.
+ */
+export const numberInputControlClassName =
+  "min-h-7 w-full appearance-none rounded-[var(--ds-radius-control)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-[8px] font-[var(--ds-font-mono)] text-[12px] leading-4 text-[var(--ds-color-text-primary)] outline-none transition-[background-color,border-color] duration-160 ease-[var(--ease-out-cubic)] focus:border-[var(--ds-border-hover)]"
+
 function defaultParseValue(value: string): number | null {
   const normalized = value.trim().replaceAll(",", ".")
 

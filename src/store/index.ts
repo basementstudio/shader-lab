@@ -5,6 +5,13 @@ export {
   type AssetStoreState,
 } from "./asset-store"
 export {
+  useAudioStore,
+  type AudioAnalysisStatus,
+  type AudioStore,
+  type AudioStoreActions,
+  type AudioStoreState,
+} from "./audio-store"
+export {
   useEditorStore,
   type EditorStore,
   type EditorStoreActions,

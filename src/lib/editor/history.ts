@@ -96,12 +96,26 @@ export function applyEditorHistorySnapshot(snapshot: EditorHistorySnapshot): voi
   useAudioStore.getState().restoreSnapshot(snapshot.audio)
 }
 
+/**
+ * Identity of the *document* for history purposes.
+ *
+ * Deliberately excludes `currentTime` and selection: they are view state, not
+ * edits. Including `currentTime` meant that during playback the signature
+ * changed every frame, so every frame re-armed the commit debounce and it never
+ * fired — real edits made while the timeline was playing were never committed to
+ * history at all, and were then lost by the next undo.
+ *
+ * Audio must be included, otherwise `flushPendingHistory` treats an audio-only
+ * edit as "no change" and it becomes silently un-undoable.
+ */
 export function getHistorySnapshotSignature(snapshot: EditorHistorySnapshot): string {
   return JSON.stringify({
-    // Audio must be included, otherwise `flushPendingHistory` treats an
-    // audio-only edit as "no change" and it becomes silently un-undoable.
     audio: snapshot.audio,
     layers: snapshot.layers,
-    timeline: snapshot.timeline,
+    timeline: {
+      duration: snapshot.timeline.duration,
+      loop: snapshot.timeline.loop,
+      tracks: snapshot.timeline.tracks,
+    },
   })
 }

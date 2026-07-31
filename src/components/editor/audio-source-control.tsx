@@ -9,7 +9,7 @@ import { cn } from "@/lib/cn"
 import { MIN_RELEASE_MS } from "@/lib/editor/audio/bands"
 import { acquireLiveBandDriver } from "@/lib/editor/audio/live-band-driver"
 import { AUDIO_FILE_ACCEPT } from "@/lib/editor/media-file"
-import { useAssetStore, useAudioStore } from "@/store"
+import { useAssetStore, useAudioStore, useTimelineStore } from "@/store"
 import { AUDIO_BAND_IDS, type AudioBandId } from "@/types/editor"
 import { IconButton } from "@/components/ui/icon-button"
 import {
@@ -42,7 +42,6 @@ function MusicNoteIcon() {
   )
 }
 
-/** One meter bar, written directly by the band driver — no re-renders. */
 function BandMeter({ bandId }: { bandId: AudioBandId }) {
   const fillRef = useBandValueElement<HTMLDivElement>(bandId, (element, value) => {
     element.style.transform = `scaleX(${value})`
@@ -120,9 +119,6 @@ function AdvancedBandEditor({ bandId }: { bandId: AudioBandId }) {
               <NumberInput
                 className={numberInputControlClassName}
                 onPointerDown={(event) => {
-                  // base-ui suppresses the popup's default pointer behaviour, which also
-                  // suppresses native focus-on-click. Focus explicitly so typing and
-                  // Backspace go to the field instead of the editor's global shortcuts.
                   event.currentTarget.focus()
                 }}
                 id={id}
@@ -141,9 +137,6 @@ function AdvancedBandEditor({ bandId }: { bandId: AudioBandId }) {
               <NumberInput
                 className={numberInputControlClassName}
                 onPointerDown={(event) => {
-                  // base-ui suppresses the popup's default pointer behaviour, which also
-                  // suppresses native focus-on-click. Focus explicitly so typing and
-                  // Backspace go to the field instead of the editor's global shortcuts.
                   event.currentTarget.focus()
                 }}
                 id={id}
@@ -230,9 +223,6 @@ export function AudioSourceControl({
     }
   )
 
-  // Held while a track is loaded rather than for the whole component lifetime,
-  // so the reactive dot keeps pulsing without running a per-frame loop for
-  // every user who never touches audio.
   useEffect(() => {
     if (status !== "ready") {
       return
@@ -246,7 +236,6 @@ export function AudioSourceControl({
       ? (assets.find((asset) => asset.id === source.assetId) ?? null)
       : null
 
-  // Re-analyse when an imported project's source becomes available again.
   useEffect(() => {
     if (status === "missing-source" && sourceAsset) {
       void analyze(sourceAsset.url)
@@ -266,6 +255,12 @@ export function AudioSourceControl({
       const asset = await loadAsset(file)
       setSource({ assetId: asset.id, kind: "asset" })
       await analyze(asset.url)
+
+      const analyzed = useAudioStore.getState().spectrogram
+
+      if (analyzed) {
+        useTimelineStore.getState().setDuration(analyzed.durationSeconds)
+      }
     } catch (caught) {
       setLoadError(
         caught instanceof Error ? caught.message : "Could not load audio."
@@ -291,8 +286,6 @@ export function AudioSourceControl({
       : "Load audio"
   })()
 
-  // With no source there is nothing to configure, so skip the popover entirely
-  // and go straight to the file picker.
   if (!active && status !== "analyzing") {
     return (
       <div className="inline-flex items-center gap-1">
@@ -332,7 +325,6 @@ export function AudioSourceControl({
           )}
         >
           <MusicNoteIcon />
-          {/* Reactive level dot — driven by a CSS variable, never re-rendered. */}
           <span
             aria-hidden="true"
             className="h-1.5 w-1.5 shrink-0 rounded-full bg-current"
@@ -429,9 +421,6 @@ export function AudioSourceControl({
                         <NumberInput
                           className={numberInputControlClassName}
                           onPointerDown={(event) => {
-                            // base-ui suppresses the popup's default pointer behaviour, which also
-                            // suppresses native focus-on-click. Focus explicitly so typing and
-                            // Backspace go to the field instead of the editor's global shortcuts.
                             event.currentTarget.focus()
                           }}
                           id={id}

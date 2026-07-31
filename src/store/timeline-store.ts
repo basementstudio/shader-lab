@@ -1,6 +1,7 @@
 import { create } from "zustand"
 import { advanceProjectTimeline } from "@/renderer/project-clock"
 import { getDefaultProjectTimeline } from "@/lib/editor/default-project"
+import { clampDuration, MIN_DURATION } from "@/lib/editor/timeline-duration"
 import {
   type KeyframeEasing,
   cloneEasing,
@@ -111,19 +112,8 @@ export interface TimelineStoreActions {
 
 export type TimelineStore = TimelineStoreState & TimelineStoreActions
 
-const DEFAULT_DURATION = 6
-const MIN_DURATION = 0.25
-const MAX_DURATION = 120
 const TIME_EPSILON = 1 / 240
 const DEFAULT_PROJECT_TIMELINE = getDefaultProjectTimeline()
-
-function clampDuration(duration: number): number {
-  if (!Number.isFinite(duration)) {
-    return DEFAULT_DURATION
-  }
-
-  return Math.min(MAX_DURATION, Math.max(MIN_DURATION, duration))
-}
 
 function clampTime(time: number, duration: number): number {
   if (!Number.isFinite(time)) {
@@ -403,18 +393,13 @@ export const useTimelineStore = create<TimelineStore>((set, get) => ({
     set((state) => {
       const nextDuration = clampDuration(duration)
 
+      if (nextDuration === state.duration) {
+        return state
+      }
+
       return {
         currentTime: clampTime(state.currentTime, nextDuration),
         duration: nextDuration,
-        tracks: state.tracks.map((track) => ({
-          ...track,
-          keyframes: sortKeyframes(
-            track.keyframes.map((keyframe) => ({
-              ...keyframe,
-              time: clampTime(keyframe.time, nextDuration),
-            })),
-          ),
-        })),
       }
     })
   },

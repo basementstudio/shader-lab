@@ -38,7 +38,11 @@ import { LINEAR_EASING } from "@/lib/easing-curve"
 import { getLayerDefinition } from "@/lib/editor/config/layer-registry"
 import { findAudioLink } from "@/lib/editor/audio/links"
 import { isEditableTarget } from "@/lib/editor/is-editable-target"
-import { getLongestVideoLayerDuration } from "@/lib/editor/timeline-duration"
+import {
+  getLongestVideoLayerDuration,
+  MAX_DURATION,
+  MIN_DURATION,
+} from "@/lib/editor/timeline-duration"
 import { useAudioStore, useEditorStore, useLayerStore, useTimelineStore } from "@/store"
 import { useAssetStore } from "@/store/asset-store"
 import { isParamVisible } from "./properties-sidebar-utils"
@@ -142,9 +146,17 @@ function rectsIntersect(left: ClientSelectionRect, right: DOMRect): boolean {
   )
 }
 
-function formatSeconds(value: number): string {
-  const safeValue = Number.isFinite(value) ? value : 0
-  return `${safeValue.toFixed(2)}s`
+function formatSeconds(value: number, scaleSeconds = value): string {
+  const safeValue = Number.isFinite(value) ? Math.max(0, value) : 0
+
+  if (!(Number.isFinite(scaleSeconds) && scaleSeconds >= 60)) {
+    return `${safeValue.toFixed(2)}s`
+  }
+
+  const minutes = Math.floor(safeValue / 60)
+  const seconds = safeValue - minutes * 60
+
+  return `${minutes}:${seconds.toFixed(2).padStart(5, "0")}`
 }
 
 function hexToRgbChannels(value: string): string {
@@ -251,7 +263,36 @@ function getMajorTickStep(duration: number): number {
     return 10
   }
 
-  return 20
+  if (duration <= 120) {
+    return 20
+  }
+
+  if (duration <= 300) {
+    return 30
+  }
+
+  if (duration <= 600) {
+    return 60
+  }
+
+  if (duration <= 1200) {
+    return 120
+  }
+
+  return 300
+}
+
+function formatTickLabel(tick: number, duration: number): string {
+  if (duration <= 60) {
+    return tick.toFixed(1)
+  }
+
+  const minutes = Math.floor(tick / 60)
+  const seconds = Math.round(tick % 60)
+
+  return seconds === 60
+    ? `${minutes + 1}:00`
+    : `${minutes}:${seconds.toString().padStart(2, "0")}`
 }
 
 function createTickPositions(duration: number) {
@@ -269,7 +310,9 @@ function createTickPositions(duration: number) {
     majorTicks.push(Number(current.toFixed(3)))
   }
 
-  if (majorTicks[majorTicks.length - 1] !== safeDuration) {
+  const lastTick = majorTicks[majorTicks.length - 1] ?? 0
+
+  if (safeDuration - lastTick > majorStep / 2) {
     majorTicks.push(safeDuration)
   }
 
@@ -412,23 +455,23 @@ function TimelineTransport({
         </Typography>
         <NumberInput
           aria-label="Timeline duration in seconds"
-          size={2}
+          size={5}
           className={cn(
             "min-h-7 appearance-none rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-[10px] text-center font-[var(--ds-font-mono)] text-[12px] leading-4 text-[var(--ds-color-text-primary)] outline-none transition-[background-color,border-color] duration-160 ease-[var(--ease-out-cubic)] focus:border-[var(--ds-border-hover)]",
             durationReadOnly && "cursor-not-allowed text-white/55 opacity-60"
           )}
           disabled={durationReadOnly}
           formatValue={(value) =>
-            durationReadOnly ? value.toFixed(2) : Math.trunc(value).toString()
+            Number.isInteger(value) ? value.toString() : value.toFixed(1)
           }
-          max={120}
-          min={1}
+          max={MAX_DURATION}
+          min={MIN_DURATION}
           onChange={onDurationChange}
           parseValue={(value) => {
             const nextValue = Number.parseFloat(
               value.trim().replaceAll(",", ".")
             )
-            return Number.isFinite(nextValue) ? Math.trunc(nextValue) : null
+            return Number.isFinite(nextValue) ? nextValue : null
           }}
           step={1}
           value={duration}
@@ -450,7 +493,7 @@ function TimelineTransport({
           tone="secondary"
           variant="monoMd"
         >
-          {formatSeconds(currentTime)} / {formatSeconds(duration)}
+          {formatSeconds(currentTime, duration)} / {formatSeconds(duration)}
         </Typography>
         <IconButton
           aria-label={
@@ -1512,7 +1555,7 @@ export function EditorTimelineOverlay() {
                           left: `${(tick / effectiveDuration) * 100}%`,
                         }}
                       >
-                        {tick.toFixed(1)}
+                        {formatTickLabel(tick, effectiveDuration)}
                       </Typography>
                     ))}
                   </div>

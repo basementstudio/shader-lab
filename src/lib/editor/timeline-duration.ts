@@ -1,11 +1,15 @@
 import type { EditorAsset, EditorLayer } from "@/types/editor"
 
-function normalizeVideoDuration(duration: number): number {
-  if (!Number.isFinite(duration) || duration <= 0) {
-    return 0
+export const DEFAULT_DURATION = 6
+export const MIN_DURATION = 0.25
+export const MAX_DURATION = 1800
+
+export function clampDuration(duration: number): number {
+  if (!Number.isFinite(duration)) {
+    return DEFAULT_DURATION
   }
 
-  return duration
+  return Math.min(MAX_DURATION, Math.max(MIN_DURATION, duration))
 }
 
 export function getLongestVideoLayerDuration(
@@ -22,14 +26,20 @@ export function getLongestVideoLayerDuration(
 
     const duration = assetsById.get(layer.assetId)?.duration
 
-    if (!(typeof duration === "number" && Number.isFinite(duration) && duration > 0)) {
+    if (
+      !(
+        typeof duration === "number" &&
+        Number.isFinite(duration) &&
+        duration > 0
+      )
+    ) {
       continue
     }
 
-    longestDuration = Math.max(longestDuration, normalizeVideoDuration(duration))
+    longestDuration = Math.max(longestDuration, duration)
   }
 
-  return longestDuration > 0 ? longestDuration : null
+  return longestDuration > 0 ? clampDuration(longestDuration) : null
 }
 
 export function getEffectiveTimelineDuration(

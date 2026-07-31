@@ -143,24 +143,33 @@ on 120s, and the sync effect re-dispatches forever because they can never agree
 (`src/components/editor/editor-timeline-overlay.tsx:570-575, 663-669`). It also
 forces the duration input read-only.
 
-- [ ] **2.1 One-shot sync from audio.** When the audio source changes and analysis
+- [x] **2.1 One-shot sync from audio.** When the audio source changes and analysis
   completes, call `setDuration(audioDuration)` once, then leave it alone. Gives
   "driven by audio by default, freely editable after" and avoids the two-timebase
   problem because there is no ongoing derivation.
-- [ ] **2.2 Do not make the duration read-only for audio.** Unlike video, leave
+- [x] **2.2 Do not make the duration read-only for audio.** Unlike video, leave
   both the timeline panel and export panel inputs editable.
-- [ ] **2.3 Raise `MAX_DURATION`** (`src/store/timeline-store.ts:116`) from 120 to
+- [x] **2.3 Raise `MAX_DURATION`** (`src/store/timeline-store.ts:116`) from 120 to
   1800s. Keep a sanity clamp rather than removing it, so a malformed asset can't
   produce an absurd timeline.
-- [ ] **2.4 De-duplicate the hardcoded `max={120}`** at
+- [x] **2.4 De-duplicate the hardcoded `max={120}`** at
   `editor-timeline-overlay.tsx:424`, whose `min={1}` also disagrees with
   `MIN_DURATION = 0.25`.
-- [ ] **2.5 Stop shrinking the duration from destroying keyframes.** `setDuration`
+- [x] **2.5 Stop shrinking the duration from destroying keyframes.** `setDuration`
   (`timeline-store.ts:402-420`) pins every keyframe past the new end onto the new
   end; they collapse onto identical times and the originals are unrecoverable.
   Leave keyframes where they are, as `replaceState` already does.
-- [ ] **2.6 Fix the video clamp bypass** — same code, and a live bug today
+- [x] **2.6 Fix the video clamp bypass** — same code, and a live bug today
   independent of audio.
+- [x] **2.7 Scale the ruler ticks.** A fixed 20s major step meant a 4 minute
+  composition rendered ~360 tick nodes. Steps now scale with duration, labels read
+  `m:ss` past a minute, and the appended endpoint tick is dropped when it would
+  collide with the last regular one.
+
+Landed in `422db87`. Bounds now live in `src/lib/editor/timeline-duration.ts`
+(`MIN_DURATION`, `MAX_DURATION`, `clampDuration`) so the store, the ruler and the
+input cannot disagree. Covered by `src/lib/editor/__tests__/timeline-duration.test.ts`
+and `src/store/__tests__/timeline-duration.test.ts`.
 
 ---
 

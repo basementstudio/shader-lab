@@ -254,11 +254,16 @@ export function AudioSourceControl({
     try {
       const asset = await loadAsset(file)
       setSource({ assetId: asset.id, kind: "asset" })
+
+      if (asset.duration && asset.duration > 0) {
+        useTimelineStore.getState().setDuration(asset.duration)
+      }
+
       await analyze(asset.url)
 
       const analyzed = useAudioStore.getState().spectrogram
 
-      if (analyzed) {
+      if (analyzed && !(asset.duration && asset.duration > 0)) {
         useTimelineStore.getState().setDuration(analyzed.durationSeconds)
       }
     } catch (caught) {

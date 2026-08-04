@@ -1,5 +1,14 @@
 "use client"
 import type { AudioModulationInput } from "@/lib/editor/audio/links"
+import { decodeAudioBuffer } from "@/lib/editor/audio/decode"
+import {
+  encodeExportAudio,
+  type ExportAudioTrackConfig,
+  getEncoderPrimingSeconds,
+  planExportAudioSegments,
+  renderExportAudio,
+  resolveExportAudioConfig,
+} from "@/lib/editor/audio/export-audio"
 import {
   createVideoExportEncoder,
   getSupportedVideoExportConfig,
@@ -59,9 +68,15 @@ type StillExportOptions = {
   height: number
 }
 
+export type VideoExportAudioSource = {
+  offsetSeconds: number
+  url: string
+}
+
 type VideoExportOptions = {
   abortSignal?: AbortSignal
   aspectPreset: ExportAspectPreset
+  audioSource?: VideoExportAudioSource | null
   duration: number
   format: VideoExportFormat
   fps: number
@@ -294,16 +309,65 @@ async function exportStillWithNewRenderer(
   }
 }
 
+type PreparedExportAudio = {
+  buffer: AudioBuffer
+  config: ExportAudioTrackConfig
+}
+
+async function prepareExportAudio(
+  projectState: RenderProjectState,
+  options: VideoExportOptions
+): Promise<PreparedExportAudio | null> {
+  const source = options.audioSource
+
+  if (!source) {
+    return null
+  }
+
+  const config = await resolveExportAudioConfig(options.format)
+
+  if (!config) {
+    throw new Error(
+      `This browser cannot encode ${options.format === "mp4" ? "AAC" : "Opus"} audio. Export without audio, or use ${options.format === "mp4" ? "WebM" : "MP4"}.`
+    )
+  }
+
+  const decoded = await decodeAudioBuffer(source.url, options.abortSignal)
+  throwIfAborted(options.abortSignal)
+
+  const segments = planExportAudioSegments({
+    durationSeconds: options.duration,
+    loop: projectState.timeline.loop,
+    offsetSeconds: source.offsetSeconds,
+    sourceDurationSeconds: decoded.duration,
+    startSeconds:
+      options.startTime + getEncoderPrimingSeconds(config.codec),
+    timelineDurationSeconds: projectState.timeline.duration,
+  })
+
+  if (segments.length === 0) {
+    throw new Error(
+      "The exported range does not overlap the audio track. Check the audio offset."
+    )
+  }
+
+  const buffer = await renderExportAudio(decoded, segments, options.duration)
+  throwIfAborted(options.abortSignal)
+
+  return { buffer, config }
+}
+
 export async function exportVideo(
   projectState: RenderProjectState,
   options: VideoExportOptions
 ): Promise<Blob> {
   throwIfAborted(options.abortSignal)
   options.onProgress?.({
-    label: "Preparing export",
+    label: options.audioSource ? "Decoding audio" : "Preparing export",
     value: 0.02,
   })
 
+  const preparedAudio = await prepareExportAudio(projectState, options)
   const support = await getSupportedVideoExportConfig(options.format)
 
   if (!support) {
@@ -339,6 +403,13 @@ export async function exportVideo(
   const releasePreviewLock = acquirePreviewRenderLock()
   const renderer = await createExportRenderer(renderCanvas)
   const encoder = await createVideoExportEncoder({
+    audio: preparedAudio
+      ? {
+          codec: preparedAudio.config.codec,
+          numberOfChannels: preparedAudio.config.numberOfChannels,
+          sampleRate: preparedAudio.config.sampleRate,
+        }
+      : null,
     bitrate: getVideoBitrate(options.qualityPreset),
     format: support.format,
     fps: options.fps,
@@ -350,6 +421,21 @@ export async function exportVideo(
 
   try {
     throwIfAborted(options.abortSignal)
+
+    if (preparedAudio) {
+      options.onProgress?.({
+        label: "Encoding audio",
+        value: 0.04,
+      })
+
+      await encodeExportAudio({
+        addChunk: encoder.addAudioChunk,
+        buffer: preparedAudio.buffer,
+        config: preparedAudio.config,
+        ...(options.abortSignal ? { signal: options.abortSignal } : {}),
+      })
+    }
+
     await prewarmExportFrame(renderer, renderCanvas, projectState, {
       cropAspectRatio: getAspectRatio(
         projectState.compositionSize,

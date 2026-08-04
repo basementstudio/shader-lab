@@ -147,6 +147,18 @@ export function EditorExportDialog({
   const timelineDuration = useTimelineStore((state) => state.duration)
   const timelineLoop = useTimelineStore((state) => state.loop)
   const timelineTracks = useTimelineStore((state) => state.tracks)
+  const audioSourceRef = useAudioStore((state) => state.source)
+  const exportAudioUrl = useMemo(() => {
+    if (audioSourceRef?.kind !== "asset") {
+      return null
+    }
+
+    return (
+      assets.find((asset) => asset.id === audioSourceRef.assetId)?.url ?? null
+    )
+  }, [assets, audioSourceRef])
+  const audioAvailable = exportAudioUrl !== null
+  const [includeAudio, setIncludeAudio] = useState(true)
   const [activeTab, setActiveTab] = useState<ExportTab>("image")
   const [mounted, setMounted] = useState(false)
   const [isDraggingImport, setIsDraggingImport] = useState(false)
@@ -567,6 +579,13 @@ export function EditorExportDialog({
       const blob = await exportVideo(buildRenderProjectState(), {
         abortSignal: abortController.signal,
         aspectPreset: videoAspect,
+        audioSource:
+          includeAudio && exportAudioUrl
+            ? {
+                offsetSeconds: useAudioStore.getState().offsetSeconds,
+                url: exportAudioUrl,
+              }
+            : null,
         duration: Math.max(0.25, videoDuration),
         format: videoFormat,
         fps: Math.max(1, videoFps),
@@ -910,13 +929,16 @@ export function EditorExportDialog({
                       ) : null}
                       {activeTab === "video" ? (
                         <VideoTabContent
+                          audioAvailable={audioAvailable}
                           hasFluidLayer={hasFluidLayer}
+                          includeAudio={includeAudio}
                           isWorking={isWorking}
                           liveRecordingSupported={Boolean(
                             liveVideoSupport.webm || liveVideoSupport.mp4
                           )}
                           mp4Supported={videoSupport.mp4}
                           onExport={handleVideoExport}
+                          onIncludeAudioChange={setIncludeAudio}
                           onLiveRecord={handleLiveVideoRecording}
                           onVideoAspectChange={setVideoAspect}
                           onVideoDurationChange={(value) => {
@@ -991,13 +1013,16 @@ export function EditorExportDialog({
                         ) : null}
                         {activeTab === "video" ? (
                           <VideoTabContent
+                            audioAvailable={audioAvailable}
                             hasFluidLayer={hasFluidLayer}
+                            includeAudio={includeAudio}
                             isWorking={isWorking}
                             liveRecordingSupported={Boolean(
                               liveVideoSupport.webm || liveVideoSupport.mp4
                             )}
                             mp4Supported={videoSupport.mp4}
                             onExport={handleVideoExport}
+                            onIncludeAudioChange={setIncludeAudio}
                             onLiveRecord={handleLiveVideoRecording}
                             onVideoAspectChange={setVideoAspect}
                             onVideoDurationChange={(value) => {
@@ -1218,11 +1243,14 @@ function ImageTabContent({
 }
 
 function VideoTabContent({
+  audioAvailable,
   hasFluidLayer,
+  includeAudio,
   isWorking,
   liveRecordingSupported,
   mp4Supported,
   onExport,
+  onIncludeAudioChange,
   onLiveRecord,
   onVideoAspectChange,
   onVideoDurationChange,
@@ -1241,11 +1269,14 @@ function VideoTabContent({
   videoSize,
   webmSupported,
 }: {
+  audioAvailable: boolean
   hasFluidLayer: boolean
+  includeAudio: boolean
   isWorking: boolean
   liveRecordingSupported: boolean
   mp4Supported: boolean
   onExport: () => Promise<void>
+  onIncludeAudioChange: (value: boolean) => void
   onLiveRecord: () => Promise<void>
   onVideoAspectChange: (preset: ExportAspectPreset) => void
   onVideoDurationChange: (value: number) => void
@@ -1383,6 +1414,35 @@ function VideoTabContent({
           />
         </FieldLabel>
       </div>
+
+      {audioAvailable ? (
+        <FieldLabel label="Audio">
+          <div className="flex flex-col gap-1.5">
+            <PresetRow>
+              <PillButton
+                active={includeAudio}
+                label="Include"
+                onClick={() => onIncludeAudioChange(true)}
+              />
+              <PillButton
+                active={!includeAudio}
+                label="Silent"
+                onClick={() => onIncludeAudioChange(false)}
+              />
+            </PresetRow>
+            {includeAudio ? (
+              <Typography
+                className="leading-[14px]"
+                tone="muted"
+                variant="caption"
+              >
+                Muxes the project audio into the file. Adds a decode and encode
+                pass, so the export takes a little longer.
+              </Typography>
+            ) : null}
+          </div>
+        </FieldLabel>
+      ) : null}
 
       <div className="flex min-h-11 flex-col justify-center gap-2">
         <div className="h-1.5 overflow-hidden rounded-full bg-white/8">

@@ -12,7 +12,14 @@ export type SupportedVideoExportConfig = {
   muxerCodec: Mp4MuxerCodec | WebMMuxerCodec
 }
 
+export type AudioTrackConfig = {
+  codec: "aac" | "opus"
+  numberOfChannels: number
+  sampleRate: number
+}
+
 type CreateVideoExportEncoderOptions = {
+  audio?: AudioTrackConfig | null
   bitrate: number
   format: VideoExportFormat
   fps: number
@@ -21,6 +28,10 @@ type CreateVideoExportEncoderOptions = {
 }
 
 type VideoExportEncoder = {
+  addAudioChunk: (
+    chunk: EncodedAudioChunk,
+    meta?: EncodedAudioChunkMetadata
+  ) => void
   close: () => void
   encodeCanvasFrame: (
     canvas: HTMLCanvasElement,
@@ -31,21 +42,17 @@ type VideoExportEncoder = {
   finalize: () => Promise<Blob>
 }
 
-type VideoMuxer =
-  | {
-      addVideoChunk: (
-        chunk: EncodedVideoChunk,
-        meta?: EncodedVideoChunkMetadata
-      ) => void
-      finalize: () => Blob
-    }
-  | {
-      addVideoChunk: (
-        chunk: EncodedVideoChunk,
-        meta?: EncodedVideoChunkMetadata
-      ) => void
-      finalize: () => Blob
-    }
+type VideoMuxer = {
+  addAudioChunk: (
+    chunk: EncodedAudioChunk,
+    meta?: EncodedAudioChunkMetadata
+  ) => void
+  addVideoChunk: (
+    chunk: EncodedVideoChunk,
+    meta?: EncodedVideoChunkMetadata
+  ) => void
+  finalize: () => Blob
+}
 
 const SUPPORT_PROBE_SIZE = {
   height: 720,
@@ -336,6 +343,15 @@ async function createMuxer(
       await import("mp4-muxer")
     const target = new Mp4ArrayBufferTarget()
     const muxer = new Mp4Muxer({
+      ...(options.audio
+        ? {
+            audio: {
+              codec: options.audio.codec,
+              numberOfChannels: options.audio.numberOfChannels,
+              sampleRate: options.audio.sampleRate,
+            },
+          }
+        : {}),
       fastStart: "in-memory",
       firstTimestampBehavior: "offset",
       target,
@@ -348,6 +364,9 @@ async function createMuxer(
     })
 
     return {
+      addAudioChunk(chunk, meta) {
+        muxer.addAudioChunk(chunk, meta)
+      },
       addVideoChunk(chunk, meta) {
         muxer.addVideoChunk(chunk, meta)
       },
@@ -362,6 +381,15 @@ async function createMuxer(
     await import("webm-muxer")
   const target = new WebMArrayBufferTarget()
   const muxer = new WebMMuxer({
+    ...(options.audio
+      ? {
+          audio: {
+            codec: "A_OPUS",
+            numberOfChannels: options.audio.numberOfChannels,
+            sampleRate: options.audio.sampleRate,
+          },
+        }
+      : {}),
     firstTimestampBehavior: "offset",
     target,
     video: {
@@ -373,6 +401,9 @@ async function createMuxer(
   })
 
   return {
+    addAudioChunk(chunk, meta) {
+      muxer.addAudioChunk(chunk, meta)
+    },
     addVideoChunk(chunk, meta) {
       muxer.addVideoChunk(chunk, meta)
     },
@@ -483,6 +514,10 @@ export async function createVideoExportEncoder(
   }
 
   return {
+    addAudioChunk(chunk, meta) {
+      muxer.addAudioChunk(chunk, meta)
+    },
+
     close() {
       if (encoder.state !== "closed") {
         encoder.close()

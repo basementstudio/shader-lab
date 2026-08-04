@@ -175,7 +175,7 @@ and `src/store/__tests__/timeline-duration.test.ts`.
 
 ## Step 3 — Audio in the exported file, opt-in
 
-- [ ] **3.1 "Include audio" toggle** in the video export panel. Default on when a
+- [x] **3.1 "Include audio" toggle** in the video export panel. Default on when a
   project audio source exists. One-line note that it makes the export take longer.
   No duration limit.
 - [ ] **3.2 Add an audio track to the real-time recorder.** `recordLiveCanvasVideo`
@@ -183,21 +183,36 @@ and `src/store/__tests__/timeline-duration.test.ts`.
   `MediaRecorder` and never adds audio. Add it from an `AudioContext`
   `MediaStreamDestination`. Small, and it is the fallback for browsers without
   `AudioEncoder` — and the only path where a live mic could ever work.
-- [ ] **3.3 Teach the muxers about audio.** `mp4-muxer` and `webm-muxer` both
+- [x] **3.3 Teach the muxers about audio.** `mp4-muxer` and `webm-muxer` both
   support an `audio:` track and `addAudioChunk`; the internal `VideoMuxer` type
   (`src/lib/editor/video-export-encoder.ts:34-48`) needs it added.
-- [ ] **3.4 Add an `AudioEncoder` path.** None exists in the repo yet. Opus for
+- [x] **3.4 Add an `AudioEncoder` path.** None exists in the repo yet. Opus for
   WebM, AAC for MP4, following the existing `probeEncoderConfig` pattern
   (`video-export-encoder.ts:224-254`) for capability detection.
-- [ ] **3.5 Decode source audio for output.** Reuse
+- [x] **3.5 Decode source audio for output.** Reuse
   `src/lib/editor/audio/decode.ts`, generalised to keep stereo rather than
   downmixing to mono (the mono downmix exists for analysis).
-- [ ] **3.6 Align audio to the rendered range.** Emit `AudioData` chunks whose
+- [x] **3.6 Align audio to the rendered range.** Emit `AudioData` chunks whose
   timestamps match the frame timestamps the loop already computes (`frameStartUs`
   at `export.ts:398`), and respect the export in/out range from step 4.
 
-If 3.3–3.6 turn out materially bigger than they look, ship 3.2 first and flag it
-rather than silently expanding scope.
+3.2 is deliberately **not** done. The offline path landed cleanly, so the
+real-time recorder is no longer needed as a fallback — it stays silent, which
+matters only for the "Record Live Video" button used for fluid layers. Tracked as
+a follow-up rather than dropped.
+
+Landed in `eca25a4`. Two things worth remembering:
+
+- **AAC needs priming compensation.** The AAC-LC encoder emits 2048 priming frames
+  and `mp4-muxer` writes no edit list to skip them, so audio lands 45ms late.
+  `getEncoderPrimingSeconds` plans the audio 2048 frames ahead to cancel it.
+  Opus needs none — `webm-muxer` writes the pre-skip.
+- **Timestamps come from the absolute sample index**, never an accumulator, which
+  is what keeps a four minute export from drifting.
+
+Measured with ffprobe plus envelope cross-correlation against the source track at
+five points across a 30 second export: MP4 `+1.0ms` flat, WebM `0.0ms` flat,
+silent exports carry no audio stream in either format.
 
 ---
 

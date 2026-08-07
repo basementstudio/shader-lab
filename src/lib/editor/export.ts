@@ -78,6 +78,7 @@ type VideoExportOptions = {
   aspectPreset: ExportAspectPreset
   audioSource?: VideoExportAudioSource | null
   duration: number
+  fileStream?: FileSystemWritableFileStream | null
   format: VideoExportFormat
   fps: number
   onProgress?: (progress: { label: string; value: number }) => void
@@ -317,8 +318,13 @@ async function exportStillWithNewRenderer(
   }
 }
 
+type EncodedAudioEntry = {
+  chunk: EncodedAudioChunk
+  meta: EncodedAudioChunkMetadata | undefined
+}
+
 type PreparedExportAudio = {
-  buffer: AudioBuffer
+  chunks: EncodedAudioEntry[]
   config: ExportAudioTrackConfig
 }
 
@@ -362,7 +368,18 @@ async function prepareExportAudio(
   const buffer = await renderExportAudio(decoded, segments, options.duration)
   throwIfAborted(options.abortSignal)
 
-  return { buffer, config }
+  const chunks: EncodedAudioEntry[] = []
+
+  await encodeExportAudio({
+    addChunk: (chunk, meta) => {
+      chunks.push({ chunk, meta })
+    },
+    buffer,
+    config,
+    ...(options.abortSignal ? { signal: options.abortSignal } : {}),
+  })
+
+  return { chunks, config }
 }
 
 function formatRemaining(seconds: number): string {
@@ -402,7 +419,7 @@ function buildRenderLabel(
 export async function exportVideo(
   projectState: RenderProjectState,
   options: VideoExportOptions
-): Promise<Blob> {
+): Promise<Blob | null> {
   const releasePreviewLock = acquirePreviewRenderLock()
 
   try {
@@ -415,7 +432,7 @@ export async function exportVideo(
 async function runVideoExport(
   projectState: RenderProjectState,
   options: VideoExportOptions
-): Promise<Blob> {
+): Promise<Blob | null> {
   throwIfAborted(options.abortSignal)
   options.onProgress?.({
     label: options.audioSource ? "Decoding audio" : "Preparing export",
@@ -455,6 +472,7 @@ async function runVideoExport(
   outputCanvas.width = exportSize.width
   outputCanvas.height = exportSize.height
 
+  const totalFrames = Math.max(1, Math.round(options.duration * options.fps))
   const renderer = await createExportRenderer(renderCanvas)
   const encoder = await createVideoExportEncoder({
     audio: preparedAudio
@@ -465,6 +483,9 @@ async function runVideoExport(
         }
       : null,
     bitrate: getVideoBitrate(options.qualityPreset),
+    expectedAudioChunks: preparedAudio?.chunks.length ?? 0,
+    expectedVideoChunks: totalFrames,
+    fileStream: options.fileStream ?? null,
     format: support.format,
     fps: options.fps,
     height: outputCanvas.height,
@@ -476,18 +497,8 @@ async function runVideoExport(
   try {
     throwIfAborted(options.abortSignal)
 
-    if (preparedAudio) {
-      options.onProgress?.({
-        label: "Encoding audio",
-        value: 0.04,
-      })
-
-      await encodeExportAudio({
-        addChunk: encoder.addAudioChunk,
-        buffer: preparedAudio.buffer,
-        config: preparedAudio.config,
-        ...(options.abortSignal ? { signal: options.abortSignal } : {}),
-      })
+    for (const entry of preparedAudio?.chunks ?? []) {
+      encoder.addAudioChunk(entry.chunk, entry.meta)
     }
 
     await prewarmExportFrame(renderer, renderCanvas, projectState, {
@@ -500,7 +511,6 @@ async function runVideoExport(
       time: options.startTime,
     })
 
-    const totalFrames = Math.max(1, Math.round(options.duration * options.fps))
     const totalDurationUs = Math.max(
       1,
       Math.round(options.duration * 1_000_000)
@@ -752,6 +762,24 @@ function canvasToBlob(
   return new Promise((resolve) => {
     canvas.toBlob((blob) => resolve(blob), type)
   })
+}
+
+/**
+ * Above this, buffering the whole file in RAM before handing over a Blob risks
+ * taking the tab down — the ArrayBuffer and the Blob copy are both live at
+ * finalize, so peak is roughly double the file.
+ */
+export const STREAM_TO_DISK_THRESHOLD_BYTES = 256 * 1024 * 1024
+
+export function estimateVideoExportBytes(
+  qualityPreset: ExportQualityPreset,
+  durationSeconds: number
+): number {
+  const safeDuration = Number.isFinite(durationSeconds)
+    ? Math.max(0, durationSeconds)
+    : 0
+
+  return (getVideoBitrate(qualityPreset) / 8) * safeDuration
 }
 
 function getVideoBitrate(qualityPreset: ExportQualityPreset): number {

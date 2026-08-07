@@ -38,8 +38,10 @@ import {
   getAspectRatioForPreset,
   getDimensionsForPreset,
   getMaxDimensionForQuality,
+  estimateVideoExportBytes,
   getMaxExportDimension,
   getSupportedVideoMimeType,
+  STREAM_TO_DISK_THRESHOLD_BYTES,
   type VideoExportFormat,
 } from "@/lib/editor/export"
 import {
@@ -111,6 +113,70 @@ const QUALITY_SOUND_MAP: Record<ExportQualityPreset, UISoundId> = {
   standard: "action.qualityStandard",
   high: "action.qualityHigh",
   ultra: "action.qualityUltra",
+}
+
+type SaveFilePickerWindow = Window & {
+  showSaveFilePicker?: (options: {
+    suggestedName?: string
+    types?: { accept: Record<string, string[]>; description: string }[]
+  }) => Promise<FileSystemFileHandle>
+}
+
+function supportsSaveFilePicker(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    typeof (window as SaveFilePickerWindow).showSaveFilePicker === "function"
+  )
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes >= 1024 * 1024 * 1024) {
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`
+  }
+
+  return `${Math.max(1, Math.round(bytes / (1024 * 1024)))} MB`
+}
+
+async function openExportFileStream(
+  format: VideoExportFormat,
+  fileName: string
+): Promise<FileSystemWritableFileStream | null> {
+  const picker =
+    typeof window === "undefined"
+      ? undefined
+      : (window as SaveFilePickerWindow).showSaveFilePicker
+
+  if (typeof picker !== "function") {
+    return null
+  }
+
+  const handle = await picker({
+    suggestedName: fileName,
+    types: [
+      {
+        accept: {
+          [format === "mp4" ? "video/mp4" : "video/webm"]: [`.${format}`],
+        },
+        description: `${format.toUpperCase()} video`,
+      },
+    ],
+  })
+
+  return await handle.createWritable()
+}
+
+async function abortExportFileStream(
+  stream: FileSystemWritableFileStream | null
+): Promise<void> {
+  if (!stream) {
+    return
+  }
+
+  try {
+    await stream.abort()
+  } catch {
+    return
+  }
 }
 
 function roundDurationForExport(value: number): number {
@@ -193,6 +259,13 @@ export function EditorExportDialog({
   )
   const [videoDuration, setVideoDuration] = useState(timelineDuration)
   const [videoStart, setVideoStart] = useState(0)
+  const estimatedVideoBytes = estimateVideoExportBytes(
+    videoQuality,
+    videoDuration
+  )
+  const willStreamToDisk =
+    estimatedVideoBytes > STREAM_TO_DISK_THRESHOLD_BYTES &&
+    supportsSaveFilePicker()
   const [videoFps, setVideoFps] = useState(30)
   const [videoFormat, setVideoFormat] = useState<VideoExportFormat>("webm")
   const [videoDurationDirty, setVideoDurationDirty] = useState(false)
@@ -571,6 +644,20 @@ export function EditorExportDialog({
     }
 
     clearFeedback()
+
+    const fileName = buildDownloadName(videoFormat)
+    let fileStream: FileSystemWritableFileStream | null = null
+
+    if (willStreamToDisk) {
+      try {
+        fileStream = await openExportFileStream(videoFormat, fileName)
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return
+        }
+      }
+    }
+
     setIsWorking(true)
     const abortController = new AbortController()
     videoExportAbortRef.current = abortController
@@ -579,6 +666,7 @@ export function EditorExportDialog({
       const startTime = Math.max(0, videoStart)
       const exportSize = getVideoExportDisplaySize(videoFormat, videoSize)
       const blob = await exportVideo(buildRenderProjectState(), {
+        fileStream,
         abortSignal: abortController.signal,
         aspectPreset: videoAspect,
         audioSource:
@@ -598,15 +686,22 @@ export function EditorExportDialog({
         height: videoSize.height,
       })
 
-      downloadBlob(blob, buildDownloadName(videoFormat))
+      if (blob) {
+        downloadBlob(blob, fileName)
+      }
+
       setVideoProgress({
         label: "Export complete",
         value: 1,
       })
       setStatusMessage(
-        `${videoFormat.toUpperCase()} exported at ${exportSize.width}×${exportSize.height}.`
+        blob
+          ? `${videoFormat.toUpperCase()} exported at ${exportSize.width}×${exportSize.height}.`
+          : `${videoFormat.toUpperCase()} written to ${fileName} at ${exportSize.width}×${exportSize.height}.`
       )
     } catch (error) {
+      await abortExportFileStream(fileStream)
+
       if (error instanceof DOMException && error.name === "AbortError") {
         setVideoProgress(null)
         setStatusMessage("Video export cancelled.")
@@ -963,6 +1058,8 @@ export function EditorExportDialog({
                           videoSize={videoSize}
                           videoStart={videoStart}
                           timelineDuration={timelineDuration}
+                          estimatedSizeLabel={formatBytes(estimatedVideoBytes)}
+                          willStreamToDisk={willStreamToDisk}
                           webmSupported={videoSupport.webm}
                         />
                       ) : null}
@@ -1052,6 +1149,8 @@ export function EditorExportDialog({
                             videoSize={videoSize}
                             videoStart={videoStart}
                             timelineDuration={timelineDuration}
+                            estimatedSizeLabel={formatBytes(estimatedVideoBytes)}
+                            willStreamToDisk={willStreamToDisk}
                             webmSupported={videoSupport.webm}
                           />
                         ) : null}
@@ -1291,6 +1390,8 @@ function VideoTabContent({
   videoSize,
   videoStart,
   timelineDuration,
+  estimatedSizeLabel,
+  willStreamToDisk,
   webmSupported,
 }: {
   audioAvailable: boolean
@@ -1320,6 +1421,8 @@ function VideoTabContent({
   videoSize: { height: number; width: number }
   videoStart: number
   timelineDuration: number
+  estimatedSizeLabel: string
+  willStreamToDisk: boolean
   webmSupported: boolean
 }) {
   const selectedFormatSupported =
@@ -1460,7 +1563,10 @@ function VideoTabContent({
             tone="muted"
             variant="caption"
           >
-            {`Renders ${formatRangeSeconds(videoStart)} to ${formatRangeSeconds(videoStart + videoDuration)} of the timeline.`}
+            {`Renders ${formatRangeSeconds(videoStart)} to ${formatRangeSeconds(videoStart + videoDuration)} of the timeline, around ${estimatedSizeLabel}.`}
+            {willStreamToDisk
+              ? " Large enough that it will be written straight to a file you choose, rather than held in memory."
+              : ""}
           </Typography>
         </div>
       </FieldLabel>

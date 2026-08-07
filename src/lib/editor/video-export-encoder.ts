@@ -21,6 +21,9 @@ export type AudioTrackConfig = {
 type CreateVideoExportEncoderOptions = {
   audio?: AudioTrackConfig | null
   bitrate: number
+  expectedAudioChunks?: number
+  expectedVideoChunks?: number
+  fileStream?: FileSystemWritableFileStream | null
   format: VideoExportFormat
   fps: number
   height: number
@@ -39,7 +42,7 @@ type VideoExportEncoder = {
     duration: number,
     timestamp: number
   ) => Promise<void>
-  finalize: () => Promise<Blob>
+  finalize: () => Promise<Blob | null>
 }
 
 type VideoMuxer = {
@@ -51,7 +54,7 @@ type VideoMuxer = {
     chunk: EncodedVideoChunk,
     meta?: EncodedVideoChunkMetadata
   ) => void
-  finalize: () => Blob
+  finalize: () => Promise<Blob | null>
 }
 
 const SUPPORT_PROBE_SIZE = {
@@ -338,10 +341,15 @@ async function createMuxer(
   support: SupportedVideoExportConfig,
   options: CreateVideoExportEncoderOptions
 ): Promise<VideoMuxer> {
+  const stream = options.fileStream ?? null
+
   if (support.format === "mp4") {
-    const { ArrayBufferTarget: Mp4ArrayBufferTarget, Muxer: Mp4Muxer } =
-      await import("mp4-muxer")
-    const target = new Mp4ArrayBufferTarget()
+    const {
+      ArrayBufferTarget: Mp4ArrayBufferTarget,
+      FileSystemWritableFileStreamTarget: Mp4FileTarget,
+      Muxer: Mp4Muxer,
+    } = await import("mp4-muxer")
+    const memoryTarget = stream ? null : new Mp4ArrayBufferTarget()
     const muxer = new Mp4Muxer({
       ...(options.audio
         ? {
@@ -352,9 +360,17 @@ async function createMuxer(
             },
           }
         : {}),
-      fastStart: "in-memory",
+      // Streaming cannot buffer every chunk to place the metadata up front, so
+      // reserve space for it instead. Both counts are exact, and the muxer only
+      // needs an upper bound.
+      fastStart: stream
+        ? {
+            expectedAudioChunks: options.expectedAudioChunks ?? 0,
+            expectedVideoChunks: options.expectedVideoChunks ?? 0,
+          }
+        : "in-memory",
       firstTimestampBehavior: "offset",
-      target,
+      target: stream ? new Mp4FileTarget(stream) : (memoryTarget as never),
       video: {
         codec: support.muxerCodec as Mp4MuxerCodec,
         frameRate: options.fps,
@@ -370,16 +386,25 @@ async function createMuxer(
       addVideoChunk(chunk, meta) {
         muxer.addVideoChunk(chunk, meta)
       },
-      finalize() {
+      async finalize() {
         muxer.finalize()
-        return new Blob([target.buffer], { type: support.mimeType })
+
+        if (memoryTarget) {
+          return new Blob([memoryTarget.buffer], { type: support.mimeType })
+        }
+
+        await stream?.close()
+        return null
       },
     }
   }
 
-  const { ArrayBufferTarget: WebMArrayBufferTarget, Muxer: WebMMuxer } =
-    await import("webm-muxer")
-  const target = new WebMArrayBufferTarget()
+  const {
+    ArrayBufferTarget: WebMArrayBufferTarget,
+    FileSystemWritableFileStreamTarget: WebMFileTarget,
+    Muxer: WebMMuxer,
+  } = await import("webm-muxer")
+  const memoryTarget = stream ? null : new WebMArrayBufferTarget()
   const muxer = new WebMMuxer({
     ...(options.audio
       ? {
@@ -391,7 +416,7 @@ async function createMuxer(
         }
       : {}),
     firstTimestampBehavior: "offset",
-    target,
+    target: stream ? new WebMFileTarget(stream) : (memoryTarget as never),
     video: {
       codec: support.muxerCodec as WebMMuxerCodec,
       frameRate: options.fps,
@@ -407,9 +432,15 @@ async function createMuxer(
     addVideoChunk(chunk, meta) {
       muxer.addVideoChunk(chunk, meta)
     },
-    finalize() {
+    async finalize() {
       muxer.finalize()
-      return new Blob([target.buffer], { type: support.mimeType })
+
+      if (memoryTarget) {
+        return new Blob([memoryTarget.buffer], { type: support.mimeType })
+      }
+
+      await stream?.close()
+      return null
     },
   }
 }

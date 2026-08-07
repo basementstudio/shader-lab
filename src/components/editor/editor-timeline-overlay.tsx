@@ -111,7 +111,7 @@ const GENERAL_TIMELINE_PROPERTIES = [
 ] as const
 
 const COLLAPSED_SHELL_HEIGHT = 46
-const COLLAPSED_SHELL_WIDTH = 580
+const COLLAPSED_SHELL_WIDTH = 660
 const EXPANDED_SHELL_HEIGHT = 380
 const EXPANDED_SHELL_WIDTH = 820
 const SMALL_NUDGE_TIME = 1 / 60
@@ -489,7 +489,7 @@ function TimelineTransport({
       <div className="inline-flex min-w-0 flex-1 items-center justify-end gap-1">
         <Typography
           as="span"
-          className="min-w-[104px] whitespace-nowrap text-right text-[12px]"
+          className="min-w-[136px] shrink-0 whitespace-nowrap text-right text-[12px]"
           tone="secondary"
           variant="monoMd"
         >

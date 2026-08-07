@@ -129,14 +129,6 @@ function supportsSaveFilePicker(): boolean {
   )
 }
 
-function formatBytes(bytes: number): string {
-  if (bytes >= 1024 * 1024 * 1024) {
-    return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`
-  }
-
-  return `${Math.max(1, Math.round(bytes / (1024 * 1024)))} MB`
-}
-
 async function openExportFileStream(
   format: VideoExportFormat,
   fileName: string
@@ -1058,8 +1050,6 @@ export function EditorExportDialog({
                           videoSize={videoSize}
                           videoStart={videoStart}
                           timelineDuration={timelineDuration}
-                          estimatedSizeLabel={formatBytes(estimatedVideoBytes)}
-                          willStreamToDisk={willStreamToDisk}
                           webmSupported={videoSupport.webm}
                         />
                       ) : null}
@@ -1149,8 +1139,6 @@ export function EditorExportDialog({
                             videoSize={videoSize}
                             videoStart={videoStart}
                             timelineDuration={timelineDuration}
-                            estimatedSizeLabel={formatBytes(estimatedVideoBytes)}
-                            willStreamToDisk={willStreamToDisk}
                             webmSupported={videoSupport.webm}
                           />
                         ) : null}
@@ -1390,8 +1378,6 @@ function VideoTabContent({
   videoSize,
   videoStart,
   timelineDuration,
-  estimatedSizeLabel,
-  willStreamToDisk,
   webmSupported,
 }: {
   audioAvailable: boolean
@@ -1421,8 +1407,6 @@ function VideoTabContent({
   videoSize: { height: number; width: number }
   videoStart: number
   timelineDuration: number
-  estimatedSizeLabel: string
-  willStreamToDisk: boolean
   webmSupported: boolean
 }) {
   const selectedFormatSupported =
@@ -1563,11 +1547,7 @@ function VideoTabContent({
             tone="muted"
             variant="caption"
           >
-            {`Renders ${formatRangeSeconds(videoStart)} to ${formatRangeSeconds(videoStart + videoDuration)} of the timeline, up to ${estimatedSizeLabel}.`}
-            {willStreamToDisk
-              ? " Large enough that it will be written straight to a file you choose, rather than held in memory."
-              : ""}
-            {" Simple scenes and small frame sizes often come out well under that ceiling."}
+            {`${formatRangeSeconds(videoStart)} \u2013 ${formatRangeSeconds(videoStart + videoDuration)}`}
           </Typography>
         </div>
       </FieldLabel>
@@ -1587,16 +1567,7 @@ function VideoTabContent({
                 onClick={() => onIncludeAudioChange(false)}
               />
             </PresetRow>
-            {includeAudio ? (
-              <Typography
-                className="leading-[14px]"
-                tone="muted"
-                variant="caption"
-              >
-                Muxes the project audio into the file. Adds a decode and encode
-                pass, so the export takes a little longer.
-              </Typography>
-            ) : null}
+
           </div>
         </FieldLabel>
       ) : null}
@@ -1614,6 +1585,10 @@ function VideoTabContent({
           {videoProgress?.label ?? "\u00A0"}
         </Typography>
       </div>
+
+      <Typography className="leading-[14px]" tone="muted" variant="caption">
+        Keep this tab open and in front while exporting.
+      </Typography>
 
       <Button
         disabled={!(isWorking || selectedFormatSupported)}

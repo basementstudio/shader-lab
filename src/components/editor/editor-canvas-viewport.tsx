@@ -379,14 +379,14 @@ export function EditorCanvasViewport() {
       ) : null}
 
       {previewPaused ? (
-        <div className="pointer-events-none absolute inset-x-0 top-4 flex justify-center">
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
           <div className="inline-flex items-center gap-2 rounded-full border border-[var(--ds-border-panel)] bg-[rgb(18_18_22_/_0.88)] px-3 py-1.5 backdrop-blur-[28px]">
             <span
               aria-hidden="true"
               className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-[rgb(182_151_255)]"
             />
             <span className="font-[var(--ds-font-mono)] text-[11px] leading-4 text-[var(--ds-color-text-secondary)]">
-              Exporting — preview paused
+              Exporting — keep this tab open
             </span>
           </div>
         </div>

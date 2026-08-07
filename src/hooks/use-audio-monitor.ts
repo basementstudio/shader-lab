@@ -7,6 +7,7 @@ import { useAudioStore } from "@/store/audio-store"
 import { useTimelineStore } from "@/store/timeline-store"
 
 const MAX_DRIFT_SECONDS = 0.15
+const RESUME_SNAP_SECONDS = 0.02
 const DRIFT_CHECK_INTERVAL_MS = 250
 
 export function useAudioMonitor(enabled: boolean): void {
@@ -68,8 +69,9 @@ export function useAudioMonitor(enabled: boolean): void {
       }
 
       const drift = Math.abs(element.currentTime - targetTime())
+      const tolerance = wasAudible ? MAX_DRIFT_SECONDS : RESUME_SNAP_SECONDS
 
-      if (!wasAudible || drift > MAX_DRIFT_SECONDS) {
+      if (drift > tolerance) {
         element.currentTime = targetTime()
       }
 

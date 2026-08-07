@@ -11,7 +11,6 @@ import { useAudioStore } from "@/store"
 import { AUDIO_BAND_IDS, type AudioBandId } from "@/types/editor"
 import { Typography } from "@/components/ui/typography"
 
-/** Fixed viewBox; the SVG scales to its container. */
 const VIEW_WIDTH = 300
 const VIEW_HEIGHT = 84
 
@@ -22,7 +21,6 @@ const BAND_LABELS: Record<AudioBandId, string> = {
   mid: "Mid",
 }
 
-/** Where a frequency sits across the log X axis, as a `[0,1]` fraction. */
 function frequencyToFraction(hz: number, lowestHz: number, highestHz: number) {
   const decades = Math.log10(Math.max(highestHz / lowestHz, 1e-6))
   const position = Math.log10(Math.max(hz, 1) / lowestHz) / decades
@@ -30,14 +28,6 @@ function frequencyToFraction(hz: number, lowestHz: number, highestHz: number) {
   return Math.min(Math.max(position, 0), 1)
 }
 
-/**
- * Live spectrum analyser, in the shape of an EQ display: log frequency across,
- * decibels up.
- *
- * The curve itself is written straight into the path element by
- * `live-band-driver`'s rAF loop, never through React state — a 60fps React
- * update here would re-render the whole properties sidebar.
- */
 export function AudioSpectrumDisplay() {
   const pathRef = useRef<SVGPathElement | null>(null)
   const bands = useAudioStore((state) => state.bands)
@@ -56,8 +46,6 @@ export function AudioSpectrumDisplay() {
     })
   }, [])
 
-  // Match the axis the analysis actually used, so the drawn boundaries line up
-  // with the curve rather than merely being close.
   const layout = createSpectroBandLayout(sampleRate ?? 48000)
   const lowestHz = layout.centerHz[0] ?? SPECTRO_MIN_HZ
   const highestHz = layout.centerHz.at(-1) ?? SPECTRO_MAX_HZ
@@ -80,7 +68,6 @@ export function AudioSpectrumDisplay() {
         >
           <title>Audio spectrum</title>
 
-          {/* Band regions, so the frequency ranges are visible against the curve. */}
           {boundaries.map((boundary) => (
             <rect
               fill="rgb(182 151 255 / 0.05)"

@@ -104,9 +104,6 @@ function getAcceptForAssetKind(kind: AssetKind): string {
     case "model":
       return ".glb,.gltf,.obj,model/gltf-binary,model/gltf+json,model/obj,application/octet-stream"
     case "audio":
-      // No layer type takes an audio asset — the project audio source is picked
-      // from the timeline panel, not by attaching it to a layer. Handled here
-      // only to keep the switch exhaustive.
       return AUDIO_FILE_ACCEPT
   }
 }
@@ -502,7 +499,7 @@ export function LayerSidebar() {
       setLayerAsset(layerId, asset.id)
       playUISound("action.addLayer")
     } catch {
-      // No-op.
+      return
     }
   }
 

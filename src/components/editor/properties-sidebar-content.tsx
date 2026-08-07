@@ -493,8 +493,6 @@ export function SelectedLayerPropertiesContent({
     [hasTrack, layerId, onTimelineKeyframe, reduceMotion, timelinePanelOpen]
   )
 
-  // Layer properties have no ParameterDefinition; the engine clamps opacity,
-  // hue and saturation to their own documented ranges instead.
   const buildAudioControl = useCallback(
     (binding: AnimatedPropertyBinding | null): AudioLinkControl | null =>
       binding ? { binding, definition: null, layerId } : null,

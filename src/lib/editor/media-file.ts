@@ -14,7 +14,6 @@ export function isSvgMediaSource(input: {
   )
 }
 
-/** Extensions whose MIME type browsers report inconsistently or not at all. */
 export const AUDIO_FILE_EXTENSIONS = [
   ".mp3",
   ".wav",
@@ -26,7 +25,6 @@ export const AUDIO_FILE_EXTENSIONS = [
   ".opus",
 ] as const
 
-/** `accept` attribute value for audio file inputs. */
 export const AUDIO_FILE_ACCEPT = `audio/*,${AUDIO_FILE_EXTENSIONS.join(",")}`
 
 export function isAudioFileName(fileName: string | null | undefined): boolean {
@@ -55,8 +53,6 @@ export function inferFileAssetKind(file: File): AssetKind | null {
     return "video"
   }
 
-  // Checked after video so `video/*` containers still resolve as video, and
-  // before the model checks since neither set overlaps.
   if (mimeType.startsWith("audio/") || isAudioFileName(fileName)) {
     return "audio"
   }

@@ -56,13 +56,6 @@ export interface EditorRenderer {
 
 export type BuildRendererFrameInput = {
   assets: EditorAsset[]
-  /**
-   * Audio-reactive modulation, applied after keyframe evaluation.
-   *
-   * Passed explicitly rather than read from a store so this stays a pure
-   * function of its input — which is what lets the offline exporter reproduce a
-   * frame exactly, and what keeps the whole thing unit-testable.
-   */
   audio?: AudioModulationInput | null
   clockTime?: number
   cropAspectRatio?: number | null
@@ -99,8 +92,6 @@ export function buildRendererFrame(
     input.timeline.tracks,
     input.timeline.currentTime
   )
-  // Audio runs last so it wins on conflict, and so a per-component vector link
-  // merges into a keyframed value rather than discarding it.
   const evaluatedLayers = input.audio
     ? applyAudioModulation(
         input.layers,

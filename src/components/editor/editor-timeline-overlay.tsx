@@ -61,7 +61,6 @@ import type {
 } from "@/types/editor"
 
 type TimelinePropertyItem = {
-  /** Set when this parameter is driven by audio; gives it a lane of its own. */
   audioLink: AudioLink | null
   binding: AnimatedPropertyBinding
   color: string
@@ -172,7 +171,6 @@ function hexToRgbChannels(value: string): string {
 
   return `${red} ${green} ${blue}`
 }
-
 
 function getPropertyId(binding: AnimatedPropertyBinding): string {
   if (binding.kind === "layer") {
@@ -617,8 +615,6 @@ export function EditorTimelineOverlay() {
   const hasDerivedVideoDuration = derivedVideoDuration !== null
   const effectiveDuration = derivedVideoDuration ?? duration
 
-  // Monitoring is on by default: audio-reactive parameters with no audible
-  // track reads as a bug rather than a feature.
   const [monitorEnabled, setMonitorEnabled] = useState(true)
   useAudioMonitor(monitorEnabled)
 
@@ -633,11 +629,6 @@ export function EditorTimelineOverlay() {
     () => buildTimelineProperties(selectedLayer, tracks, audioLinks),
     [audioLinks, selectedLayer, tracks]
   )
-  // An audio-linked parameter gets a lane too, even with no keyframes — without
-  // it, linking a parameter to audio leaves no trace in the timeline at all.
-  // Deliberately not done by creating an empty TimelineTrack: keyframe-less
-  // tracks are filtered out by removeKeyframe/removeSelectedKeyframes, so one
-  // would be silently deleted by ordinary keyframe editing.
   const animatedProperties = useMemo(
     () => properties.filter((entry) => entry.track ?? entry.audioLink),
     [properties]
@@ -1413,10 +1404,6 @@ export function EditorTimelineOverlay() {
                           const track = entry.track
                           const audioLink = entry.audioLink
                           const isFocused = focusedPropertyId === entry.id
-                          // Audio links are first-class here: they get the same
-                          // highlight and enable toggle a keyframe track does,
-                          // otherwise a parameter driven by audio is
-                          // indistinguishable from one that is not animated.
                           const isAnimated = Boolean(track ?? audioLink)
                           const animationEnabled =
                             (track?.enabled ?? false) ||

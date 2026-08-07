@@ -12,24 +12,14 @@ import {
   type FftWorkspace,
 } from "@/lib/editor/audio/fft"
 
-/**
- * Stage A output: the expensive, source-dependent reduction of PCM. Computed
- * once per audio source, then retained so band-config edits (stage B) never
- * re-decode or re-FFT.
- *
- * Not serializable and never persisted — a 5 minute track is ~4.6 MB.
- */
 export type AudioSpectrogram = {
-  /** `frameCount * bandCount` log-spaced magnitudes, row-major by frame. */
   bands: Float32Array
   bandCount: number
-  /** Geometric centre frequency of each band. Length `bandCount`. */
   centerHz: Float32Array
   durationSeconds: number
   envelopeRate: number
   fftSize: number
   frameCount: number
-  /** Window-weighted RMS per frame. Drives the full-band `level`. */
   rms: Float32Array
   sampleRate: number
 }
@@ -46,7 +36,6 @@ type ReductionPlan = {
   bandCount: number
   binRanges: BinRange[]
   centerHz: Float32Array
-  /** Sum of squared window coefficients, for the weighted RMS denominator. */
   windowEnergy: number
 }
 
@@ -105,11 +94,6 @@ function computeWindowedRms(
   return Math.sqrt(weighted / windowEnergy)
 }
 
-/**
- * Stage A as a generator, yielding progress in `[0,1]`. The driver decides
- * whether to run it synchronously, chunked on the main thread, or inside a
- * Worker — this module stays free of scheduling concerns.
- */
 export function* analyzeSpectrogramStepwise(
   samples: Float32Array,
   sampleRate: number,
@@ -134,9 +118,6 @@ export function* analyzeSpectrogramStepwise(
   const rms = new Float32Array(frameCount)
 
   for (let frame = 0; frame < frameCount; frame += 1) {
-    // Centred framing: frame `i` describes the audio *at* t = i / envelopeRate.
-    // Left-aligned windows would report a kick ~fftSize/2 samples late (~21ms
-    // at 2048/48k), which is perceptible when projected on stage.
     const offset = frame * hopSamples - halfWindow
 
     const magnitudes = computeFrameMagnitudes(workspace, samples, offset)
@@ -155,8 +136,6 @@ export function* analyzeSpectrogramStepwise(
         count += 1
       }
 
-      // Mean, not sum: keeps a band's reading scale-invariant when the user
-      // narrows its frequency range.
       bands[rowStart + band] = count > 0 ? sum / count : 0
     }
 
@@ -187,7 +166,6 @@ export function* analyzeSpectrogramStepwise(
   }
 }
 
-/** Synchronous stage A. Drains {@link analyzeSpectrogramStepwise}. */
 export function analyzeSpectrogram(
   samples: Float32Array,
   sampleRate: number,
@@ -203,7 +181,6 @@ export function analyzeSpectrogram(
   return step.value
 }
 
-/** Average all channels. Summing would clip; taking channel 0 loses hard pans. */
 export function downmixToMono(channels: Float32Array[]): Float32Array {
   const first = channels[0]
 

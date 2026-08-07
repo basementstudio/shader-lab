@@ -46,7 +46,6 @@ function paramBinding(key: string, label = key): AnimatedPropertyBinding {
   return { key, kind: "param", label, valueType: "number" }
 }
 
-/** Envelopes where every band holds a constant value. */
 function constantEnvelopes(value: number): AudioEnvelopeSet {
   const bands = {} as Record<AudioBandId, Float32Array>
   for (const bandId of AUDIO_BAND_IDS) {
@@ -68,8 +67,6 @@ function makeLayer(): EditorLayer {
 
 describe("createAudioLink", () => {
   test("omits optional fields rather than setting them to undefined", () => {
-    // exactOptionalPropertyTypes makes `undefined` a type error, and a stray
-    // undefined key survives a .lab round-trip as an explicit null.
     const link = createAudioLink({
       band: "bass",
       binding: paramBinding("strength"),
@@ -438,9 +435,6 @@ describe("applyAudioModulation", () => {
   })
 
   test("ALIASING GUARD: never returns or mutates a tuple owned by the layer store", () => {
-    // A missed clone here corrupts both layer.params and the paramsCloneCache
-    // WeakMap in renderer/contracts.ts, producing drift that persists across
-    // frames and survives re-renders.
     const layer = makeLayer()
     const storedTuple = layer.params[vec2Param.key]
     const snapshot = Array.isArray(storedTuple) ? [...storedTuple] : null
@@ -464,7 +458,6 @@ describe("applyAudioModulation", () => {
 
   test("samples the band at the requested time", () => {
     const layer = makeLayer()
-    // Use the definition's own bounds so the clamp cannot mask the result.
     const low = numberParam.min ?? 0
     const high = numberParam.max ?? 1
     const link = createAudioLink({

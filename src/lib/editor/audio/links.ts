@@ -38,13 +38,6 @@ export type CreateAudioLinkInput = {
   threshold?: number
 }
 
-/**
- * Only constructor for {@link AudioLink}.
- *
- * `exactOptionalPropertyTypes` makes `{ component: undefined }` a type error and
- * a latent `.lab` round-trip hazard, so the optional fields are *omitted* rather
- * than set to undefined. Building these literals inline invites that bug.
- */
 export function createAudioLink(input: CreateAudioLinkInput): AudioLink {
   const link: AudioLink = {
     band: input.band,
@@ -66,7 +59,6 @@ export function createAudioLink(input: CreateAudioLinkInput): AudioLink {
 
 export type AudioLinkPatch = Partial<Omit<AudioLink, "binding" | "id" | "layerId">>
 
-/** Apply a patch while preserving the omit-not-undefined invariant. */
 export function patchAudioLink(link: AudioLink, patch: AudioLinkPatch): AudioLink {
   const next: AudioLink = { ...link }
 
@@ -109,13 +101,6 @@ export type AudioLinkConflict = {
   track: TimelineTrack
 }
 
-/**
- * Links that target the same layer+binding as an existing keyframe track.
- *
- * Audio takes precedence in the engine, so a conflict is never an error — but
- * the user should be told their keyframes are being overridden, and offered
- * either removal or a bake-to-keyframes conversion.
- */
 export function findConflictingAudioLinks(
   links: AudioLink[],
   tracks: TimelineTrack[]
@@ -151,17 +136,6 @@ function resolveDefinition(
   return getParameterDefinition(getLayerDefinition(layer.type).params, binding.key)
 }
 
-/**
- * Layer audio-driven values on top of the keyframe evaluation result.
- *
- * Runs *after* `evaluateTimelineForLayers` and receives its output, so audio
- * wins on conflict and so a per-component vec link merges into a keyframed
- * value rather than discarding it.
- *
- * Returns a fresh array of fresh states — never aliases anything from
- * `layers`, which is what keeps `renderer/contracts.ts`'s `paramsCloneCache`
- * safe.
- */
 export function applyAudioModulation(
   layers: EditorLayer[],
   keyframeStates: EvaluatedLayerState[],
@@ -176,7 +150,6 @@ export function applyAudioModulation(
 
   const layerById = new Map(layers.map((layer) => [layer.id, layer]))
 
-  // Copy the incoming states so callers keep their originals intact.
   const stateByLayerId = new Map<string, EvaluatedLayerState>()
   for (const state of keyframeStates) {
     stateByLayerId.set(state.layerId, {
@@ -191,8 +164,6 @@ export function applyAudioModulation(
   for (const link of activeLinks) {
     const layer = layerById.get(link.layerId)
 
-    // Links pointing at deleted layers are inert, matching how
-    // `evaluateTimelineForLayers` filters orphaned tracks rather than pruning.
     if (!layer) {
       continue
     }
@@ -215,8 +186,6 @@ export function applyAudioModulation(
       stateByLayerId.set(link.layerId, state)
     }
 
-    // Base is what this parameter would otherwise be this frame: the keyframe
-    // result if one exists, else the stored value. Only vec merges use it.
     const base: ParameterValue | undefined =
       link.binding.kind === "param"
         ? (state.params[link.binding.key] ?? layer.params[link.binding.key])

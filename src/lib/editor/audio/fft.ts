@@ -1,11 +1,3 @@
-/**
- * Radix-2 Cooley-Tukey FFT with cached twiddle factors, bit-reversal tables and
- * Hann windows.
- *
- * Deliberately dependency-free and free of browser globals so the whole audio
- * analysis pipeline stays unit-testable under `bun test` and portable into a
- * Web Worker. Only `decode.ts` may touch Web Audio.
- */
 
 type TwiddleTable = {
   cos: Float64Array
@@ -28,11 +20,6 @@ function assertFftSize(size: number): void {
   }
 }
 
-/**
- * Periodic Hann window. Periodic (dividing by `size`) rather than symmetric
- * (`size - 1`) because consecutive STFT frames overlap — the periodic form is
- * what sums to a constant under overlap-add.
- */
 export function getHannWindow(size: number): Float64Array {
   assertFftSize(size)
 
@@ -84,11 +71,6 @@ function getBitReversalTable(size: number): Uint32Array {
   return table
 }
 
-/**
- * Twiddle factors `exp(-2i*pi*j/size)` for `j < size / 2`. A butterfly at stage
- * `len` and offset `k` reads index `k * (size / len)`, so one table serves every
- * stage.
- */
 function getTwiddleTable(size: number): TwiddleTable {
   const cached = twiddleCache.get(size)
   if (cached) {
@@ -111,7 +93,6 @@ function getTwiddleTable(size: number): TwiddleTable {
   return table
 }
 
-/** In-place forward FFT. `real` and `imag` must be the same power-of-two length. */
 export function fftInPlace(real: Float64Array, imag: Float64Array): void {
   const size = real.length
   assertFftSize(size)
@@ -176,14 +157,6 @@ export type FftWorkspace = {
   windowScale: number
 }
 
-/**
- * Allocate reusable buffers for repeated STFT frames. Analysing a 5 minute
- * track runs ~18k frames, so per-frame allocation is not an option.
- *
- * `windowScale` normalizes magnitudes so a full-scale sine reads ~1.0 at its
- * peak bin regardless of window or fft size, which keeps thresholds meaningful
- * and tests readable.
- */
 export function createFftWorkspace(size: number): FftWorkspace {
   assertFftSize(size)
 
@@ -199,12 +172,6 @@ export function createFftWorkspace(size: number): FftWorkspace {
   }
 }
 
-/**
- * Window `samples` (starting at `offset`, zero-padded outside its bounds), run
- * the FFT, and write the normalized magnitude spectrum into
- * `workspace.magnitudes`. Returns that same buffer — it is overwritten on every
- * call, so callers must consume it before the next frame.
- */
 export function computeFrameMagnitudes(
   workspace: FftWorkspace,
   samples: Float32Array,
@@ -234,7 +201,6 @@ export function computeFrameMagnitudes(
   return magnitudes
 }
 
-/** Centre frequency of an fft bin, in Hz. */
 export function binToFrequency(
   bin: number,
   size: number,
@@ -243,7 +209,6 @@ export function binToFrequency(
   return (bin * sampleRate) / size
 }
 
-/** Nearest fft bin for a frequency, clamped to the usable range. */
 export function frequencyToBin(
   frequencyHz: number,
   size: number,

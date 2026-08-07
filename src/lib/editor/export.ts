@@ -41,7 +41,6 @@ export const EXPORT_QUALITY_LONG_EDGE: Record<ExportQualityPreset, number> = {
 const DEFAULT_MAX_EXPORT_DIMENSION = 8192
 const PROGRESS_INTERVAL_MS = 100
 
-
 export const ASPECT_PRESET_LABELS: Record<ExportAspectPreset, string> = {
   "16:9": "16:9",
   "1:1": "1:1",
@@ -764,11 +763,6 @@ function canvasToBlob(
   })
 }
 
-/**
- * Above this, buffering the whole file in RAM before handing over a Blob risks
- * taking the tab down — the ArrayBuffer and the Blob copy are both live at
- * finalize, so peak is roughly double the file.
- */
 export const STREAM_TO_DISK_THRESHOLD_BYTES = 256 * 1024 * 1024
 
 export function estimateVideoExportBytes(

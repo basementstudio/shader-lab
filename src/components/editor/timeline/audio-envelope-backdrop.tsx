@@ -5,16 +5,6 @@ import { sampleEnvelopeWindow } from "@/lib/editor/audio/envelope-lookup"
 import { useAudioStore } from "@/store"
 import type { AudioBandId } from "@/types/editor"
 
-/**
- * The band envelope drawn faintly behind a timeline lane, so you can see the
- * shape of the audio driving that parameter without leaving the timeline.
- *
- * Deliberately static: the whole visible window is known up front, so the path
- * is computed once per (band, offset, duration) and only the playhead moves over
- * it. No per-frame work — unlike the live spectrum in the audio popover.
- */
-
-/** Enough to keep kick transients distinct at panel width, cheap to build. */
 const PEAK_COUNT = 220
 const VIEW_WIDTH = 1000
 const VIEW_HEIGHT = 100

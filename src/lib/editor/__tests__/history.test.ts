@@ -29,10 +29,6 @@ function createSnapshot(): EditorHistorySnapshot {
 
 describe("getHistorySnapshotSignature", () => {
   test("ignores the playhead position", () => {
-    // Regression guard: while the timeline plays, `currentTime` changes every
-    // frame. When it was part of the signature, every frame re-armed the commit
-    // debounce so it never fired — edits made during playback were never
-    // committed to history, and the next undo discarded them.
     const before = createSnapshot()
     const after = createSnapshot()
     after.timeline.currentTime = 4.271

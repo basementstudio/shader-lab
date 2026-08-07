@@ -34,7 +34,6 @@ describe("sampleBand", () => {
   })
 
   test("returns the last sample past the end, clamping rather than wrapping", () => {
-    // A short timeline over a long track must hold, not loop the intro.
     expect(sampleBand(envelopes, "bass", 0, 999)).toBe(1)
   })
 
@@ -52,7 +51,6 @@ describe("sampleBand", () => {
   })
 
   test("shifts by offsetSeconds", () => {
-    // Offsetting by one sample period should read the next sample.
     expect(sampleBand(envelopes, "bass", 1 / ENVELOPE_RATE, 0)).toBeCloseTo(
       0.5,
       6
@@ -87,13 +85,11 @@ describe("sampleAllBands", () => {
 })
 
 describe("sampleEnvelopeWindow", () => {
-  // 4 seconds at 60Hz; each second holds a distinct value.
   const envelopes = makeEnvelopes(
     Array.from({ length: 240 }, (_, index) => (Math.floor(index / 60) + 1) / 4)
   )
 
   test("reads only the requested window of a longer track", () => {
-    // Seconds 2..3 hold 0.75.
     const peaks = sampleEnvelopeWindow(envelopes, "bass", 2, 1, 4)
 
     expect(peaks).toHaveLength(4)
@@ -134,7 +130,6 @@ describe("sampleEnvelopeWindow", () => {
 
 describe("sampleEnvelopeToPeaks", () => {
   test("keeps transients by taking the bucket maximum", () => {
-    // A mean-based reduction would flatten the spike to 0.25.
     const envelope = Float32Array.from([0, 0, 0, 1, 0, 0, 0, 0])
     const peaks = sampleEnvelopeToPeaks(envelope, 2)
 
@@ -144,7 +139,6 @@ describe("sampleEnvelopeToPeaks", () => {
   })
 
   test("returns a copy when the envelope is already short enough", () => {
-    // Exactly representable in Float32 so the equality check is meaningful.
     const envelope = Float32Array.from([0.25, 0.5])
     const peaks = sampleEnvelopeToPeaks(envelope, 8)
 

@@ -13,26 +13,9 @@ import { useAudioStore } from "@/store/audio-store"
 import { useTimelineStore } from "@/store/timeline-store"
 import { AUDIO_BAND_IDS, type AudioBandId } from "@/types/editor"
 
-/**
- * Single animation-frame loop that pushes live audio values straight into the
- * DOM elements that display them.
- *
- * Deliberately not React state: these change 60 times a second, and routing
- * them through `useState` would re-render the properties sidebar every frame and
- * make audio-driven sliders fight the pointer.
- *
- * Also deliberately not CSS custom properties on the document root, which is
- * what this used to do. Setting a custom property there invalidates style for
- * the entire document on every frame; writing to the ~10 elements that actually
- * care is far cheaper and keeps the cost proportional to what is on screen.
- *
- * Reference-counted: many components may ask for it, one loop runs.
- */
-
 type BandConsumer = {
   apply: (value: number) => void
   bandId: AudioBandId
-  /** Last written value, so a held or silent passage stops writing entirely. */
   last: number
 }
 
@@ -50,13 +33,8 @@ const spectrumTargets = new Set<SpectrumTarget>()
 let subscriberCount = 0
 let frameId: number | null = null
 
-/** Below this, a change is invisible at meter/dot size. */
 const WRITE_EPSILON = 0.004
 
-/**
- * Drive one element from a band. `apply` receives the band value in `[0,1]` and
- * should do nothing but write a style — it runs every frame.
- */
 export function registerBandConsumer(
   bandId: AudioBandId,
   apply: (value: number) => void
@@ -170,7 +148,6 @@ function tick(): void {
   frameId = window.requestAnimationFrame(tick)
 }
 
-/** Start the driver (if needed) and return a release function. */
 export function acquireLiveBandDriver(): () => void {
   if (typeof window === "undefined") {
     return () => undefined

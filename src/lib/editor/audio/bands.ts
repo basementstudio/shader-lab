@@ -4,40 +4,24 @@ import {
   type AudioBandId,
 } from "@/types/editor"
 
-/** Envelope samples per second. Matches the rAF loop; lookup interpolates. */
 export const ENVELOPE_RATE = 60
 
 export const DEFAULT_FFT_SIZE = 2048
 
-/**
- * Log-spaced magnitude bands retained per STFT frame. Far finer than needed to
- * place three boundaries (~1/7 octave), which is what lets the band editor
- * recompute envelopes without re-running the FFT. Doubles as spectrum-analyser
- * data for the advanced UI.
- */
 export const SPECTRO_BAND_COUNT = 64
 
 export const SPECTRO_MIN_HZ = 20
 export const SPECTRO_MAX_HZ = 20000
 
-/** dB window mapped onto `[0,1]` after normalization. */
 export const DYNAMIC_RANGE_DB = 48
 
-/** Below this, a band is treated as silent rather than amplified to noise. */
 export const SILENCE_REFERENCE_FLOOR = 1e-6
 
-/**
- * An envelope smoothed faster than the sample rate can represent will alias
- * when sampled at low export frame rates, so release is floored at one
- * envelope step.
- */
 export const MIN_RELEASE_MS = 1000 / ENVELOPE_RATE
 
 export const DEFAULT_AUDIO_BANDS: Record<AudioBandId, AudioBandConfig> = {
   bass: { attackMs: 8, gainDb: 0, highHz: 140, lowHz: 20, releaseMs: 140 },
   high: { attackMs: 6, gainDb: 0, highHz: 16000, lowHz: 2000, releaseMs: 90 },
-  // `level` is full-band RMS; its lowHz/highHz are inert but kept for shape
-  // uniformity so the UI can render one control set for every band.
   level: { attackMs: 20, gainDb: 0, highHz: 20000, lowHz: 20, releaseMs: 220 },
   mid: { attackMs: 8, gainDb: 0, highHz: 2000, lowHz: 140, releaseMs: 110 },
 }
@@ -55,22 +39,15 @@ export function createDefaultAudioBands(): Record<
   return bands
 }
 
-/** `level` ignores its frequency range because it is derived from RMS. */
 export function isFullBandBand(bandId: AudioBandId): boolean {
   return bandId === "level"
 }
 
 export type SpectroBandLayout = {
-  /** Geometric centre of each band, ascending. Length `bandCount`. */
   centerHz: Float32Array
-  /** Band edges, ascending. Length `bandCount + 1`. */
   edgeHz: Float32Array
 }
 
-/**
- * Geometrically spaced band edges from {@link SPECTRO_MIN_HZ} up to the lesser
- * of {@link SPECTRO_MAX_HZ} and nyquist.
- */
 export function createSpectroBandLayout(
   sampleRate: number,
   bandCount: number = SPECTRO_BAND_COUNT
@@ -96,17 +73,10 @@ export function createSpectroBandLayout(
 }
 
 export type BinRange = {
-  /** Inclusive. */
   endBin: number
-  /** Inclusive, never 0 — the DC bin carries no musical information. */
   startBin: number
 }
 
-/**
- * FFT bins overlapping `[lowHz, highHz]`. Always excludes DC and always returns
- * at least one bin, so a narrow or inverted range degrades to a single bin
- * rather than producing an empty mean.
- */
 export function frequencyToBinRange(
   lowHz: number,
   highHz: number,
@@ -136,17 +106,10 @@ export function frequencyToBinRange(
 }
 
 export type SpectroBandRange = {
-  /** Inclusive. */
   endIndex: number
-  /** Inclusive. */
   startIndex: number
 }
 
-/**
- * Spectro bands whose centre falls inside `[lowHz, highHz)`. Falls back to the
- * single nearest band when the range is narrower than the spectro resolution,
- * so every band config yields a usable envelope.
- */
 export function resolveSpectroBandRange(
   centerHz: Float32Array,
   lowHz: number,
@@ -178,7 +141,6 @@ export function resolveSpectroBandRange(
     return { endIndex, startIndex }
   }
 
-  // No centre landed inside the range — snap to the nearest band.
   const target = (lower + upper) / 2
   let nearest = 0
   let nearestDistance = Number.POSITIVE_INFINITY
@@ -194,7 +156,6 @@ export function resolveSpectroBandRange(
   return { endIndex: nearest, startIndex: nearest }
 }
 
-/** Keeps a user-edited band config inside physically sensible bounds. */
 export function clampBandConfig(
   config: AudioBandConfig,
   sampleRate = 48000

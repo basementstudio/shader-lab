@@ -21,7 +21,6 @@ const HOP = SAMPLE_RATE / ENVELOPE_RATE
 
 describe("frequencyToBinRange", () => {
   test("maps the default bass range and always excludes DC", () => {
-    // 20Hz -> bin 0.85 (floored to 0, raised to 1); 140Hz -> bin 5.97 (ceil 6).
     expect(frequencyToBinRange(20, 140, DEFAULT_FFT_SIZE, SAMPLE_RATE)).toEqual({
       endBin: 6,
       startBin: 1,
@@ -186,8 +185,6 @@ describe("analyzeSpectrogram", () => {
   })
 
   test("centres each frame on its timestamp", () => {
-    // An impulse at t=0.5s must peak at frame 30 (0.5 * 60), not ~half a window
-    // later. Left-aligned framing would report a kick ~21ms late.
     const samples = new Float32Array(SAMPLE_RATE)
     samples[Math.round(0.5 * SAMPLE_RATE)] = 1
 

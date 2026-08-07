@@ -1,16 +1,3 @@
-/**
- * Playwright harness for driving the editor UI end to end.
- *
- * Uses the Chrome Canary channel: the editor only renders under WebGPU, and
- * Canary is the most reliable way to get it headed on macOS.
- *
- * It writes screenshots as well as assertions, deliberately. Playwright's
- * `fill()` will happily type into a field a human can neither see nor focus, so
- * assertions alone can report success on a broken UI — that is how the unstyled
- * audio range inputs slipped through until a screenshot was inspected.
- *
- * Run: EDITOR_URL=http://localhost:3000/tools/shader-lab bun run scripts/ui-debug.ts <audio-file>
- */
 
 import { chromium, type ConsoleMessage, type Page } from "playwright"
 
@@ -32,7 +19,6 @@ async function shot(page: Page, name: string): Promise<void> {
   console.log(`  · shot: ${SHOT_DIR}/${name}.png`)
 }
 
-/** Read the audio store straight out of the page for ground truth. */
 async function readAudioState(page: Page): Promise<unknown> {
   return page.evaluate(() => {
     const hook = (
@@ -68,7 +54,6 @@ async function main(): Promise<void> {
     (await page.locator("body").innerText()).slice(0, 400).replace(/\n+/g, " | ")
   )
 
-  // --- open the Audio popover -------------------------------------------------
   console.log(`\n→ opening the Audio chip`)
   const chip = page.getByRole("button", { name: /audio/i }).first()
   console.log(`  chip count: ${await page.getByText("Audio", { exact: true }).count()}`)
@@ -83,7 +68,6 @@ async function main(): Promise<void> {
     await shot(page, "02-audio-popover")
   }
 
-  // --- load the track ---------------------------------------------------------
   console.log(`\n→ loading audio: ${AUDIO_PATH ?? "(none given, skipping)"}`)
   const fileInput = page.locator('input[type="file"][accept*="audio"]')
   console.log(`  audio file inputs found: ${await fileInput.count()}`)
@@ -95,7 +79,6 @@ async function main(): Promise<void> {
     console.log(`  audio state: ${JSON.stringify(await readAudioState(page))}`)
   }
 
-  // --- find a param row's audio-link button ----------------------------------
   console.log(`\n→ looking for param-row audio link buttons`)
   const linkButtons = page.getByRole("button", { name: /link .* to audio/i })
   const editButtons = page.getByRole("button", { name: /edit audio link/i })
@@ -109,7 +92,6 @@ async function main(): Promise<void> {
     await page.waitForTimeout(600)
     await shot(page, "04-link-popover")
 
-    // pick Bass
     const bass = page.getByRole("button", { name: "Bass", exact: true })
     console.log(`  Bass buttons: ${await bass.count()}`)
     if ((await bass.count()) > 0) {
@@ -119,7 +101,6 @@ async function main(): Promise<void> {
       console.log(`  audio state: ${JSON.stringify(await readAudioState(page))}`)
     }
 
-    // --- the reported bug: try to change the output range -------------------
     console.log(`\n→ attempting to edit the output range`)
     const atPeak = page.getByLabel("At peak")
     const atSilence = page.getByLabel("At silence")

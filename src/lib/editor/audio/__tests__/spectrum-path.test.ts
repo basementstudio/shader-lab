@@ -57,7 +57,6 @@ describe("spectrumHeights", () => {
   test("stays within [0,1]", () => {
     const magnitudes = new Float32Array(centerHz.length)
     for (let index = 0; index < magnitudes.length; index += 1) {
-      // Deliberately absurd values, well outside the display window.
       magnitudes[index] = index % 2 === 0 ? 40 : 1e-12
     }
 
@@ -105,8 +104,6 @@ describe("spectrumHeights", () => {
   })
 
   test("tilt lifts the high end relative to the low end", () => {
-    // Equal magnitude everywhere: without tilt the curve would be flat, so any
-    // rise towards the right is the tilt doing its job.
     const flat = new Float32Array(centerHz.length).fill(0.01)
     const heights = spectrumHeights(
       flat,
@@ -150,7 +147,6 @@ describe("buildSpectrumPath", () => {
       options
     )
 
-    // Every y coordinate should sit on the box floor.
     const ys = [...path.matchAll(/-?[\d.]+ (-?[\d.]+)/g)].map((match) =>
       Number(match[1])
     )

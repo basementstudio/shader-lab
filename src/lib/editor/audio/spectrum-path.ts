@@ -1,25 +1,9 @@
 import type { AudioSpectrogram } from "@/lib/editor/audio/spectrogram"
 
-/**
- * Turns a spectrogram frame into a filled SVG path, EQ-analyser style: log
- * frequency across X, decibels up Y.
- *
- * Pure so the shaping constants can be tuned against unit tests rather than by
- * squinting at the running editor. The per-frame cost is ~64 multiply-adds plus
- * one string build, which is negligible next to the frame itself — the expensive
- * FFT already happened at load time and its result is cached.
- */
-
 export type SpectrumDisplayOptions = {
-  /** Magnitude in dB that reaches the full height of the box. */
   ceilingDb: number
-  /** Magnitude in dB that sits on the floor of the box. */
   floorDb: number
   height: number
-  /**
-   * Lifts the high end so treble stays visible. Real music rolls off steeply,
-   * so an untilted spectrum is nearly empty above ~5kHz.
-   */
   tiltDbPerDecade: number
   width: number
 }
@@ -33,17 +17,11 @@ export const DEFAULT_SPECTRUM_DISPLAY: Omit<
   tiltDbPerDecade: 4.5,
 }
 
-/** Rise fast, fall slow — the characteristic spectrum-analyser motion. */
 export const SPECTRUM_RISE_COEFFICIENT = 0.5
 export const SPECTRUM_FALL_COEFFICIENT = 0.12
 
 const MAGNITUDE_EPSILON = 1e-9
 
-/**
- * The spectrogram holds raw per-frame magnitudes with no temporal smoothing —
- * only the four band envelopes are smoothed. Drawn raw, the curve flickers
- * violently frame to frame, so smooth into a persistent buffer.
- */
 export function smoothSpectrumInto(
   smoothed: Float32Array,
   frame: Float32Array
@@ -60,7 +38,6 @@ export function smoothSpectrumInto(
   }
 }
 
-/** Magnitudes to normalized `[0,1]` heights, dB-scaled and tilted. */
 export function spectrumHeights(
   magnitudes: Float32Array,
   centerHz: Float32Array,
@@ -95,14 +72,6 @@ function round(value: number): number {
   return Math.round(value * 10) / 10
 }
 
-/**
- * Filled path through the points, smoothed with Catmull-Rom converted to cubic
- * beziers.
- *
- * 64 log-spaced bins drawn as a polyline looks visibly stepped at panel width;
- * the reference analysers get their character from far more bins, and
- * interpolating is much cheaper than analysing more finely.
- */
 export function buildSpectrumPath(
   heights: Float32Array,
   centerHz: Float32Array,
@@ -161,7 +130,6 @@ export function buildSpectrumPath(
   return segments.join("")
 }
 
-/** Raw magnitudes for the frame nearest `time`, or `null` when out of range. */
 export function spectrogramFrameAt(
   spectrogram: AudioSpectrogram,
   time: number

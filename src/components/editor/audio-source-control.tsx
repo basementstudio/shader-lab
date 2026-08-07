@@ -110,7 +110,7 @@ function AdvancedBandEditor({ bandId }: { bandId: AudioBandId }) {
 
       {isFullBand ? (
         <Typography as="span" tone="muted" variant="caption">
-          Full-band loudness — frequency range does not apply.
+          Full band.
         </Typography>
       ) : (
         <div className="grid grid-cols-2 gap-2">
@@ -435,10 +435,6 @@ export function AudioSourceControl({
                         />
                       )}
                     </LabeledField>
-                    <Typography as="span" tone="muted" variant="caption">
-                      Shifts which part of the track the timeline reads, for
-                      working on a section of a long song.
-                    </Typography>
 
                     <button
                       className="flex cursor-pointer items-center justify-between border-t border-[var(--ds-border-divider)] pt-2 text-left"

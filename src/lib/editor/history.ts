@@ -9,10 +9,6 @@ import { useTimelineStore } from "@/store/timeline-store"
 
 type HistoryTimelineSnapshot = EditorHistorySnapshot["timeline"]
 
-/**
- * Only the serializable slice is cloned. Envelopes and the cached spectrogram
- * are derived and can be tens of megabytes, so they must never enter history.
- */
 function cloneHistoryAudio(audio: EditorAudioSnapshot): EditorAudioSnapshot {
   return structuredClone({
     bands: audio.bands,
@@ -96,18 +92,6 @@ export function applyEditorHistorySnapshot(snapshot: EditorHistorySnapshot): voi
   useAudioStore.getState().restoreSnapshot(snapshot.audio)
 }
 
-/**
- * Identity of the *document* for history purposes.
- *
- * Deliberately excludes `currentTime` and selection: they are view state, not
- * edits. Including `currentTime` meant that during playback the signature
- * changed every frame, so every frame re-armed the commit debounce and it never
- * fired — real edits made while the timeline was playing were never committed to
- * history at all, and were then lost by the next undo.
- *
- * Audio must be included, otherwise `flushPendingHistory` treats an audio-only
- * edit as "no change" and it becomes silently un-undoable.
- */
 export function getHistorySnapshotSignature(snapshot: EditorHistorySnapshot): string {
   return JSON.stringify({
     audio: snapshot.audio,

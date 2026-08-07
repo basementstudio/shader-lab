@@ -63,7 +63,6 @@ describe("getHannWindow", () => {
   })
 
   test("sums to half the window size", () => {
-    // The periodic Hann window has mean 0.5 exactly.
     expect(getWindowSum(getHannWindow(FFT_SIZE))).toBeCloseTo(FFT_SIZE / 2, 6)
   })
 
@@ -101,7 +100,6 @@ describe("fftInPlace", () => {
 
 describe("computeFrameMagnitudes", () => {
   test("locates a 1kHz sine at the expected bin and rejects distant bins", () => {
-    // 1000 Hz / (48000 / 2048) = 42.67 -> nearest bin is 43.
     const workspace = createFftWorkspace(FFT_SIZE)
     const samples = makeSine(1000, 1, FFT_SIZE * 2)
 
@@ -112,8 +110,6 @@ describe("computeFrameMagnitudes", () => {
   })
 
   test("a bin-centred full-scale sine reads a magnitude near 1.0", () => {
-    // Bin 43 centre is exactly 43 * 48000 / 2048 Hz, so there is no scalloping
-    // loss and the windowScale normalization is directly observable.
     const workspace = createFftWorkspace(FFT_SIZE)
     const centreHz = binToFrequency(43, FFT_SIZE, SAMPLE_RATE)
     const samples = makeSine(centreHz, 1, FFT_SIZE * 2)
@@ -147,7 +143,6 @@ describe("computeFrameMagnitudes", () => {
   test("a unit impulse produces a flat magnitude spectrum", () => {
     const workspace = createFftWorkspace(FFT_SIZE)
     const samples = new Float32Array(FFT_SIZE)
-    // Window peak is exactly 1.0 at size/2, so every bin should read windowScale.
     samples[FFT_SIZE / 2] = 1
 
     const magnitudes = computeFrameMagnitudes(workspace, samples, 0)
@@ -162,7 +157,6 @@ describe("computeFrameMagnitudes", () => {
     const workspace = createFftWorkspace(64)
     const samples = new Float32Array(8).fill(1)
 
-    // Entirely before the buffer: nothing to window, so every bin is silent.
     const magnitudes = computeFrameMagnitudes(workspace, samples, -1000)
 
     for (const magnitude of magnitudes) {

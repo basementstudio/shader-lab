@@ -227,9 +227,6 @@ function cloneTrack(track: TimelineTrack): TimelineTrack {
   return clone
 }
 
-/**
- * Migrate a track from the old string-based interpolation to the new easing field.
- */
 function migrateTrackEasing(track: TimelineTrack): TimelineTrack {
   const fallbackEasing = track.easing
     ?? (track.interpolation ? migrateInterpolationToEasing(track.interpolation) : null)
@@ -972,7 +969,6 @@ export const useTimelineStore = create<TimelineStore>((set, get) => ({
   },
 
   replaceState: (nextState) => {
-    // Migrate legacy track-level interpolation to per-keyframe easing
     const migratedTracks = cloneTracks(nextState.tracks).map(migrateTrackEasing)
     const nextSelection = sanitizeSelectionState(migratedTracks, {
       selectedKeyframeId: nextState.selectedKeyframeId,

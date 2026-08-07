@@ -51,8 +51,6 @@ export function buildLabProjectFile(): LabProjectFile {
       id: asset.id,
       kind: asset.kind,
     })),
-    // Envelopes and the spectrogram are derived and are deliberately not
-    // persisted — they are rebuilt by re-analysing the source on import.
     audio: structuredClone(useAudioStore.getState().getSnapshot()),
     composition: structuredClone(editorState.outputSize),
     exportedAt: new Date().toISOString(),
@@ -69,11 +67,6 @@ export function buildLabProjectFile(): LabProjectFile {
   }
 }
 
-/**
- * Coerce a persisted (or absent, or hand-edited) audio block into a usable
- * snapshot. Files written before audio existed simply get the defaults, and
- * unknown band ids or malformed links are dropped rather than failing the import.
- */
 function normalizeProjectAudio(audio: unknown): EditorAudioSnapshot {
   const defaults: EditorAudioSnapshot = {
     bands: createDefaultAudioBands(),
@@ -136,8 +129,6 @@ const maskConfigSchema = z.looseObject({
   source: z.enum(MASK_SOURCES),
 })
 
-// Fields shared by every layer kind. Later additions to `BaseLayer`
-// (e.g. `maskConfig`) stay optional so legacy `.lab` files keep importing.
 const baseLayerShape = {
   assetId: z.string().nullable(),
   blendMode: z.enum(BLEND_MODES),
@@ -219,14 +210,6 @@ const projectAudioSchema = z.looseObject({
   source: z.looseObject({ kind: z.string() }).nullable(),
 })
 
-/**
- * Highest version this build understands.
- *
- * Any older version imports fine (missing blocks fall back to defaults), while a
- * newer one is still rejected with a clear message rather than silently loading
- * a project this build cannot represent. Bumping the format is a one-constant
- * change instead of editing a closed literal union.
- */
 export const CURRENT_PROJECT_FILE_VERSION = 3
 
 const labProjectFileSchema = z.looseObject({
@@ -249,8 +232,6 @@ const labProjectFileSchema = z.looseObject({
   version: z.number().int().positive().max(CURRENT_PROJECT_FILE_VERSION),
 })
 
-// Checked in order; the first rule matching any issue path wins so the
-// user-facing wording stays identical to the pre-zod manual checks.
 const PARSE_ISSUE_MESSAGES: {
   matches: (path: readonly PropertyKey[]) => boolean
   message: string
@@ -318,11 +299,6 @@ const CUSTOM_SHADER_STARTER_SOURCES = new Set<string>([
   CUSTOM_SHADER_STARTER,
 ])
 
-/**
- * Whether the project ships custom-shader source that differs from the
- * built-in starters — i.e. code authored elsewhere that would execute in the
- * importer's browser and should require explicit consent first.
- */
 export function hasImportedCustomShaderCode(
   projectFile: LabProjectFile
 ): boolean {
@@ -391,8 +367,6 @@ export function applyLabProjectFile(
       projectFile.composition.height
     )
   } else {
-    // Legacy v1 files stored the viewport-fitted crop in `composition`,
-    // so importing that value as the real project composition poisons export.
     editorStore.updateSceneConfig(DEFAULT_SCENE_CONFIG)
   }
 

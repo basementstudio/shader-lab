@@ -1,18 +1,6 @@
 import type { AudioEnvelopeSet } from "@/lib/editor/audio/envelope"
 import { AUDIO_BAND_IDS, type AudioBandId } from "@/types/editor"
 
-/**
- * Band value at `time`, linearly interpolated between envelope samples.
- *
- * This is the single seam through which every consumer — the live render loop,
- * the offline exporter, agent screenshots, the sidebar readout — reads audio.
- * Keeping it a pure function of `time` is what makes exported video match the
- * preview frame for frame.
- *
- * Clamps rather than wraps at both ends: a 6 second timeline over a 4 minute
- * track should hold the last value, not loop the intro. `offsetSeconds` is how
- * the user chooses which part of a long track a short timeline sees.
- */
 export function sampleBand(
   envelopes: AudioEnvelopeSet,
   bandId: AudioBandId,
@@ -50,7 +38,6 @@ export function sampleBand(
   return lower + (upper - lower) * (position - lowerIndex)
 }
 
-/** Every band at one instant. Four array lookups — safe to call per frame. */
 export function sampleAllBands(
   envelopes: AudioEnvelopeSet,
   offsetSeconds: number,
@@ -65,13 +52,6 @@ export function sampleAllBands(
   return values
 }
 
-/**
- * Peaks for just the slice of a band the timeline actually shows.
- *
- * The timeline covers `[offsetSeconds, offsetSeconds + durationSeconds]` of the
- * track, which for a long song is a small window — drawing the whole envelope
- * would compress it into an unreadable smear.
- */
 export function sampleEnvelopeWindow(
   envelopes: AudioEnvelopeSet,
   bandId: AudioBandId,
@@ -105,11 +85,6 @@ export function sampleEnvelopeWindow(
   return sampleEnvelopeToPeaks(envelope.subarray(start, end), targetCount)
 }
 
-/**
- * Downsample an envelope to `targetCount` peaks for drawing. Takes the maximum
- * of each bucket rather than the mean so transients stay visible at any zoom
- * level — a mean-reduced waveform looks limp.
- */
 export function sampleEnvelopeToPeaks(
   envelope: Float32Array,
   targetCount: number

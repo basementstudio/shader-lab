@@ -6,7 +6,6 @@ import type {
   ParameterValue,
 } from "@/types/editor"
 
-/** Matches the bounds enforced by `clampLayerAdjustments` in `lib/editor/layers.ts`. */
 const LAYER_PROPERTY_BOUNDS: Record<
   "hue" | "opacity" | "saturation",
   { max: number; min: number }
@@ -22,14 +21,6 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max)
 }
 
-/**
- * Range remap: the band's `[0,1]` envelope onto the link's output range.
- *
- * `outMin > outMax` is legal and inverts the response. Because envelope samples
- * are guaranteed to be in `[0,1]`, the result always lies between the two
- * bounds — the clamps applied afterwards guard against a bad `outMin`/`outMax`,
- * not against the envelope.
- */
 export function remapBand(
   bandValue: number,
   outMin: number,
@@ -50,18 +41,6 @@ function quantizeToStep(value: number, step: number | undefined): number {
   return Math.round(value / step) * step
 }
 
-/**
- * Resolve a numeric parameter value.
- *
- * Clamps only against bounds the definition actually declares. The properties
- * sidebar falls back to `min 0 / max 100` for sliders, but those are widget
- * affordances — applying them here would invent a ceiling the shader does not
- * have (e.g. on an unbounded `scale`).
- *
- * `step` is not honoured by default: `updateLayerParam` does not enforce it and
- * keyframe interpolation produces continuous values, so quantizing would make
- * audio the only modulation source that snaps. Opt in per link via `quantize`.
- */
 export function resolveNumberValue(
   link: AudioLink,
   definition: ParameterDefinition,
@@ -87,7 +66,6 @@ export function resolveNumberValue(
     value = Math.round(value)
   }
 
-  // Rounding or quantizing can push back past a bound.
   return clamp(
     value,
     min ?? Number.NEGATIVE_INFINITY,
@@ -108,15 +86,6 @@ function componentIndex(link: AudioLink): number | "all" {
   }
 }
 
-/**
- * Resolve a vec2/vec3 value.
- *
- * `base` is the value the parameter would otherwise have this frame (keyframe
- * result if present, else the stored value). It is cloned before any
- * per-component write — mutating it would corrupt both the layer store and the
- * `paramsCloneCache` WeakMap in `renderer/contracts.ts`, producing drift that
- * persists across frames.
- */
 export function resolveVectorValue(
   link: AudioLink,
   definition: ParameterDefinition,
@@ -142,12 +111,10 @@ export function resolveVectorValue(
   }
 
   if (index >= expectedLength) {
-    // e.g. component "z" on a vec2 — skip rather than throw.
     return null
   }
 
   if (!Array.isArray(base) || base.length !== expectedLength) {
-    // No usable base to merge into; fall back to driving every component.
     return expectedLength === 2 ? [scalar, scalar] : [scalar, scalar, scalar]
   }
 
@@ -162,14 +129,6 @@ export function resolveVectorValue(
   return next as ParameterValue
 }
 
-/**
- * Threshold gate for boolean bindings.
- *
- * Deliberately has no hysteresis: a Schmitt trigger depends on the previous
- * output, which would make the result differ when scrubbing backwards, and
- * differ between the live loop and `prewarmExportFrame`'s repeated renders of
- * one timestamp. Chatter is controlled by the band's release time instead.
- */
 export function resolveBooleanValue(
   link: AudioLink,
   bandValue: number
@@ -177,7 +136,6 @@ export function resolveBooleanValue(
   return bandValue >= (link.threshold ?? DEFAULT_BOOLEAN_THRESHOLD)
 }
 
-/** Resolve a value for an animatable *layer* property rather than a parameter. */
 export function resolveLayerPropertyValue(
   link: AudioLink,
   property: LayerAnimatableProperty,
@@ -200,12 +158,6 @@ export function resolveLayerPropertyValue(
   )
 }
 
-/**
- * Resolve the value a single link produces, or `null` when it cannot apply.
- *
- * Exported so the UI can render a live readout for a modulated parameter
- * without running the whole frame pipeline.
- */
 export function resolveAudioLinkValue(
   link: AudioLink,
   definition: ParameterDefinition | null,
@@ -229,7 +181,6 @@ export function resolveAudioLinkValue(
     case "vec3":
       return resolveVectorValue(link, definition, base, bandValue)
     default:
-      // color/select/text carry no numeric range to remap onto.
       return null
   }
 }

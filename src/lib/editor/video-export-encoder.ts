@@ -235,9 +235,7 @@ async function probeEncoderConfig(
   config: VideoEncoderConfig,
   canvas: HTMLCanvasElement
 ): Promise<boolean> {
-  const result = createConfiguredEncoder(config, () => {
-    // Probe only; errors are reported via the returned error() accessor.
-  })
+  const result = createConfiguredEncoder(config, () => undefined)
 
   if (!result.encoder) {
     return false
@@ -360,9 +358,6 @@ async function createMuxer(
             },
           }
         : {}),
-      // Streaming cannot buffer every chunk to place the metadata up front, so
-      // reserve space for it instead. Both counts are exact, and the muxer only
-      // needs an upper bound.
       fastStart: stream
         ? {
             expectedAudioChunks: options.expectedAudioChunks ?? 0,

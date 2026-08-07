@@ -7,12 +7,6 @@ import {
 } from "@/lib/editor/audio/analysis-protocol"
 import { analyzeSpectrogramStepwise } from "@/lib/editor/audio/spectrogram"
 
-/**
- * Stage A off the main thread. Decoding stays on the main thread because Web
- * Audio is unavailable here; only the FFT pass runs in the Worker, receiving
- * already-decoded PCM.
- */
-
 const scope = self as unknown as DedicatedWorkerGlobalScope
 
 function post(message: AnalysisResponse, transfer?: ArrayBuffer[]): void {

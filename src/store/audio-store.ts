@@ -31,7 +31,6 @@ import {
 export type AudioAnalysisStatus =
   | "analyzing"
   | "error"
-  /** A source is referenced but its asset is not present (e.g. after import). */
   | "missing-source"
   | "idle"
   | "ready"
@@ -39,16 +38,11 @@ export type AudioAnalysisStatus =
 export interface AudioStoreState {
   analysisProgress: number
   bands: Record<AudioBandId, AudioBandConfig>
-  /** Derived from the spectrogram; never persisted. */
   envelopes: AudioEnvelopeSet | null
   error: string | null
   links: AudioLink[]
   offsetSeconds: number
   source: AudioSourceRef | null
-  /**
-   * Retained so band edits re-run only the cheap normalization pass instead of
-   * re-decoding. Never persisted and never put in a history snapshot.
-   */
   spectrogram: AudioSpectrogram | null
   status: AudioAnalysisStatus
 }
@@ -61,9 +55,7 @@ export interface AudioStoreActions {
   getSnapshot: () => EditorAudioSnapshot
   removeLink: (id: string) => void
   removeLinksForLayer: (layerId: string) => void
-  /** Load a project: discards analysis, since blob URLs do not persist. */
   replaceState: (snapshot: EditorAudioSnapshot) => void
-  /** Undo/redo: restores config while keeping the decoded audio intact. */
   restoreSnapshot: (snapshot: EditorAudioSnapshot) => void
   resetBands: () => void
   setLinkEnabled: (id: string, enabled: boolean) => void
@@ -94,19 +86,8 @@ function areBandsEqual(
   })
 }
 
-/** Not in state: an in-flight analysis must not trigger re-renders. */
 let activeAnalysis: AbortController | null = null
 
-/**
- * Build the modulation input for `buildRendererFrame`, or `null` when audio
- * cannot contribute anything.
- *
- * Shared by every consumer — the live render loop, the offline exporter and the
- * agent screenshot path — so they cannot disagree about what a frame looks like.
- * Returns a small object by reference; the envelopes themselves are never
- * copied, which matters because the exporter `structuredClone`s its timeline
- * several times per frame.
- */
 export function selectAudioModulationInput(
   state: Pick<AudioStoreState, "envelopes" | "links" | "offsetSeconds">
 ): AudioModulationInput | null {
@@ -141,8 +122,6 @@ export const useAudioStore = create<AudioStore>((set, get) => ({
     const key = getAudioLinkKey(link)
 
     set((state) => ({
-      // One link per layer+binding: adding to an already-linked parameter
-      // replaces rather than stacking.
       links: [
         ...state.links.filter((entry) => getAudioLinkKey(entry) !== key),
         link,
@@ -162,7 +141,6 @@ export const useAudioStore = create<AudioStore>((set, get) => ({
     try {
       const spectrogram = await analyzeAudioSource(url, {
         onProgress: (progress) => {
-          // Ignore progress from a superseded run.
           if (activeAnalysis === controller) {
             set({ analysisProgress: progress })
           }
@@ -258,8 +236,6 @@ export const useAudioStore = create<AudioStore>((set, get) => ({
       offsetSeconds: snapshot.offsetSeconds,
       source: snapshot.source,
       spectrogram: null,
-      // Blob URLs are not persisted, so an imported source must be re-linked
-      // and re-analysed before it can drive anything.
       status: snapshot.source ? "missing-source" : "idle",
     })
   },
@@ -270,9 +246,6 @@ export const useAudioStore = create<AudioStore>((set, get) => ({
 
     set({
       bands: bandsChanged ? { ...snapshot.bands } : state.bands,
-      // Keep the cached spectrogram and status: undoing a link edit must not
-      // throw away multi-second analysis work. Only recompute envelopes when the
-      // band configs actually changed.
       envelopes:
         bandsChanged && state.spectrogram
           ? computeEnvelopeSet(state.spectrogram, snapshot.bands)
@@ -325,8 +298,6 @@ export const useAudioStore = create<AudioStore>((set, get) => ({
       ),
     }
 
-    // Stage B only — a band edit must never re-decode or re-run the FFT. This is
-    // what makes dragging a frequency boundary feel instant.
     set({
       bands,
       envelopes: state.spectrogram
@@ -344,11 +315,6 @@ export const useAudioStore = create<AudioStore>((set, get) => ({
   },
 }))
 
-/**
- * Debug hook for the Playwright UI harness in `.context/ui-debug.ts`, which
- * needs ground truth about link state that the DOM alone cannot provide.
- * Development only — never exposed in a production bundle.
- */
 if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
   ;(
     window as unknown as { __SHADER_LAB_AUDIO_DEBUG__: () => unknown }

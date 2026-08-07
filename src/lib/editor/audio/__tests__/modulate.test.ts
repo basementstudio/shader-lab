@@ -93,7 +93,6 @@ describe("resolveNumberValue", () => {
   })
 
   test("does not invent bounds the definition omits", () => {
-    // The sidebar's min 0 / max 100 slider fallback must not leak in here.
     const link = makeLink({ outMax: 5000, outMin: 0 })
 
     expect(resolveNumberValue(link, unboundedNumber, 1)).toBe(5000)
@@ -108,7 +107,6 @@ describe("resolveNumberValue", () => {
   test("quantizes only when the link opts in", () => {
     const link = makeLink({ outMax: 1, outMin: 0, quantize: true })
 
-    // step 0.25 -> 0.6 snaps to 0.5
     expect(resolveNumberValue(link, boundedNumber, 0.6)).toBeCloseTo(0.5, 6)
   })
 

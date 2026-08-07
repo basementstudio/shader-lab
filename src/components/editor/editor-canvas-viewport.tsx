@@ -111,7 +111,7 @@ export function EditorCanvasViewport() {
             const layerId = addLayer(kind)
             setLayerAsset(layerId, asset.id)
           } catch {
-            // No-op.
+            return
           }
         }
       }

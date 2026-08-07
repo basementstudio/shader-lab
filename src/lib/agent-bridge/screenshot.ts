@@ -25,8 +25,6 @@ function buildRenderProjectState() {
 
   return {
     assets,
-    // Without this an agent screenshot at time t would show static values while
-    // the live canvas shows audio-driven ones — a silent disagreement.
     audio: selectAudioModulationInput(useAudioStore.getState()),
     compositionSize: editorState.outputSize,
     layers,

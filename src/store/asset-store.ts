@@ -45,8 +45,6 @@ const ACCEPTED_TYPES = new Set([
 const MAX_SIZE_BYTES = 100 * 1024 * 1024
 
 function validateFile(file: File): AssetKind {
-  // Kind inference lives in `lib/editor/media-file` so drag-and-drop and this
-  // upload path cannot drift apart.
   const kind = inferFileAssetKind(file)
   const mimeType = file.type.toLowerCase()
   const fileName = file.name.toLowerCase()
@@ -56,8 +54,6 @@ function validateFile(file: File): AssetKind {
     (!(
       ACCEPTED_TYPES.has(mimeType) ||
       (kind === "video" && fileName.endsWith(".mov")) ||
-      // Browsers report audio MIME types inconsistently (and sometimes not at
-      // all, e.g. for .m4a), so fall back to the extension.
       (kind === "audio" && isAudioFileName(fileName))
     ) &&
       kind !== "model")
@@ -126,8 +122,6 @@ function loadAudioMetadata(url: string): Promise<{ duration: number }> {
     audio.preload = "metadata"
 
     audio.onloadedmetadata = () => {
-      // Streamed sources can report Infinity; the analysis pass derives the real
-      // duration from the decoded sample count, so 0 is a safe placeholder.
       resolve({
         duration: Number.isFinite(audio.duration) ? audio.duration : 0,
       })

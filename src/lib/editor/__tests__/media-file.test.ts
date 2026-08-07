@@ -34,14 +34,11 @@ describe("inferFileAssetKind", () => {
   })
 
   test("infers audio from the extension when the mime type is missing", () => {
-    // Browsers frequently report an empty type for .m4a and .flac.
     expect(inferFileAssetKind(makeFile("track.m4a", ""))).toBe("audio")
     expect(inferFileAssetKind(makeFile("track.flac", ""))).toBe("audio")
   })
 
   test("keeps video containers as video even though they carry audio", () => {
-    // Order matters: audio/* is checked after video/*, so an mp4 with an audio
-    // track is still a video asset.
     expect(inferFileAssetKind(makeFile("clip.mp4", "video/mp4"))).toBe("video")
     expect(inferFileAssetKind(makeFile("clip.mov", ""))).toBe("video")
     expect(inferFileAssetKind(makeFile("clip.webm", "video/webm"))).toBe("video")

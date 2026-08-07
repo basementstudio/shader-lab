@@ -36,7 +36,6 @@ function analyzeSine(frequencyHz: number, amplitude: number, seconds = 2) {
   return computeEnvelopeSet(spectrogram, createDefaultAudioBands())
 }
 
-/** Value once the attack has settled, away from the start and end ramps. */
 function steadyState(
   envelopes: ReturnType<typeof computeEnvelopeSet>,
   bandId: AudioBandId
@@ -50,8 +49,6 @@ describe("computeReferenceLevel", () => {
   })
 
   test("approximates the 99th percentile, not the peak", () => {
-    // 99 samples at 0.1 and one at 100. A peak-based reference would return
-    // ~100 and crush everything else; the percentile must stay near 0.1.
     const series = new Float32Array(100).fill(0.1)
     series[99] = 100
 
@@ -63,12 +60,6 @@ describe("computeReferenceLevel", () => {
 })
 
 describe("raw band bucketing", () => {
-  // Isolation is asserted on the *raw* magnitudes, before normalization.
-  // Normalized envelopes cannot express it: normalization is per-band and
-  // relative, so a constant tone drives every band that receives any energy to
-  // full scale (its p99 equals its own steady value). That is correct for real,
-  // dynamic music and is why the user-facing guarantee is temporal
-  // discrimination, tested below.
   function rawSteady(frequencyHz: number, bandId: AudioBandId): number {
     const spectrogram = analyzeSpectrogram(
       makeSine(frequencyHz, 0.8, 1),
@@ -113,8 +104,6 @@ describe("raw band bucketing", () => {
 })
 
 describe("temporal band discrimination", () => {
-  // The user-facing guarantee: when the music moves between bands, the
-  // envelopes follow.
   function analyzeTwoTone(): ReturnType<typeof computeEnvelopeSet> {
     const seconds = 2
     const sampleCount = SAMPLE_RATE * seconds
@@ -161,8 +150,6 @@ describe("temporal band discrimination", () => {
 
 describe("quiet tracks", () => {
   test("a very quiet 60Hz sine still drives bass to full scale", () => {
-    // The whole point of per-band percentile normalization: a track mastered
-    // 40dB down must still be usable without the user touching a gain control.
     const envelopes = analyzeSine(60, 0.008)
 
     expect(steadyState(envelopes, "bass")).toBeGreaterThan(0.9)
@@ -178,7 +165,6 @@ describe("quiet tracks", () => {
 
 describe("self-calibrating normalization", () => {
   test("derives a window from the series' own distribution", () => {
-    // Two levels 20dB apart: 1.0 and 0.1.
     const series = new Float32Array(200)
     for (let index = 0; index < series.length; index += 1) {
       series[index] = index % 2 === 0 ? 1 : 0.1
@@ -204,10 +190,6 @@ describe("self-calibrating normalization", () => {
   })
 
   test("a loudness-compressed source still uses most of the [0,1] range", () => {
-    // Regression guard for the real-music failure this replaced: a fixed 48dB
-    // window left a mastered track's bands clustered between 0.7 and 0.95,
-    // which reads as visually static. Here bass energy varies only ~12dB, as on
-    // a compressed master.
     const seconds = 4
     const sampleCount = SAMPLE_RATE * seconds
     const samples = new Float32Array(sampleCount)
@@ -251,7 +233,6 @@ describe("silence", () => {
 
 describe("attack and release", () => {
   test("rises during attack and decays after the signal stops", () => {
-    // 0.5s of 60Hz then 0.5s of silence.
     const samples = new Float32Array(SAMPLE_RATE)
     for (let index = 0; index < SAMPLE_RATE / 2; index += 1) {
       samples[index] = 0.8 * Math.sin((2 * Math.PI * 60 * index) / SAMPLE_RATE)
@@ -283,7 +264,6 @@ describe("attack and release", () => {
     const releaseMs = 100
     smoothEnvelopeInPlace(envelope, 0, releaseMs, ENVELOPE_RATE)
 
-    // After `releaseMs`, a one-pole decay from 1 sits at exp(-1) ~= 0.368.
     const afterOneTimeConstant = envelope[Math.round(ENVELOPE_RATE / 10)] ?? 0
 
     expect(afterOneTimeConstant).toBeGreaterThan(Math.exp(-1) * 0.85)
@@ -344,7 +324,6 @@ describe("stage B determinism and locality", () => {
   })
 
   test("editing the high band leaves bass byte-identical", () => {
-    // This is the property the instant band editor depends on.
     const spectrogram = analyzeSpectrogram(
       makeSine(60, 0.6, 1),
       SAMPLE_RATE

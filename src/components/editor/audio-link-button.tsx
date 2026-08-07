@@ -35,7 +35,6 @@ export type AudioLinkControl = {
   layerId: string
 }
 
-/** Small level-meter glyph, distinct from the keyframe rhombus. */
 export function AudioMeterIcon() {
   return (
     <svg aria-hidden="true" fill="none" viewBox="0 0 14 14">
@@ -50,8 +49,6 @@ function resolveDefaultRange(
   definition: ParameterDefinition | null
 ): { outMax: number; outMin: number } {
   if (!definition) {
-    // Layer properties (opacity/hue/saturation) — opacity's range is the useful
-    // default and the value is clamped per property anyway.
     return { outMax: 1, outMin: 0 }
   }
 
@@ -62,16 +59,9 @@ function resolveDefaultRange(
   const min = "min" in definition ? definition.min : undefined
   const max = "max" in definition ? definition.max : undefined
 
-  // Sweep the declared range when there is one; otherwise pick something
-  // visible rather than inventing a bound the shader does not have.
   return { outMax: max ?? 1, outMin: min ?? 0 }
 }
 
-/**
- * Its own component so the band registration mounts with the popup content
- * rather than with the always-present trigger — a ref that only becomes
- * non-null later would never get registered.
- */
 function BandLevelBar({ bandId }: { bandId: AudioBandId }) {
   const ref = useBandValueElement<HTMLSpanElement>(bandId, (element, value) => {
     element.style.transform = `scaleY(${value})`
@@ -87,7 +77,6 @@ function BandLevelBar({ bandId }: { bandId: AudioBandId }) {
   )
 }
 
-/** Same footprint as the real button, so measured heights stay identical. */
 function AudioLinkPlaceholder() {
   return <span aria-hidden="true" className="inline-flex h-6 w-6 shrink-0" />
 }
@@ -97,15 +86,11 @@ export function AudioLinkButton({
 }: {
   control: AudioLinkControl | null
 }) {
-  // Cheap enough to run in every measured copy: a single string selector that
-  // only changes when analysis state changes.
   const status = useAudioStore((state) => state.status)
   const measuring = useIsMeasuringLayout()
 
   const binding = control?.binding ?? null
 
-  // Nothing to offer until a track is loaded — keeps the row uncluttered for
-  // everyone not using audio.
   if (!(binding && control) || status !== "ready") {
     return null
   }
@@ -114,8 +99,6 @@ export function AudioLinkButton({
     return null
   }
 
-  // Guards are shared so the placeholder occupies space in exactly the cases
-  // the real button does, keeping the measured height correct.
   if (measuring) {
     return <AudioLinkPlaceholder />
   }
@@ -139,14 +122,12 @@ function AudioLinkTrigger({
   const link = findAudioLink(links, control.layerId, binding)
   const isBoolean = control.definition?.type === "boolean"
 
-  // Pulses with the linked band; written straight to the element by the driver.
   const iconRef = useBandValueElement<HTMLSpanElement>(
     link?.band ?? null,
     (element, value) => {
       element.style.opacity = `${0.55 + 0.45 * value}`
     }
   )
-
 
   return (
     <Popover.Root modal={false}>
@@ -161,8 +142,6 @@ function AudioLinkTrigger({
           link && "text-[rgb(182_151_255)]"
         )}
         onPointerDown={(event) => {
-          // This button sits inside the Slider's label, so let the popover own
-          // the gesture rather than letting it reach the slider control.
           event.stopPropagation()
         }}
       >
@@ -242,9 +221,6 @@ function AudioLinkTrigger({
                       <NumberInput
                         className={numberInputControlClassName}
                         onPointerDown={(event) => {
-                          // base-ui suppresses the popup's default pointer behaviour, which also
-                          // suppresses native focus-on-click. Focus explicitly so typing and
-                          // Backspace go to the field instead of the editor's global shortcuts.
                           event.currentTarget.focus()
                         }}
                         id={`${fieldIdPrefix}-threshold`}
@@ -271,9 +247,6 @@ function AudioLinkTrigger({
                         <NumberInput
                           className={numberInputControlClassName}
                           onPointerDown={(event) => {
-                            // base-ui suppresses the popup's default pointer behaviour, which also
-                            // suppresses native focus-on-click. Focus explicitly so typing and
-                            // Backspace go to the field instead of the editor's global shortcuts.
                             event.currentTarget.focus()
                           }}
                           id={`${fieldIdPrefix}-min`}
@@ -296,9 +269,6 @@ function AudioLinkTrigger({
                         <NumberInput
                           className={numberInputControlClassName}
                           onPointerDown={(event) => {
-                            // base-ui suppresses the popup's default pointer behaviour, which also
-                            // suppresses native focus-on-click. Focus explicitly so typing and
-                            // Backspace go to the field instead of the editor's global shortcuts.
                             event.currentTarget.focus()
                           }}
                           id={`${fieldIdPrefix}-max`}
@@ -310,12 +280,6 @@ function AudioLinkTrigger({
                         />
                       </div>
                     </div>
-                  )}
-
-                  {!isBoolean && (
-                    <Typography as="span" tone="muted" variant="caption">
-                      Set “at silence” above “at peak” to invert the response.
-                    </Typography>
                   )}
 
                   <div className="flex items-center justify-between gap-2 border-t border-[var(--ds-border-divider)] pt-2">
@@ -342,7 +306,7 @@ function AudioLinkTrigger({
                 </>
               ) : (
                 <Typography as="span" tone="muted" variant="caption">
-                  Pick a band to drive this parameter.
+                  Pick a band.
                 </Typography>
               )}
             </div>

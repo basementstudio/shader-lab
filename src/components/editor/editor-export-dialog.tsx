@@ -1563,10 +1563,11 @@ function VideoTabContent({
             tone="muted"
             variant="caption"
           >
-            {`Renders ${formatRangeSeconds(videoStart)} to ${formatRangeSeconds(videoStart + videoDuration)} of the timeline, around ${estimatedSizeLabel}.`}
+            {`Renders ${formatRangeSeconds(videoStart)} to ${formatRangeSeconds(videoStart + videoDuration)} of the timeline, up to ${estimatedSizeLabel}.`}
             {willStreamToDisk
               ? " Large enough that it will be written straight to a file you choose, rather than held in memory."
               : ""}
+            {" Simple scenes and small frame sizes often come out well under that ceiling."}
           </Typography>
         </div>
       </FieldLabel>

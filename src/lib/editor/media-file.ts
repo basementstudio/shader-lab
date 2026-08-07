@@ -14,6 +14,29 @@ export function isSvgMediaSource(input: {
   )
 }
 
+export const AUDIO_FILE_EXTENSIONS = [
+  ".mp3",
+  ".wav",
+  ".m4a",
+  ".aac",
+  ".flac",
+  ".ogg",
+  ".oga",
+  ".opus",
+] as const
+
+export const AUDIO_FILE_ACCEPT = `audio/*,${AUDIO_FILE_EXTENSIONS.join(",")}`
+
+export function isAudioFileName(fileName: string | null | undefined): boolean {
+  const lower = fileName?.toLowerCase()
+
+  if (!lower) {
+    return false
+  }
+
+  return AUDIO_FILE_EXTENSIONS.some((extension) => lower.endsWith(extension))
+}
+
 export function inferFileAssetKind(file: File): AssetKind | null {
   const mimeType = file.type.toLowerCase()
   const fileName = file.name.toLowerCase()
@@ -28,6 +51,10 @@ export function inferFileAssetKind(file: File): AssetKind | null {
 
   if (fileName.endsWith(".mov")) {
     return "video"
+  }
+
+  if (mimeType.startsWith("audio/") || isAudioFileName(fileName)) {
+    return "audio"
   }
 
   if (

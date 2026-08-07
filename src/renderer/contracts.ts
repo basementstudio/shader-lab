@@ -1,3 +1,7 @@
+import {
+  applyAudioModulation,
+  type AudioModulationInput,
+} from "@/lib/editor/audio/links"
 import { cloneParameterValues } from "@/lib/editor/parameter-schema"
 import { evaluateTimelineForLayers } from "@/lib/editor/timeline/evaluate"
 import { createProjectClock } from "@/renderer/project-clock"
@@ -37,6 +41,7 @@ export interface RendererFrame {
 }
 
 export interface EditorRenderer {
+  destroyDevice(): Promise<void>
   dispose(): void
   exportFrame(frame: RendererFrame, renderSize: Size): HTMLCanvasElement
   hasPendingCompilations(): boolean
@@ -46,10 +51,12 @@ export interface EditorRenderer {
   render(frame: RendererFrame): void
   resize(size: Size, pixelRatio: number): void
   setPreviewFrozen(frozen: boolean): void
+  waitForGpuIdle(): Promise<boolean>
 }
 
-type BuildRendererFrameInput = {
+export type BuildRendererFrameInput = {
   assets: EditorAsset[]
+  audio?: AudioModulationInput | null
   clockTime?: number
   cropAspectRatio?: number | null
   delta: number
@@ -80,11 +87,19 @@ export function buildRendererFrame(
   input: BuildRendererFrameInput
 ): RendererFrame {
   const assetById = new Map(input.assets.map((asset) => [asset.id, asset]))
-  const evaluatedLayers = evaluateTimelineForLayers(
+  const keyframeStates = evaluateTimelineForLayers(
     input.layers,
     input.timeline.tracks,
     input.timeline.currentTime
   )
+  const evaluatedLayers = input.audio
+    ? applyAudioModulation(
+        input.layers,
+        keyframeStates,
+        input.audio,
+        input.timeline.currentTime
+      )
+    : keyframeStates
   const evaluatedById = new Map(
     evaluatedLayers.map((state) => [state.layerId, state])
   )

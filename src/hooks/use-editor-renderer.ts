@@ -7,7 +7,12 @@ import {
   browserSupportsWebGPU,
   createWebGPURenderer,
 } from "@/renderer/create-webgpu-renderer"
+import { isPreviewRenderLocked } from "@/lib/editor/preview-render-lock"
 import { useAssetStore } from "@/store/asset-store"
+import {
+  selectAudioModulationInput,
+  useAudioStore,
+} from "@/store/audio-store"
 import { useEditorStore } from "@/store/editor-store"
 import { useLayerStore } from "@/store/layer-store"
 import { useMetricsStore } from "@/store/metrics-store"
@@ -115,8 +120,24 @@ export function useEditorRenderer() {
 
         resizeObserver.observe(viewportElement)
 
+        const scheduleNextFrame = () => {
+          animationFrameRef.current = window.requestAnimationFrame(
+            (nextNow) => {
+              void renderFrame(nextNow)
+            }
+          )
+        }
+
         const renderFrame = async (now: number) => {
           frameInFlight = true
+
+          if (isPreviewRenderLocked()) {
+            lastFrameTime = now
+            frameInFlight = false
+            useMetricsStore.getState().setFps(0)
+            scheduleNextFrame()
+            return
+          }
 
           const layerState = useLayerStore.getState()
           const assetState = useAssetStore.getState()
@@ -148,6 +169,7 @@ export function useEditorRenderer() {
 
           const frame = buildRendererFrame({
             assets: assetState.assets,
+            audio: selectAudioModulationInput(useAudioStore.getState()),
             clockTime,
             delta,
             layers: layerState.layers,
@@ -169,11 +191,7 @@ export function useEditorRenderer() {
 
           renderer.render(frame)
           frameInFlight = false
-          animationFrameRef.current = window.requestAnimationFrame(
-            (nextNow) => {
-              void renderFrame(nextNow)
-            }
-          )
+          scheduleNextFrame()
         }
 
         animationFrameRef.current = window.requestAnimationFrame((nextNow) => {

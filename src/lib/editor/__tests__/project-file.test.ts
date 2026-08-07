@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import {
+  CURRENT_PROJECT_FILE_VERSION,
   type LabProjectFile,
   parseLabProjectFile,
 } from "@/lib/editor/project-file"
@@ -80,11 +81,117 @@ describe("parseLabProjectFile", () => {
     )
   })
 
-  test("rejects an unsupported version", () => {
-    const fixture = { ...createValidProjectFile(), version: 3 }
+  test("rejects a version newer than this build understands", () => {
+    const fixture = {
+      ...createValidProjectFile(),
+      version: CURRENT_PROJECT_FILE_VERSION + 1,
+    }
 
     expect(() => parseLabProjectFile(JSON.stringify(fixture))).toThrow(
       "Unsupported Shader Lab project version."
+    )
+  })
+
+  test("accepts the current version", () => {
+    const fixture = {
+      ...createValidProjectFile(),
+      version: CURRENT_PROJECT_FILE_VERSION,
+    }
+
+    expect(parseLabProjectFile(JSON.stringify(fixture)).version).toBe(
+      CURRENT_PROJECT_FILE_VERSION
+    )
+  })
+
+  test("accepts a file with no audio block, as pre-audio versions have", () => {
+    const fixture = createValidProjectFile()
+
+    expect("audio" in fixture).toBe(false)
+    expect(() => parseLabProjectFile(JSON.stringify(fixture))).not.toThrow()
+  })
+
+  test("round-trips an audio block", () => {
+    const fixture = {
+      ...createValidProjectFile(),
+      audio: {
+        bands: {
+          bass: {
+            attackMs: 8,
+            gainDb: 3,
+            highHz: 140,
+            lowHz: 20,
+            releaseMs: 140,
+          },
+        },
+        links: [
+          {
+            band: "bass",
+            binding: {
+              key: "speed",
+              kind: "param",
+              label: "Speed",
+              valueType: "number",
+            },
+            enabled: true,
+            id: "link-1",
+            layerId: "layer-1",
+            outMax: 2,
+            outMin: 0,
+          },
+        ],
+        offsetSeconds: 12.5,
+        source: { assetId: "asset-1", kind: "asset" },
+      },
+      version: CURRENT_PROJECT_FILE_VERSION,
+    }
+
+    const parsed = parseLabProjectFile(JSON.stringify(fixture))
+
+    expect(parsed.audio?.offsetSeconds).toBe(12.5)
+    expect(parsed.audio?.links).toHaveLength(1)
+    expect(parsed.audio?.bands.bass?.gainDb).toBe(3)
+  })
+
+  test("a partial audio block does not reject the whole project", () => {
+    const partials: unknown[] = [
+      {},
+      { offsetSeconds: 4 },
+      { links: [] },
+      { source: null },
+      {
+        links: [
+          {
+            band: "bass",
+            binding: { key: "speed", kind: "param", label: "Speed", valueType: "number" },
+            id: "link-1",
+            layerId: "layer-1",
+            outMax: 1,
+            outMin: 0,
+          },
+        ],
+      },
+    ]
+
+    for (const audio of partials) {
+      const fixture = {
+        ...createValidProjectFile(),
+        audio,
+        version: CURRENT_PROJECT_FILE_VERSION,
+      }
+
+      expect(() => parseLabProjectFile(JSON.stringify(fixture))).not.toThrow()
+    }
+  })
+
+  test("a genuinely malformed audio block reports the audio, not the project", () => {
+    const fixture = {
+      ...createValidProjectFile(),
+      audio: { offsetSeconds: "loud" },
+      version: CURRENT_PROJECT_FILE_VERSION,
+    }
+
+    expect(() => parseLabProjectFile(JSON.stringify(fixture))).toThrow(
+      /audio configuration/i
     )
   })
 

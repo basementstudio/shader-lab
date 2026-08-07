@@ -28,13 +28,6 @@ import {
   toVec2Value,
 } from "./properties-sidebar-utils"
 
-/**
- * Parameter editor for the blob-tracking layer's inner effect. The fields
- * write into the layer's hidden `innerEffectParams` JSON param (via the
- * normal updateLayerParam path, so undo and change detection apply), not
- * into layer params directly. Inner-effect params are not keyframeable in
- * v1, so there are no timeline affordances here.
- */
 export function BlobInnerEffectSection({
   layerId,
   onInteractionEnd,
@@ -77,11 +70,7 @@ export function BlobInnerEffectSection({
   }
 
   return (
-    <section className="flex flex-col gap-3 border-t border-[var(--ds-border-divider)] px-4 pt-[14px] pb-4 first:border-t-0">
-      <Typography className="uppercase" tone="secondary" variant="overline">
-        {definition.defaultName} Settings
-      </Typography>
-
+    <div className="flex flex-col gap-[10px] border-[var(--ds-border-divider)] border-l pl-3">
       {definitions.map((entry) => {
         if (!isParamVisible(entry, innerValues, [...definition.params])) {
           return null
@@ -98,7 +87,7 @@ export function BlobInnerEffectSection({
           />
         )
       })}
-    </section>
+    </div>
   )
 }
 
@@ -198,8 +187,6 @@ function InnerEffectField({
       )
 
     default:
-      // vec3 and text params are not editable here (no inner effect uses a
-      // visible one today).
       return null
   }
 }

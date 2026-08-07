@@ -1,21 +1,28 @@
 import { z } from "zod"
 import { useAssetStore } from "@/store/asset-store"
+import { useAudioStore } from "@/store/audio-store"
 import { useEditorStore } from "@/store/editor-store"
 import { useLayerStore } from "@/store/layer-store"
 import { useTimelineStore } from "@/store/timeline-store"
 import { createDefaultColorCurves } from "@/lib/color-curves"
+import {
+  clampBandConfig,
+  createDefaultAudioBands,
+} from "@/lib/editor/audio/bands"
 import {
   CUSTOM_EFFECT_STARTER,
   CUSTOM_SHADER_STARTER,
 } from "@/lib/editor/custom-shader/shared"
 import type {
   EditorAsset,
+  EditorAudioSnapshot,
   EditorLayer,
   ProjectPresetConfig,
   SceneConfig,
   Size,
 } from "@/types/editor"
 import {
+  AUDIO_BAND_IDS,
   BLEND_MODES,
   DEFAULT_SCENE_CONFIG,
   EFFECT_LAYER_TYPES,
@@ -26,6 +33,7 @@ import {
 } from "@/types/editor"
 
 export interface LabProjectFile extends ProjectPresetConfig {
+  audio?: EditorAudioSnapshot
   composition: Size
   format: "shader-lab"
   sceneConfig?: SceneConfig
@@ -43,6 +51,7 @@ export function buildLabProjectFile(): LabProjectFile {
       id: asset.id,
       kind: asset.kind,
     })),
+    audio: structuredClone(useAudioStore.getState().getSnapshot()),
     composition: structuredClone(editorState.outputSize),
     exportedAt: new Date().toISOString(),
     format: "shader-lab",
@@ -54,7 +63,57 @@ export function buildLabProjectFile(): LabProjectFile {
       loop: timelineState.loop,
       tracks: timelineState.tracks,
     }),
-    version: 2,
+    version: CURRENT_PROJECT_FILE_VERSION,
+  }
+}
+
+function normalizeProjectAudio(audio: unknown): EditorAudioSnapshot {
+  const defaults: EditorAudioSnapshot = {
+    bands: createDefaultAudioBands(),
+    links: [],
+    offsetSeconds: 0,
+    source: null,
+  }
+
+  if (!audio || typeof audio !== "object") {
+    return defaults
+  }
+
+  const candidate = audio as Partial<EditorAudioSnapshot>
+  const bands = createDefaultAudioBands()
+
+  if (candidate.bands && typeof candidate.bands === "object") {
+    for (const bandId of AUDIO_BAND_IDS) {
+      const persisted = candidate.bands[bandId]
+
+      if (persisted) {
+        bands[bandId] = clampBandConfig({ ...bands[bandId], ...persisted })
+      }
+    }
+  }
+
+  const links = Array.isArray(candidate.links)
+    ? candidate.links
+        .filter(
+          (link) =>
+            typeof link?.id === "string" &&
+            typeof link?.layerId === "string" &&
+            AUDIO_BAND_IDS.includes(link.band) &&
+            typeof link?.outMin === "number" &&
+            typeof link?.outMax === "number"
+        )
+        .map((link) => ({ ...link, enabled: link.enabled !== false }))
+    : []
+
+  return {
+    bands,
+    links,
+    offsetSeconds:
+      typeof candidate.offsetSeconds === "number" &&
+      Number.isFinite(candidate.offsetSeconds)
+        ? candidate.offsetSeconds
+        : 0,
+    source: candidate.source ?? null,
   }
 }
 
@@ -72,8 +131,6 @@ const maskConfigSchema = z.looseObject({
   source: z.enum(MASK_SOURCES),
 })
 
-// Fields shared by every layer kind. Later additions to `BaseLayer`
-// (e.g. `maskConfig`) stay optional so legacy `.lab` files keep importing.
 const baseLayerShape = {
   assetId: z.string().nullable(),
   blendMode: z.enum(BLEND_MODES),
@@ -130,8 +187,36 @@ const assetReferenceSchema = z.looseObject({
   kind: z.string(),
 })
 
+const audioBandConfigSchema = z.looseObject({
+  attackMs: z.number(),
+  gainDb: z.number(),
+  highHz: z.number(),
+  lowHz: z.number(),
+  releaseMs: z.number(),
+})
+
+const audioLinkSchema = z.looseObject({
+  band: z.string(),
+  binding: z.looseObject({}),
+  enabled: z.boolean().optional(),
+  id: z.string(),
+  layerId: z.string(),
+  outMax: z.number(),
+  outMin: z.number(),
+})
+
+const projectAudioSchema = z.looseObject({
+  bands: z.record(z.string(), audioBandConfigSchema).optional(),
+  links: z.array(audioLinkSchema).optional(),
+  offsetSeconds: z.number().optional(),
+  source: z.looseObject({ kind: z.string() }).nullable().optional(),
+})
+
+export const CURRENT_PROJECT_FILE_VERSION = 3
+
 const labProjectFileSchema = z.looseObject({
   assets: z.array(assetReferenceSchema),
+  audio: projectAudioSchema.optional(),
   composition: z.looseObject({
     height: z.number().positive(),
     width: z.number().positive(),
@@ -146,11 +231,9 @@ const labProjectFileSchema = z.looseObject({
     loop: z.boolean(),
     tracks: z.array(timelineTrackSchema),
   }),
-  version: z.union([z.literal(1), z.literal(2)]),
+  version: z.number().int().positive().max(CURRENT_PROJECT_FILE_VERSION),
 })
 
-// Checked in order; the first rule matching any issue path wins so the
-// user-facing wording stays identical to the pre-zod manual checks.
 const PARSE_ISSUE_MESSAGES: {
   matches: (path: readonly PropertyKey[]) => boolean
   message: string
@@ -178,6 +261,10 @@ const PARSE_ISSUE_MESSAGES: {
   {
     matches: (path) => path[0] === "composition",
     message: "Project file is missing composition dimensions.",
+  },
+  {
+    matches: (path) => path[0] === "audio",
+    message: "Project file has an unreadable audio configuration.",
   },
 ]
 
@@ -218,11 +305,6 @@ const CUSTOM_SHADER_STARTER_SOURCES = new Set<string>([
   CUSTOM_SHADER_STARTER,
 ])
 
-/**
- * Whether the project ships custom-shader source that differs from the
- * built-in starters — i.e. code authored elsewhere that would execute in the
- * importer's browser and should require explicit consent first.
- */
 export function hasImportedCustomShaderCode(
   projectFile: LabProjectFile
 ): boolean {
@@ -241,10 +323,26 @@ export function hasImportedCustomShaderCode(
   })
 }
 
+function isAudioSourceResolvable(
+  source: EditorAudioSnapshot["source"],
+  assetIds: Set<string>,
+  layers: EditorLayer[]
+): boolean {
+  if (!source) {
+    return true
+  }
+
+  if (source.kind === "asset") {
+    return assetIds.has(source.assetId)
+  }
+
+  return layers.some((layer) => layer.id === source.layerId)
+}
+
 export function applyLabProjectFile(
   projectFile: LabProjectFile,
   currentAssets: EditorAsset[]
-): { missingAssetCount: number } {
+): { missingAssetCount: number; missingAudioSource: boolean } {
   const assetIds = new Set(currentAssets.map((asset) => asset.id))
   const assetRefById = new Map(
     projectFile.assets.map((asset) => [asset.id, asset])
@@ -277,6 +375,9 @@ export function applyLabProjectFile(
     tracks: projectFile.timeline.tracks,
   })
 
+  const audioSnapshot = normalizeProjectAudio(projectFile.audio)
+  useAudioStore.getState().replaceState(audioSnapshot)
+
   const editorStore = useEditorStore.getState()
   if (projectFile.version >= 2 && projectFile.sceneConfig) {
     editorStore.updateSceneConfig(
@@ -287,8 +388,6 @@ export function applyLabProjectFile(
       projectFile.composition.height
     )
   } else {
-    // Legacy v1 files stored the viewport-fitted crop in `composition`,
-    // so importing that value as the real project composition poisons export.
     editorStore.updateSceneConfig(DEFAULT_SCENE_CONFIG)
   }
 
@@ -296,6 +395,11 @@ export function applyLabProjectFile(
     missingAssetCount: nextLayers.filter((layer) =>
       Boolean(layer.assetId && layer.runtimeError)
     ).length,
+    missingAudioSource: !isAudioSourceResolvable(
+      audioSnapshot.source,
+      assetIds,
+      nextLayers
+    ),
   }
 }
 

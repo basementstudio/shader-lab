@@ -1,6 +1,7 @@
 import { create } from "zustand"
 import { advanceProjectTimeline } from "@/renderer/project-clock"
 import { getDefaultProjectTimeline } from "@/lib/editor/default-project"
+import { clampDuration, MIN_DURATION } from "@/lib/editor/timeline-duration"
 import {
   type KeyframeEasing,
   cloneEasing,
@@ -111,19 +112,8 @@ export interface TimelineStoreActions {
 
 export type TimelineStore = TimelineStoreState & TimelineStoreActions
 
-const DEFAULT_DURATION = 6
-const MIN_DURATION = 0.25
-const MAX_DURATION = 120
 const TIME_EPSILON = 1 / 240
 const DEFAULT_PROJECT_TIMELINE = getDefaultProjectTimeline()
-
-function clampDuration(duration: number): number {
-  if (!Number.isFinite(duration)) {
-    return DEFAULT_DURATION
-  }
-
-  return Math.min(MAX_DURATION, Math.max(MIN_DURATION, duration))
-}
 
 function clampTime(time: number, duration: number): number {
   if (!Number.isFinite(time)) {
@@ -237,9 +227,6 @@ function cloneTrack(track: TimelineTrack): TimelineTrack {
   return clone
 }
 
-/**
- * Migrate a track from the old string-based interpolation to the new easing field.
- */
 function migrateTrackEasing(track: TimelineTrack): TimelineTrack {
   const fallbackEasing = track.easing
     ?? (track.interpolation ? migrateInterpolationToEasing(track.interpolation) : null)
@@ -403,18 +390,13 @@ export const useTimelineStore = create<TimelineStore>((set, get) => ({
     set((state) => {
       const nextDuration = clampDuration(duration)
 
+      if (nextDuration === state.duration) {
+        return state
+      }
+
       return {
         currentTime: clampTime(state.currentTime, nextDuration),
         duration: nextDuration,
-        tracks: state.tracks.map((track) => ({
-          ...track,
-          keyframes: sortKeyframes(
-            track.keyframes.map((keyframe) => ({
-              ...keyframe,
-              time: clampTime(keyframe.time, nextDuration),
-            })),
-          ),
-        })),
       }
     })
   },
@@ -987,7 +969,6 @@ export const useTimelineStore = create<TimelineStore>((set, get) => ({
   },
 
   replaceState: (nextState) => {
-    // Migrate legacy track-level interpolation to per-keyframe easing
     const migratedTracks = cloneTracks(nextState.tracks).map(migrateTrackEasing)
     const nextSelection = sanitizeSelectionState(migratedTracks, {
       selectedKeyframeId: nextState.selectedKeyframeId,

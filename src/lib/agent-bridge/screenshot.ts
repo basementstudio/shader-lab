@@ -1,5 +1,6 @@
 import { getEffectiveTimelineDuration } from "@/lib/editor/timeline-duration"
 import { useAssetStore } from "@/store/asset-store"
+import { selectAudioModulationInput, useAudioStore } from "@/store/audio-store"
 import { useEditorStore } from "@/store/editor-store"
 import { useLayerStore } from "@/store/layer-store"
 import { useTimelineStore } from "@/store/timeline-store"
@@ -24,6 +25,7 @@ function buildRenderProjectState() {
 
   return {
     assets,
+    audio: selectAudioModulationInput(useAudioStore.getState()),
     compositionSize: editorState.outputSize,
     layers,
     sceneConfig: editorState.sceneConfig,

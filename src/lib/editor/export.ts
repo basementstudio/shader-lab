@@ -1,8 +1,19 @@
 "use client"
+import type { AudioModulationInput } from "@/lib/editor/audio/links"
+import { decodeAudioBuffer } from "@/lib/editor/audio/decode"
+import {
+  encodeExportAudio,
+  type ExportAudioTrackConfig,
+  getEncoderPrimingSeconds,
+  planExportAudioSegments,
+  renderExportAudio,
+  resolveExportAudioConfig,
+} from "@/lib/editor/audio/export-audio"
 import {
   createVideoExportEncoder,
   getSupportedVideoExportConfig,
 } from "@/lib/editor/video-export-encoder"
+import { acquirePreviewRenderLock } from "@/lib/editor/preview-render-lock"
 import { buildRendererFrame } from "@/renderer/contracts"
 import {
   browserSupportsWebGPU,
@@ -28,6 +39,7 @@ export const EXPORT_QUALITY_LONG_EDGE: Record<ExportQualityPreset, number> = {
 }
 
 const DEFAULT_MAX_EXPORT_DIMENSION = 8192
+const PROGRESS_INTERVAL_MS = 100
 
 export const ASPECT_PRESET_LABELS: Record<ExportAspectPreset, string> = {
   "16:9": "16:9",
@@ -39,6 +51,7 @@ export const ASPECT_PRESET_LABELS: Record<ExportAspectPreset, string> = {
 
 type RenderProjectState = {
   assets: EditorAsset[]
+  audio?: AudioModulationInput | null
   compositionSize: Size
   layers: EditorLayer[]
   sceneConfig: SceneConfig
@@ -54,10 +67,17 @@ type StillExportOptions = {
   height: number
 }
 
+export type VideoExportAudioSource = {
+  offsetSeconds: number
+  url: string
+}
+
 type VideoExportOptions = {
   abortSignal?: AbortSignal
   aspectPreset: ExportAspectPreset
+  audioSource?: VideoExportAudioSource | null
   duration: number
+  fileStream?: FileSystemWritableFileStream | null
   format: VideoExportFormat
   fps: number
   onProgress?: (progress: { label: string; value: number }) => void
@@ -154,7 +174,14 @@ export function clampExportSize(size: Size, maxDimension: number): Size {
   }
 }
 
-export async function getMaxExportDimension(): Promise<number> {
+let maxExportDimensionPromise: Promise<number> | null = null
+
+export function getMaxExportDimension(): Promise<number> {
+  maxExportDimensionPromise ??= queryMaxExportDimension()
+  return maxExportDimensionPromise
+}
+
+async function queryMaxExportDimension(): Promise<number> {
   if (
     typeof navigator === "undefined" ||
     !("gpu" in navigator) ||
@@ -285,20 +312,157 @@ async function exportStillWithNewRenderer(
     return blob
   } finally {
     renderer.dispose()
+    await renderer.destroyDevice()
     destroyHiddenRenderCanvas(renderCanvas)
   }
+}
+
+type EncodedAudioEntry = {
+  chunk: EncodedAudioChunk
+  meta: EncodedAudioChunkMetadata | undefined
+}
+
+type PreparedExportAudio = {
+  chunks: EncodedAudioEntry[]
+  config: ExportAudioTrackConfig
+}
+
+async function prepareExportAudio(
+  projectState: RenderProjectState,
+  options: VideoExportOptions
+): Promise<PreparedExportAudio | null> {
+  const source = options.audioSource
+
+  if (!source) {
+    return null
+  }
+
+  const config = await resolveExportAudioConfig(options.format)
+
+  if (!config) {
+    throw new Error(
+      `This browser cannot encode ${options.format === "mp4" ? "AAC" : "Opus"} audio. Export without audio, or use ${options.format === "mp4" ? "WebM" : "MP4"}.`
+    )
+  }
+
+  let decoded: AudioBuffer | null = await decodeAudioBuffer(
+    source.url,
+    options.abortSignal
+  )
+  throwIfAborted(options.abortSignal)
+
+  const segments = planExportAudioSegments({
+    durationSeconds: options.duration,
+    loop: projectState.timeline.loop,
+    offsetSeconds: source.offsetSeconds,
+    sourceDurationSeconds: decoded.duration,
+    startSeconds:
+      options.startTime + getEncoderPrimingSeconds(config.codec),
+    timelineDurationSeconds: projectState.timeline.duration,
+  })
+
+  if (segments.length === 0) {
+    throw new Error(
+      "The exported range does not overlap the audio track. Check the audio offset."
+    )
+  }
+
+  const buffer = await renderExportAudio(decoded, segments, options.duration)
+  decoded = null
+  throwIfAborted(options.abortSignal)
+
+  const chunks: EncodedAudioEntry[] = []
+
+  await encodeExportAudio({
+    addChunk: (chunk, meta) => {
+      chunks.push({ chunk, meta })
+    },
+    buffer,
+    config,
+    ...(options.abortSignal ? { signal: options.abortSignal } : {}),
+  })
+
+  return { chunks, config }
+}
+
+export function advanceAudioChunkCursor(
+  chunks: { chunk: { timestamp: number } }[],
+  cursor: number,
+  timestampUs: number
+): number {
+  let next = Math.max(0, cursor)
+
+  while (next < chunks.length) {
+    const entry = chunks[next]
+
+    if (!entry || entry.chunk.timestamp > timestampUs) {
+      break
+    }
+
+    next += 1
+  }
+
+  return next
+}
+
+function formatRemaining(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) {
+    return ""
+  }
+
+  if (seconds < 60) {
+    return `${Math.max(1, Math.round(seconds))}s left`
+  }
+
+  const minutes = Math.floor(seconds / 60)
+  const rest = Math.round(seconds % 60)
+
+  return rest === 0
+    ? `${minutes}m left`
+    : `${minutes}m ${rest.toString().padStart(2, "0")}s left`
+}
+
+function buildRenderLabel(
+  done: number,
+  total: number,
+  startedAt: number
+): string {
+  const base = `Rendering ${done}/${total}`
+  const elapsed = (performance.now() - startedAt) / 1000
+
+  if (done < 2 || elapsed <= 0) {
+    return base
+  }
+
+  const remaining = formatRemaining((elapsed / done) * (total - done))
+
+  return remaining ? `${base} \u00B7 ${remaining}` : base
 }
 
 export async function exportVideo(
   projectState: RenderProjectState,
   options: VideoExportOptions
-): Promise<Blob> {
+): Promise<Blob | null> {
+  const releasePreviewLock = acquirePreviewRenderLock()
+
+  try {
+    return await runVideoExport(projectState, options)
+  } finally {
+    releasePreviewLock()
+  }
+}
+
+async function runVideoExport(
+  projectState: RenderProjectState,
+  options: VideoExportOptions
+): Promise<Blob | null> {
   throwIfAborted(options.abortSignal)
   options.onProgress?.({
-    label: "Preparing export",
+    label: options.audioSource ? "Decoding audio" : "Preparing export",
     value: 0.02,
   })
 
+  const preparedAudio = await prepareExportAudio(projectState, options)
   const support = await getSupportedVideoExportConfig(options.format)
 
   if (!support) {
@@ -307,43 +471,80 @@ export async function exportVideo(
     )
   }
 
-  const renderCanvas = createHiddenRenderCanvas()
-  const maxExportDimension = await getMaxExportDimension()
-  const maxAllowedDimension = Math.min(
-    maxExportDimension,
-    getMaxDimensionForQuality(options.qualityPreset)
-  )
-  const exportSize = normalizeVideoExportSize(options.format, {
-    ...clampExportSize(
-      {
-        width: options.width,
-        height: options.height,
-      },
-      maxAllowedDimension
-    ),
-  })
-  const sourceRenderSize = getSourceRenderSizeForExport(
-    projectState.compositionSize,
-    options.aspectPreset,
-    exportSize
-  )
-  const outputCanvas = document.createElement("canvas")
-  outputCanvas.width = exportSize.width
-  outputCanvas.height = exportSize.height
-
-  const renderer = await createExportRenderer(renderCanvas)
-  const encoder = await createVideoExportEncoder({
-    bitrate: getVideoBitrate(options.qualityPreset),
-    format: support.format,
-    fps: options.fps,
-    height: outputCanvas.height,
-    width: outputCanvas.width,
-  })
-
+  let renderCanvas: HTMLCanvasElement | null = null
+  let renderer: Awaited<ReturnType<typeof createExportRenderer>> | null = null
+  let encoder: Awaited<ReturnType<typeof createVideoExportEncoder>> | null = null
   let finalized = false
 
   try {
+    renderCanvas = createHiddenRenderCanvas()
+    const maxExportDimension = await getMaxExportDimension()
+    const maxAllowedDimension = Math.min(
+      maxExportDimension,
+      getMaxDimensionForQuality(options.qualityPreset)
+    )
+    const exportSize = normalizeVideoExportSize(options.format, {
+      ...clampExportSize(
+        {
+          width: options.width,
+          height: options.height,
+        },
+        maxAllowedDimension
+      ),
+    })
+    const sourceRenderSize = getSourceRenderSizeForExport(
+      projectState.compositionSize,
+      options.aspectPreset,
+      exportSize
+    )
+    const outputCanvas = document.createElement("canvas")
+    outputCanvas.width = exportSize.width
+    outputCanvas.height = exportSize.height
+
+    const totalFrames = Math.max(1, Math.round(options.duration * options.fps))
+    renderer = await createExportRenderer(renderCanvas)
+    encoder = await createVideoExportEncoder({
+      audio: preparedAudio
+        ? {
+            codec: preparedAudio.config.codec,
+            numberOfChannels: preparedAudio.config.numberOfChannels,
+            sampleRate: preparedAudio.config.sampleRate,
+          }
+        : null,
+      bitrate: getVideoBitrate(options.qualityPreset),
+      expectedAudioChunks: preparedAudio?.chunks.length ?? 0,
+      expectedVideoChunks: totalFrames,
+      fileStream: options.fileStream ?? null,
+      format: support.format,
+      fps: options.fps,
+      height: outputCanvas.height,
+      width: outputCanvas.width,
+    })
+
     throwIfAborted(options.abortSignal)
+
+    const activeEncoder = encoder
+    const audioChunks = preparedAudio?.chunks ?? []
+    let audioCursor = 0
+
+    const drainAudioThrough = (timestampUs: number) => {
+      const next = advanceAudioChunkCursor(
+        audioChunks,
+        audioCursor,
+        timestampUs
+      )
+
+      for (let index = audioCursor; index < next; index += 1) {
+        const entry = audioChunks[index]
+
+        if (entry) {
+          activeEncoder.addAudioChunk(entry.chunk, entry.meta)
+        }
+      }
+
+      audioCursor = next
+    }
+
     await prewarmExportFrame(renderer, renderCanvas, projectState, {
       cropAspectRatio: getAspectRatio(
         projectState.compositionSize,
@@ -354,16 +555,18 @@ export async function exportVideo(
       time: options.startTime,
     })
 
-    const totalFrames = Math.max(1, Math.round(options.duration * options.fps))
     const totalDurationUs = Math.max(
       1,
       Math.round(options.duration * 1_000_000)
     )
 
     options.onProgress?.({
-      label: `Rendering frames 0/${totalFrames}`,
+      label: `Rendering 0/${totalFrames}`,
       value: 0.08,
     })
+
+    const renderStartedAt = performance.now()
+    let lastProgressAt = renderStartedAt
 
     for (let frameIndex = 0; frameIndex < totalFrames; frameIndex += 1) {
       throwIfAborted(options.abortSignal)
@@ -374,6 +577,7 @@ export async function exportVideo(
       )
 
       await renderFrameToCanvas(renderer, renderCanvas, projectState, {
+        bootstrapPasses: frameIndex === 0,
         cropAspectRatio: getAspectRatio(
           projectState.compositionSize,
           options.aspectPreset
@@ -404,13 +608,26 @@ export async function exportVideo(
         Math.max(1, frameEndUs - frameStartUs),
         frameStartUs
       )
+      drainAudioThrough(frameEndUs)
       throwIfAborted(options.abortSignal)
 
-      options.onProgress?.({
-        label: `Rendering frames ${frameIndex + 1}/${totalFrames}`,
-        value: 0.08 + ((frameIndex + 1) / totalFrames) * 0.88,
-      })
+      const isLastFrame = frameIndex === totalFrames - 1
+      const now = performance.now()
+
+      if (isLastFrame || now - lastProgressAt >= PROGRESS_INTERVAL_MS) {
+        lastProgressAt = now
+        options.onProgress?.({
+          label: buildRenderLabel(
+            frameIndex + 1,
+            totalFrames,
+            renderStartedAt
+          ),
+          value: 0.08 + ((frameIndex + 1) / totalFrames) * 0.88,
+        })
+      }
     }
+
+    drainAudioThrough(Number.POSITIVE_INFINITY)
 
     options.onProgress?.({
       label: "Finalizing file",
@@ -422,11 +639,18 @@ export async function exportVideo(
     finalized = true
     return blob
   } finally {
-    if (!finalized) {
-      encoder.close()
+    if (encoder && !finalized) {
+      await encoder.close()
     }
-    renderer.dispose()
-    destroyHiddenRenderCanvas(renderCanvas)
+
+    if (renderer) {
+      renderer.dispose()
+      await renderer.destroyDevice()
+    }
+
+    if (renderCanvas) {
+      destroyHiddenRenderCanvas(renderCanvas)
+    }
   }
 }
 
@@ -445,6 +669,7 @@ async function renderFrameToCanvas(
   canvas: HTMLCanvasElement,
   projectState: RenderProjectState,
   options: {
+    bootstrapPasses?: boolean
     cropAspectRatio: number | null
     delta?: number
     logicalSize: Size
@@ -460,44 +685,47 @@ async function renderFrameToCanvas(
   )
   timelineState.isPlaying = false
 
-  canvas.width = options.renderSize.width
-  canvas.height = options.renderSize.height
-  renderer.resize(options.renderSize, 1)
-  const prepareFrame = buildRendererFrame({
-    assets: projectState.assets,
-    clockTime: timelineState.currentTime,
-    cropAspectRatio: options.cropAspectRatio,
-    delta: 0,
-    layers: projectState.layers,
-    logicalSize: options.logicalSize,
-    outputSize: options.renderSize,
-    pixelRatio: 1,
-    sceneConfig: projectState.sceneConfig,
-    timeline: timelineState,
-    viewportSize: options.renderSize,
-  })
-  renderer.render(prepareFrame)
+  if (
+    canvas.width !== options.renderSize.width ||
+    canvas.height !== options.renderSize.height
+  ) {
+    canvas.width = options.renderSize.width
+    canvas.height = options.renderSize.height
+    renderer.resize(options.renderSize, 1)
+  }
+
+  const buildFrame = (delta: number) =>
+    buildRendererFrame({
+      assets: projectState.assets,
+      audio: projectState.audio ?? null,
+      clockTime: timelineState.currentTime,
+      cropAspectRatio: options.cropAspectRatio,
+      delta,
+      layers: projectState.layers,
+      logicalSize: options.logicalSize,
+      outputSize: options.renderSize,
+      pixelRatio: 1,
+      sceneConfig: projectState.sceneConfig,
+      timeline: timelineState,
+      viewportSize: options.renderSize,
+    })
+
+  if (options.bootstrapPasses) {
+    renderer.render(buildFrame(0))
+  }
+
   await renderer.prepareForExportFrame(
     timelineState.currentTime,
     timelineState.loop
   )
 
-  const frame = buildRendererFrame({
-    assets: projectState.assets,
-    clockTime: timelineState.currentTime,
-    cropAspectRatio: options.cropAspectRatio,
-    delta: options.delta ?? 0,
-    layers: projectState.layers,
-    logicalSize: options.logicalSize,
-    outputSize: options.renderSize,
-    pixelRatio: 1,
-    sceneConfig: projectState.sceneConfig,
-    timeline: timelineState,
-    viewportSize: options.renderSize,
-  })
-  renderer.render(frame)
+  renderer.render(buildFrame(options.delta ?? 0))
 
-  await waitForRenderedFrame()
+  const synced = await renderer.waitForGpuIdle()
+
+  if (!synced) {
+    await waitForPresentedFrame()
+  }
 }
 
 async function prewarmExportFrame(
@@ -511,7 +739,10 @@ async function prewarmExportFrame(
     time: number
   }
 ): Promise<void> {
-  await renderFrameToCanvas(renderer, canvas, projectState, options)
+  await renderFrameToCanvas(renderer, canvas, projectState, {
+    ...options,
+    bootstrapPasses: true,
+  })
 
   const maxWaitMs = 5_000
   const pollInterval = 10
@@ -524,10 +755,14 @@ async function prewarmExportFrame(
     await wait(pollInterval)
   }
 
-  await renderFrameToCanvas(renderer, canvas, projectState, options)
-  await waitForRenderedFrame()
-  await renderFrameToCanvas(renderer, canvas, projectState, options)
-  await waitForRenderedFrame()
+  await renderFrameToCanvas(renderer, canvas, projectState, {
+    ...options,
+    bootstrapPasses: true,
+  })
+  await renderFrameToCanvas(renderer, canvas, projectState, {
+    ...options,
+    bootstrapPasses: true,
+  })
 }
 
 function cropCanvasToAspect(
@@ -582,6 +817,19 @@ function canvasToBlob(
   })
 }
 
+export const STREAM_TO_DISK_THRESHOLD_BYTES = 256 * 1024 * 1024
+
+export function estimateVideoExportBytes(
+  qualityPreset: ExportQualityPreset,
+  durationSeconds: number
+): number {
+  const safeDuration = Number.isFinite(durationSeconds)
+    ? Math.max(0, durationSeconds)
+    : 0
+
+  return (getVideoBitrate(qualityPreset) / 8) * safeDuration
+}
+
 function getVideoBitrate(qualityPreset: ExportQualityPreset): number {
   switch (qualityPreset) {
     case "draft":
@@ -632,7 +880,7 @@ function wait(durationMs: number): Promise<void> {
   })
 }
 
-function waitForRenderedFrame(): Promise<void> {
+function waitForPresentedFrame(): Promise<void> {
   return new Promise((resolve) => {
     const timer = window.setTimeout(resolve, 250)
 

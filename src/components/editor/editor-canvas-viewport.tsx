@@ -8,9 +8,15 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react"
 import { useEditorRenderer } from "@/hooks/use-editor-renderer"
+import { isEditableTarget } from "@/lib/editor/is-editable-target"
 import { inferFileAssetKind } from "@/lib/editor/media-file"
+import {
+  isPreviewRenderLocked,
+  subscribeToPreviewRenderLock,
+} from "@/lib/editor/preview-render-lock"
 import {
   applyZoomAtPoint,
   clampZoom,
@@ -23,6 +29,11 @@ import { useLayerStore } from "@/store/layer-store"
 
 export function EditorCanvasViewport() {
   const { canvasRef, isReady, viewportRef } = useEditorRenderer()
+  const previewPaused = useSyncExternalStore(
+    subscribeToPreviewRenderLock,
+    isPreviewRenderLocked,
+    () => false
+  )
   const immersiveCanvas = useEditorStore((state) => state.immersiveCanvas)
   const exitImmersiveCanvas = useEditorStore(
     (state) => state.exitImmersiveCanvas
@@ -100,7 +111,7 @@ export function EditorCanvasViewport() {
             const layerId = addLayer(kind)
             setLayerAsset(layerId, asset.id)
           } catch {
-            // No-op.
+            return
           }
         }
       }
@@ -109,13 +120,6 @@ export function EditorCanvasViewport() {
   )
 
   useEffect(() => {
-    const isEditableTarget = (target: EventTarget | null): boolean =>
-      target instanceof HTMLElement &&
-      (target.isContentEditable ||
-        target instanceof HTMLInputElement ||
-        target instanceof HTMLTextAreaElement ||
-        target instanceof HTMLSelectElement)
-
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === " " && !isEditableTarget(event.target)) {
         setIsSpacePressed(true)
@@ -370,6 +374,20 @@ export function EditorCanvasViewport() {
             className="relative h-px w-[min(180px,28vw)] overflow-hidden bg-white/12"
           >
             <div className="absolute inset-y-0 left-0 w-[38%] animate-[loader-sweep_1.15s_cubic-bezier(0.22,1,0.36,1)_infinite] bg-white/72 shadow-[0_0_18px_rgba(255,255,255,0.18)]" />
+          </div>
+        </div>
+      ) : null}
+
+      {previewPaused ? (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
+          <div className="inline-flex items-center gap-2 rounded-full border border-[var(--ds-border-panel)] bg-[rgb(18_18_22_/_0.88)] px-3 py-1.5 backdrop-blur-[28px]">
+            <span
+              aria-hidden="true"
+              className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-[rgb(182_151_255)]"
+            />
+            <span className="font-[var(--ds-font-mono)] text-[11px] leading-4 text-[var(--ds-color-text-secondary)]">
+              Exporting — keep this tab open
+            </span>
           </div>
         </div>
       ) : null}

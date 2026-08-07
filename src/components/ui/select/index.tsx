@@ -129,11 +129,12 @@ export function Select({
         <BaseSelect.Positioner
           alignItemWithTrigger={false}
           className="z-50 outline-none"
+          collisionPadding={12}
           sideOffset={8}
         >
           <BaseSelect.Popup
             className={cn(
-              "min-w-[var(--anchor-width)] overflow-hidden rounded-[var(--ds-radius-control)] border border-[var(--ds-border-panel)] bg-[rgb(18_18_22_/_0.72)] shadow-[var(--ds-shadow-panel-dark)] backdrop-blur-[24px]",
+              "max-h-[min(320px,var(--available-height))] min-w-[var(--anchor-width)] overflow-y-auto overscroll-contain rounded-[var(--ds-radius-control)] border border-[var(--ds-border-panel)] bg-[rgb(18_18_22_/_0.72)] shadow-[var(--ds-shadow-panel-dark)] backdrop-blur-[24px]",
               popupClassName
             )}
           >

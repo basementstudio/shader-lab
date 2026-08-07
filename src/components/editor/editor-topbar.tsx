@@ -32,6 +32,7 @@ import {
 import { applyZoomAtPoint, getNextZoomStep } from "@/lib/editor/view-transform"
 import {
   registerHistoryShortcuts,
+  useAudioStore,
   useEditorStore,
   useHistoryStore,
   useLayerStore,
@@ -154,6 +155,7 @@ export function EditorTopBar() {
         pendingBaseSnapshotRef.current = committedSnapshotRef.current
       }
 
+
       if (interactiveEditDepth > 0) {
         return
       }
@@ -225,13 +227,20 @@ export function EditorTopBar() {
           return
         }
 
+        if (state.layers === previousState.layers) {
+          return
+        }
+
+        const audioSnapshot = useAudioStore.getState().getSnapshot()
         const previousSnapshot = buildEditorHistorySnapshotFromState(
           previousState,
-          useTimelineStore.getState()
+          useTimelineStore.getState(),
+          audioSnapshot
         )
         const nextSnapshot = buildEditorHistorySnapshotFromState(
           state,
-          useTimelineStore.getState()
+          useTimelineStore.getState(),
+          audioSnapshot
         )
 
         if (
@@ -252,13 +261,74 @@ export function EditorTopBar() {
           return
         }
 
+        if (
+          state.duration === previousState.duration &&
+          state.loop === previousState.loop &&
+          state.tracks === previousState.tracks
+        ) {
+          return
+        }
+
+        const audioSnapshot = useAudioStore.getState().getSnapshot()
         const previousSnapshot = buildEditorHistorySnapshotFromState(
           useLayerStore.getState(),
-          previousState
+          previousState,
+          audioSnapshot
         )
         const nextSnapshot = buildEditorHistorySnapshotFromState(
           useLayerStore.getState(),
-          state
+          state,
+          audioSnapshot
+        )
+
+        if (
+          getHistorySnapshotSignature(previousSnapshot) ===
+          getHistorySnapshotSignature(nextSnapshot)
+        ) {
+          return
+        }
+
+        scheduleHistoryCommit(nextSnapshot)
+      }
+    )
+
+    const unsubscribeAudio = useAudioStore.subscribe(
+      (state, previousState) => {
+        if (applyingHistoryRef.current) {
+          syncHistorySnapshotRefs()
+          return
+        }
+
+        if (
+          state.bands === previousState.bands &&
+          state.links === previousState.links &&
+          state.offsetSeconds === previousState.offsetSeconds &&
+          state.source === previousState.source
+        ) {
+          return
+        }
+
+        const layerState = useLayerStore.getState()
+        const timelineState = useTimelineStore.getState()
+        const previousSnapshot = buildEditorHistorySnapshotFromState(
+          layerState,
+          timelineState,
+          {
+            bands: previousState.bands,
+            links: previousState.links,
+            offsetSeconds: previousState.offsetSeconds,
+            source: previousState.source,
+          }
+        )
+        const nextSnapshot = buildEditorHistorySnapshotFromState(
+          layerState,
+          timelineState,
+          {
+            bands: state.bands,
+            links: state.links,
+            offsetSeconds: state.offsetSeconds,
+            source: state.source,
+          }
         )
 
         if (
@@ -276,6 +346,7 @@ export function EditorTopBar() {
       unregisterShortcuts()
       unsubscribeLayers()
       unsubscribeTimeline()
+      unsubscribeAudio()
 
       if (historyTimerRef.current !== null) {
         window.clearTimeout(historyTimerRef.current)

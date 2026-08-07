@@ -38,8 +38,10 @@ import {
   getAspectRatioForPreset,
   getDimensionsForPreset,
   getMaxDimensionForQuality,
+  estimateVideoExportBytes,
   getMaxExportDimension,
   getSupportedVideoMimeType,
+  STREAM_TO_DISK_THRESHOLD_BYTES,
   type VideoExportFormat,
 } from "@/lib/editor/export"
 import {
@@ -63,7 +65,12 @@ import {
   getLongestVideoLayerDuration,
 } from "@/lib/editor/timeline-duration"
 import {
+  type AudioAnalysisStatus,
+  selectAudioModulationInput,
+} from "@/store/audio-store"
+import {
   useAssetStore,
+  useAudioStore,
   useEditorStore,
   useLayerStore,
   useTimelineStore,
@@ -111,6 +118,82 @@ const QUALITY_SOUND_MAP: Record<ExportQualityPreset, UISoundId> = {
   ultra: "action.qualityUltra",
 }
 
+type SaveFilePickerWindow = Window & {
+  showSaveFilePicker?: (options: {
+    suggestedName?: string
+    types?: { accept: Record<string, string[]>; description: string }[]
+  }) => Promise<FileSystemFileHandle>
+}
+
+function supportsSaveFilePicker(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    typeof (window as SaveFilePickerWindow).showSaveFilePicker === "function"
+  )
+}
+
+async function openExportFileStream(
+  format: VideoExportFormat,
+  fileName: string
+): Promise<FileSystemWritableFileStream | null> {
+  const picker =
+    typeof window === "undefined"
+      ? undefined
+      : (window as SaveFilePickerWindow).showSaveFilePicker
+
+  if (typeof picker !== "function") {
+    return null
+  }
+
+  const handle = await picker({
+    suggestedName: fileName,
+    types: [
+      {
+        accept: {
+          [format === "mp4" ? "video/mp4" : "video/webm"]: [`.${format}`],
+        },
+        description: `${format.toUpperCase()} video`,
+      },
+    ],
+  })
+
+  return await handle.createWritable()
+}
+
+function formatEstimatedSize(bytes: number): string {
+  const gigabytes = bytes / 1024 ** 3
+
+  return gigabytes >= 1
+    ? `${gigabytes.toFixed(1)} GB`
+    : `${Math.round(bytes / 1024 ** 2)} MB`
+}
+
+function getAudioModulationBlockMessage(status: AudioAnalysisStatus): string {
+  if (status === "analyzing") {
+    return "Audio is still being analyzed. Wait for it to finish so audio-linked parameters animate in the export."
+  }
+
+  if (status === "missing-source") {
+    return "The project audio is not loaded. Relink it first, or audio-linked parameters will not animate."
+  }
+
+  return "Audio could not be analyzed, so audio-linked parameters will not animate. Reload the audio file or remove the links."
+}
+
+async function abortExportFileStream(
+  stream: FileSystemWritableFileStream | null
+): Promise<void> {
+  if (!stream) {
+    return
+  }
+
+  try {
+    await stream.abort()
+  } catch {
+    return
+  }
+}
+
 function roundDurationForExport(value: number): number {
   if (!Number.isFinite(value) || value <= 0) {
     return DEFAULT_VIDEO_EXPORT_DURATION
@@ -145,6 +228,20 @@ export function EditorExportDialog({
   const timelineDuration = useTimelineStore((state) => state.duration)
   const timelineLoop = useTimelineStore((state) => state.loop)
   const timelineTracks = useTimelineStore((state) => state.tracks)
+  const audioSourceRef = useAudioStore((state) => state.source)
+  const audioStatus = useAudioStore((state) => state.status)
+  const audioLinkCount = useAudioStore((state) => state.links.length)
+  const exportAudioUrl = useMemo(() => {
+    if (audioSourceRef?.kind !== "asset") {
+      return null
+    }
+
+    return (
+      assets.find((asset) => asset.id === audioSourceRef.assetId)?.url ?? null
+    )
+  }, [assets, audioSourceRef])
+  const audioAvailable = exportAudioUrl !== null
+  const [includeAudio, setIncludeAudio] = useState(true)
   const [activeTab, setActiveTab] = useState<ExportTab>("image")
   const [mounted, setMounted] = useState(false)
   const [isDraggingImport, setIsDraggingImport] = useState(false)
@@ -178,6 +275,15 @@ export function EditorExportDialog({
     )
   )
   const [videoDuration, setVideoDuration] = useState(timelineDuration)
+  const [videoStart, setVideoStart] = useState(0)
+  const estimatedVideoBytes = estimateVideoExportBytes(
+    videoQuality,
+    videoDuration
+  )
+  const needsStreamToDisk = estimatedVideoBytes > STREAM_TO_DISK_THRESHOLD_BYTES
+  const willStreamToDisk = needsStreamToDisk && supportsSaveFilePicker()
+  const audioModulationPending =
+    audioLinkCount > 0 && audioSourceRef !== null && audioStatus !== "ready"
   const [videoFps, setVideoFps] = useState(30)
   const [videoFormat, setVideoFormat] = useState<VideoExportFormat>("webm")
   const [videoDurationDirty, setVideoDurationDirty] = useState(false)
@@ -211,12 +317,13 @@ export function EditorExportDialog({
     () => validateShaderExportSupport(layers, assets),
     [assets, layers]
   )
-  const hasFluidLayer = useMemo(
+  const needsLiveCapture = useMemo(
     () =>
       layers.some(
         (layer) =>
           layer.visible &&
           (layer.type === "fluid" ||
+            layer.type === "live" ||
             layer.type === "pixel-trail" ||
             layer.type === "magnify-lens")
       ),
@@ -373,6 +480,7 @@ export function EditorExportDialog({
         : null
     setVideoDuration(defaultVideoDuration)
     setVideoDurationDirty(false)
+    setVideoStart(0)
     setVideoProgress(null)
     setImageAspect(suggestedAspectPreset)
     setVideoAspect(suggestedAspectPreset)
@@ -555,16 +663,57 @@ export function EditorExportDialog({
     }
 
     clearFeedback()
+
+    if (audioModulationPending) {
+      setErrorMessage(getAudioModulationBlockMessage(audioStatus))
+      return
+    }
+
+    if (needsStreamToDisk && !supportsSaveFilePicker()) {
+      setErrorMessage(
+        `This export is around ${formatEstimatedSize(estimatedVideoBytes)} and this browser cannot write it straight to disk. Lower the quality, shorten the range, or export from Chrome or Edge.`
+      )
+      return
+    }
+
+    const fileName = buildDownloadName(videoFormat)
+    let fileStream: FileSystemWritableFileStream | null = null
+
+    if (willStreamToDisk) {
+      try {
+        fileStream = await openExportFileStream(videoFormat, fileName)
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return
+        }
+
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : "Could not open a file to write the export to."
+        )
+        return
+      }
+    }
+
     setIsWorking(true)
     const abortController = new AbortController()
     videoExportAbortRef.current = abortController
 
     try {
-      const startTime = 0
+      const startTime = Math.max(0, videoStart)
       const exportSize = getVideoExportDisplaySize(videoFormat, videoSize)
       const blob = await exportVideo(buildRenderProjectState(), {
+        fileStream,
         abortSignal: abortController.signal,
         aspectPreset: videoAspect,
+        audioSource:
+          includeAudio && exportAudioUrl
+            ? {
+                offsetSeconds: useAudioStore.getState().offsetSeconds,
+                url: exportAudioUrl,
+              }
+            : null,
         duration: Math.max(0.25, videoDuration),
         format: videoFormat,
         fps: Math.max(1, videoFps),
@@ -575,15 +724,22 @@ export function EditorExportDialog({
         height: videoSize.height,
       })
 
-      downloadBlob(blob, buildDownloadName(videoFormat))
+      if (blob) {
+        downloadBlob(blob, fileName)
+      }
+
       setVideoProgress({
         label: "Export complete",
         value: 1,
       })
       setStatusMessage(
-        `${videoFormat.toUpperCase()} exported at ${exportSize.width}×${exportSize.height}.`
+        blob
+          ? `${videoFormat.toUpperCase()} exported at ${exportSize.width}×${exportSize.height}.`
+          : `${videoFormat.toUpperCase()} written to ${fileName} at ${exportSize.width}×${exportSize.height}.`
       )
     } catch (error) {
+      await abortExportFileStream(fileStream)
+
       if (error instanceof DOMException && error.name === "AbortError") {
         setVideoProgress(null)
         setStatusMessage("Video export cancelled.")
@@ -699,9 +855,6 @@ export function EditorExportDialog({
       const input = await file.text()
       const projectFile = parseLabProjectFile(input)
 
-      // Imported custom-shader source executes in the importer's browser, so
-      // require explicit consent before applying anything from the file.
-      // TODO(design): replace window.confirm with a styled confirm dialog.
       if (
         hasImportedCustomShaderCode(projectFile) &&
         !window.confirm(
@@ -717,9 +870,19 @@ export function EditorExportDialog({
         useAssetStore.getState().assets
       )
 
+      const relinkNotes: string[] = []
+
+      if (result.missingAssetCount > 0) {
+        relinkNotes.push(`${result.missingAssetCount} media layer(s)`)
+      }
+
+      if (result.missingAudioSource) {
+        relinkNotes.push("the audio track")
+      }
+
       setStatusMessage(
-        result.missingAssetCount > 0
-          ? `Project imported. ${result.missingAssetCount} media layer(s) need relinking.`
+        relinkNotes.length > 0
+          ? `Project imported. ${relinkNotes.join(" and ")} need relinking.`
           : "Project imported."
       )
       onOpenChange(false)
@@ -908,14 +1071,18 @@ export function EditorExportDialog({
                       ) : null}
                       {activeTab === "video" ? (
                         <VideoTabContent
-                          hasFluidLayer={hasFluidLayer}
+                          audioAvailable={audioAvailable}
+                          needsLiveCapture={needsLiveCapture}
+                          includeAudio={includeAudio}
                           isWorking={isWorking}
                           liveRecordingSupported={Boolean(
                             liveVideoSupport.webm || liveVideoSupport.mp4
                           )}
                           mp4Supported={videoSupport.mp4}
                           onExport={handleVideoExport}
+                          onIncludeAudioChange={setIncludeAudio}
                           onLiveRecord={handleLiveVideoRecording}
+                          onVideoStartChange={setVideoStart}
                           onVideoAspectChange={setVideoAspect}
                           onVideoDurationChange={(value) => {
                             setVideoDurationDirty(true)
@@ -934,6 +1101,8 @@ export function EditorExportDialog({
                           videoProgress={videoProgress}
                           videoQuality={videoQuality}
                           videoSize={videoSize}
+                          videoStart={videoStart}
+                          timelineDuration={timelineDuration}
                           webmSupported={videoSupport.webm}
                         />
                       ) : null}
@@ -989,14 +1158,18 @@ export function EditorExportDialog({
                         ) : null}
                         {activeTab === "video" ? (
                           <VideoTabContent
-                            hasFluidLayer={hasFluidLayer}
+                            audioAvailable={audioAvailable}
+                            needsLiveCapture={needsLiveCapture}
+                            includeAudio={includeAudio}
                             isWorking={isWorking}
                             liveRecordingSupported={Boolean(
                               liveVideoSupport.webm || liveVideoSupport.mp4
                             )}
                             mp4Supported={videoSupport.mp4}
                             onExport={handleVideoExport}
+                            onIncludeAudioChange={setIncludeAudio}
                             onLiveRecord={handleLiveVideoRecording}
+                            onVideoStartChange={setVideoStart}
                             onVideoAspectChange={setVideoAspect}
                             onVideoDurationChange={(value) => {
                               setVideoDurationDirty(true)
@@ -1017,6 +1190,8 @@ export function EditorExportDialog({
                             videoProgress={videoProgress}
                             videoQuality={videoQuality}
                             videoSize={videoSize}
+                            videoStart={videoStart}
+                            timelineDuration={timelineDuration}
                             webmSupported={videoSupport.webm}
                           />
                         ) : null}
@@ -1215,13 +1390,30 @@ function ImageTabContent({
   )
 }
 
+function formatRangeSeconds(value: number): string {
+  const safe = Number.isFinite(value) ? Math.max(0, value) : 0
+
+  if (safe < 60) {
+    return `${safe.toFixed(2)}s`
+  }
+
+  const minutes = Math.floor(safe / 60)
+  const seconds = safe - minutes * 60
+
+  return `${minutes}:${seconds.toFixed(2).padStart(5, "0")}`
+}
+
 function VideoTabContent({
-  hasFluidLayer,
+  audioAvailable,
+  needsLiveCapture,
+  includeAudio,
   isWorking,
   liveRecordingSupported,
   mp4Supported,
   onExport,
+  onIncludeAudioChange,
   onLiveRecord,
+  onVideoStartChange,
   onVideoAspectChange,
   onVideoDurationChange,
   onVideoFpsChange,
@@ -1237,13 +1429,19 @@ function VideoTabContent({
   videoProgress,
   videoQuality,
   videoSize,
+  videoStart,
+  timelineDuration,
   webmSupported,
 }: {
-  hasFluidLayer: boolean
+  audioAvailable: boolean
+  needsLiveCapture: boolean
+  includeAudio: boolean
   isWorking: boolean
   liveRecordingSupported: boolean
   mp4Supported: boolean
   onExport: () => Promise<void>
+  onIncludeAudioChange: (value: boolean) => void
+  onVideoStartChange: (value: number) => void
   onLiveRecord: () => Promise<void>
   onVideoAspectChange: (preset: ExportAspectPreset) => void
   onVideoDurationChange: (value: number) => void
@@ -1260,6 +1458,8 @@ function VideoTabContent({
   videoProgress: { label: string; value: number } | null
   videoQuality: ExportQualityPreset
   videoSize: { height: number; width: number }
+  videoStart: number
+  timelineDuration: number
   webmSupported: boolean
 }) {
   const selectedFormatSupported =
@@ -1268,16 +1468,15 @@ function VideoTabContent({
 
   return (
     <section className="flex flex-col gap-[14px]">
-      {hasFluidLayer ? (
+      {needsLiveCapture ? (
         <div className="flex flex-col gap-3 rounded-[var(--ds-radius-control)] border border-[rgb(255_190_92_/_0.22)] p-3">
           <Typography
             className="flex items-center gap-2 leading-[14px] text-[rgb(255_219_166_/_0.92)]"
             variant="caption"
           >
             <ExclamationTriangleIcon height={14} width={14} />
-            Interactive layers use a live simulation. Normal video export can
-            capture incomplete or broken fluid motion. Use live recording
-            instead.
+            This composition has a layer with no timeline — a camera or a
+            simulation. Normal export gets the speed wrong. Record it live.
           </Typography>
           <Button
             disabled={!liveRecordingSupported || isWorking}
@@ -1382,6 +1581,49 @@ function VideoTabContent({
         </FieldLabel>
       </div>
 
+      <FieldLabel label="Start at">
+        <div className="flex flex-col gap-1.5">
+          <NumberInput
+            formatValue={(value) => value.toString()}
+            min={0}
+            onChange={(value) =>
+              onVideoStartChange(
+                Math.min(Math.max(0, value), Math.max(0, timelineDuration - 0.25))
+              )
+            }
+            step={0.25}
+            value={videoStart}
+          />
+          <Typography
+            className="leading-[14px]"
+            tone="muted"
+            variant="caption"
+          >
+            {`${formatRangeSeconds(videoStart)} \u2013 ${formatRangeSeconds(videoStart + videoDuration)}`}
+          </Typography>
+        </div>
+      </FieldLabel>
+
+      {audioAvailable ? (
+        <FieldLabel label="Audio">
+          <div className="flex flex-col gap-1.5">
+            <PresetRow>
+              <PillButton
+                active={includeAudio}
+                label="Include"
+                onClick={() => onIncludeAudioChange(true)}
+              />
+              <PillButton
+                active={!includeAudio}
+                label="Silent"
+                onClick={() => onIncludeAudioChange(false)}
+              />
+            </PresetRow>
+
+          </div>
+        </FieldLabel>
+      ) : null}
+
       <div className="flex min-h-11 flex-col justify-center gap-2">
         <div className="h-1.5 overflow-hidden rounded-full bg-white/8">
           <div
@@ -1395,6 +1637,10 @@ function VideoTabContent({
           {videoProgress?.label ?? "\u00A0"}
         </Typography>
       </div>
+
+      <Typography className="leading-[14px]" tone="muted" variant="caption">
+        Keep this tab open and in front while exporting.
+      </Typography>
 
       <Button
         disabled={!(isWorking || selectedFormatSupported)}
@@ -1674,6 +1920,7 @@ function buildRenderProjectState() {
 
   return {
     assets,
+    audio: selectAudioModulationInput(useAudioStore.getState()),
     compositionSize: editorState.outputSize,
     layers,
     sceneConfig: editorState.sceneConfig,

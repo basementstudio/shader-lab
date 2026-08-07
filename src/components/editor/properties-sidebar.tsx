@@ -5,6 +5,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { FloatingDesktopPanel } from "@/components/editor/floating-desktop-panel"
 import { GlassPanel } from "@/components/ui/glass-panel"
+import { useDisplayedTimelineTime } from "@/hooks/use-displayed-timeline-time"
 import { IconButton } from "@/components/ui/icon-button"
 import { Typography } from "@/components/ui/typography"
 import { cn } from "@/lib/cn"
@@ -33,6 +34,7 @@ import {
   hasTrackForBinding,
   isParamVisible,
 } from "./properties-sidebar-utils"
+import { MeasuringLayoutProvider } from "./properties-sidebar-measure"
 import { SceneConfigContent } from "./scene-config-content"
 
 export function PropertiesSidebar() {
@@ -75,7 +77,6 @@ export function PropertiesSidebar() {
   )
   const setLayerSaturation = useLayerStore((state) => state.setLayerSaturation)
   const updateLayerParam = useLayerStore((state) => state.updateLayerParam)
-  const currentTime = useTimelineStore((state) => state.currentTime)
   const timelineTracks = useTimelineStore((state) => state.tracks)
   const upsertKeyframe = useTimelineStore((state) => state.upsertKeyframe)
   const assets = useAssetStore((state) => state.assets)
@@ -145,6 +146,10 @@ export function PropertiesSidebar() {
         : [],
     [selectedLayer, timelineTracks]
   )
+
+  const showsAnimatedValues =
+    timelinePanelOpen && selectedLayerTracks.length > 0
+  const currentTime = useDisplayedTimelineTime(showsAnimatedValues)
 
   const evaluatedSelectedLayer = useMemo(() => {
     if (
@@ -406,7 +411,8 @@ export function PropertiesSidebar() {
         upsertKeyframe({
           binding,
           layerId: selectedLayer.id,
-          time: activeGestureTimeRef.current ?? currentTime,
+          time: activeGestureTimeRef.current ??
+            useTimelineStore.getState().currentTime,
           value,
         })
         return
@@ -414,13 +420,7 @@ export function PropertiesSidebar() {
 
       fallback()
     },
-    [
-      currentTime,
-      selectedLayer,
-      selectedLayerTracks,
-      timelineAutoKey,
-      upsertKeyframe,
-    ]
+    [selectedLayer, selectedLayerTracks, timelineAutoKey, upsertKeyframe]
   )
 
   const handleTimelineAwareParamChange = useCallback(
@@ -451,7 +451,8 @@ export function PropertiesSidebar() {
         upsertKeyframe({
           binding,
           layerId: selectedLayer.id,
-          time: activeGestureTimeRef.current ?? currentTime,
+          time: activeGestureTimeRef.current ??
+            useTimelineStore.getState().currentTime,
           value,
         })
         return
@@ -460,7 +461,6 @@ export function PropertiesSidebar() {
       updateLayerParam(selectedLayer.id, key, value)
     },
     [
-      currentTime,
       selectedLayer,
       selectedLayerTracks,
       selectedVisibleParams,
@@ -468,6 +468,48 @@ export function PropertiesSidebar() {
       updateLayerParam,
       upsertKeyframe,
     ]
+  )
+
+  const handleSetLayerHue = useCallback(
+    (id: string, value: number) => {
+      handleTimelineAwareLayerAdjustment(
+        createLayerPropertyBinding("hue"),
+        value,
+        () => setLayerHue(id, value)
+      )
+    },
+    [handleTimelineAwareLayerAdjustment, setLayerHue]
+  )
+
+  const handleSetLayerOpacity = useCallback(
+    (id: string, value: number) => {
+      handleTimelineAwareLayerAdjustment(
+        createLayerPropertyBinding("opacity"),
+        value,
+        () => setLayerOpacity(id, value)
+      )
+    },
+    [handleTimelineAwareLayerAdjustment, setLayerOpacity]
+  )
+
+  const handleSetLayerSaturation = useCallback(
+    (id: string, value: number) => {
+      handleTimelineAwareLayerAdjustment(
+        createLayerPropertyBinding("saturation"),
+        value,
+        () => setLayerSaturation(id, value)
+      )
+    },
+    [handleTimelineAwareLayerAdjustment, setLayerSaturation]
+  )
+
+  const handleUpdateLayerParam = useCallback(
+    (id: string, key: string, value: ParameterValue) => {
+      if (id === selectedLayerId) {
+        handleTimelineAwareParamChange(key, value)
+      }
+    },
+    [handleTimelineAwareParamChange, selectedLayerId]
   )
 
   const selectedLayerContentProps = selectedLayer
@@ -500,30 +542,11 @@ export function PropertiesSidebar() {
         saturation: displayedLayerState?.saturation ?? selectedLayer.saturation,
         setLayerBlendMode,
         setLayerCompositeMode,
-        setLayerHue: (id: string, value: number) =>
-          handleTimelineAwareLayerAdjustment(
-            createLayerPropertyBinding("hue"),
-            value,
-            () => setLayerHue(id, value)
-          ),
-        setLayerOpacity: (id: string, value: number) =>
-          handleTimelineAwareLayerAdjustment(
-            createLayerPropertyBinding("opacity"),
-            value,
-            () => setLayerOpacity(id, value)
-          ),
-        setLayerSaturation: (id: string, value: number) =>
-          handleTimelineAwareLayerAdjustment(
-            createLayerPropertyBinding("saturation"),
-            value,
-            () => setLayerSaturation(id, value)
-          ),
+        setLayerHue: handleSetLayerHue,
+        setLayerOpacity: handleSetLayerOpacity,
+        setLayerSaturation: handleSetLayerSaturation,
         timelinePanelOpen,
-        updateLayerParam: (id: string, key: string, value: ParameterValue) => {
-          if (id === selectedLayer.id) {
-            handleTimelineAwareParamChange(key, value)
-          }
-        },
+        updateLayerParam: handleUpdateLayerParam,
         values: displayedLayerState?.params ?? selectedLayer.params,
         visibleParams: selectedVisibleParams,
       }
@@ -590,7 +613,7 @@ export function PropertiesSidebar() {
           className="pointer-events-none invisible absolute top-0 left-0 -z-1 w-full"
         >
           <div className="w-full" ref={bindMeasuredView}>
-            {renderInvisibleContent()}
+            <MeasuringLayoutProvider>{renderInvisibleContent()}</MeasuringLayoutProvider>
           </div>
         </div>
 
@@ -621,7 +644,7 @@ export function PropertiesSidebar() {
         className="pointer-events-none invisible absolute top-0 left-0 -z-1 hidden w-full min-[900px]:block"
       >
         <div className="w-full" ref={bindMeasuredView}>
-          {renderInvisibleContent()}
+          <MeasuringLayoutProvider>{renderInvisibleContent()}</MeasuringLayoutProvider>
         </div>
       </div>
 

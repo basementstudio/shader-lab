@@ -1,5 +1,5 @@
 import { create } from "zustand"
-import { isSvgFileName } from "@/lib/editor/media-file"
+import { inferFileAssetKind, isAudioFileName } from "@/lib/editor/media-file"
 import type { AssetKind, EditorAsset } from "@/types/editor"
 
 export interface AssetStoreState {
@@ -28,54 +28,38 @@ const ACCEPTED_TYPES = new Set([
   "model/gltf+json",
   "model/obj",
   "application/octet-stream",
+  "audio/mpeg",
+  "audio/mp3",
+  "audio/mp4",
+  "audio/wav",
+  "audio/x-wav",
+  "audio/wave",
+  "audio/aac",
+  "audio/flac",
+  "audio/x-flac",
+  "audio/ogg",
+  "audio/opus",
+  "audio/webm",
 ])
 
 const MAX_SIZE_BYTES = 100 * 1024 * 1024
 
-function inferAssetKind(file: File): AssetKind | null {
+function validateFile(file: File): AssetKind {
+  const kind = inferFileAssetKind(file)
   const mimeType = file.type.toLowerCase()
   const fileName = file.name.toLowerCase()
-
-  if (mimeType.startsWith("image/") || isSvgFileName(fileName)) {
-    return "image"
-  }
-
-  if (mimeType.startsWith("video/")) {
-    return "video"
-  }
-
-  if (fileName.endsWith(".mov")) {
-    return "video"
-  }
-
-  if (
-    fileName.endsWith(".glb") ||
-    fileName.endsWith(".gltf") ||
-    fileName.endsWith(".obj") ||
-    mimeType === "model/gltf-binary" ||
-    mimeType === "model/gltf+json" ||
-    mimeType === "model/obj"
-  ) {
-    return "model"
-  }
-
-  return null
-}
-
-function validateFile(file: File): AssetKind {
-  const kind = inferAssetKind(file)
-  const mimeType = file.type.toLowerCase()
 
   if (
     !kind ||
     (!(
       ACCEPTED_TYPES.has(mimeType) ||
-      (kind === "video" && file.name.toLowerCase().endsWith(".mov"))
+      (kind === "video" && fileName.endsWith(".mov")) ||
+      (kind === "audio" && isAudioFileName(fileName))
     ) &&
       kind !== "model")
   ) {
     throw new Error(
-      `Unsupported file type "${file.type || "unknown"}". Accepted: PNG, JPG, WebP, GIF, SVG, MP4, WebM, MOV, GLB, GLTF, OBJ.`
+      `Unsupported file type "${file.type || "unknown"}". Accepted: PNG, JPG, WebP, GIF, SVG, MP4, WebM, MOV, GLB, GLTF, OBJ, MP3, WAV, M4A, FLAC, OGG.`
     )
   }
 
@@ -132,6 +116,41 @@ function loadVideoMetadata(
   })
 }
 
+function loadAudioMetadata(url: string): Promise<{ duration: number }> {
+  return new Promise((resolve, reject) => {
+    const audio = document.createElement("audio")
+    audio.preload = "metadata"
+
+    const settle = (duration: number) => {
+      audio.ondurationchange = null
+      audio.onloadedmetadata = null
+      audio.onerror = null
+      resolve({ duration: Number.isFinite(duration) ? duration : 0 })
+    }
+
+    audio.onloadedmetadata = () => {
+      if (Number.isFinite(audio.duration)) {
+        settle(audio.duration)
+        return
+      }
+
+      audio.ondurationchange = () => {
+        if (Number.isFinite(audio.duration)) {
+          settle(audio.duration)
+        }
+      }
+
+      audio.currentTime = Number.MAX_SAFE_INTEGER
+    }
+
+    audio.onerror = () => {
+      reject(new Error("Failed to read audio metadata."))
+    }
+
+    audio.src = url
+  })
+}
+
 export const useAssetStore = create<AssetStore>((set, get) => ({
   assets: [],
 
@@ -170,6 +189,15 @@ export const useAssetStore = create<AssetStore>((set, get) => ({
         height: metadata.height,
         width: metadata.width,
       }
+    } else if (kind === "audio") {
+      const metadata = await loadAudioMetadata(url)
+
+      asset = {
+        ...baseAsset,
+        duration: metadata.duration,
+        height: null,
+        width: null,
+      }
     } else {
       asset = {
         ...baseAsset,
@@ -203,6 +231,14 @@ export const useAssetStore = create<AssetStore>((set, get) => ({
   },
 
   replaceAssets: (assets) => {
+    const retained = new Set(assets.map((asset) => asset.url))
+
+    for (const asset of get().assets) {
+      if (!retained.has(asset.url)) {
+        URL.revokeObjectURL(asset.url)
+      }
+    }
+
     set({
       assets: [...assets],
     })

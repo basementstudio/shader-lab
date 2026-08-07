@@ -34,6 +34,7 @@ import type {
   ParameterDefinition,
   ParameterValue,
 } from "@/types/editor"
+import type { AudioLinkControl } from "@/components/editor/audio-link-button"
 import { BlobInnerEffectSection } from "./blob-inner-effect-section"
 import {
   ParameterField,
@@ -492,6 +493,12 @@ export function SelectedLayerPropertiesContent({
     [hasTrack, layerId, onTimelineKeyframe, reduceMotion, timelinePanelOpen]
   )
 
+  const buildAudioControl = useCallback(
+    (binding: AnimatedPropertyBinding | null): AudioLinkControl | null =>
+      binding ? { binding, definition: null, layerId } : null,
+    [layerId]
+  )
+
   return (
     <>
       <div className="flex flex-col gap-2 border-b border-[var(--ds-border-divider)] px-4 pt-[14px] pb-3">
@@ -525,7 +532,8 @@ export function SelectedLayerPropertiesContent({
             <Slider
               label={renderFieldLabel(
                 "Opacity",
-                buildTimelineControl(opacityBinding, opacity)
+                buildTimelineControl(opacityBinding, opacity),
+                buildAudioControl(opacityBinding)
               )}
               max={100}
               min={0}
@@ -638,7 +646,8 @@ export function SelectedLayerPropertiesContent({
             <Slider
               label={renderFieldLabel(
                 "Hue",
-                buildTimelineControl(hueBinding, hue)
+                buildTimelineControl(hueBinding, hue),
+                buildAudioControl(hueBinding)
               )}
               max={180}
               min={-180}
@@ -651,7 +660,8 @@ export function SelectedLayerPropertiesContent({
             <Slider
               label={renderFieldLabel(
                 "Saturation",
-                buildTimelineControl(saturationBinding, saturation)
+                buildTimelineControl(saturationBinding, saturation),
+                buildAudioControl(saturationBinding)
               )}
               max={2}
               min={0}
@@ -671,16 +681,6 @@ export function SelectedLayerPropertiesContent({
         {layerType === "custom-shader" ? (
           <CustomShaderSection
             layerId={layerId}
-            updateLayerParam={updateLayerParam}
-            values={values}
-          />
-        ) : null}
-
-        {layerType === "blob-tracking" ? (
-          <BlobInnerEffectSection
-            layerId={layerId}
-            onInteractionEnd={onInteractionEnd}
-            onInteractionStart={onInteractionStart}
             updateLayerParam={updateLayerParam}
             values={values}
           />
@@ -852,6 +852,18 @@ export function SelectedLayerPropertiesContent({
                                   }
                                 />
                               ))}
+
+                              {group.params.some(
+                                (param) => param.key === "innerEffectType"
+                              ) ? (
+                                <BlobInnerEffectSection
+                                  layerId={layerId}
+                                  onInteractionEnd={onInteractionEnd}
+                                  onInteractionStart={onInteractionStart}
+                                  updateLayerParam={updateLayerParam}
+                                  values={values}
+                                />
+                              ) : null}
                             </div>
                           </motion.div>
                         ) : null}
@@ -877,6 +889,16 @@ export function SelectedLayerPropertiesContent({
                     value={values[param.key] ?? param.defaultValue}
                   />
                 ))}
+
+                {layerType === "blob-tracking" ? (
+                  <BlobInnerEffectSection
+                    layerId={layerId}
+                    onInteractionEnd={onInteractionEnd}
+                    onInteractionStart={onInteractionStart}
+                    updateLayerParam={updateLayerParam}
+                    values={values}
+                  />
+                ) : null}
               </div>
             )}
           </section>

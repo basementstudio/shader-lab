@@ -120,7 +120,7 @@ export interface MaskConfig {
   source: MaskSource
 }
 
-export const ASSET_KINDS = ["image", "video", "model"] as const
+export const ASSET_KINDS = ["image", "video", "model", "audio"] as const
 export type AssetKind = (typeof ASSET_KINDS)[number]
 
 export type Vector2 = { x: number; y: number }
@@ -343,7 +343,6 @@ export interface TimelineTrack {
   easing?: KeyframeEasing
   enabled: boolean
   id: string
-  /** @deprecated Use `easing` instead. Kept for backward compat with old project files. */
   interpolation?: TimelineInterpolation
   keyframes: TimelineKeyframe[]
   layerId: string
@@ -358,6 +357,43 @@ export interface TimelineStateSnapshot {
   selectedKeyframeIds: string[]
   selectedTrackId: string | null
   tracks: TimelineTrack[]
+}
+
+export const AUDIO_BAND_IDS = ["bass", "mid", "high", "level"] as const
+export type AudioBandId = (typeof AUDIO_BAND_IDS)[number]
+
+export interface AudioBandConfig {
+  attackMs: number
+  gainDb: number
+  highHz: number
+  lowHz: number
+  releaseMs: number
+}
+
+export type AudioSourceRef =
+  | { assetId: string; kind: "asset" }
+  | { kind: "video-layer"; layerId: string }
+
+export type AudioLinkComponent = "all" | "x" | "y" | "z"
+
+export interface AudioLink {
+  band: AudioBandId
+  binding: AnimatedPropertyBinding
+  component?: AudioLinkComponent
+  enabled: boolean
+  id: string
+  layerId: string
+  outMax: number
+  outMin: number
+  threshold?: number
+  quantize?: boolean
+}
+
+export interface EditorAudioSnapshot {
+  bands: Record<AudioBandId, AudioBandConfig>
+  links: AudioLink[]
+  offsetSeconds: number
+  source: AudioSourceRef | null
 }
 
 export type SidebarView = "properties" | "scene"
@@ -477,6 +513,7 @@ export interface EditorStateSnapshot {
 }
 
 export interface EditorHistorySnapshot {
+  audio: EditorAudioSnapshot
   hoveredLayerId: string | null
   layers: EditorLayer[]
   selectedLayerId: string | null

@@ -48,6 +48,18 @@ export function isParameterAnimatable(definition: ParameterDefinition): boolean 
   return definition.animatable ?? true
 }
 
+export function isParameterAudioModulatable(definition: ParameterDefinition): boolean {
+  if (
+    definition.type === "color" ||
+    definition.type === "select" ||
+    definition.type === "vec3"
+  ) {
+    return false
+  }
+
+  return isParameterAnimatable(definition)
+}
+
 export function isParameterValueEqual(left: ParameterValue, right: ParameterValue): boolean {
   if (Array.isArray(left) && Array.isArray(right)) {
     return (

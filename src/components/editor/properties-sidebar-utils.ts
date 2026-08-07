@@ -6,6 +6,7 @@ import type {
   ParameterDefinition,
   ParameterValue,
 } from "@/types/editor"
+import { getBindingKey } from "@/lib/editor/binding-key"
 import { isTextFontWeightAdjustable } from "@/lib/editor/text-fonts"
 import { isParameterAnimatable } from "@/lib/editor/parameter-schema"
 import type { useTimelineStore } from "@/store/timeline-store"
@@ -47,13 +48,7 @@ export type ParamGroup = {
   params: ParameterDefinition[]
 }
 
-export function getBindingKey(binding: AnimatedPropertyBinding): string {
-  if (binding.kind === "layer") {
-    return `layer:${binding.property}`
-  }
-
-  return `param:${binding.key}`
-}
+export { getBindingKey }
 
 export function getSelectedAsset(
   assetById: Map<string, EditorAsset>,
@@ -176,19 +171,32 @@ export function groupVisibleParams(
   return [...groups.values()]
 }
 
+const paramTimelineBindingCache = new WeakMap<
+  ParameterDefinition,
+  AnimatedPropertyBinding | null
+>()
+
 export function createParamTimelineBinding(
   definition: ParameterDefinition
 ): AnimatedPropertyBinding | null {
-  if (definition.type === "text" || !isParameterAnimatable(definition)) {
-    return null
+  const cached = paramTimelineBindingCache.get(definition)
+
+  if (cached !== undefined) {
+    return cached
   }
 
-  return {
-    key: definition.key,
-    kind: "param",
-    label: definition.label,
-    valueType: definition.type === "boolean" ? "boolean" : definition.type,
-  }
+  const binding: AnimatedPropertyBinding | null =
+    definition.type === "text" || !isParameterAnimatable(definition)
+      ? null
+      : {
+          key: definition.key,
+          kind: "param",
+          label: definition.label,
+          valueType: definition.type === "boolean" ? "boolean" : definition.type,
+        }
+
+  paramTimelineBindingCache.set(definition, binding)
+  return binding
 }
 
 export function hasTrackForBinding(

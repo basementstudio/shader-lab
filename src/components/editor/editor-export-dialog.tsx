@@ -291,12 +291,13 @@ export function EditorExportDialog({
     () => validateShaderExportSupport(layers, assets),
     [assets, layers]
   )
-  const hasFluidLayer = useMemo(
+  const needsLiveCapture = useMemo(
     () =>
       layers.some(
         (layer) =>
           layer.visible &&
           (layer.type === "fluid" ||
+            layer.type === "live" ||
             layer.type === "pixel-trail" ||
             layer.type === "magnify-lens")
       ),
@@ -1016,7 +1017,7 @@ export function EditorExportDialog({
                       {activeTab === "video" ? (
                         <VideoTabContent
                           audioAvailable={audioAvailable}
-                          hasFluidLayer={hasFluidLayer}
+                          needsLiveCapture={needsLiveCapture}
                           includeAudio={includeAudio}
                           isWorking={isWorking}
                           liveRecordingSupported={Boolean(
@@ -1103,7 +1104,7 @@ export function EditorExportDialog({
                         {activeTab === "video" ? (
                           <VideoTabContent
                             audioAvailable={audioAvailable}
-                            hasFluidLayer={hasFluidLayer}
+                            needsLiveCapture={needsLiveCapture}
                             includeAudio={includeAudio}
                             isWorking={isWorking}
                             liveRecordingSupported={Boolean(
@@ -1349,7 +1350,7 @@ function formatRangeSeconds(value: number): string {
 
 function VideoTabContent({
   audioAvailable,
-  hasFluidLayer,
+  needsLiveCapture,
   includeAudio,
   isWorking,
   liveRecordingSupported,
@@ -1378,7 +1379,7 @@ function VideoTabContent({
   webmSupported,
 }: {
   audioAvailable: boolean
-  hasFluidLayer: boolean
+  needsLiveCapture: boolean
   includeAudio: boolean
   isWorking: boolean
   liveRecordingSupported: boolean
@@ -1412,16 +1413,15 @@ function VideoTabContent({
 
   return (
     <section className="flex flex-col gap-[14px]">
-      {hasFluidLayer ? (
+      {needsLiveCapture ? (
         <div className="flex flex-col gap-3 rounded-[var(--ds-radius-control)] border border-[rgb(255_190_92_/_0.22)] p-3">
           <Typography
             className="flex items-center gap-2 leading-[14px] text-[rgb(255_219_166_/_0.92)]"
             variant="caption"
           >
             <ExclamationTriangleIcon height={14} width={14} />
-            Interactive layers use a live simulation. Normal video export can
-            capture incomplete or broken fluid motion. Use live recording
-            instead.
+            This composition has a layer with no timeline — a camera or a
+            simulation. Normal export gets the speed wrong. Record it live.
           </Typography>
           <Button
             disabled={!liveRecordingSupported || isWorking}

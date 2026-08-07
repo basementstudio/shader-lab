@@ -6,7 +6,7 @@ import type {
   ParameterValue,
 } from "@/types/editor"
 
-const LAYER_PROPERTY_BOUNDS: Record<
+export const LAYER_PROPERTY_BOUNDS: Record<
   "hue" | "opacity" | "saturation",
   { max: number; min: number }
 > = {

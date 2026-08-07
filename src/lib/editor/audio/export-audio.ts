@@ -1,9 +1,51 @@
-export const EXPORT_AUDIO_SAMPLE_RATE = 48_000
+import { AUDIO_SAMPLE_RATE } from "@/lib/editor/audio/bands"
+
+export const EXPORT_AUDIO_SAMPLE_RATE = AUDIO_SAMPLE_RATE
 export const EXPORT_AUDIO_CHANNELS = 2
 export const MAX_EXPORT_AUDIO_SEGMENTS = 512
 
 const ENCODE_BLOCK_FRAMES = 1024
 const MAX_QUEUED_BLOCKS = 32
+
+type DequeueCapableEncoder = AudioEncoder & {
+  ondequeue?: (() => void) | null
+}
+
+function drainEncodeQueue(encoder: AudioEncoder): Promise<void> {
+  if (encoder.encodeQueueSize <= MAX_QUEUED_BLOCKS) {
+    return Promise.resolve()
+  }
+
+  const dequeueCapable = encoder as DequeueCapableEncoder
+
+  if (!("ondequeue" in dequeueCapable)) {
+    return new Promise<void>((resolve) => {
+      const poll = () => {
+        if (encoder.encodeQueueSize <= MAX_QUEUED_BLOCKS) {
+          resolve()
+          return
+        }
+
+        setTimeout(poll, 4)
+      }
+
+      poll()
+    })
+  }
+
+  return new Promise<void>((resolve) => {
+    const onDequeue = () => {
+      if (encoder.encodeQueueSize > MAX_QUEUED_BLOCKS) {
+        return
+      }
+
+      dequeueCapable.ondequeue = null
+      resolve()
+    }
+
+    dequeueCapable.ondequeue = onDequeue
+  })
+}
 
 const AAC_LC_ENCODER_PRIMING_FRAMES = 2048
 const OPUS_PRESKIP_HANDLED_BY_MUXER = 0
@@ -295,11 +337,7 @@ export async function encodeExportAudio({
         data.close()
       }
 
-      while (encoder.encodeQueueSize > MAX_QUEUED_BLOCKS) {
-        await new Promise<void>((resolve) => {
-          window.setTimeout(resolve, 0)
-        })
-      }
+      await drainEncodeQueue(encoder)
 
       onProgress?.(Math.min(1, (offset + frames) / totalFrames))
     }

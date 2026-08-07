@@ -320,6 +320,68 @@ describe("applyAudioModulation", () => {
     expect(original.params[numberParam.key]).toBe(0)
   })
 
+  test("leaves states for unlinked layers untouched by identity", () => {
+    const linked = makeLayer()
+    const untouched = { ...makeLayer(), id: "other-layer" }
+
+    const link = createAudioLink({
+      band: "bass",
+      binding: paramBinding(numberParam.key),
+      id: "l1",
+      layerId: linked.id,
+      outMax: 1,
+      outMin: 0,
+    })
+
+    const linkedState: EvaluatedLayerState = {
+      layerId: linked.id,
+      params: {},
+      properties: {},
+    }
+    const untouchedState: EvaluatedLayerState = {
+      layerId: untouched.id,
+      params: { a: 1 },
+      properties: {},
+    }
+
+    const states = apply(
+      [linked, untouched],
+      [link],
+      [linkedState, untouchedState],
+      1
+    )
+
+    expect(states[1]).toBe(untouchedState)
+    expect(states[0]).not.toBe(linkedState)
+  })
+
+  test("two links on one layer both land on the same state", () => {
+    const layer = makeLayer()
+
+    const first = createAudioLink({
+      band: "bass",
+      binding: paramBinding(numberParam.key),
+      id: "l1",
+      layerId: layer.id,
+      outMax: numberParam.max ?? 1,
+      outMin: numberParam.min ?? 0,
+    })
+    const second = createAudioLink({
+      band: "mid",
+      binding: { kind: "layer", label: "Opacity", property: "opacity", valueType: "number" },
+      id: "l2",
+      layerId: layer.id,
+      outMax: 1,
+      outMin: 0,
+    })
+
+    const states = apply([layer], [first, second], [], 1)
+
+    expect(states).toHaveLength(1)
+    expect(states[0]?.params[numberParam.key]).toBe(numberParam.max)
+    expect(states[0]?.properties.opacity).toBe(1)
+  })
+
   test("ignores links pointing at a deleted layer", () => {
     const layer = makeLayer()
     const link = createAudioLink({

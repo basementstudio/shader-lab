@@ -6,6 +6,7 @@ import { useId } from "react"
 import { useBandValueElement } from "@/hooks/use-band-value-element"
 import { cn } from "@/lib/cn"
 import { findAudioLink } from "@/lib/editor/audio/links"
+import { resolveDefaultAudioLinkRange } from "@/lib/editor/audio/link-defaults"
 import { isParameterAudioModulatable } from "@/lib/editor/parameter-schema"
 import { useIsMeasuringLayout } from "@/components/editor/properties-sidebar-measure"
 import { useAudioStore } from "@/store"
@@ -13,6 +14,7 @@ import {
   AUDIO_BAND_IDS,
   type AnimatedPropertyBinding,
   type AudioBandId,
+  type AudioLinkComponent,
   type ParameterDefinition,
 } from "@/types/editor"
 import { IconButton } from "@/components/ui/icon-button"
@@ -29,6 +31,12 @@ const BAND_LABELS: Record<AudioBandId, string> = {
   mid: "Mid",
 }
 
+const VECTOR_COMPONENTS: { label: string; value: AudioLinkComponent }[] = [
+  { label: "Both", value: "all" },
+  { label: "X", value: "x" },
+  { label: "Y", value: "y" },
+]
+
 export type AudioLinkControl = {
   binding: AnimatedPropertyBinding | null
   definition: ParameterDefinition | null
@@ -43,23 +51,6 @@ export function AudioMeterIcon() {
       <rect fill="currentColor" height="7" rx="0.7" width="2" x="10" y="4.5" />
     </svg>
   )
-}
-
-function resolveDefaultRange(
-  definition: ParameterDefinition | null
-): { outMax: number; outMin: number } {
-  if (!definition) {
-    return { outMax: 1, outMin: 0 }
-  }
-
-  if (definition.type === "boolean") {
-    return { outMax: 1, outMin: 0 }
-  }
-
-  const min = "min" in definition ? definition.min : undefined
-  const max = "max" in definition ? definition.max : undefined
-
-  return { outMax: max ?? 1, outMin: min ?? 0 }
 }
 
 function BandLevelBar({ bandId }: { bandId: AudioBandId }) {
@@ -121,6 +112,7 @@ function AudioLinkTrigger({
 
   const link = findAudioLink(links, control.layerId, binding)
   const isBoolean = control.definition?.type === "boolean"
+  const isVector = control.definition?.type === "vec2"
 
   const iconRef = useBandValueElement<HTMLSpanElement>(
     link?.band ?? null,
@@ -188,7 +180,10 @@ function AudioLinkTrigger({
                           binding,
                           id: crypto.randomUUID(),
                           layerId: control.layerId,
-                          ...resolveDefaultRange(control.definition),
+                          ...resolveDefaultAudioLinkRange(
+                            binding,
+                            control.definition
+                          ),
                         })
                       }}
                       type="button"
@@ -209,6 +204,43 @@ function AudioLinkTrigger({
 
               {link ? (
                 <>
+                  {isVector ? (
+                    <div className="flex flex-col gap-1">
+                      <Typography as="span" tone="secondary" variant="label">
+                        Axis
+                      </Typography>
+                      <div className="grid grid-cols-3 gap-1">
+                        {VECTOR_COMPONENTS.map((option) => {
+                          const selected =
+                            (link.component ?? "all") === option.value
+
+                          return (
+                            <button
+                              className={cn(
+                                "flex h-7 cursor-pointer items-center justify-center rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] transition-[border-color,background-color] duration-160 ease-[var(--ease-out-cubic)] hover:border-[var(--ds-border-hover)]",
+                                selected &&
+                                  "border-[rgb(182_151_255_/_0.6)] bg-[rgb(182_151_255_/_0.14)]"
+                              )}
+                              key={option.value}
+                              onClick={() => {
+                                updateLink(link.id, { component: option.value })
+                              }}
+                              type="button"
+                            >
+                              <Typography
+                                as="span"
+                                tone={selected ? "primary" : "secondary"}
+                                variant="caption"
+                              >
+                                {option.label}
+                              </Typography>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  ) : null}
+
                   {isBoolean ? (
                     <div className="flex flex-col gap-1">
                       <Typography

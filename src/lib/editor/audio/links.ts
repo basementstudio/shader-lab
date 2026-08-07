@@ -2,7 +2,7 @@ import { getLayerBindingKey } from "@/lib/editor/binding-key"
 import { getLayerDefinition } from "@/lib/editor/config/layer-registry"
 import { resolveAudioLinkValue } from "@/lib/editor/audio/modulate"
 import type { AudioEnvelopeSet } from "@/lib/editor/audio/envelope"
-import { sampleAllBands } from "@/lib/editor/audio/envelope-lookup"
+import { sampleAllBandsInto } from "@/lib/editor/audio/envelope-lookup"
 import {
   getParameterDefinition,
   isParameterAudioModulatable,
@@ -125,6 +125,8 @@ export function findConflictingAudioLinks(
   return conflicts
 }
 
+const definitionCache = new Map<string, ParameterDefinition | null>()
+
 function resolveDefinition(
   layer: EditorLayer,
   binding: AnimatedPropertyBinding
@@ -133,8 +135,33 @@ function resolveDefinition(
     return null
   }
 
-  return getParameterDefinition(getLayerDefinition(layer.type).params, binding.key)
+  const cacheKey = `${layer.type}:${binding.key}`
+  const cached = definitionCache.get(cacheKey)
+
+  if (cached !== undefined) {
+    return cached
+  }
+
+  const definition = getParameterDefinition(
+    getLayerDefinition(layer.type).params,
+    binding.key
+  )
+
+  definitionCache.set(cacheKey, definition)
+  return definition
 }
+
+function findLayer(layers: EditorLayer[], layerId: string): EditorLayer | null {
+  for (const layer of layers) {
+    if (layer.id === layerId) {
+      return layer
+    }
+  }
+
+  return null
+}
+
+const bandValueScratch = {} as Record<AudioBandId, number>
 
 export function applyAudioModulation(
   layers: EditorLayer[],
@@ -142,27 +169,34 @@ export function applyAudioModulation(
   audio: AudioModulationInput,
   time: number
 ): EvaluatedLayerState[] {
-  const activeLinks = audio.links.filter((link) => link.enabled)
+  let hasEnabledLink = false
 
-  if (activeLinks.length === 0) {
+  for (const link of audio.links) {
+    if (link.enabled) {
+      hasEnabledLink = true
+      break
+    }
+  }
+
+  if (!hasEnabledLink) {
     return keyframeStates
   }
 
-  const layerById = new Map(layers.map((layer) => [layer.id, layer]))
+  const bandValues = sampleAllBandsInto(
+    audio.envelopes,
+    audio.offsetSeconds,
+    time,
+    bandValueScratch
+  )
 
-  const stateByLayerId = new Map<string, EvaluatedLayerState>()
-  for (const state of keyframeStates) {
-    stateByLayerId.set(state.layerId, {
-      layerId: state.layerId,
-      params: { ...state.params },
-      properties: { ...state.properties },
-    })
-  }
+  let output: EvaluatedLayerState[] | null = null
 
-  const bandValues = sampleAllBands(audio.envelopes, audio.offsetSeconds, time)
+  for (const link of audio.links) {
+    if (!link.enabled) {
+      continue
+    }
 
-  for (const link of activeLinks) {
-    const layer = layerById.get(link.layerId)
+    const layer = findLayer(layers, link.layerId)
 
     if (!layer) {
       continue
@@ -180,10 +214,37 @@ export function applyAudioModulation(
       }
     }
 
-    let state = stateByLayerId.get(link.layerId)
-    if (!state) {
+    if (!output) {
+      output = keyframeStates.slice()
+    }
+
+    let index = -1
+
+    for (let cursor = 0; cursor < output.length; cursor += 1) {
+      if (output[cursor]?.layerId === link.layerId) {
+        index = cursor
+        break
+      }
+    }
+
+    let state: EvaluatedLayerState
+
+    if (index === -1) {
       state = { layerId: link.layerId, params: {}, properties: {} }
-      stateByLayerId.set(link.layerId, state)
+      output.push(state)
+    } else {
+      const existing = output[index] as EvaluatedLayerState
+
+      if (existing === keyframeStates[index]) {
+        state = {
+          layerId: existing.layerId,
+          params: { ...existing.params },
+          properties: { ...existing.properties },
+        }
+        output[index] = state
+      } else {
+        state = existing
+      }
     }
 
     const base: ParameterValue | undefined =
@@ -219,5 +280,5 @@ export function applyAudioModulation(
     }
   }
 
-  return [...stateByLayerId.values()]
+  return output ?? keyframeStates
 }

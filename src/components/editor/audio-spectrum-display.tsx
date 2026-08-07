@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useMemo, useRef } from "react"
 import {
+  AUDIO_SAMPLE_RATE,
   createSpectroBandLayout,
   SPECTRO_MAX_HZ,
   SPECTRO_MIN_HZ,
@@ -46,16 +47,27 @@ export function AudioSpectrumDisplay() {
     })
   }, [])
 
-  const layout = createSpectroBandLayout(sampleRate ?? 48000)
-  const lowestHz = layout.centerHz[0] ?? SPECTRO_MIN_HZ
-  const highestHz = layout.centerHz.at(-1) ?? SPECTRO_MAX_HZ
+  const boundaries = useMemo(() => {
+    const layout = createSpectroBandLayout(sampleRate ?? AUDIO_SAMPLE_RATE)
+    const lowestHz = layout.centerHz[0] ?? SPECTRO_MIN_HZ
+    const highestHz = layout.centerHz.at(-1) ?? SPECTRO_MAX_HZ
 
-  const frequencyBands = AUDIO_BAND_IDS.filter((bandId) => bandId !== "level")
-  const boundaries = frequencyBands.map((bandId) => ({
-    bandId,
-    endFraction: frequencyToFraction(bands[bandId].highHz, lowestHz, highestHz),
-    startFraction: frequencyToFraction(bands[bandId].lowHz, lowestHz, highestHz),
-  }))
+    return AUDIO_BAND_IDS.filter((bandId) => bandId !== "level").map(
+      (bandId) => ({
+        bandId,
+        endFraction: frequencyToFraction(
+          bands[bandId].highHz,
+          lowestHz,
+          highestHz
+        ),
+        startFraction: frequencyToFraction(
+          bands[bandId].lowHz,
+          lowestHz,
+          highestHz
+        ),
+      })
+    )
+  }, [bands, sampleRate])
 
   return (
     <div className="flex flex-col gap-1">

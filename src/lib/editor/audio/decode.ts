@@ -1,3 +1,4 @@
+import { AUDIO_SAMPLE_RATE } from "@/lib/editor/audio/bands"
 import { downmixToMono } from "@/lib/editor/audio/spectrogram"
 
 export type DecodedAudio = {
@@ -56,14 +57,17 @@ async function decodeArrayBuffer(encoded: ArrayBuffer): Promise<AudioBuffer> {
       .webkitOfflineAudioContext
 
   if (OfflineCtor) {
-    const context = new OfflineCtor(1, 1, 44100)
+    const context = new OfflineCtor(1, 1, AUDIO_SAMPLE_RATE)
+    const retry = globalThis.AudioContext ? encoded.slice(0) : null
 
     try {
       return await context.decodeAudioData(encoded)
     } catch (error) {
-      if (!globalThis.AudioContext) {
+      if (!retry) {
         throw error
       }
+
+      return await decodeWithAudioContext(retry)
     }
   }
 
@@ -71,7 +75,21 @@ async function decodeArrayBuffer(encoded: ArrayBuffer): Promise<AudioBuffer> {
     throw new Error("This browser cannot decode audio.")
   }
 
-  const context = new AudioContext()
+  return await decodeWithAudioContext(encoded)
+}
+
+function createDecodeAudioContext(): AudioContext {
+  try {
+    return new AudioContext({ sampleRate: AUDIO_SAMPLE_RATE })
+  } catch {
+    return new AudioContext()
+  }
+}
+
+async function decodeWithAudioContext(
+  encoded: ArrayBuffer
+): Promise<AudioBuffer> {
+  const context = createDecodeAudioContext()
 
   try {
     return await context.decodeAudioData(encoded)

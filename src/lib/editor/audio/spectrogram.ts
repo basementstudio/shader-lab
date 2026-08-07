@@ -158,7 +158,7 @@ export function* analyzeSpectrogramStepwise(
     bands,
     centerHz: plan.centerHz,
     durationSeconds: samples.length / sampleRate,
-    envelopeRate,
+    envelopeRate: sampleRate / hopSamples,
     fftSize,
     frameCount,
     rms,

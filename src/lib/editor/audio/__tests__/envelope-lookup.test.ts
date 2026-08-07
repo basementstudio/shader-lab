@@ -115,10 +115,63 @@ describe("sampleEnvelopeWindow", () => {
     }
   })
 
-  test("returns empty for a window past the end or a non-positive duration", () => {
-    expect(sampleEnvelopeWindow(envelopes, "bass", 999, 1, 4)).toHaveLength(0)
+  test("holds the last value past the end, matching sampleBand", () => {
+    const peaks = sampleEnvelopeWindow(envelopes, "bass", 999, 1, 4)
+
+    expect(peaks).toHaveLength(4)
+    for (const peak of peaks) {
+      expect(peak).toBeCloseTo(sampleBand(envelopes, "bass", 999, 0), 5)
+    }
+  })
+
+  test("returns empty for a non-positive duration or count", () => {
     expect(sampleEnvelopeWindow(envelopes, "bass", 0, 0, 4)).toHaveLength(0)
     expect(sampleEnvelopeWindow(envelopes, "bass", 0, 1, 0)).toHaveLength(0)
+  })
+
+  test("bucket index maps to the same timeline time the driver reads", () => {
+    const durationSeconds = 8
+    const count = 16
+    const peaks = sampleEnvelopeWindow(
+      envelopes,
+      "bass",
+      0,
+      durationSeconds,
+      count
+    )
+
+    expect(peaks).toHaveLength(count)
+
+    for (let index = 0; index < count; index += 1) {
+      const time = (index / count) * durationSeconds
+      expect(peaks[index]).toBeCloseTo(sampleBand(envelopes, "bass", 0, time), 5)
+    }
+  })
+
+  test("a track shorter than the window is not stretched across it", () => {
+    const spiked = makeEnvelopes(
+      Array.from({ length: 120 }, (_, index) => (index === 30 ? 1 : 0))
+    )
+
+    const peaks = sampleEnvelopeWindow(spiked, "bass", 0, 10, 20)
+
+    expect(peaks).toHaveLength(20)
+    expect(peaks[1]).toBeCloseTo(1, 5)
+
+    for (let index = 0; index < 20; index += 1) {
+      if (index !== 1) {
+        expect(peaks[index]).toBeCloseTo(0, 5)
+      }
+    }
+  })
+
+  test("a negative offset draws the leading hold rather than squeezing it out", () => {
+    const peaks = sampleEnvelopeWindow(envelopes, "bass", -2, 4, 8)
+
+    expect(peaks).toHaveLength(8)
+    expect(peaks[0]).toBeCloseTo(sampleBand(envelopes, "bass", -2, 0), 5)
+    expect(peaks[0]).toBeCloseTo(peaks[3] ?? 0, 5)
+    expect(peaks[7]).toBeCloseTo(sampleBand(envelopes, "bass", -2, 3.5), 5)
   })
 
   test("returns empty for an empty envelope", () => {

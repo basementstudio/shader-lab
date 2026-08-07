@@ -9,7 +9,10 @@ export function useBandValueElement<T extends HTMLElement | SVGElement>(
   write: (element: T, value: number) => void
 ): (element: T | null) => void {
   const writeRef = useRef(write)
-  writeRef.current = write
+
+  useEffect(() => {
+    writeRef.current = write
+  })
 
   const unregisterRef = useRef<(() => void) | null>(null)
 

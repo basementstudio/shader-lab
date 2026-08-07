@@ -121,10 +121,26 @@ function loadAudioMetadata(url: string): Promise<{ duration: number }> {
     const audio = document.createElement("audio")
     audio.preload = "metadata"
 
+    const settle = (duration: number) => {
+      audio.ondurationchange = null
+      audio.onloadedmetadata = null
+      audio.onerror = null
+      resolve({ duration: Number.isFinite(duration) ? duration : 0 })
+    }
+
     audio.onloadedmetadata = () => {
-      resolve({
-        duration: Number.isFinite(audio.duration) ? audio.duration : 0,
-      })
+      if (Number.isFinite(audio.duration)) {
+        settle(audio.duration)
+        return
+      }
+
+      audio.ondurationchange = () => {
+        if (Number.isFinite(audio.duration)) {
+          settle(audio.duration)
+        }
+      }
+
+      audio.currentTime = Number.MAX_SAFE_INTEGER
     }
 
     audio.onerror = () => {
@@ -215,6 +231,14 @@ export const useAssetStore = create<AssetStore>((set, get) => ({
   },
 
   replaceAssets: (assets) => {
+    const retained = new Set(assets.map((asset) => asset.url))
+
+    for (const asset of get().assets) {
+      if (!retained.has(asset.url)) {
+        URL.revokeObjectURL(asset.url)
+      }
+    }
+
     set({
       assets: [...assets],
     })

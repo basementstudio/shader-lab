@@ -185,7 +185,14 @@ type BandMeasurement = {
   series: Float32Array
 }
 
-function measureBand(
+const MEASUREMENT_CACHE_LIMIT = 8
+
+const measurementCache = new WeakMap<
+  AudioSpectrogram,
+  Map<string, BandMeasurement>
+>()
+
+function measureBandUncached(
   spectrogram: AudioSpectrogram,
   bandId: AudioBandId,
   config: AudioBandConfig
@@ -197,12 +204,69 @@ function measureBand(
     peak = Math.max(peak, value)
   }
 
+  if (series.length === 0) {
+    return {
+      normalization: { lowDb: -DYNAMIC_RANGE_DB, spanDb: DYNAMIC_RANGE_DB },
+      peak,
+      reference: 0,
+      series,
+    }
+  }
+
+  const histogram = computeDbHistogram(series)
+  const highDb = percentileDecibels(
+    histogram,
+    series.length,
+    REFERENCE_PERCENTILE
+  )
+  const lowDb = percentileDecibels(histogram, series.length, 0.05)
+  const spanDb = Math.min(
+    Math.max(highDb - lowDb, MIN_NORMALIZATION_SPAN_DB),
+    DYNAMIC_RANGE_DB
+  )
+
   return {
-    normalization: computeBandNormalization(series),
+    normalization: { lowDb: highDb - spanDb, spanDb },
     peak,
-    reference: computeReferenceLevel(series),
+    reference: 10 ** (highDb / 20),
     series,
   }
+}
+
+function measureBand(
+  spectrogram: AudioSpectrogram,
+  bandId: AudioBandId,
+  config: AudioBandConfig
+): BandMeasurement {
+  const key = isFullBandBand(bandId)
+    ? bandId
+    : `${bandId}:${config.lowHz}:${config.highHz}`
+
+  let cache = measurementCache.get(spectrogram)
+
+  if (!cache) {
+    cache = new Map()
+    measurementCache.set(spectrogram, cache)
+  }
+
+  const cached = cache.get(key)
+
+  if (cached) {
+    return cached
+  }
+
+  const measurement = measureBandUncached(spectrogram, bandId, config)
+
+  if (cache.size >= MEASUREMENT_CACHE_LIMIT) {
+    const oldest = cache.keys().next().value
+
+    if (oldest !== undefined) {
+      cache.delete(oldest)
+    }
+  }
+
+  cache.set(key, measurement)
+  return measurement
 }
 
 function normalizeAndSmooth(

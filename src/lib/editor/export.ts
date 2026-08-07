@@ -345,7 +345,10 @@ async function prepareExportAudio(
     )
   }
 
-  const decoded = await decodeAudioBuffer(source.url, options.abortSignal)
+  let decoded: AudioBuffer | null = await decodeAudioBuffer(
+    source.url,
+    options.abortSignal
+  )
   throwIfAborted(options.abortSignal)
 
   const segments = planExportAudioSegments({
@@ -365,6 +368,7 @@ async function prepareExportAudio(
   }
 
   const buffer = await renderExportAudio(decoded, segments, options.duration)
+  decoded = null
   throwIfAborted(options.abortSignal)
 
   const chunks: EncodedAudioEntry[] = []
@@ -379,6 +383,26 @@ async function prepareExportAudio(
   })
 
   return { chunks, config }
+}
+
+export function advanceAudioChunkCursor(
+  chunks: { chunk: { timestamp: number } }[],
+  cursor: number,
+  timestampUs: number
+): number {
+  let next = Math.max(0, cursor)
+
+  while (next < chunks.length) {
+    const entry = chunks[next]
+
+    if (!entry || entry.chunk.timestamp > timestampUs) {
+      break
+    }
+
+    next += 1
+  }
+
+  return next
 }
 
 function formatRemaining(seconds: number): string {
@@ -447,57 +471,78 @@ async function runVideoExport(
     )
   }
 
-  const renderCanvas = createHiddenRenderCanvas()
-  const maxExportDimension = await getMaxExportDimension()
-  const maxAllowedDimension = Math.min(
-    maxExportDimension,
-    getMaxDimensionForQuality(options.qualityPreset)
-  )
-  const exportSize = normalizeVideoExportSize(options.format, {
-    ...clampExportSize(
-      {
-        width: options.width,
-        height: options.height,
-      },
-      maxAllowedDimension
-    ),
-  })
-  const sourceRenderSize = getSourceRenderSizeForExport(
-    projectState.compositionSize,
-    options.aspectPreset,
-    exportSize
-  )
-  const outputCanvas = document.createElement("canvas")
-  outputCanvas.width = exportSize.width
-  outputCanvas.height = exportSize.height
-
-  const totalFrames = Math.max(1, Math.round(options.duration * options.fps))
-  const renderer = await createExportRenderer(renderCanvas)
-  const encoder = await createVideoExportEncoder({
-    audio: preparedAudio
-      ? {
-          codec: preparedAudio.config.codec,
-          numberOfChannels: preparedAudio.config.numberOfChannels,
-          sampleRate: preparedAudio.config.sampleRate,
-        }
-      : null,
-    bitrate: getVideoBitrate(options.qualityPreset),
-    expectedAudioChunks: preparedAudio?.chunks.length ?? 0,
-    expectedVideoChunks: totalFrames,
-    fileStream: options.fileStream ?? null,
-    format: support.format,
-    fps: options.fps,
-    height: outputCanvas.height,
-    width: outputCanvas.width,
-  })
-
+  let renderCanvas: HTMLCanvasElement | null = null
+  let renderer: Awaited<ReturnType<typeof createExportRenderer>> | null = null
+  let encoder: Awaited<ReturnType<typeof createVideoExportEncoder>> | null = null
   let finalized = false
 
   try {
+    renderCanvas = createHiddenRenderCanvas()
+    const maxExportDimension = await getMaxExportDimension()
+    const maxAllowedDimension = Math.min(
+      maxExportDimension,
+      getMaxDimensionForQuality(options.qualityPreset)
+    )
+    const exportSize = normalizeVideoExportSize(options.format, {
+      ...clampExportSize(
+        {
+          width: options.width,
+          height: options.height,
+        },
+        maxAllowedDimension
+      ),
+    })
+    const sourceRenderSize = getSourceRenderSizeForExport(
+      projectState.compositionSize,
+      options.aspectPreset,
+      exportSize
+    )
+    const outputCanvas = document.createElement("canvas")
+    outputCanvas.width = exportSize.width
+    outputCanvas.height = exportSize.height
+
+    const totalFrames = Math.max(1, Math.round(options.duration * options.fps))
+    renderer = await createExportRenderer(renderCanvas)
+    encoder = await createVideoExportEncoder({
+      audio: preparedAudio
+        ? {
+            codec: preparedAudio.config.codec,
+            numberOfChannels: preparedAudio.config.numberOfChannels,
+            sampleRate: preparedAudio.config.sampleRate,
+          }
+        : null,
+      bitrate: getVideoBitrate(options.qualityPreset),
+      expectedAudioChunks: preparedAudio?.chunks.length ?? 0,
+      expectedVideoChunks: totalFrames,
+      fileStream: options.fileStream ?? null,
+      format: support.format,
+      fps: options.fps,
+      height: outputCanvas.height,
+      width: outputCanvas.width,
+    })
+
     throwIfAborted(options.abortSignal)
 
-    for (const entry of preparedAudio?.chunks ?? []) {
-      encoder.addAudioChunk(entry.chunk, entry.meta)
+    const activeEncoder = encoder
+    const audioChunks = preparedAudio?.chunks ?? []
+    let audioCursor = 0
+
+    const drainAudioThrough = (timestampUs: number) => {
+      const next = advanceAudioChunkCursor(
+        audioChunks,
+        audioCursor,
+        timestampUs
+      )
+
+      for (let index = audioCursor; index < next; index += 1) {
+        const entry = audioChunks[index]
+
+        if (entry) {
+          activeEncoder.addAudioChunk(entry.chunk, entry.meta)
+        }
+      }
+
+      audioCursor = next
     }
 
     await prewarmExportFrame(renderer, renderCanvas, projectState, {
@@ -563,6 +608,7 @@ async function runVideoExport(
         Math.max(1, frameEndUs - frameStartUs),
         frameStartUs
       )
+      drainAudioThrough(frameEndUs)
       throwIfAborted(options.abortSignal)
 
       const isLastFrame = frameIndex === totalFrames - 1
@@ -581,6 +627,8 @@ async function runVideoExport(
       }
     }
 
+    drainAudioThrough(Number.POSITIVE_INFINITY)
+
     options.onProgress?.({
       label: "Finalizing file",
       value: 0.98,
@@ -591,12 +639,18 @@ async function runVideoExport(
     finalized = true
     return blob
   } finally {
-    if (!finalized) {
-      encoder.close()
+    if (encoder && !finalized) {
+      await encoder.close()
     }
-    renderer.dispose()
-    await renderer.destroyDevice()
-    destroyHiddenRenderCanvas(renderCanvas)
+
+    if (renderer) {
+      renderer.dispose()
+      await renderer.destroyDevice()
+    }
+
+    if (renderCanvas) {
+      destroyHiddenRenderCanvas(renderCanvas)
+    }
   }
 }
 

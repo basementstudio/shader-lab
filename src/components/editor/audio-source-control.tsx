@@ -7,7 +7,6 @@ import { AudioSpectrumDisplay } from "@/components/editor/audio-spectrum-display
 import { useBandValueElement } from "@/hooks/use-band-value-element"
 import { cn } from "@/lib/cn"
 import { MIN_RELEASE_MS } from "@/lib/editor/audio/bands"
-import { acquireLiveBandDriver } from "@/lib/editor/audio/live-band-driver"
 import { AUDIO_FILE_ACCEPT } from "@/lib/editor/media-file"
 import { useAssetStore, useAudioStore, useTimelineStore } from "@/store"
 import { AUDIO_BAND_IDS, type AudioBandId } from "@/types/editor"
@@ -222,14 +221,6 @@ export function AudioSourceControl({
       element.style.transform = `scale(${0.7 + 0.6 * value})`
     }
   )
-
-  useEffect(() => {
-    if (status !== "ready") {
-      return
-    }
-
-    return acquireLiveBandDriver()
-  }, [status])
 
   const sourceAsset =
     source?.kind === "asset"

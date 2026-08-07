@@ -227,6 +227,10 @@ export function EditorTopBar() {
           return
         }
 
+        if (state.layers === previousState.layers) {
+          return
+        }
+
         const audioSnapshot = useAudioStore.getState().getSnapshot()
         const previousSnapshot = buildEditorHistorySnapshotFromState(
           previousState,
@@ -257,6 +261,14 @@ export function EditorTopBar() {
           return
         }
 
+        if (
+          state.duration === previousState.duration &&
+          state.loop === previousState.loop &&
+          state.tracks === previousState.tracks
+        ) {
+          return
+        }
+
         const audioSnapshot = useAudioStore.getState().getSnapshot()
         const previousSnapshot = buildEditorHistorySnapshotFromState(
           useLayerStore.getState(),
@@ -284,6 +296,15 @@ export function EditorTopBar() {
       (state, previousState) => {
         if (applyingHistoryRef.current) {
           syncHistorySnapshotRefs()
+          return
+        }
+
+        if (
+          state.bands === previousState.bands &&
+          state.links === previousState.links &&
+          state.offsetSeconds === previousState.offsetSeconds &&
+          state.source === previousState.source
+        ) {
           return
         }
 

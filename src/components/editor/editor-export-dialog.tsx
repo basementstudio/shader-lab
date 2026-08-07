@@ -64,7 +64,10 @@ import {
   getEffectiveTimelineDuration,
   getLongestVideoLayerDuration,
 } from "@/lib/editor/timeline-duration"
-import { selectAudioModulationInput } from "@/store/audio-store"
+import {
+  type AudioAnalysisStatus,
+  selectAudioModulationInput,
+} from "@/store/audio-store"
 import {
   useAssetStore,
   useAudioStore,
@@ -157,6 +160,26 @@ async function openExportFileStream(
   return await handle.createWritable()
 }
 
+function formatEstimatedSize(bytes: number): string {
+  const gigabytes = bytes / 1024 ** 3
+
+  return gigabytes >= 1
+    ? `${gigabytes.toFixed(1)} GB`
+    : `${Math.round(bytes / 1024 ** 2)} MB`
+}
+
+function getAudioModulationBlockMessage(status: AudioAnalysisStatus): string {
+  if (status === "analyzing") {
+    return "Audio is still being analyzed. Wait for it to finish so audio-linked parameters animate in the export."
+  }
+
+  if (status === "missing-source") {
+    return "The project audio is not loaded. Relink it first, or audio-linked parameters will not animate."
+  }
+
+  return "Audio could not be analyzed, so audio-linked parameters will not animate. Reload the audio file or remove the links."
+}
+
 async function abortExportFileStream(
   stream: FileSystemWritableFileStream | null
 ): Promise<void> {
@@ -206,6 +229,8 @@ export function EditorExportDialog({
   const timelineLoop = useTimelineStore((state) => state.loop)
   const timelineTracks = useTimelineStore((state) => state.tracks)
   const audioSourceRef = useAudioStore((state) => state.source)
+  const audioStatus = useAudioStore((state) => state.status)
+  const audioLinkCount = useAudioStore((state) => state.links.length)
   const exportAudioUrl = useMemo(() => {
     if (audioSourceRef?.kind !== "asset") {
       return null
@@ -255,9 +280,10 @@ export function EditorExportDialog({
     videoQuality,
     videoDuration
   )
-  const willStreamToDisk =
-    estimatedVideoBytes > STREAM_TO_DISK_THRESHOLD_BYTES &&
-    supportsSaveFilePicker()
+  const needsStreamToDisk = estimatedVideoBytes > STREAM_TO_DISK_THRESHOLD_BYTES
+  const willStreamToDisk = needsStreamToDisk && supportsSaveFilePicker()
+  const audioModulationPending =
+    audioLinkCount > 0 && audioSourceRef !== null && audioStatus !== "ready"
   const [videoFps, setVideoFps] = useState(30)
   const [videoFormat, setVideoFormat] = useState<VideoExportFormat>("webm")
   const [videoDurationDirty, setVideoDurationDirty] = useState(false)
@@ -638,6 +664,18 @@ export function EditorExportDialog({
 
     clearFeedback()
 
+    if (audioModulationPending) {
+      setErrorMessage(getAudioModulationBlockMessage(audioStatus))
+      return
+    }
+
+    if (needsStreamToDisk && !supportsSaveFilePicker()) {
+      setErrorMessage(
+        `This export is around ${formatEstimatedSize(estimatedVideoBytes)} and this browser cannot write it straight to disk. Lower the quality, shorten the range, or export from Chrome or Edge.`
+      )
+      return
+    }
+
     const fileName = buildDownloadName(videoFormat)
     let fileStream: FileSystemWritableFileStream | null = null
 
@@ -648,6 +686,13 @@ export function EditorExportDialog({
         if (error instanceof DOMException && error.name === "AbortError") {
           return
         }
+
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : "Could not open a file to write the export to."
+        )
+        return
       }
     }
 
@@ -825,9 +870,19 @@ export function EditorExportDialog({
         useAssetStore.getState().assets
       )
 
+      const relinkNotes: string[] = []
+
+      if (result.missingAssetCount > 0) {
+        relinkNotes.push(`${result.missingAssetCount} media layer(s)`)
+      }
+
+      if (result.missingAudioSource) {
+        relinkNotes.push("the audio track")
+      }
+
       setStatusMessage(
-        result.missingAssetCount > 0
-          ? `Project imported. ${result.missingAssetCount} media layer(s) need relinking.`
+        relinkNotes.length > 0
+          ? `Project imported. ${relinkNotes.join(" and ")} need relinking.`
           : "Project imported."
       )
       onOpenChange(false)

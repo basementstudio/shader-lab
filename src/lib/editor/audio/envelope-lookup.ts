@@ -38,18 +38,30 @@ export function sampleBand(
   return lower + (upper - lower) * (position - lowerIndex)
 }
 
+export function sampleAllBandsInto(
+  envelopes: AudioEnvelopeSet,
+  offsetSeconds: number,
+  time: number,
+  out: Record<AudioBandId, number>
+): Record<AudioBandId, number> {
+  for (const bandId of AUDIO_BAND_IDS) {
+    out[bandId] = sampleBand(envelopes, bandId, offsetSeconds, time)
+  }
+
+  return out
+}
+
 export function sampleAllBands(
   envelopes: AudioEnvelopeSet,
   offsetSeconds: number,
   time: number
 ): Record<AudioBandId, number> {
-  const values = {} as Record<AudioBandId, number>
-
-  for (const bandId of AUDIO_BAND_IDS) {
-    values[bandId] = sampleBand(envelopes, bandId, offsetSeconds, time)
-  }
-
-  return values
+  return sampleAllBandsInto(
+    envelopes,
+    offsetSeconds,
+    time,
+    {} as Record<AudioBandId, number>
+  )
 }
 
 export function sampleEnvelopeWindow(
@@ -69,20 +81,41 @@ export function sampleEnvelopeWindow(
     return new Float32Array(0)
   }
 
-  const start = Math.min(
-    Math.max(Math.floor(offsetSeconds * envelopes.envelopeRate), 0),
-    envelope.length
-  )
-  const end = Math.min(
-    Math.ceil((offsetSeconds + durationSeconds) * envelopes.envelopeRate),
-    envelope.length
-  )
-
-  if (end <= start) {
+  if (!(Number.isFinite(offsetSeconds) && Number.isFinite(durationSeconds))) {
     return new Float32Array(0)
   }
 
-  return sampleEnvelopeToPeaks(envelope.subarray(start, end), targetCount)
+  const lastIndex = envelope.length - 1
+  const clampIndex = (value: number) =>
+    Math.min(Math.max(value, 0), lastIndex)
+
+  const peaks = new Float32Array(targetCount)
+  const bucketSeconds = durationSeconds / targetCount
+
+  for (let index = 0; index < targetCount; index += 1) {
+    const start = clampIndex(
+      Math.floor((offsetSeconds + index * bucketSeconds) * envelopes.envelopeRate)
+    )
+    const end = clampIndex(
+      Math.ceil(
+        (offsetSeconds + (index + 1) * bucketSeconds) * envelopes.envelopeRate
+      ) - 1
+    )
+
+    const lastCursor = Math.max(end, start)
+
+    let peak = 0
+    for (let cursor = start; cursor <= lastCursor; cursor += 1) {
+      const value = envelope[cursor] ?? 0
+      if (value > peak) {
+        peak = value
+      }
+    }
+
+    peaks[index] = peak
+  }
+
+  return peaks
 }
 
 export function sampleEnvelopeToPeaks(

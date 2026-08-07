@@ -86,6 +86,29 @@ function areBandsEqual(
   })
 }
 
+function areSourcesEqual(
+  left: AudioSourceRef | null,
+  right: AudioSourceRef | null
+): boolean {
+  if (left === right) {
+    return true
+  }
+
+  if (!(left && right) || left.kind !== right.kind) {
+    return false
+  }
+
+  if (left.kind === "asset" && right.kind === "asset") {
+    return left.assetId === right.assetId
+  }
+
+  if (left.kind === "video-layer" && right.kind === "video-layer") {
+    return left.layerId === right.layerId
+  }
+
+  return false
+}
+
 let activeAnalysis: AbortController | null = null
 
 export function selectAudioModulationInput(
@@ -242,6 +265,25 @@ export const useAudioStore = create<AudioStore>((set, get) => ({
 
   restoreSnapshot: (snapshot) => {
     const state = get()
+
+    if (!areSourcesEqual(state.source, snapshot.source)) {
+      activeAnalysis?.abort()
+      activeAnalysis = null
+
+      set({
+        analysisProgress: 0,
+        bands: { ...snapshot.bands },
+        envelopes: null,
+        error: null,
+        links: [...snapshot.links],
+        offsetSeconds: snapshot.offsetSeconds,
+        source: snapshot.source,
+        spectrogram: null,
+        status: snapshot.source ? "missing-source" : "idle",
+      })
+      return
+    }
+
     const bandsChanged = !areBandsEqual(state.bands, snapshot.bands)
 
     set({

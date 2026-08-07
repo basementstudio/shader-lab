@@ -71,6 +71,11 @@ function runInWorker(
       reject(new Error(event.message || "Audio analysis worker failed"))
     }
 
+    if (options.signal?.aborted) {
+      onAbort()
+      return
+    }
+
     options.signal?.addEventListener("abort", onAbort, { once: true })
 
     worker.postMessage(request, [request.samples.buffer as ArrayBuffer])

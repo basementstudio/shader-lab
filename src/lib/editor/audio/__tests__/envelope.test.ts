@@ -338,6 +338,41 @@ describe("stage B determinism and locality", () => {
     expect(Array.from(after.bands.bass)).toEqual(Array.from(before.bands.bass))
   })
 
+  test("a band's frequency range is part of its cache identity", () => {
+    const spectrogram = analyzeSpectrogram(makeSine(300, 0.6, 1), SAMPLE_RATE)
+
+    const original = createDefaultAudioBands()
+    const widened = createDefaultAudioBands()
+    widened.bass = { ...widened.bass, highHz: 600 }
+
+    const before = computeEnvelopeSet(spectrogram, original)
+    const edited = computeEnvelopeSet(spectrogram, widened)
+    const restored = computeEnvelopeSet(spectrogram, original)
+
+    expect(Array.from(edited.bands.bass)).not.toEqual(
+      Array.from(before.bands.bass)
+    )
+    expect(Array.from(restored.bands.bass)).toEqual(
+      Array.from(before.bands.bass)
+    )
+  })
+
+  test("gain, attack and release edits do not disturb the measurement", () => {
+    const spectrogram = analyzeSpectrogram(makeSine(60, 0.4, 2), SAMPLE_RATE)
+
+    const original = createDefaultAudioBands()
+    const tweaked = createDefaultAudioBands()
+    tweaked.bass = { ...tweaked.bass, attackMs: 40, releaseMs: 300 }
+
+    const before = computeEnvelopeSet(spectrogram, original)
+    computeEnvelopeSet(spectrogram, tweaked)
+    const restored = computeEnvelopeSet(spectrogram, original)
+
+    expect(Array.from(restored.bands.bass)).toEqual(
+      Array.from(before.bands.bass)
+    )
+  })
+
   test("raising a band's gain raises its envelope", () => {
     const spectrogram = analyzeSpectrogram(makeSine(60, 0.02, 2), SAMPLE_RATE)
 

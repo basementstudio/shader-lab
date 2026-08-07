@@ -134,6 +134,7 @@ export function useEditorRenderer() {
           if (isPreviewRenderLocked()) {
             lastFrameTime = now
             frameInFlight = false
+            useMetricsStore.getState().setFps(0)
             scheduleNextFrame()
             return
           }

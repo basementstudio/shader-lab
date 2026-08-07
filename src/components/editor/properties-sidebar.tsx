@@ -5,6 +5,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { FloatingDesktopPanel } from "@/components/editor/floating-desktop-panel"
 import { GlassPanel } from "@/components/ui/glass-panel"
+import { useDisplayedTimelineTime } from "@/hooks/use-displayed-timeline-time"
 import { IconButton } from "@/components/ui/icon-button"
 import { Typography } from "@/components/ui/typography"
 import { cn } from "@/lib/cn"
@@ -148,9 +149,7 @@ export function PropertiesSidebar() {
 
   const showsAnimatedValues =
     timelinePanelOpen && selectedLayerTracks.length > 0
-  const currentTime = useTimelineStore((state) =>
-    showsAnimatedValues ? state.currentTime : 0
-  )
+  const currentTime = useDisplayedTimelineTime(showsAnimatedValues)
 
   const evaluatedSelectedLayer = useMemo(() => {
     if (

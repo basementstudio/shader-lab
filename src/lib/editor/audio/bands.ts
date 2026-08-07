@@ -6,6 +6,8 @@ import {
 
 export const ENVELOPE_RATE = 60
 
+export const AUDIO_SAMPLE_RATE = 48_000
+
 export const DEFAULT_FFT_SIZE = 2048
 
 export const SPECTRO_BAND_COUNT = 64

@@ -93,14 +93,16 @@ function normalizeProjectAudio(audio: unknown): EditorAudioSnapshot {
   }
 
   const links = Array.isArray(candidate.links)
-    ? candidate.links.filter(
-        (link) =>
-          typeof link?.id === "string" &&
-          typeof link?.layerId === "string" &&
-          AUDIO_BAND_IDS.includes(link.band) &&
-          typeof link?.outMin === "number" &&
-          typeof link?.outMax === "number"
-      )
+    ? candidate.links
+        .filter(
+          (link) =>
+            typeof link?.id === "string" &&
+            typeof link?.layerId === "string" &&
+            AUDIO_BAND_IDS.includes(link.band) &&
+            typeof link?.outMin === "number" &&
+            typeof link?.outMax === "number"
+        )
+        .map((link) => ({ ...link, enabled: link.enabled !== false }))
     : []
 
   return {
@@ -196,7 +198,7 @@ const audioBandConfigSchema = z.looseObject({
 const audioLinkSchema = z.looseObject({
   band: z.string(),
   binding: z.looseObject({}),
-  enabled: z.boolean(),
+  enabled: z.boolean().optional(),
   id: z.string(),
   layerId: z.string(),
   outMax: z.number(),
@@ -204,10 +206,10 @@ const audioLinkSchema = z.looseObject({
 })
 
 const projectAudioSchema = z.looseObject({
-  bands: z.record(z.string(), audioBandConfigSchema),
-  links: z.array(audioLinkSchema),
-  offsetSeconds: z.number(),
-  source: z.looseObject({ kind: z.string() }).nullable(),
+  bands: z.record(z.string(), audioBandConfigSchema).optional(),
+  links: z.array(audioLinkSchema).optional(),
+  offsetSeconds: z.number().optional(),
+  source: z.looseObject({ kind: z.string() }).nullable().optional(),
 })
 
 export const CURRENT_PROJECT_FILE_VERSION = 3
@@ -259,6 +261,10 @@ const PARSE_ISSUE_MESSAGES: {
   {
     matches: (path) => path[0] === "composition",
     message: "Project file is missing composition dimensions.",
+  },
+  {
+    matches: (path) => path[0] === "audio",
+    message: "Project file has an unreadable audio configuration.",
   },
 ]
 
@@ -317,10 +323,26 @@ export function hasImportedCustomShaderCode(
   })
 }
 
+function isAudioSourceResolvable(
+  source: EditorAudioSnapshot["source"],
+  assetIds: Set<string>,
+  layers: EditorLayer[]
+): boolean {
+  if (!source) {
+    return true
+  }
+
+  if (source.kind === "asset") {
+    return assetIds.has(source.assetId)
+  }
+
+  return layers.some((layer) => layer.id === source.layerId)
+}
+
 export function applyLabProjectFile(
   projectFile: LabProjectFile,
   currentAssets: EditorAsset[]
-): { missingAssetCount: number } {
+): { missingAssetCount: number; missingAudioSource: boolean } {
   const assetIds = new Set(currentAssets.map((asset) => asset.id))
   const assetRefById = new Map(
     projectFile.assets.map((asset) => [asset.id, asset])
@@ -353,9 +375,8 @@ export function applyLabProjectFile(
     tracks: projectFile.timeline.tracks,
   })
 
-  useAudioStore
-    .getState()
-    .replaceState(normalizeProjectAudio(projectFile.audio))
+  const audioSnapshot = normalizeProjectAudio(projectFile.audio)
+  useAudioStore.getState().replaceState(audioSnapshot)
 
   const editorStore = useEditorStore.getState()
   if (projectFile.version >= 2 && projectFile.sceneConfig) {
@@ -374,6 +395,11 @@ export function applyLabProjectFile(
     missingAssetCount: nextLayers.filter((layer) =>
       Boolean(layer.assetId && layer.runtimeError)
     ).length,
+    missingAudioSource: !isAudioSourceResolvable(
+      audioSnapshot.source,
+      assetIds,
+      nextLayers
+    ),
   }
 }
 

@@ -152,6 +152,49 @@ describe("parseLabProjectFile", () => {
     expect(parsed.audio?.bands.bass?.gainDb).toBe(3)
   })
 
+  test("a partial audio block does not reject the whole project", () => {
+    const partials: unknown[] = [
+      {},
+      { offsetSeconds: 4 },
+      { links: [] },
+      { source: null },
+      {
+        links: [
+          {
+            band: "bass",
+            binding: { key: "speed", kind: "param", label: "Speed", valueType: "number" },
+            id: "link-1",
+            layerId: "layer-1",
+            outMax: 1,
+            outMin: 0,
+          },
+        ],
+      },
+    ]
+
+    for (const audio of partials) {
+      const fixture = {
+        ...createValidProjectFile(),
+        audio,
+        version: CURRENT_PROJECT_FILE_VERSION,
+      }
+
+      expect(() => parseLabProjectFile(JSON.stringify(fixture))).not.toThrow()
+    }
+  })
+
+  test("a genuinely malformed audio block reports the audio, not the project", () => {
+    const fixture = {
+      ...createValidProjectFile(),
+      audio: { offsetSeconds: "loud" },
+      version: CURRENT_PROJECT_FILE_VERSION,
+    }
+
+    expect(() => parseLabProjectFile(JSON.stringify(fixture))).toThrow(
+      /audio configuration/i
+    )
+  })
+
   test("accepts version 1", () => {
     const fixture = { ...createValidProjectFile(), version: 1 }
 

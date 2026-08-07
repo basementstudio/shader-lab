@@ -103,16 +103,34 @@ export function useAudioMonitor(enabled: boolean): void {
     }
 
     const unsubscribeTimeline = useTimelineStore.subscribe((state) => {
-      if (state.isPlaying === lastPlaying && state.frozen === lastFrozen) {
+      if (state.isPlaying !== lastPlaying || state.frozen !== lastFrozen) {
+        lastPlaying = state.isPlaying
+        lastFrozen = state.frozen
+        apply()
         return
       }
 
-      lastPlaying = state.isPlaying
-      lastFrozen = state.frozen
-      apply()
+      if (!wasAudible) {
+        return
+      }
+
+      if (Math.abs(element.currentTime - targetTime()) > MAX_DRIFT_SECONDS) {
+        apply()
+      }
     })
 
-    const unsubscribeAudio = useAudioStore.subscribe(applySource)
+    const unsubscribeAudio = useAudioStore.subscribe((state, previousState) => {
+      if (state.source !== previousState.source) {
+        applySource()
+      }
+
+      if (state.offsetSeconds !== previousState.offsetSeconds) {
+        wasAudible = false
+        apply()
+      }
+    })
+
+    const unsubscribeAssets = useAssetStore.subscribe(applySource)
 
     document.addEventListener("visibilitychange", apply)
 
@@ -125,6 +143,7 @@ export function useAudioMonitor(enabled: boolean): void {
       document.removeEventListener("visibilitychange", apply)
       unsubscribeTimeline()
       unsubscribeAudio()
+      unsubscribeAssets()
 
       element.pause()
       element.removeAttribute("src")

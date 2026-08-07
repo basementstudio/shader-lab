@@ -35,7 +35,7 @@ type VideoExportEncoder = {
     chunk: EncodedAudioChunk,
     meta?: EncodedAudioChunkMetadata
   ) => void
-  close: () => void
+  close: () => Promise<void>
   encodeCanvasFrame: (
     canvas: HTMLCanvasElement,
     frameIndex: number,
@@ -46,6 +46,7 @@ type VideoExportEncoder = {
 }
 
 type VideoMuxer = {
+  abort: () => Promise<void>
   addAudioChunk: (
     chunk: EncodedAudioChunk,
     meta?: EncodedAudioChunkMetadata
@@ -55,6 +56,20 @@ type VideoMuxer = {
     meta?: EncodedVideoChunkMetadata
   ) => void
   finalize: () => Promise<Blob | null>
+}
+
+async function abortFileStream(
+  stream: FileSystemWritableFileStream | null
+): Promise<void> {
+  if (!stream) {
+    return
+  }
+
+  try {
+    await stream.abort()
+  } catch {
+    return
+  }
 }
 
 const SUPPORT_PROBE_SIZE = {
@@ -375,6 +390,7 @@ async function createMuxer(
     })
 
     return {
+      abort: () => abortFileStream(stream),
       addAudioChunk(chunk, meta) {
         muxer.addAudioChunk(chunk, meta)
       },
@@ -421,6 +437,7 @@ async function createMuxer(
   })
 
   return {
+    abort: () => abortFileStream(stream),
     addAudioChunk(chunk, meta) {
       muxer.addAudioChunk(chunk, meta)
     },
@@ -497,61 +514,45 @@ export async function createVideoExportEncoder(
     )
   }
 
-  let muxer: VideoMuxer | null = null
-  let encoder: VideoEncoder | null = null
-  let encoderError: Error | null = null
-  let getEncoderError: (() => Error | null) | null = null
-
-  for (const candidate of options.format === "mp4" ? supports : [support]) {
-    const nextMuxer = await createMuxer(candidate, options)
-    const result = createConfiguredEncoder(
-      getAppliedEncoderConfig(candidate.encoderConfig, options),
-      (chunk, meta) => {
-        nextMuxer.addVideoChunk(chunk, meta)
-      }
-    )
-
-    if (!result.encoder) {
-      encoderError = result.error()
-      continue
+  const muxer = await createMuxer(support, options)
+  const result = createConfiguredEncoder(
+    getAppliedEncoderConfig(support.encoderConfig, options),
+    (chunk, meta) => {
+      muxer.addVideoChunk(chunk, meta)
     }
+  )
 
-    if (result.error()) {
-      result.encoder.close()
-      encoderError = result.error()
-      continue
-    }
+  if (!result.encoder || result.error()) {
+    result.encoder?.close()
+    await muxer.abort()
 
-    support = candidate
-    muxer = nextMuxer
-    encoder = result.encoder
-    getEncoderError = result.error
-    encoderError = getEncoderError()
-    break
-  }
-
-  if (!(muxer && encoder)) {
     throw new Error(
       options.format === "mp4"
         ? getMp4RuntimeFailureMessage(options)
-        : encoderError?.message ||
+        : result.error()?.message ||
             "WebM export is not supported in this browser."
     )
   }
+
+  const encoder = result.encoder
+  const getEncoderError = result.error
+  let encoderError = getEncoderError()
 
   return {
     addAudioChunk(chunk, meta) {
       muxer.addAudioChunk(chunk, meta)
     },
 
-    close() {
+    async close() {
       if (encoder.state !== "closed") {
         encoder.close()
       }
+
+      await muxer.abort()
     },
 
     async encodeCanvasFrame(canvas, frameIndex, duration, timestamp) {
-      encoderError = getEncoderError?.() ?? encoderError
+      encoderError = getEncoderError() ?? encoderError
 
       if (encoderError) {
         throw encoderError
@@ -574,7 +575,7 @@ export async function createVideoExportEncoder(
         await encoder.flush()
       }
 
-      encoderError = getEncoderError?.() ?? encoderError
+      encoderError = getEncoderError() ?? encoderError
 
       if (encoderError) {
         throw encoderError
@@ -583,7 +584,7 @@ export async function createVideoExportEncoder(
 
     async finalize() {
       await encoder.flush()
-      encoderError = getEncoderError?.() ?? encoderError
+      encoderError = getEncoderError() ?? encoderError
 
       if (encoderError) {
         throw encoderError

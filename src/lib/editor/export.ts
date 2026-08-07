@@ -361,6 +361,19 @@ export async function exportVideo(
   projectState: RenderProjectState,
   options: VideoExportOptions
 ): Promise<Blob> {
+  const releasePreviewLock = acquirePreviewRenderLock()
+
+  try {
+    return await runVideoExport(projectState, options)
+  } finally {
+    releasePreviewLock()
+  }
+}
+
+async function runVideoExport(
+  projectState: RenderProjectState,
+  options: VideoExportOptions
+): Promise<Blob> {
   throwIfAborted(options.abortSignal)
   options.onProgress?.({
     label: options.audioSource ? "Decoding audio" : "Preparing export",
@@ -400,7 +413,6 @@ export async function exportVideo(
   outputCanvas.width = exportSize.width
   outputCanvas.height = exportSize.height
 
-  const releasePreviewLock = acquirePreviewRenderLock()
   const renderer = await createExportRenderer(renderCanvas)
   const encoder = await createVideoExportEncoder({
     audio: preparedAudio
@@ -528,7 +540,6 @@ export async function exportVideo(
     }
     renderer.dispose()
     destroyHiddenRenderCanvas(renderCanvas)
-    releasePreviewLock()
   }
 }
 

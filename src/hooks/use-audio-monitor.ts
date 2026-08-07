@@ -1,28 +1,12 @@
 "use client"
 
 import { useEffect } from "react"
+import { isPreviewRenderLocked } from "@/lib/editor/preview-render-lock"
 import { useAssetStore } from "@/store/asset-store"
 import { useAudioStore } from "@/store/audio-store"
 import { useTimelineStore } from "@/store/timeline-store"
 
-/**
- * Plays the project audio source while the timeline plays, so the editor is not
- * silent while parameters visibly react to music.
- *
- * The element is always a *slave* of `timeline.currentTime`, never the clock.
- * The timeline drives rendering and the offline exporter depends on it, so
- * letting audio lead would make playback position unreproducible.
- *
- * Deliberately event-driven rather than a per-frame loop. Transport changes are
- * rare, and drift correction is a ~4Hz concern; an earlier version polled this
- * on `requestAnimationFrame`, which meant an always-on 60Hz loop doing store
- * reads and an asset lookup even for users who never loaded any audio.
- */
-
-/** Re-seek only past this much drift; correcting constantly is very audible. */
 const MAX_DRIFT_SECONDS = 0.15
-
-/** Drift accumulates slowly, so checking this often is plenty. */
 const DRIFT_CHECK_INTERVAL_MS = 250
 
 export function useAudioMonitor(enabled: boolean): void {
@@ -38,6 +22,7 @@ export function useAudioMonitor(enabled: boolean): void {
     let currentUrl: string | null = null
     let lastPlaying: boolean | null = null
     let lastFrozen: boolean | null = null
+    let wasAudible = false
 
     const resolveUrl = (): string | null => {
       const source = useAudioStore.getState().source
@@ -55,30 +40,42 @@ export function useAudioMonitor(enabled: boolean): void {
       return Math.max(currentTime + useAudioStore.getState().offsetSeconds, 0)
     }
 
-    /** Bring the element in line with the transport. Safe to call repeatedly. */
-    const apply = (): void => {
-      if (currentUrl === null) {
-        if (!element.paused) {
-          element.pause()
-        }
-        return
+    const shouldBeAudible = (): boolean => {
+      if (currentUrl === null || !enabled) {
+        return false
+      }
+
+      if (document.hidden || isPreviewRenderLocked()) {
+        return false
       }
 
       const { frozen, isPlaying } = useTimelineStore.getState()
 
-      if (!(enabled && isPlaying) || frozen) {
+      return isPlaying && !frozen
+    }
+
+    const apply = (): void => {
+      const audible = shouldBeAudible()
+
+      if (!audible) {
+        wasAudible = false
+
         if (!element.paused) {
           element.pause()
         }
+
         return
       }
 
-      if (Math.abs(element.currentTime - targetTime()) > MAX_DRIFT_SECONDS) {
+      const drift = Math.abs(element.currentTime - targetTime())
+
+      if (!wasAudible || drift > MAX_DRIFT_SECONDS) {
         element.currentTime = targetTime()
       }
 
+      wasAudible = true
+
       if (element.paused) {
-        // Rejected until the user has interacted with the page; harmless to retry.
         void element.play().catch(() => undefined)
       }
     }
@@ -103,8 +100,6 @@ export function useAudioMonitor(enabled: boolean): void {
       apply()
     }
 
-    // Fires on every timeline change, including each frame of playback, so this
-    // must stay a couple of comparisons in the common case.
     const unsubscribeTimeline = useTimelineStore.subscribe((state) => {
       if (state.isPlaying === lastPlaying && state.frozen === lastFrozen) {
         return
@@ -117,29 +112,15 @@ export function useAudioMonitor(enabled: boolean): void {
 
     const unsubscribeAudio = useAudioStore.subscribe(applySource)
 
+    document.addEventListener("visibilitychange", apply)
+
     applySource()
 
-    const driftTimer = window.setInterval(() => {
-      if (currentUrl === null) {
-        return
-      }
-
-      const { frozen, isPlaying } = useTimelineStore.getState()
-
-      // While paused or scrubbing, keep the position aligned so resuming is in
-      // sync. It is inaudible either way, so precision does not matter here.
-      if (!isPlaying || frozen) {
-        if (Math.abs(element.currentTime - targetTime()) > MAX_DRIFT_SECONDS) {
-          element.currentTime = targetTime()
-        }
-        return
-      }
-
-      apply()
-    }, DRIFT_CHECK_INTERVAL_MS)
+    const driftTimer = window.setInterval(apply, DRIFT_CHECK_INTERVAL_MS)
 
     return () => {
       window.clearInterval(driftTimer)
+      document.removeEventListener("visibilitychange", apply)
       unsubscribeTimeline()
       unsubscribeAudio()
 

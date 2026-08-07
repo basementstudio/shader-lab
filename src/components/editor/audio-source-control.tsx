@@ -346,10 +346,11 @@ export function AudioSourceControl({
           <Popover.Positioner
             align="start"
             className="z-50 outline-none"
+            collisionPadding={12}
             side="top"
             sideOffset={10}
           >
-            <Popover.Popup className="max-h-[420px] w-[320px] overflow-y-auto rounded-[16px] border border-[var(--ds-border-panel)] bg-[rgb(18_18_22_/_0.88)] p-3 shadow-[var(--ds-shadow-panel-dark)] backdrop-blur-[28px] transition-[opacity,transform] duration-160 ease-[var(--ease-out-cubic)] data-[closed]:opacity-0 data-[ending-style]:scale-[0.96] data-[ending-style]:opacity-0 data-[starting-style]:scale-[0.96] data-[starting-style]:opacity-0">
+            <Popover.Popup className="max-h-[min(420px,var(--available-height))] w-[320px] overflow-y-auto overscroll-contain rounded-[16px] border border-[var(--ds-border-panel)] bg-[rgb(18_18_22_/_0.88)] p-3 shadow-[var(--ds-shadow-panel-dark)] backdrop-blur-[28px] transition-[opacity,transform] duration-160 ease-[var(--ease-out-cubic)] data-[closed]:opacity-0 data-[ending-style]:scale-[0.96] data-[ending-style]:opacity-0 data-[starting-style]:scale-[0.96] data-[starting-style]:opacity-0">
               <div className="flex flex-col gap-3">
                 <div className="flex items-center justify-between gap-2">
                   <Typography as="span" variant="label">

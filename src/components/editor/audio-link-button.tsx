@@ -154,11 +154,12 @@ function AudioLinkTrigger({
         <Popover.Positioner
           align="end"
           className="z-50 outline-none"
+          collisionPadding={12}
           side="left"
           sideOffset={10}
         >
           <Popover.Popup
-            className="w-[248px] rounded-[16px] border border-[var(--ds-border-panel)] bg-[rgb(18_18_22_/_0.88)] p-3 shadow-[var(--ds-shadow-panel-dark)] backdrop-blur-[28px] transition-[opacity,transform] duration-160 ease-[var(--ease-out-cubic)] data-[closed]:opacity-0 data-[ending-style]:scale-[0.96] data-[ending-style]:opacity-0 data-[starting-style]:scale-[0.96] data-[starting-style]:opacity-0">
+            className="max-h-[min(420px,var(--available-height))] w-[248px] overflow-y-auto overscroll-contain rounded-[16px] border border-[var(--ds-border-panel)] bg-[rgb(18_18_22_/_0.88)] p-3 shadow-[var(--ds-shadow-panel-dark)] backdrop-blur-[28px] transition-[opacity,transform] duration-160 ease-[var(--ease-out-cubic)] data-[closed]:opacity-0 data-[ending-style]:scale-[0.96] data-[ending-style]:opacity-0 data-[starting-style]:scale-[0.96] data-[starting-style]:opacity-0">
             <div className="flex flex-col gap-3">
               <Typography as="span" variant="label">
                 {binding.label} → Audio

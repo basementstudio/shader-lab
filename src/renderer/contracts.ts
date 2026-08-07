@@ -41,6 +41,7 @@ export interface RendererFrame {
 }
 
 export interface EditorRenderer {
+  destroyDevice(): Promise<void>
   dispose(): void
   exportFrame(frame: RendererFrame, renderSize: Size): HTMLCanvasElement
   hasPendingCompilations(): boolean

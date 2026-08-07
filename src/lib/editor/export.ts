@@ -174,7 +174,14 @@ export function clampExportSize(size: Size, maxDimension: number): Size {
   }
 }
 
-export async function getMaxExportDimension(): Promise<number> {
+let maxExportDimensionPromise: Promise<number> | null = null
+
+export function getMaxExportDimension(): Promise<number> {
+  maxExportDimensionPromise ??= queryMaxExportDimension()
+  return maxExportDimensionPromise
+}
+
+async function queryMaxExportDimension(): Promise<number> {
   if (
     typeof navigator === "undefined" ||
     !("gpu" in navigator) ||
@@ -305,6 +312,7 @@ async function exportStillWithNewRenderer(
     return blob
   } finally {
     renderer.dispose()
+    await renderer.destroyDevice()
     destroyHiddenRenderCanvas(renderCanvas)
   }
 }
@@ -539,6 +547,7 @@ async function runVideoExport(
       encoder.close()
     }
     renderer.dispose()
+    await renderer.destroyDevice()
     destroyHiddenRenderCanvas(renderCanvas)
   }
 }

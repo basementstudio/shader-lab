@@ -8,13 +8,17 @@ export function browserSupportsWebGPU(): boolean {
 }
 
 type GpuQueueLike = { onSubmittedWorkDone: () => Promise<unknown> }
+type GpuDeviceLike = { destroy?: () => void; queue?: GpuQueueLike }
+
+function getGpuDevice(instance: THREE.WebGPURenderer): GpuDeviceLike | null {
+  return (
+    (instance as unknown as { backend?: { device?: GpuDeviceLike } }).backend
+      ?.device ?? null
+  )
+}
 
 function getGpuQueue(instance: THREE.WebGPURenderer): GpuQueueLike | null {
-  const queue = (
-    instance as unknown as {
-      backend?: { device?: { queue?: GpuQueueLike } }
-    }
-  ).backend?.device?.queue
+  const queue = getGpuDevice(instance)?.queue
 
   if (!queue || typeof queue.onSubmittedWorkDone !== "function") {
     return null
@@ -126,6 +130,21 @@ export async function createWebGPURenderer(
       renderer.setAnimationLoop(null)
       pipeline?.dispose()
       renderer.dispose()
+    },
+
+    async destroyDevice() {
+      const device = getGpuDevice(renderer)
+
+      if (typeof device?.destroy !== "function") {
+        return
+      }
+
+      try {
+        await getGpuQueue(renderer)?.onSubmittedWorkDone()
+        device.destroy()
+      } catch {
+        return
+      }
     },
   }
 }

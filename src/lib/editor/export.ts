@@ -365,6 +365,40 @@ async function prepareExportAudio(
   return { buffer, config }
 }
 
+function formatRemaining(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) {
+    return ""
+  }
+
+  if (seconds < 60) {
+    return `${Math.max(1, Math.round(seconds))}s left`
+  }
+
+  const minutes = Math.floor(seconds / 60)
+  const rest = Math.round(seconds % 60)
+
+  return rest === 0
+    ? `${minutes}m left`
+    : `${minutes}m ${rest.toString().padStart(2, "0")}s left`
+}
+
+function buildRenderLabel(
+  done: number,
+  total: number,
+  startedAt: number
+): string {
+  const base = `Rendering ${done}/${total}`
+  const elapsed = (performance.now() - startedAt) / 1000
+
+  if (done < 2 || elapsed <= 0) {
+    return base
+  }
+
+  const remaining = formatRemaining((elapsed / done) * (total - done))
+
+  return remaining ? `${base} \u00B7 ${remaining}` : base
+}
+
 export async function exportVideo(
   projectState: RenderProjectState,
   options: VideoExportOptions
@@ -473,11 +507,12 @@ async function runVideoExport(
     )
 
     options.onProgress?.({
-      label: `Rendering frames 0/${totalFrames}`,
+      label: `Rendering 0/${totalFrames}`,
       value: 0.08,
     })
 
-    let lastProgressAt = performance.now()
+    const renderStartedAt = performance.now()
+    let lastProgressAt = renderStartedAt
 
     for (let frameIndex = 0; frameIndex < totalFrames; frameIndex += 1) {
       throwIfAborted(options.abortSignal)
@@ -527,7 +562,11 @@ async function runVideoExport(
       if (isLastFrame || now - lastProgressAt >= PROGRESS_INTERVAL_MS) {
         lastProgressAt = now
         options.onProgress?.({
-          label: `Rendering frames ${frameIndex + 1}/${totalFrames}`,
+          label: buildRenderLabel(
+            frameIndex + 1,
+            totalFrames,
+            renderStartedAt
+          ),
           value: 0.08 + ((frameIndex + 1) / totalFrames) * 0.88,
         })
       }

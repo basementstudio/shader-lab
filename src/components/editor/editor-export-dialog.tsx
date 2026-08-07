@@ -192,6 +192,7 @@ export function EditorExportDialog({
     )
   )
   const [videoDuration, setVideoDuration] = useState(timelineDuration)
+  const [videoStart, setVideoStart] = useState(0)
   const [videoFps, setVideoFps] = useState(30)
   const [videoFormat, setVideoFormat] = useState<VideoExportFormat>("webm")
   const [videoDurationDirty, setVideoDurationDirty] = useState(false)
@@ -387,6 +388,7 @@ export function EditorExportDialog({
         : null
     setVideoDuration(defaultVideoDuration)
     setVideoDurationDirty(false)
+    setVideoStart(0)
     setVideoProgress(null)
     setImageAspect(suggestedAspectPreset)
     setVideoAspect(suggestedAspectPreset)
@@ -574,7 +576,7 @@ export function EditorExportDialog({
     videoExportAbortRef.current = abortController
 
     try {
-      const startTime = 0
+      const startTime = Math.max(0, videoStart)
       const exportSize = getVideoExportDisplaySize(videoFormat, videoSize)
       const blob = await exportVideo(buildRenderProjectState(), {
         abortSignal: abortController.signal,
@@ -940,6 +942,7 @@ export function EditorExportDialog({
                           onExport={handleVideoExport}
                           onIncludeAudioChange={setIncludeAudio}
                           onLiveRecord={handleLiveVideoRecording}
+                          onVideoStartChange={setVideoStart}
                           onVideoAspectChange={setVideoAspect}
                           onVideoDurationChange={(value) => {
                             setVideoDurationDirty(true)
@@ -958,6 +961,8 @@ export function EditorExportDialog({
                           videoProgress={videoProgress}
                           videoQuality={videoQuality}
                           videoSize={videoSize}
+                          videoStart={videoStart}
+                          timelineDuration={timelineDuration}
                           webmSupported={videoSupport.webm}
                         />
                       ) : null}
@@ -1024,6 +1029,7 @@ export function EditorExportDialog({
                             onExport={handleVideoExport}
                             onIncludeAudioChange={setIncludeAudio}
                             onLiveRecord={handleLiveVideoRecording}
+                            onVideoStartChange={setVideoStart}
                             onVideoAspectChange={setVideoAspect}
                             onVideoDurationChange={(value) => {
                               setVideoDurationDirty(true)
@@ -1044,6 +1050,8 @@ export function EditorExportDialog({
                             videoProgress={videoProgress}
                             videoQuality={videoQuality}
                             videoSize={videoSize}
+                            videoStart={videoStart}
+                            timelineDuration={timelineDuration}
                             webmSupported={videoSupport.webm}
                           />
                         ) : null}
@@ -1242,6 +1250,19 @@ function ImageTabContent({
   )
 }
 
+function formatRangeSeconds(value: number): string {
+  const safe = Number.isFinite(value) ? Math.max(0, value) : 0
+
+  if (safe < 60) {
+    return `${safe.toFixed(2)}s`
+  }
+
+  const minutes = Math.floor(safe / 60)
+  const seconds = safe - minutes * 60
+
+  return `${minutes}:${seconds.toFixed(2).padStart(5, "0")}`
+}
+
 function VideoTabContent({
   audioAvailable,
   hasFluidLayer,
@@ -1252,6 +1273,7 @@ function VideoTabContent({
   onExport,
   onIncludeAudioChange,
   onLiveRecord,
+  onVideoStartChange,
   onVideoAspectChange,
   onVideoDurationChange,
   onVideoFpsChange,
@@ -1267,6 +1289,8 @@ function VideoTabContent({
   videoProgress,
   videoQuality,
   videoSize,
+  videoStart,
+  timelineDuration,
   webmSupported,
 }: {
   audioAvailable: boolean
@@ -1277,6 +1301,7 @@ function VideoTabContent({
   mp4Supported: boolean
   onExport: () => Promise<void>
   onIncludeAudioChange: (value: boolean) => void
+  onVideoStartChange: (value: number) => void
   onLiveRecord: () => Promise<void>
   onVideoAspectChange: (preset: ExportAspectPreset) => void
   onVideoDurationChange: (value: number) => void
@@ -1293,6 +1318,8 @@ function VideoTabContent({
   videoProgress: { label: string; value: number } | null
   videoQuality: ExportQualityPreset
   videoSize: { height: number; width: number }
+  videoStart: number
+  timelineDuration: number
   webmSupported: boolean
 }) {
   const selectedFormatSupported =
@@ -1414,6 +1441,29 @@ function VideoTabContent({
           />
         </FieldLabel>
       </div>
+
+      <FieldLabel label="Start at">
+        <div className="flex flex-col gap-1.5">
+          <NumberInput
+            formatValue={(value) => value.toString()}
+            min={0}
+            onChange={(value) =>
+              onVideoStartChange(
+                Math.min(Math.max(0, value), Math.max(0, timelineDuration - 0.25))
+              )
+            }
+            step={0.25}
+            value={videoStart}
+          />
+          <Typography
+            className="leading-[14px]"
+            tone="muted"
+            variant="caption"
+          >
+            {`Renders ${formatRangeSeconds(videoStart)} to ${formatRangeSeconds(videoStart + videoDuration)} of the timeline.`}
+          </Typography>
+        </div>
+      </FieldLabel>
 
       {audioAvailable ? (
         <FieldLabel label="Audio">

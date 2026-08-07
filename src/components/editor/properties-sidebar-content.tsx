@@ -686,16 +686,6 @@ export function SelectedLayerPropertiesContent({
           />
         ) : null}
 
-        {layerType === "blob-tracking" ? (
-          <BlobInnerEffectSection
-            layerId={layerId}
-            onInteractionEnd={onInteractionEnd}
-            onInteractionStart={onInteractionStart}
-            updateLayerParam={updateLayerParam}
-            values={values}
-          />
-        ) : null}
-
         {layerType === "gradient" ? (
           <section className="flex flex-col gap-3 border-t border-[var(--ds-border-divider)] px-4 pt-[14px] pb-4 first:border-t-0">
             <Typography
@@ -862,6 +852,18 @@ export function SelectedLayerPropertiesContent({
                                   }
                                 />
                               ))}
+
+                              {group.params.some(
+                                (param) => param.key === "innerEffectType"
+                              ) ? (
+                                <BlobInnerEffectSection
+                                  layerId={layerId}
+                                  onInteractionEnd={onInteractionEnd}
+                                  onInteractionStart={onInteractionStart}
+                                  updateLayerParam={updateLayerParam}
+                                  values={values}
+                                />
+                              ) : null}
                             </div>
                           </motion.div>
                         ) : null}
@@ -887,6 +889,16 @@ export function SelectedLayerPropertiesContent({
                     value={values[param.key] ?? param.defaultValue}
                   />
                 ))}
+
+                {layerType === "blob-tracking" ? (
+                  <BlobInnerEffectSection
+                    layerId={layerId}
+                    onInteractionEnd={onInteractionEnd}
+                    onInteractionStart={onInteractionStart}
+                    updateLayerParam={updateLayerParam}
+                    values={values}
+                  />
+                ) : null}
               </div>
             )}
           </section>

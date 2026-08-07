@@ -76,7 +76,6 @@ export function PropertiesSidebar() {
   )
   const setLayerSaturation = useLayerStore((state) => state.setLayerSaturation)
   const updateLayerParam = useLayerStore((state) => state.updateLayerParam)
-  const currentTime = useTimelineStore((state) => state.currentTime)
   const timelineTracks = useTimelineStore((state) => state.tracks)
   const upsertKeyframe = useTimelineStore((state) => state.upsertKeyframe)
   const assets = useAssetStore((state) => state.assets)
@@ -145,6 +144,12 @@ export function PropertiesSidebar() {
         ? timelineTracks.filter((track) => track.layerId === selectedLayer.id)
         : [],
     [selectedLayer, timelineTracks]
+  )
+
+  const showsAnimatedValues =
+    timelinePanelOpen && selectedLayerTracks.length > 0
+  const currentTime = useTimelineStore((state) =>
+    showsAnimatedValues ? state.currentTime : 0
   )
 
   const evaluatedSelectedLayer = useMemo(() => {
@@ -407,7 +412,8 @@ export function PropertiesSidebar() {
         upsertKeyframe({
           binding,
           layerId: selectedLayer.id,
-          time: activeGestureTimeRef.current ?? currentTime,
+          time: activeGestureTimeRef.current ??
+            useTimelineStore.getState().currentTime,
           value,
         })
         return
@@ -415,13 +421,7 @@ export function PropertiesSidebar() {
 
       fallback()
     },
-    [
-      currentTime,
-      selectedLayer,
-      selectedLayerTracks,
-      timelineAutoKey,
-      upsertKeyframe,
-    ]
+    [selectedLayer, selectedLayerTracks, timelineAutoKey, upsertKeyframe]
   )
 
   const handleTimelineAwareParamChange = useCallback(
@@ -452,7 +452,8 @@ export function PropertiesSidebar() {
         upsertKeyframe({
           binding,
           layerId: selectedLayer.id,
-          time: activeGestureTimeRef.current ?? currentTime,
+          time: activeGestureTimeRef.current ??
+            useTimelineStore.getState().currentTime,
           value,
         })
         return
@@ -461,7 +462,6 @@ export function PropertiesSidebar() {
       updateLayerParam(selectedLayer.id, key, value)
     },
     [
-      currentTime,
       selectedLayer,
       selectedLayerTracks,
       selectedVisibleParams,
@@ -469,6 +469,48 @@ export function PropertiesSidebar() {
       updateLayerParam,
       upsertKeyframe,
     ]
+  )
+
+  const handleSetLayerHue = useCallback(
+    (id: string, value: number) => {
+      handleTimelineAwareLayerAdjustment(
+        createLayerPropertyBinding("hue"),
+        value,
+        () => setLayerHue(id, value)
+      )
+    },
+    [handleTimelineAwareLayerAdjustment, setLayerHue]
+  )
+
+  const handleSetLayerOpacity = useCallback(
+    (id: string, value: number) => {
+      handleTimelineAwareLayerAdjustment(
+        createLayerPropertyBinding("opacity"),
+        value,
+        () => setLayerOpacity(id, value)
+      )
+    },
+    [handleTimelineAwareLayerAdjustment, setLayerOpacity]
+  )
+
+  const handleSetLayerSaturation = useCallback(
+    (id: string, value: number) => {
+      handleTimelineAwareLayerAdjustment(
+        createLayerPropertyBinding("saturation"),
+        value,
+        () => setLayerSaturation(id, value)
+      )
+    },
+    [handleTimelineAwareLayerAdjustment, setLayerSaturation]
+  )
+
+  const handleUpdateLayerParam = useCallback(
+    (id: string, key: string, value: ParameterValue) => {
+      if (id === selectedLayerId) {
+        handleTimelineAwareParamChange(key, value)
+      }
+    },
+    [handleTimelineAwareParamChange, selectedLayerId]
   )
 
   const selectedLayerContentProps = selectedLayer
@@ -501,30 +543,11 @@ export function PropertiesSidebar() {
         saturation: displayedLayerState?.saturation ?? selectedLayer.saturation,
         setLayerBlendMode,
         setLayerCompositeMode,
-        setLayerHue: (id: string, value: number) =>
-          handleTimelineAwareLayerAdjustment(
-            createLayerPropertyBinding("hue"),
-            value,
-            () => setLayerHue(id, value)
-          ),
-        setLayerOpacity: (id: string, value: number) =>
-          handleTimelineAwareLayerAdjustment(
-            createLayerPropertyBinding("opacity"),
-            value,
-            () => setLayerOpacity(id, value)
-          ),
-        setLayerSaturation: (id: string, value: number) =>
-          handleTimelineAwareLayerAdjustment(
-            createLayerPropertyBinding("saturation"),
-            value,
-            () => setLayerSaturation(id, value)
-          ),
+        setLayerHue: handleSetLayerHue,
+        setLayerOpacity: handleSetLayerOpacity,
+        setLayerSaturation: handleSetLayerSaturation,
         timelinePanelOpen,
-        updateLayerParam: (id: string, key: string, value: ParameterValue) => {
-          if (id === selectedLayer.id) {
-            handleTimelineAwareParamChange(key, value)
-          }
-        },
+        updateLayerParam: handleUpdateLayerParam,
         values: displayedLayerState?.params ?? selectedLayer.params,
         visibleParams: selectedVisibleParams,
       }

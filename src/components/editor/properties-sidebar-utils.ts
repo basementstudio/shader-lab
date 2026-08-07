@@ -171,19 +171,32 @@ export function groupVisibleParams(
   return [...groups.values()]
 }
 
+const paramTimelineBindingCache = new WeakMap<
+  ParameterDefinition,
+  AnimatedPropertyBinding | null
+>()
+
 export function createParamTimelineBinding(
   definition: ParameterDefinition
 ): AnimatedPropertyBinding | null {
-  if (definition.type === "text" || !isParameterAnimatable(definition)) {
-    return null
+  const cached = paramTimelineBindingCache.get(definition)
+
+  if (cached !== undefined) {
+    return cached
   }
 
-  return {
-    key: definition.key,
-    kind: "param",
-    label: definition.label,
-    valueType: definition.type === "boolean" ? "boolean" : definition.type,
-  }
+  const binding: AnimatedPropertyBinding | null =
+    definition.type === "text" || !isParameterAnimatable(definition)
+      ? null
+      : {
+          key: definition.key,
+          kind: "param",
+          label: definition.label,
+          valueType: definition.type === "boolean" ? "boolean" : definition.type,
+        }
+
+  paramTimelineBindingCache.set(definition, binding)
+  return binding
 }
 
 export function hasTrackForBinding(

@@ -1,6 +1,7 @@
 "use client"
 
 import { motion } from "motion/react"
+import { memo } from "react"
 import type {
   AnimatedPropertyBinding,
   ParameterDefinition,
@@ -227,7 +228,7 @@ export function renderFieldLabel(
   )
 }
 
-export function ParameterField({
+function ParameterFieldImpl({
   definition,
   onInteractionEnd,
   onInteractionStart,
@@ -498,3 +499,5 @@ export function ParameterField({
       return null
   }
 }
+
+export const ParameterField = memo(ParameterFieldImpl)

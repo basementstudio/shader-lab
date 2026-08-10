@@ -47,6 +47,13 @@ import { FlutedGlassPass } from "@/renderer/fluted-glass-pass"
 import { HalftonePass } from "@/renderer/halftone-pass"
 import { InkPass } from "@/renderer/ink-pass"
 import { ParticleGridPass } from "@/renderer/particle-grid-pass"
+import {
+  BLANK_GLYPH,
+  buildLabelAtlas,
+  glyphIndex,
+  LABEL_CELL_ASPECT,
+  LABEL_CHARS,
+} from "@/renderer/blob-label-atlas"
 import { PassNode } from "@/renderer/pass-node"
 import { PatternPass } from "@/renderer/pattern-pass"
 import { PixelSortingPass } from "@/renderer/pixel-sorting-pass"
@@ -76,6 +83,10 @@ const ARROW_BARB_SPREAD = 2.5
 const CONNECTOR_ALPHA = 0.8
 const DASH_PERIOD = 0.024
 const DASH_DUTY = 0.55
+const MAX_LABEL_CHARS = 16
+// Matches the canvas overlay's old `height / 54` font size so switching to the
+// atlas does not change label scale.
+const LABEL_HEIGHT_FRACTION = 1 / 54
 
 const ANALYSIS_RT_OPTIONS = {
   depthBuffer: false,
@@ -145,6 +156,7 @@ function decorationStructureKey(config: DecorationConfig): string {
     config.connectorArrows ? "a" : "-",
     config.connectorDashed ? "d" : "-",
     config.showOutline ? "o" : "-",
+    config.showLabels ? "l" : "-",
   ].join("")
 }
 
@@ -164,6 +176,25 @@ function decorationsEqual(
     left.strokeWidth === right.strokeWidth &&
     left.trailDecay === right.trailDecay
   )
+}
+
+function createLabelIndexTexture(buffer: Float32Array): THREE.DataTexture {
+  const texture = new THREE.DataTexture(
+    buffer,
+    MAX_LABEL_CHARS,
+    MAX_BLOBS,
+    THREE.RGBAFormat,
+    THREE.FloatType
+  )
+  texture.colorSpace = THREE.NoColorSpace
+  texture.flipY = false
+  texture.generateMipmaps = false
+  texture.magFilter = THREE.NearestFilter
+  texture.minFilter = THREE.NearestFilter
+  texture.wrapS = THREE.ClampToEdgeWrapping
+  texture.wrapT = THREE.ClampToEdgeWrapping
+  texture.needsUpdate = true
+  return texture
 }
 
 function resolveCenterMarker(value: unknown): CenterMarker {
@@ -282,6 +313,15 @@ export class BlobTrackingPass extends PassNode {
     "vec4"
   )
   private readonly arrowCountUniform: Node = uniform(0, "int")
+
+  private readonly labelBuffer = new Float32Array(
+    MAX_LABEL_CHARS * MAX_BLOBS * 4
+  )
+  private readonly labelIndexTexture: THREE.DataTexture = createLabelIndexTexture(
+    this.labelBuffer
+  )
+  private readonly labelAtlas: THREE.Texture | null = buildLabelAtlas()
+  private readonly labelCellUniform: Node = uniform(new THREE.Vector2(0.01, 0.018))
 
   private readonly strokeColorUniform: Node = uniform(new THREE.Color(0x7cff9b))
   private readonly strokeHalfUniform: Node = uniform(0.002)
@@ -718,6 +758,56 @@ export class BlobTrackingPass extends PassNode {
         }
       }
 
+      if (decorations.showLabels && this.labelAtlas) {
+        const cell = this.labelCellUniform
+        const atlas = this.labelAtlas
+        const indexTexture = this.labelIndexTexture
+
+        Loop(this.blobCountUniform, ({ i }) => {
+          const entry = this.blobTableNode.element(i)
+          const halfSize = float(entry.z).mul(shapeScale)
+          // Left-aligned under the shape, mirroring the old canvas placement.
+          const originX = float(entry.x).mul(aspect).sub(halfSize)
+          const originY = float(entry.y)
+            .add(halfSize)
+            .add(halfStroke)
+            .add(float(cell.y).mul(float(0.35)))
+
+          const localX = float(point.x).sub(originX)
+          const localY = float(point.y).sub(originY)
+          const column = localX.div(float(cell.x)).floor()
+
+          const inside = localY
+            .greaterThanEqual(float(0))
+            .and(localY.lessThan(float(cell.y)))
+            .and(column.greaterThanEqual(float(0)))
+            .and(column.lessThan(float(MAX_LABEL_CHARS)))
+
+          const glyph = float(
+            tslTexture(indexTexture)
+              .load(vec2(column, float(i)))
+              .r
+          )
+
+          const cellUvX = fract(localX.div(float(cell.x)))
+          const cellUvY = localY.div(float(cell.y))
+          const atlasUv = vec2(
+            glyph.add(cellUvX).div(float(LABEL_CHARS.length)),
+            cellUvY
+          )
+          const ink = float(
+            tslTexture(atlas, atlasUv).level(float(0)).r
+          )
+
+          const visible = float(inside).mul(
+            step(float(0), glyph)
+          )
+          coverage.assign(
+            max(coverage, ink.mul(visible).mul(float(entry.w)))
+          )
+        })
+      }
+
       return coverage
     })
 
@@ -851,6 +941,7 @@ export class BlobTrackingPass extends PassNode {
     // GPU decorations track the blobs every step; only the canvas overlay
     // (trails and labels) is throttled below.
     this.updateConnectorGeometry(blobs)
+    this.updateLabelGlyphs(blobs)
 
     const signature = this.computeOverlaySignature(blobs)
     if (!this.overlayDirty && signature === this.overlaySignature) {
@@ -914,6 +1005,32 @@ export class BlobTrackingPass extends PassNode {
     this.blobCountUniform.value = count
   }
 
+  private updateLabelGlyphs(blobs: Blob[]): void {
+    if (!(this.decorations.showLabels && this.labelAtlas)) {
+      return
+    }
+
+    const buffer = this.labelBuffer
+    buffer.fill(BLANK_GLYPH)
+
+    const count = Math.min(blobs.length, MAX_BLOBS)
+    for (let index = 0; index < count; index += 1) {
+      const blob = blobs[index]
+      if (!blob?.active) continue
+      const label = `x:${Math.round(blob.cx * this.logicalWidth)} y:${Math.round(blob.cy * this.logicalHeight)}`
+      const row = index * MAX_LABEL_CHARS * 4
+      for (
+        let charIndex = 0;
+        charIndex < Math.min(label.length, MAX_LABEL_CHARS);
+        charIndex += 1
+      ) {
+        buffer[row + charIndex * 4] = glyphIndex(label[charIndex] as string)
+      }
+    }
+
+    this.labelIndexTexture.needsUpdate = true
+  }
+
   private applyDecorationUniforms(): void {
     ;(this.strokeColorUniform.value as THREE.Color).setStyle(
       this.decorations.strokeColor,
@@ -923,6 +1040,11 @@ export class BlobTrackingPass extends PassNode {
     // aspect-corrected units where 1.0 spans the composition height.
     this.strokeHalfUniform.value =
       this.decorations.strokeWidth / 2 / Math.max(1, this.logicalHeight)
+    const labelHeight = LABEL_HEIGHT_FRACTION
+    ;(this.labelCellUniform.value as THREE.Vector2).set(
+      labelHeight * LABEL_CELL_ASPECT,
+      labelHeight
+    )
     this.markerRadiusUniform.value = Math.max(
       0.0035,
       (this.decorations.strokeWidth * 1.6) / Math.max(1, this.logicalHeight)
@@ -1111,8 +1233,7 @@ export class BlobTrackingPass extends PassNode {
     const height = this.overlayCanvas.height
     context.clearRect(0, 0, width, height)
 
-    const { showLabels, strokeColor, strokeWidth, trailDecay } =
-      this.decorations
+    const { strokeColor, strokeWidth, trailDecay } = this.decorations
     const scale = this.shapeScaleUniform.value as number
     const strokeScale = width / Math.max(1, this.logicalWidth)
     const scaledStrokeWidth = Math.max(0.75, strokeWidth * strokeScale)
@@ -1120,7 +1241,6 @@ export class BlobTrackingPass extends PassNode {
     context.strokeStyle = strokeColor
     context.fillStyle = strokeColor
     context.lineWidth = scaledStrokeWidth
-    context.font = `${Math.max(9, Math.round(height / 54))}px ui-monospace, monospace`
 
     const activeBlobs = blobs.filter((blob) => blob.active)
 
@@ -1138,25 +1258,6 @@ export class BlobTrackingPass extends PassNode {
             (0.4 + age * 0.6)
           this.strokeShape(context, point.x * width, point.y * height, radius)
         }
-      }
-      context.globalAlpha = 1
-    }
-
-    if (showLabels) {
-      for (const blob of activeBlobs) {
-        const centerX = blob.cx * width
-        const centerY = blob.cy * height
-        const reach =
-          Math.max(blob.halfWidth * width, blob.halfHeight * height) * scale
-        // Pixel-space coordinates read far better than normalised ones when
-        // you are eyeballing a track against the composition.
-        const label = `x:${Math.round(blob.cx * this.logicalWidth)} y:${Math.round(blob.cy * this.logicalHeight)}`
-        context.globalAlpha = blob.presence
-        context.fillText(
-          label,
-          centerX - reach,
-          centerY + reach + scaledStrokeWidth + 12
-        )
       }
       context.globalAlpha = 1
     }

@@ -69,6 +69,7 @@ declare module "three/tsl" {
     element(index: unknown): TSLNode
     equal(value: unknown): TSLNode
     fract(): TSLNode
+    floor(): TSLNode
     length(): TSLNode
     greaterThan(value: unknown): TSLNode
     greaterThanEqual(value: unknown): TSLNode
@@ -78,6 +79,8 @@ declare module "three/tsl" {
     mul(value: unknown): TSLNode
     mulAssign(value: unknown): TSLNode
     negate(): TSLNode
+    level(value: unknown): TSLNode
+    load(uv: unknown): TSLNode
     normalize(): TSLNode
     sample(uv: unknown): TSLNode
     sqrt(): TSLNode

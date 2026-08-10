@@ -29,6 +29,7 @@ import {
   vec4,
 } from "three/tsl"
 import * as THREE from "three/webgpu"
+import { getCompositionFrame } from "@/lib/editor/composition"
 import { normalizeTextFontWeight } from "@/lib/editor/text-fonts"
 import {
   type AsciiAtlas,
@@ -48,7 +49,7 @@ import {
   reinhardTonemap,
   totosTonemap,
 } from "@/renderer/shaders/tsl/color/tonemapping"
-import type { LayerParameterValues } from "@/types/editor"
+import type { LayerParameterValues, SceneConfig } from "@/types/editor"
 
 type Node = TSLNode
 type AsciiColorMode = "green-terminal" | "monochrome" | "source"
@@ -141,6 +142,10 @@ export class AsciiPass extends PassNode {
   private readonly warpQuantumUniform: Node
   private readonly rowWarpUniform: Node
   private readonly breakThresholdUniform: Node
+  private readonly cellUvWidthUniform: Node
+  private readonly cellUvHeightUniform: Node
+  private readonly gridOriginXUniform: Node
+  private readonly gridOriginYUniform: Node
   private readonly cellAspectUniform: Node
   private readonly cellSizeUniform: Node
   private readonly charCountUniform: Node
@@ -177,6 +182,9 @@ export class AsciiPass extends PassNode {
   private readonly timeUniform: Node
   private readonly toneMappingModeUniform: Node
 
+  private sceneConfig: SceneConfig | null = null
+  private currentCellUnit: "columns" | "px" = "px"
+  private currentColumns = 80
   private currentAutoSort = true
   private currentBreakLevels = 0
   private currentWarpEnabled = false
@@ -214,6 +222,10 @@ export class AsciiPass extends PassNode {
     this.warpQuantumUniform = uniform(1)
     this.rowWarpUniform = uniform(0)
     this.breakThresholdUniform = uniform(0.06)
+    this.cellUvWidthUniform = uniform(0.01)
+    this.cellUvHeightUniform = uniform(0.01)
+    this.gridOriginXUniform = uniform(0)
+    this.gridOriginYUniform = uniform(0)
     this.cellAspectUniform = uniform(0.6)
     this.cellSizeUniform = uniform(12)
     this.charCountUniform = uniform(DEFAULT_ASCII_CHARS.length)
@@ -312,6 +324,11 @@ export class AsciiPass extends PassNode {
         : 0
     const nextAutoSort = params.autoSortCharset !== false
     const nextBreakLevels = this.resolveBreakLevels(params.breakGrid)
+    this.currentCellUnit = params.cellUnit === "columns" ? "columns" : "px"
+    this.currentColumns =
+      typeof params.columns === "number"
+        ? Math.max(4, Math.min(600, Math.round(params.columns)))
+        : 80
     const nextRowWarp =
       typeof params.rowWarp === "number" ? clamp01(params.rowWarp) : 0
     const nextFlowWarp =
@@ -521,21 +538,64 @@ export class AsciiPass extends PassNode {
     return this.shimmerEnabled
   }
 
+  private getCompositionFrameSize(): {
+    height: number
+    width: number
+    x: number
+    y: number
+  } {
+    if (!this.sceneConfig) {
+      return {
+        height: this.logicalHeight,
+        width: this.logicalWidth,
+        x: 0,
+        y: 0,
+      }
+    }
+
+    return getCompositionFrame(this.sceneConfig, {
+      height: this.logicalHeight,
+      width: this.logicalWidth,
+    })
+  }
+
   private syncGridSize(): void {
     const aspect = this.atlas?.cellAspect ?? 0.6
-    const cellSize = Math.max(
-      1,
-      (this.cellSizeUniform.value as number) || 12
-    )
-    const cellWidth = Math.max(1, cellSize * aspect)
+    const frame = this.getCompositionFrameSize()
+
+    // Cell height in logical px. In Columns mode it is derived from the
+    // composition frame, so the same setting yields the same number of cells
+    // across the composition in the viewport and in an export of any size.
+    const cellHeight =
+      this.currentCellUnit === "columns"
+        ? Math.max(1, frame.width / Math.max(1, this.currentColumns) / aspect)
+        : Math.max(1, (this.cellSizeUniform.value as number) || 12)
+    const cellWidth = Math.max(0.5, cellHeight * aspect)
+
+    const cellUvWidth = cellWidth / this.logicalWidth
+    const cellUvHeight = cellHeight / this.logicalHeight
+
+    // Align a cell boundary to the composition's top-left so the phase of the
+    // grid matches too, not just its density. Shifted back by whole cells to
+    // keep every visible cell index non-negative.
+    const frameXUv = frame.x / this.logicalWidth
+    const frameYUv = frame.y / this.logicalHeight
+    const originX = frameXUv - Math.ceil(frameXUv / cellUvWidth) * cellUvWidth
+    const originY = frameYUv - Math.ceil(frameYUv / cellUvHeight) * cellUvHeight
+
     const gridWidth = Math.min(
       MAX_GRID_DIMENSION,
-      Math.max(1, Math.ceil(this.logicalWidth / cellWidth))
+      Math.max(1, Math.ceil((1 - originX) / cellUvWidth))
     )
     const gridHeight = Math.min(
       MAX_GRID_DIMENSION,
-      Math.max(1, Math.ceil(this.logicalHeight / cellSize))
+      Math.max(1, Math.ceil((1 - originY) / cellUvHeight))
     )
+
+    this.cellUvWidthUniform.value = cellUvWidth
+    this.cellUvHeightUniform.value = cellUvHeight
+    this.gridOriginXUniform.value = originX
+    this.gridOriginYUniform.value = originY
 
     if (gridWidth === this.gridWidth && gridHeight === this.gridHeight) {
       return
@@ -551,13 +611,17 @@ export class AsciiPass extends PassNode {
     this.cellPass.setSize(gridWidth, gridHeight)
   }
 
+  override updateSceneConfig(config: SceneConfig): boolean {
+    this.sceneConfig = config
+    return false
+  }
+
   private getCellUvSize(): Node {
-    return vec2(
-      this.cellSizeUniform
-        .mul(this.cellAspectUniform)
-        .div(this.logicalWidthUniform),
-      this.cellSizeUniform.div(this.logicalHeightUniform)
-    )
+    return vec2(this.cellUvWidthUniform, this.cellUvHeightUniform)
+  }
+
+  private getGridOrigin(): Node {
+    return vec2(this.gridOriginXUniform, this.gridOriginYUniform)
   }
 
   private buildLumaColorNode(): Node {
@@ -567,7 +631,7 @@ export class AsciiPass extends PassNode {
     const cellUvSize = this.getCellUvSize()
     const gridUv = vec2(uv().x, float(1).sub(uv().y))
     const cellId = floor(gridUv.mul(gridSize))
-    const cellOrigin = cellId.mul(cellUvSize)
+    const cellOrigin = this.getGridOrigin().add(cellId.mul(cellUvSize))
 
     let accumulated = vec3(float(0), float(0), float(0))
 
@@ -736,7 +800,7 @@ export class AsciiPass extends PassNode {
     cellUvSize: Node,
     rampIndex: Node
   ): Node {
-    const cellOrigin = cellId.mul(cellUvSize)
+    const cellOrigin = this.getGridOrigin().add(cellId.mul(cellUvSize))
     const samples: Node[] = []
     let total = float(0)
 
@@ -857,12 +921,13 @@ export class AsciiPass extends PassNode {
         vec2(float(1), float(1))
       )
       const gridUv = this.buildWarpedUv(safeUv, cellUvSize)
-      const cellId = floor(gridUv.div(cellUvSize))
+      const gridOrigin = this.getGridOrigin()
+      const cellId = floor(gridUv.sub(gridOrigin).div(cellUvSize))
       const cellTexelUv = cellId.add(vec2(0.5, 0.5)).div(gridSize)
       const blockLevel = float(this.trackLayoutTextureNode(cellTexelUv).r)
       const blockSpan = pow(float(2), blockLevel)
       const blockOriginCell = floor(cellId.div(blockSpan)).mul(blockSpan)
-      const blockOriginUv = blockOriginCell.mul(cellUvSize)
+      const blockOriginUv = gridOrigin.add(blockOriginCell.mul(cellUvSize))
       const blockUvSize = cellUvSize.mul(blockSpan)
       const localCellUv = gridUv.sub(blockOriginUv).div(blockUvSize)
       const blockTexelUv = blockOriginCell

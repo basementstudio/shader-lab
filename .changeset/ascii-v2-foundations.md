@@ -76,3 +76,11 @@ Both displace the sampling position *before* the cell grid is derived, so they d
 `warpMode` chooses how the warp is applied. Liquid evaluates the displacement per fragment, so it varies inside each cell and the characters themselves stretch, shear and fold — several screen positions can map to the same grid position, which is where the swirling comes from. Rigid evaluates it once per cell, so whole characters are displaced and stay crisp while the rows curve. Liquid is the default. Under Rigid the field is quantised to the largest merged block, so a merged character cannot straddle two different displacements and tear.
 
 Rotated characters no longer clip against their cell edge. Rotating a glyph rotates its bounding box, so the corners pushed past the cell — and since each fragment only ever evaluates its own cell's character, the overhanging part was never drawn and the glyph was cut along the cell boundary. The glyph is now scaled by the exact factor that fits its rotated box inside the cell, accounting for the cell's aspect, so rotation costs a little size instead of losing corners.
+
+**Cell Unit — what you see is what you export**
+
+`cellSize` is measured in pixels, but pixels of what: in the editor it was the viewport, on export it was the composition. Those differ, so the same setting produced a different number of characters across in the preview and in the export, and every composition decision made in the editor was approximate.
+
+`cellUnit` adds a Columns option that measures the grid against the composition instead, so "80 columns" means 80 columns across the composition at any output size. Pixels remains the default, so existing projects are untouched.
+
+Along the way the grid gained an explicit origin and cell size in canvas UV, shared by the grid passes and the composite. Previously the grid passes derived a cell from `ceil(logical / cellSize)` while the composite derived it from `cellSize` directly, which disagreed by up to one cell along the right and bottom edges. The grid also aligns a cell boundary to the composition's top-left, so the phase matches between preview and export and not just the density.

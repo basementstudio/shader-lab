@@ -1198,6 +1198,20 @@ const modelParams = [
 
 const asciiParams = [
   {
+    animatable: false,
+    defaultValue: "px",
+    description:
+      "Pixels measures cells against the viewport, so the editor and an export of a different size disagree. Columns measures them against the composition, so what you see is what you export.",
+    group: "Grid",
+    key: "cellUnit",
+    label: "Cell Unit",
+    options: [
+      { label: "Pixels", value: "px" },
+      { label: "Columns", value: "columns" },
+    ],
+    type: "select",
+  },
+  {
     defaultValue: 12,
     group: "Grid",
     key: "cellSize",
@@ -1206,6 +1220,25 @@ const asciiParams = [
     min: 4,
     step: 1,
     type: "number",
+    visibleWhen: {
+      equals: "px",
+      key: "cellUnit",
+    },
+  },
+  {
+    defaultValue: 80,
+    description: "Characters across the composition, at any output size.",
+    group: "Grid",
+    key: "columns",
+    label: "Columns",
+    max: 600,
+    min: 4,
+    step: 1,
+    type: "number",
+    visibleWhen: {
+      equals: "columns",
+      key: "cellUnit",
+    },
   },
   {
     defaultValue: 0,

@@ -837,17 +837,19 @@ export class AsciiPass extends PassNode {
       const cellTexelUv = cellId.add(vec2(0.5, 0.5)).div(gridSize)
       const blockLevel = float(this.trackLayoutTextureNode(cellTexelUv).r)
       const blockSpan = pow(float(2), blockLevel)
-      const blockOriginUv = floor(cellId.div(blockSpan))
-        .mul(blockSpan)
-        .mul(cellUvSize)
+      const blockOriginCell = floor(cellId.div(blockSpan)).mul(blockSpan)
+      const blockOriginUv = blockOriginCell.mul(cellUvSize)
       const blockUvSize = cellUvSize.mul(blockSpan)
       const localCellUv = safeUv.sub(blockOriginUv).div(blockUvSize)
+      const blockTexelUv = blockOriginCell
+        .add(blockSpan.mul(float(0.5)))
+        .div(gridSize)
 
       const cellData = this.trackCellTextureNode(cellTexelUv)
       const glyphIndex = floor(float(cellData.r).add(float(0.5)))
       const colorSignalValue = float(cellData.g)
       const presenceSignal = float(cellData.b)
-      const packedAngle = float(this.trackEdgeTextureNode(cellTexelUv).r)
+      const packedAngle = float(this.trackEdgeTextureNode(blockTexelUv).r)
 
       const transformedUv = this.buildGlyphTransform(
         localCellUv,

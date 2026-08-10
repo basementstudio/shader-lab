@@ -138,6 +138,7 @@ export class AsciiPass extends PassNode {
   private readonly boldnessUniform: Node
   private readonly breakBiasUniform: Node
   private readonly flowWarpUniform: Node
+  private readonly warpQuantumUniform: Node
   private readonly rowWarpUniform: Node
   private readonly breakThresholdUniform: Node
   private readonly cellAspectUniform: Node
@@ -179,6 +180,7 @@ export class AsciiPass extends PassNode {
   private currentAutoSort = true
   private currentBreakLevels = 0
   private currentWarpEnabled = false
+  private currentWarpRigid = false
   private currentCellAspect = 0
   private currentCharset: AsciiCharset = "light"
   private currentCustomChars = DEFAULT_ASCII_CHARS
@@ -209,6 +211,7 @@ export class AsciiPass extends PassNode {
     this.boldnessUniform = uniform(0)
     this.breakBiasUniform = uniform(0)
     this.flowWarpUniform = uniform(0)
+    this.warpQuantumUniform = uniform(1)
     this.rowWarpUniform = uniform(0)
     this.breakThresholdUniform = uniform(0.06)
     this.cellAspectUniform = uniform(0.6)
@@ -314,6 +317,7 @@ export class AsciiPass extends PassNode {
     const nextFlowWarp =
       typeof params.flowWarp === "number" ? clamp01(params.flowWarp) : 0
     const nextWarpEnabled = nextRowWarp > 0 || nextFlowWarp > 0
+    const nextWarpRigid = params.warpMode === "rigid"
     const nextRenderMode = this.resolveRenderMode(params.renderMode)
     const nextGlyphSource = this.resolveGlyphSource(params.glyphSource)
     const nextBoldness =
@@ -351,6 +355,7 @@ export class AsciiPass extends PassNode {
     this.bloomThresholdUniform.value = nextBloomThreshold
     this.boldnessUniform.value = nextBoldness
     this.flowWarpUniform.value = nextFlowWarp
+    this.warpQuantumUniform.value = 2 ** nextBreakLevels
     this.rowWarpUniform.value = nextRowWarp
     this.breakBiasUniform.value =
       typeof params.breakBias === "number"
@@ -454,8 +459,11 @@ export class AsciiPass extends PassNode {
     const breakLevelsChanged = nextBreakLevels !== this.currentBreakLevels
     this.currentBreakLevels = nextBreakLevels
     const glyphSourceChanged = nextGlyphSource !== this.currentGlyphSource
-    const warpEnabledChanged = nextWarpEnabled !== this.currentWarpEnabled
+    const warpEnabledChanged =
+      nextWarpEnabled !== this.currentWarpEnabled ||
+      nextWarpRigid !== this.currentWarpRigid
     this.currentWarpEnabled = nextWarpEnabled
+    this.currentWarpRigid = nextWarpRigid
     const renderModeChanged = nextRenderMode !== this.currentRenderMode
     const bloomChanged = nextBloomEnabled !== this.bloomEnabled
 
@@ -974,10 +982,15 @@ export class AsciiPass extends PassNode {
       return safeUv
     }
 
+    const warpQuantum = cellUvSize.mul(this.warpQuantumUniform)
+    const fieldUv = this.currentWarpRigid
+      ? floor(safeUv.div(warpQuantum)).add(vec2(0.5, 0.5)).mul(warpQuantum)
+      : safeUv
+
     const sampleLuma = (offset: Node) => {
       const sampled = this.trackLumaTextureNode(
         clamp(
-          safeUv.add(offset),
+          fieldUv.add(offset),
           vec2(float(0), float(0)),
           vec2(float(1), float(1))
         )

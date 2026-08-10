@@ -1417,7 +1417,7 @@ const asciiParams = [
   {
     defaultValue: 0,
     description:
-      "Bends the rows of text by brightness, so lines curve around the subject like a contour map instead of running straight.",
+      "Bends the rows of text by brightness, so lines curve around the subject instead of running straight.",
     group: "Grid",
     key: "rowWarp",
     label: "Row Warp",
@@ -1429,7 +1429,7 @@ const asciiParams = [
   {
     defaultValue: 0,
     description:
-      "Pushes the whole lattice along the image's edges, so the grid flows around the form rather than sitting square to the frame.",
+      "Pushes the lattice along the image's edges, so the grid follows the form rather than sitting square to the frame.",
     group: "Grid",
     key: "flowWarp",
     label: "Flow Warp",
@@ -1437,6 +1437,20 @@ const asciiParams = [
     min: 0,
     step: 0.01,
     type: "number",
+  },
+  {
+    animatable: false,
+    defaultValue: "liquid",
+    description:
+      "Liquid smears and folds the characters themselves, since the warp varies inside each cell. Rigid moves whole characters instead, so they stay crisp and the rows curve cleanly.",
+    group: "Grid",
+    key: "warpMode",
+    label: "Warp Mode",
+    options: [
+      { label: "Liquid", value: "liquid" },
+      { label: "Rigid", value: "rigid" },
+    ],
+    type: "select",
   },
   {
     defaultValue: 0,

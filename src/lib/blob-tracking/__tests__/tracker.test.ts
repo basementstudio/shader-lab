@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import {
   BlobTracker,
+  FADE_IN_FRAMES,
   STATIC_STEPS_BEFORE_FALLBACK,
   type TrackerConfig,
   TRACK_GRACE_FRAMES,
@@ -156,8 +157,8 @@ describe("BlobTracker persistent tracking", () => {
     tracker.step(lumaBlock(20, 20, [{ x0: 1, x1: 2, y0: 9, y1: 10 }]), 20, 20, 0, cfg)
     const start = tracker.getBlobs()[0]?.cx as number
 
-    // Feed a fixed detection on the right; the track should approach it.
-    const target = lumaBlock(20, 20, [{ x0: 15, x1: 16, y0: 9, y1: 10 }])
+    // Feed a fixed detection within the match radius; the track approaches it.
+    const target = lumaBlock(20, 20, [{ x0: 5, x1: 6, y0: 9, y1: 10 }])
     tracker.step(target, 20, 20, 1, cfg)
     const afterOne = tracker.getBlobs()[0]?.cx as number
 
@@ -165,11 +166,65 @@ describe("BlobTracker persistent tracking", () => {
       tracker.step(target, 20, 20, frame, cfg)
     }
     const converged = tracker.getBlobs()[0]?.cx as number
-    const targetCx = (15.5 + 0.5) / 20
+    const targetCx = (5.5 + 0.5) / 20
 
     expect(afterOne).toBeGreaterThan(start)
     expect(afterOne).toBeLessThan(targetCx)
     expect(converged).toBeCloseTo(targetCx, 3)
+  })
+
+  test("a detection beyond the match radius spawns a new track", () => {
+    const tracker = new BlobTracker()
+    const cfg = config({ persistentTracking: true, smoothing: 0 })
+
+    tracker.step(lumaBlock(20, 20, [{ x0: 1, x1: 2, y0: 9, y1: 10 }]), 20, 20, 0, cfg)
+    const firstId = tracker.getBlobs()[0]?.id as number
+    expect(firstId).toBeDefined()
+
+    // Same-size blob, teleported most of the way across the grid: too far to be
+    // the same object, so it must not steal the existing id.
+    tracker.step(
+      lumaBlock(20, 20, [{ x0: 16, x1: 17, y0: 9, y1: 10 }]),
+      20,
+      20,
+      1,
+      cfg
+    )
+
+    const blobs = tracker.getBlobs()
+    const active = blobs.filter((blob) => blob.active)
+    expect(active).toHaveLength(1)
+    expect(active[0]?.id).not.toBe(firstId)
+
+    // The original track survives its grace window as inactive.
+    const stale = blobs.find((blob) => blob.id === firstId)
+    expect(stale?.active).toBe(false)
+  })
+
+  test("the match radius widens while a track is missing", () => {
+    const tracker = new BlobTracker()
+    const cfg = config({ persistentTracking: true, smoothing: 0 })
+    const empty = makeGrid(20, 20, () => ({}))
+
+    tracker.step(lumaBlock(20, 20, [{ x0: 1, x1: 2, y0: 9, y1: 10 }]), 20, 20, 0, cfg)
+    const firstId = tracker.getBlobs()[0]?.id as number
+
+    // Occluded for a few frames, then it reappears past the one-frame radius —
+    // still the same object, so the widened reach must re-acquire it.
+    for (let frame = 1; frame <= 3; frame += 1) {
+      tracker.step(empty, 20, 20, frame, cfg)
+    }
+    tracker.step(
+      lumaBlock(20, 20, [{ x0: 12, x1: 13, y0: 9, y1: 10 }]),
+      20,
+      20,
+      4,
+      cfg
+    )
+
+    const active = tracker.getBlobs().filter((blob) => blob.active)
+    expect(active).toHaveLength(1)
+    expect(active[0]?.id).toBe(firstId)
   })
 })
 
@@ -185,6 +240,75 @@ describe("BlobTracker temporal guards", () => {
 
     tracker.step(grid, 16, 16, 6, cfg)
     expect(tracker.getBlobs()[0]?.history).toHaveLength(2)
+  })
+
+  test("a repeated timestamp re-runs on the newer grid instead of skipping", () => {
+    // The export prewarm renders the same timestamp several times; the first
+    // pass reads back a cold (empty) pipeline. The tracker must adopt the
+    // warmed-up grid rather than staying stuck on the cold one.
+    const tracker = new BlobTracker()
+    const cfg = config({ persistentTracking: true })
+    const cold = makeGrid(16, 16, () => ({}))
+    const warm = lumaBlock(16, 16, [{ x0: 2, x1: 5, y0: 2, y1: 5 }])
+
+    tracker.step(cold, 16, 16, 3, cfg)
+    expect(tracker.getBlobs()).toHaveLength(0)
+
+    tracker.step(warm, 16, 16, 3, cfg)
+    expect(tracker.getBlobs()).toHaveLength(1)
+    expect(tracker.getBlobs()[0]?.history).toHaveLength(1)
+  })
+
+  test("re-running a timestamp does not double-advance track state", () => {
+    // Redoing a timestamp must rewind to the pre-step state first, so the
+    // result depends only on (state before t, grid at t) — not on how many
+    // times the export pipeline happened to render it.
+    const tracker = new BlobTracker()
+    const cfg = config({ persistentTracking: true, smoothing: 0.5 })
+    const first = lumaBlock(20, 20, [{ x0: 2, x1: 3, y0: 9, y1: 10 }])
+    const second = lumaBlock(20, 20, [{ x0: 4, x1: 5, y0: 9, y1: 10 }])
+
+    tracker.step(first, 20, 20, 0, cfg)
+    tracker.step(second, 20, 20, 1, cfg)
+    const once = tracker.getBlobs()[0]
+
+    const repeated = new BlobTracker()
+    repeated.step(first, 20, 20, 0, cfg)
+    repeated.step(second, 20, 20, 1, cfg)
+    repeated.step(second, 20, 20, 1, cfg)
+    repeated.step(second, 20, 20, 1, cfg)
+    const thrice = repeated.getBlobs()[0]
+
+    expect(thrice?.id).toBe(once?.id as number)
+    expect(thrice?.cx).toBeCloseTo(once?.cx as number, 10)
+    expect(thrice?.history).toHaveLength(once?.history.length as number)
+  })
+
+  test("presence ramps in on spawn and out across the grace window", () => {
+    const tracker = new BlobTracker()
+    const cfg = config({ persistentTracking: true })
+    const grid = lumaBlock(16, 16, [{ x0: 2, x1: 3, y0: 2, y1: 3 }])
+    const empty = makeGrid(16, 16, () => ({}))
+
+    tracker.step(grid, 16, 16, 0, cfg)
+    const spawned = tracker.getBlobs()[0]?.presence as number
+    expect(spawned).toBeGreaterThan(0)
+    expect(spawned).toBeLessThan(1)
+
+    for (let frame = 1; frame < FADE_IN_FRAMES; frame += 1) {
+      tracker.step(grid, 16, 16, frame, cfg)
+    }
+    expect(tracker.getBlobs()[0]?.presence).toBe(1)
+
+    // Now let it go missing: presence must decay, not snap to zero.
+    tracker.step(empty, 16, 16, FADE_IN_FRAMES, cfg)
+    const firstMiss = tracker.getBlobs()[0]?.presence as number
+    tracker.step(empty, 16, 16, FADE_IN_FRAMES + 1, cfg)
+    const secondMiss = tracker.getBlobs()[0]?.presence as number
+
+    expect(firstMiss).toBeLessThan(1)
+    expect(firstMiss).toBeGreaterThan(0)
+    expect(secondMiss).toBeLessThan(firstMiss)
   })
 
   test("reset clears blobs and restarts ids", () => {

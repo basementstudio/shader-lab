@@ -135,6 +135,7 @@ export class AsciiPass extends PassNode {
   private readonly bloomSoftnessUniform: Node
   private readonly bloomThresholdUniform: Node
   private readonly boldnessUniform: Node
+  private readonly breakBiasUniform: Node
   private readonly breakThresholdUniform: Node
   private readonly cellAspectUniform: Node
   private readonly cellSizeUniform: Node
@@ -202,6 +203,7 @@ export class AsciiPass extends PassNode {
     this.bloomSoftnessUniform = uniform(0.35)
     this.bloomThresholdUniform = uniform(0.6)
     this.boldnessUniform = uniform(0)
+    this.breakBiasUniform = uniform(0)
     this.breakThresholdUniform = uniform(0.06)
     this.cellAspectUniform = uniform(0.6)
     this.cellSizeUniform = uniform(12)
@@ -337,6 +339,10 @@ export class AsciiPass extends PassNode {
     this.bloomSoftnessUniform.value = nextBloomSoftness
     this.bloomThresholdUniform.value = nextBloomThreshold
     this.boldnessUniform.value = nextBoldness
+    this.breakBiasUniform.value =
+      typeof params.breakBias === "number"
+        ? Math.max(0, Math.min(3, params.breakBias))
+        : 0
     this.breakThresholdUniform.value =
       typeof params.breakThreshold === "number"
         ? Math.max(0.001, Math.min(1, params.breakThreshold))
@@ -1259,7 +1265,10 @@ export class AsciiPass extends PassNode {
         highest = max(highest, luma)
       }
 
-      const flat = step(highest.sub(lowest), this.breakThresholdUniform)
+      const levelThreshold = this.breakThresholdUniform.mul(
+        pow(float(2), this.breakBiasUniform.mul(float(level)))
+      )
+      const flat = step(highest.sub(lowest), levelThreshold)
       const take = flat.mul(float(1).sub(found))
       chosen = mix(chosen, float(level), take)
       found = max(found, flat)
@@ -1338,15 +1347,15 @@ export class AsciiPass extends PassNode {
   }
 
   private resolveBreakLevels(value: unknown): number {
-    if (value === "2x") {
-      return 1
+    const levels: Record<string, number> = {
+      "16x": 4,
+      "2x": 1,
+      "32x": 5,
+      "4x": 2,
+      "8x": 3,
     }
 
-    if (value === "4x") {
-      return 2
-    }
-
-    return value === "8x" ? 3 : 0
+    return typeof value === "string" ? (levels[value] ?? 0) : 0
   }
 
   private resolveGlyphSource(value: unknown): AsciiGlyphSource {

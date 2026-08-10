@@ -1342,6 +1342,8 @@ const asciiParams = [
       { label: "Up to 2x", value: "2x" },
       { label: "Up to 4x", value: "4x" },
       { label: "Up to 8x", value: "8x" },
+      { label: "Up to 16x", value: "16x" },
+      { label: "Up to 32x", value: "32x" },
     ],
     type: "select",
   },
@@ -1355,6 +1357,18 @@ const asciiParams = [
     max: 1,
     min: 0.001,
     step: 0.001,
+    type: "number",
+  },
+  {
+    defaultValue: 0,
+    description:
+      "Pushes the size distribution towards the big end. At 0 every size merges on the same rule; higher lets the largest cells win far more often.",
+    group: "Grid",
+    key: "breakBias",
+    label: "Giant Bias",
+    max: 3,
+    min: 0,
+    step: 0.01,
     type: "number",
   },
   {

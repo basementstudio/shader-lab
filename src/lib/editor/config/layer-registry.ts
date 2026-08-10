@@ -3703,7 +3703,7 @@ const blobTrackingParams = [
     type: "number",
   },
   {
-    defaultValue: "#7cff9b",
+    defaultValue: "#ffffff",
     group: "Decorations",
     key: "strokeColor",
     label: "Stroke Color",

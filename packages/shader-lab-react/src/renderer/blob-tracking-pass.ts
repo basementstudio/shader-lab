@@ -142,7 +142,7 @@ const DEFAULT_DECORATIONS: DecorationConfig = {
   curvedLines: false,
   showLabels: true,
   showOutline: true,
-  strokeColor: "#7cff9b",
+  strokeColor: "#ffffff",
   strokeWidth: 2,
   trailDecay: 0.35,
 }
@@ -323,7 +323,7 @@ export class BlobTrackingPass extends PassNode {
   private readonly labelAtlas: THREE.Texture | null = buildLabelAtlas()
   private readonly labelCellUniform: Node = uniform(new THREE.Vector2(0.01, 0.018))
 
-  private readonly strokeColorUniform: Node = uniform(new THREE.Color(0x7cff9b))
+  private readonly strokeColorUniform: Node = uniform(new THREE.Color(0xffffff))
   private readonly strokeHalfUniform: Node = uniform(0.002)
   private readonly markerRadiusUniform: Node = uniform(0.006)
 

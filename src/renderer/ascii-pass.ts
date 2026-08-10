@@ -520,7 +520,8 @@ export class AsciiPass extends PassNode {
 
     const gridSize = vec2(this.gridWidthUniform, this.gridHeightUniform)
     const cellUvSize = this.getCellUvSize()
-    const cellId = floor(uv().mul(gridSize))
+    const gridUv = vec2(uv().x, float(1).sub(uv().y))
+    const cellId = floor(gridUv.mul(gridSize))
     const cellOrigin = cellId.mul(cellUvSize)
 
     let accumulated = vec3(float(0), float(0), float(0))
@@ -551,7 +552,8 @@ export class AsciiPass extends PassNode {
   private buildEdgeColorNode(): Node {
     const gridSize = vec2(this.gridWidthUniform, this.gridHeightUniform)
     const texelSize = vec2(float(1), float(1)).div(gridSize)
-    const cellId = floor(uv().mul(gridSize))
+    const gridUv = vec2(uv().x, float(1).sub(uv().y))
+    const cellId = floor(gridUv.mul(gridSize))
     const centerUv = cellId.add(vec2(0.5, 0.5)).mul(texelSize)
 
     const sampleLuma = (offset: Node) => {
@@ -613,7 +615,8 @@ export class AsciiPass extends PassNode {
 
     const gridSize = vec2(this.gridWidthUniform, this.gridHeightUniform)
     const texelSize = vec2(float(1), float(1)).div(gridSize)
-    const cellId = floor(uv().mul(gridSize))
+    const gridUv = vec2(uv().x, float(1).sub(uv().y))
+    const cellId = floor(gridUv.mul(gridSize))
     const centerUv = cellId.add(vec2(0.5, 0.5)).mul(texelSize)
 
     const center = this.trackLumaTextureNode(centerUv)

@@ -3748,7 +3748,7 @@ const blobTrackingParams = [
   },
   {
     animatable: false,
-    defaultValue: true,
+    defaultValue: false,
     group: "Decorations",
     key: "connectorDashed",
     label: "Dashed Connectors",
@@ -3757,7 +3757,7 @@ const blobTrackingParams = [
   },
   {
     animatable: false,
-    defaultValue: true,
+    defaultValue: false,
     group: "Decorations",
     key: "connectorArrows",
     label: "Connector Arrows",

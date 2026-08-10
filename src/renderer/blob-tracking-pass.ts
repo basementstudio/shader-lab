@@ -137,8 +137,8 @@ type DecorationConfig = {
 const DEFAULT_DECORATIONS: DecorationConfig = {
   centerShape: "dot",
   connectLines: true,
-  connectorArrows: true,
-  connectorDashed: true,
+  connectorArrows: false,
+  connectorDashed: false,
   curvedLines: false,
   showLabels: true,
   showOutline: true,
@@ -483,8 +483,8 @@ export class BlobTrackingPass extends PassNode {
     const nextDecorations: DecorationConfig = {
       centerShape: resolveCenterMarker(params.centerShape),
       connectLines: params.connectLines !== false,
-      connectorArrows: params.connectorArrows !== false,
-      connectorDashed: params.connectorDashed !== false,
+      connectorArrows: params.connectorArrows === true,
+      connectorDashed: params.connectorDashed === true,
       curvedLines: params.curvedLines === true,
       showLabels: params.showLabels !== false,
       showOutline: params.showOutline !== false,

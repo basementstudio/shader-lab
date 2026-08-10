@@ -21,6 +21,12 @@ declare module "three/tsl" {
     ...rest: unknown[]
   ) => unknown
 
+  export interface LoopInputs {
+    i: TSLNode
+    j: TSLNode
+    k: TSLNode
+  }
+
   export interface TSLNode {
     a: TSLNode
     b: TSLNode
@@ -60,8 +66,10 @@ declare module "three/tsl" {
     assign(value: unknown): TSLNode
     clamp(min?: unknown, max?: unknown): TSLNode
     div(value: unknown): TSLNode
+    element(index: unknown): TSLNode
     equal(value: unknown): TSLNode
     fract(): TSLNode
+    floor(): TSLNode
     length(): TSLNode
     greaterThan(value: unknown): TSLNode
     greaterThanEqual(value: unknown): TSLNode
@@ -71,7 +79,10 @@ declare module "three/tsl" {
     mul(value: unknown): TSLNode
     mulAssign(value: unknown): TSLNode
     negate(): TSLNode
+    level(value: unknown): TSLNode
+    load(uv: unknown): TSLNode
     normalize(): TSLNode
+    sample(uv: unknown): TSLNode
     sqrt(): TSLNode
     sub(value: unknown): TSLNode
     toVar(): TSLNode
@@ -97,8 +108,8 @@ declare module "three/tsl" {
     layout?: unknown
   ): (...args: unknown[]) => TSLNode & { compute(count: number): unknown }
   export function Loop(
-    config: LoopConfig,
-    callback: (...args: unknown[]) => unknown
+    config: LoopConfig | TSLNode | number,
+    callback: (inputs: LoopInputs) => unknown
   ): TSLNode
   export function exp(value: unknown): TSLNode
   export function fract(value: unknown): TSLNode
@@ -140,7 +151,8 @@ declare module "three/tsl" {
     uv: unknown,
     value: unknown
   ): TSLNode & { toWriteOnly(): TSLNode }
-  export function uniform(value?: unknown): TSLNode
+  export function uniform(value?: unknown, nodeType?: string): TSLNode
+  export function uniformArray(values: unknown[], nodeType?: string): TSLNode
   export function uv(): TSLNode
   export function uvec2(x?: unknown, y?: unknown): TSLNode
   export function vec2(x?: unknown, y?: unknown): TSLNode

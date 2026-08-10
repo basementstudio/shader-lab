@@ -1,20 +1,3 @@
-/**
- * Blob tracker — pure TypeScript, zero DOM/three imports so it runs under
- * `bun test` and can be mirrored into the published package unchanged.
- *
- * It consumes a small analysis grid produced on the GPU and read back to the
- * CPU: an interleaved RGBA `Uint8Array` where, per texel,
- *   - R = motion energy (|luma(current) − luma(previous)|), and
- *   - G = luminance of the current frame.
- * From that it produces a stable set of tracked blobs (bounding boxes +
- * centroids) for the compositor to draw shapes and decorations around.
- *
- * Temporal rules (mirrors `pixel-trail-pass` determinism precedent):
- *   - `step()` advances state at most once per distinct `time` — the export
- *     prewarm renders the same timestamp repeatedly and must not double-step.
- *   - `reset()` clears everything, called when the timeline scrubs backwards.
- */
-
 export type DetectionMode = "auto" | "motion" | "luminance"
 
 export interface TrackerConfig {
@@ -32,7 +15,6 @@ export interface BlobPoint {
   y: number
 }
 
-/** A tracked blob in normalized (0..1) grid coordinates. */
 export interface Blob {
   active: boolean
   area: number
@@ -42,16 +24,15 @@ export interface Blob {
   halfWidth: number
   history: BlobPoint[]
   id: number
+  presence: number
 }
 
-/** Number of consecutive static steps before `auto` falls back to luminance. */
 export const STATIC_STEPS_BEFORE_FALLBACK = 30
-/** Mean motion energy (0..1) below which a step counts as "static". */
 export const MOTION_ENERGY_EPSILON = 0.01
-/** Frames a persistent track survives unmatched before it despawns. */
 export const TRACK_GRACE_FRAMES = 10
-/** Position-history ring length used for trails. */
 export const HISTORY_LENGTH = 16
+export const MAX_MATCH_DISTANCE = 0.25
+export const FADE_IN_FRAMES = 4
 
 type Detection = {
   area: number
@@ -61,8 +42,16 @@ type Detection = {
   halfWidth: number
 }
 
+type TrackerState = {
+  luminanceFallbackActive: boolean
+  nextId: number
+  staticStepCount: number
+  tracks: Track[]
+}
+
 type Track = {
   active: boolean
+  ageFrames: number
   area: number
   cx: number
   cy: number
@@ -77,6 +66,13 @@ function clamp01(value: number): number {
   return Math.min(1, Math.max(0, value))
 }
 
+function trackPresence(track: Track): number {
+  if (!track.active) {
+    return clamp01(1 - track.missedFrames / TRACK_GRACE_FRAMES)
+  }
+  return clamp01((track.ageFrames + 1) / FADE_IN_FRAMES)
+}
+
 export class BlobTracker {
   private currentBlobs: Blob[] = []
   private lastSteppedTime: number | null = null
@@ -84,6 +80,12 @@ export class BlobTracker {
   private nextId = 1
   private staticStepCount = 0
   private tracks: Track[] = []
+  private priorState: TrackerState | null = null
+
+  private binary = new Uint8Array(0)
+  private visited = new Int32Array(0)
+  private stack = new Int32Array(0)
+  private visitGeneration = 0
 
   reset(): void {
     this.currentBlobs = []
@@ -92,16 +94,15 @@ export class BlobTracker {
     this.nextId = 1
     this.staticStepCount = 0
     this.tracks = []
+    this.priorState = null
+    this.visited.fill(0)
+    this.visitGeneration = 0
   }
 
   getBlobs(): Blob[] {
     return this.currentBlobs
   }
 
-  /**
-   * Advance the tracker for `time`. No-ops when `time` equals the previous
-   * stepped time (idempotent per distinct timestamp).
-   */
   step(
     grid: Uint8Array,
     gridWidth: number,
@@ -110,17 +111,58 @@ export class BlobTracker {
     config: TrackerConfig
   ): void {
     if (this.lastSteppedTime !== null && time === this.lastSteppedTime) {
-      return
+      this.restoreState(this.priorState)
+    } else {
+      this.priorState = this.captureState()
+      this.lastSteppedTime = time
     }
-    this.lastSteppedTime = time
 
     const mode = this.resolveMode(grid, gridWidth, gridHeight, config)
-    const binary = this.binarize(grid, gridWidth, gridHeight, mode, config)
-    const detections = this.detect(binary, gridWidth, gridHeight, config)
+    this.binarize(grid, gridWidth, gridHeight, mode, config)
+    const detections = this.detect(gridWidth, gridHeight, config)
 
     this.currentBlobs = config.persistentTracking
       ? this.trackPersistent(detections, config)
       : this.trackStateless(detections)
+  }
+
+  private captureState(): TrackerState {
+    return {
+      luminanceFallbackActive: this.luminanceFallbackActive,
+      nextId: this.nextId,
+      staticStepCount: this.staticStepCount,
+      tracks: this.tracks.map((track) => ({
+        ...track,
+        history: track.history.slice(),
+      })),
+    }
+  }
+
+  private restoreState(state: TrackerState | null): void {
+    if (!state) {
+      this.luminanceFallbackActive = false
+      this.nextId = 1
+      this.staticStepCount = 0
+      this.tracks = []
+      return
+    }
+    this.luminanceFallbackActive = state.luminanceFallbackActive
+    this.nextId = state.nextId
+    this.staticStepCount = state.staticStepCount
+    this.tracks = state.tracks.map((track) => ({
+      ...track,
+      history: track.history.slice(),
+    }))
+  }
+
+  private ensureBuffers(cellCount: number): void {
+    if (this.binary.length === cellCount) {
+      return
+    }
+    this.binary = new Uint8Array(cellCount)
+    this.visited = new Int32Array(cellCount)
+    this.stack = new Int32Array(cellCount)
+    this.visitGeneration = 0
   }
 
   private resolveMode(
@@ -159,39 +201,41 @@ export class BlobTracker {
     gridHeight: number,
     mode: "luminance" | "motion",
     config: TrackerConfig
-  ): Uint8Array {
+  ): void {
+    const cellCount = gridWidth * gridHeight
+    this.ensureBuffers(cellCount)
+
     const channelOffset = mode === "motion" ? 0 : 1
     const threshold =
       (mode === "motion" ? config.motionThreshold : config.sensitivity) * 255
-    const cellCount = gridWidth * gridHeight
-    const binary = new Uint8Array(cellCount)
+    const binary = this.binary
 
     for (let index = 0; index < cellCount; index += 1) {
       const value = grid[index * 4 + channelOffset] ?? 0
       binary[index] = value >= threshold ? 1 : 0
     }
-
-    return binary
   }
 
   private detect(
-    binary: Uint8Array,
     gridWidth: number,
     gridHeight: number,
     config: TrackerConfig
   ): Detection[] {
-    const labels = new Int32Array(binary.length).fill(-1)
+    const binary = this.binary
+    const visited = this.visited
+    const stack = this.stack
     const detections: Detection[] = []
-    const stack: number[] = []
+
+    this.visitGeneration += 1
+    const generation = this.visitGeneration
 
     for (let startY = 0; startY < gridHeight; startY += 1) {
       for (let startX = 0; startX < gridWidth; startX += 1) {
         const startIndex = startY * gridWidth + startX
-        if (binary[startIndex] !== 1 || labels[startIndex] !== -1) {
+        if (binary[startIndex] !== 1 || visited[startIndex] === generation) {
           continue
         }
 
-        // Flood-fill this 4-connected component.
         let area = 0
         let sumX = 0
         let sumY = 0
@@ -200,36 +244,54 @@ export class BlobTracker {
         let minY = startY
         let maxY = startY
 
-        labels[startIndex] = detections.length
-        stack.push(startIndex)
+        visited[startIndex] = generation
+        stack[0] = startIndex
+        let stackSize = 1
 
-        while (stack.length > 0) {
-          const index = stack.pop() as number
+        while (stackSize > 0) {
+          stackSize -= 1
+          const index = stack[stackSize] as number
           const x = index % gridWidth
           const y = (index - x) / gridWidth
 
           area += 1
           sumX += x
           sumY += y
-          minX = Math.min(minX, x)
-          maxX = Math.max(maxX, x)
-          minY = Math.min(minY, y)
-          maxY = Math.max(maxY, y)
+          if (x < minX) minX = x
+          if (x > maxX) maxX = x
+          if (y < minY) minY = y
+          if (y > maxY) maxY = y
 
-          const neighbors = [
-            x > 0 ? index - 1 : -1,
-            x < gridWidth - 1 ? index + 1 : -1,
-            y > 0 ? index - gridWidth : -1,
-            y < gridHeight - 1 ? index + gridWidth : -1,
-          ]
-          for (const neighbor of neighbors) {
-            if (
-              neighbor >= 0 &&
-              binary[neighbor] === 1 &&
-              labels[neighbor] === -1
-            ) {
-              labels[neighbor] = detections.length
-              stack.push(neighbor)
+          if (x > 0) {
+            const neighbor = index - 1
+            if (binary[neighbor] === 1 && visited[neighbor] !== generation) {
+              visited[neighbor] = generation
+              stack[stackSize] = neighbor
+              stackSize += 1
+            }
+          }
+          if (x < gridWidth - 1) {
+            const neighbor = index + 1
+            if (binary[neighbor] === 1 && visited[neighbor] !== generation) {
+              visited[neighbor] = generation
+              stack[stackSize] = neighbor
+              stackSize += 1
+            }
+          }
+          if (y > 0) {
+            const neighbor = index - gridWidth
+            if (binary[neighbor] === 1 && visited[neighbor] !== generation) {
+              visited[neighbor] = generation
+              stack[stackSize] = neighbor
+              stackSize += 1
+            }
+          }
+          if (y < gridHeight - 1) {
+            const neighbor = index + gridWidth
+            if (binary[neighbor] === 1 && visited[neighbor] !== generation) {
+              visited[neighbor] = generation
+              stack[stackSize] = neighbor
+              stackSize += 1
             }
           }
         }
@@ -266,6 +328,7 @@ export class BlobTracker {
       halfWidth: detection.halfWidth,
       history: [{ x: detection.cx, y: detection.cy }],
       id: index,
+      presence: 1,
     }))
   }
 
@@ -277,8 +340,6 @@ export class BlobTracker {
     const available = this.tracks.slice()
     const matchedTrackIds = new Set<number>()
 
-    // Greedy nearest-neighbor matching: each detection claims the closest
-    // still-unmatched track.
     for (const detection of detections) {
       let bestTrack: Track | null = null
       let bestDistance = Number.POSITIVE_INFINITY
@@ -290,6 +351,10 @@ export class BlobTracker {
         const dx = track.cx - detection.cx
         const dy = track.cy - detection.cy
         const distance = dx * dx + dy * dy
+        const reach = MAX_MATCH_DISTANCE * (1 + track.missedFrames)
+        if (distance > reach * reach) {
+          continue
+        }
         if (distance < bestDistance) {
           bestDistance = distance
           bestTrack = track
@@ -307,6 +372,7 @@ export class BlobTracker {
         bestTrack.area = detection.area
         bestTrack.active = true
         bestTrack.missedFrames = 0
+        bestTrack.ageFrames += 1
         bestTrack.history.push({ x: bestTrack.cx, y: bestTrack.cy })
         if (bestTrack.history.length > HISTORY_LENGTH) {
           bestTrack.history.shift()
@@ -314,6 +380,7 @@ export class BlobTracker {
       } else {
         this.tracks.push({
           active: true,
+          ageFrames: 0,
           area: detection.area,
           cx: detection.cx,
           cy: detection.cy,
@@ -328,7 +395,6 @@ export class BlobTracker {
       }
     }
 
-    // Age unmatched tracks; despawn past the grace window.
     const survivors: Track[] = []
     for (const track of this.tracks) {
       if (matchedTrackIds.has(track.id)) {
@@ -352,6 +418,7 @@ export class BlobTracker {
       halfWidth: track.halfWidth,
       history: track.history.slice(),
       id: track.id,
+      presence: trackPresence(track),
     }))
   }
 }

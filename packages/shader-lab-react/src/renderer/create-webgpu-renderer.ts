@@ -16,6 +16,14 @@ export async function createWebGPURenderer(
     canvas,
   })
   let pipeline: PipelineManager | null = null
+  let currentPixelRatio = 1
+
+  function toDeviceSize(size: { height: number; width: number }) {
+    return {
+      height: Math.max(1, Math.round(size.height * currentPixelRatio)),
+      width: Math.max(1, Math.round(size.width * currentPixelRatio)),
+    }
+  }
 
   return {
     async initialize() {
@@ -36,16 +44,17 @@ export async function createWebGPURenderer(
     },
 
     resize(size, pixelRatio) {
+      currentPixelRatio = pixelRatio
       renderer.setPixelRatio(pixelRatio)
       renderer.setSize(size.width, size.height, false)
-      pipeline?.resize(size)
+      pipeline?.resize(toDeviceSize(size))
     },
 
     render(frame: RendererFrame) {
       if (!pipeline) {
         pipeline = new PipelineManager(
           renderer,
-          frame.viewportSize,
+          toDeviceSize(frame.viewportSize),
           onRuntimeError
         )
       }

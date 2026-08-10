@@ -38,7 +38,16 @@ export const maskModeOptions = [
   { label: "Stencil", value: "stencil" },
 ] as const
 
-const COLLAPSIBLE_PARAM_GROUPS = new Set(["Points", "Effects"])
+const COLLAPSIBLE_PARAM_GROUPS = new Set([
+  "Effects",
+  "Glyph",
+  "Grid",
+  "Points",
+  "Presence",
+  "Render",
+  "Shimmer",
+  "Signal",
+])
 export const DEFAULT_PARAM_GROUP = "Settings"
 
 export type ParamGroup = {

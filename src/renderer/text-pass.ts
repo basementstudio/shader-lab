@@ -124,6 +124,45 @@ export class TextPass extends PassNode {
   private outputCropAspectRatio: number | null = null
   private params: LayerParameterValues = {}
   private dirty = true
+  private fontLoadToken = 0
+
+  private ensureFontLoaded(
+    fontFamily: string,
+    fontWeight: number,
+    fontSize: number
+  ): void {
+    if (typeof document === "undefined" || !document.fonts) {
+      return
+    }
+
+    const primaryFamily = fontFamily.split(",")[0]?.trim()
+
+    if (!primaryFamily) {
+      return
+    }
+
+    const probe = `${fontWeight} ${fontSize}px ${primaryFamily}`
+
+    try {
+      if (document.fonts.check(probe)) {
+        return
+      }
+    } catch {
+      return
+    }
+
+    this.fontLoadToken += 1
+    const token = this.fontLoadToken
+
+    void document.fonts
+      .load(probe)
+      .then(() => {
+        if (token === this.fontLoadToken) {
+          this.dirty = true
+        }
+      })
+      .catch(() => undefined)
+  }
 
   constructor(layerId: string) {
     super(layerId)
@@ -247,6 +286,8 @@ export class TextPass extends PassNode {
       fontFamilyValue,
       fontWeight
     )
+
+    this.ensureFontLoaded(fontFamily, normalizedFontWeight, fontSize)
     const textColor =
       typeof this.params.textColor === "string"
         ? this.params.textColor

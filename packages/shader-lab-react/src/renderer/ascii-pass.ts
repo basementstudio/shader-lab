@@ -1,18 +1,22 @@
 import { bloom } from "three/examples/jsm/tsl/display/BloomNode.js"
 import {
+  abs,
   clamp,
   dot,
   float,
   floor,
   fract,
+  Loop,
   max,
   mix,
   mod,
   pow,
   select,
+  sign,
   sin,
   smoothstep,
   sqrt,
+  step,
   type TSLNode,
   texture as tslTexture,
   uniform,
@@ -22,13 +26,17 @@ import {
   vec4,
 } from "three/tsl"
 import * as THREE from "three/webgpu"
-import type { LayerParameterValues } from "../types/editor"
 import {
+  type AsciiAtlas,
+  type AsciiAtlasOptions,
   ASCII_CHARSETS,
-  type AsciiFontWeight,
   buildAsciiAtlas,
   DEFAULT_ASCII_CHARS,
+  DEFAULT_EDGE_CHARS,
+  isAsciiFontReady,
+  loadAsciiFont,
 } from "./ascii-atlas"
+import { GridRenderPass } from "./grid-render-pass"
 import { createPipelinePlaceholder, PassNode } from "./pass-node"
 import {
   acesTonemap,
@@ -36,12 +44,30 @@ import {
   reinhardTonemap,
   totosTonemap,
 } from "./shaders/tsl/color/tonemapping"
+import { normalizeTextFontWeight } from "./text-fonts"
+import type { LayerParameterValues } from "../types/editor"
 
 type Node = TSLNode
 type AsciiColorMode = "green-terminal" | "monochrome" | "source"
 type AsciiCharset = keyof typeof ASCII_CHARSETS | "custom"
 type AsciiToneMapping = "none" | "aces" | "cinematic" | "reinhard" | "totos"
 type AsciiSignalMode = "blue" | "green" | "lightness" | "luminance" | "red"
+type AsciiRenderMode = "pixel" | "smooth"
+type AsciiGlyphSource = "contour" | "contour-structure" | "ramp" | "structure"
+
+const ATLAS_INNER_HEIGHT = 64
+const DEFAULT_FONT_FAMILY = "mono"
+const SUPERSAMPLE = 3
+const FEATURE_SIZE = 4
+const FEATURE_TEXELS = 4
+const MAX_GRID_DIMENSION = 4096
+const DIAGONAL_TANGENT = 2.414
+
+const LEGACY_FONT_WEIGHTS: Record<string, number> = {
+  bold: 700,
+  regular: 400,
+  thin: 100,
+}
 
 function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value))
@@ -65,13 +91,7 @@ function parseCssColorRgb(value: string): [number, number, number] {
 
   const hex = value.trim().replace("#", "")
 
-  if (hex.length === 6) {
-    const color = new THREE.Color(`#${hex}`)
-
-    return [color.r, color.g, color.b]
-  }
-
-  if (hex.length === 3) {
+  if (hex.length === 6 || hex.length === 3) {
     const color = new THREE.Color(`#${hex}`)
 
     return [color.r, color.g, color.b]
@@ -81,79 +101,127 @@ function parseCssColorRgb(value: string): [number, number, number] {
 }
 
 export class AsciiPass extends PassNode {
-  private atlasTexture: THREE.CanvasTexture | null = null
+  private atlas: AsciiAtlas | null = null
   private atlasTextureNodes: Node[] = []
+  private featureTextureNodes: Node[] = []
+  private analysisSourceNodes: Node[] = []
   private bloomEnabled = false
   private bloomNode: ReturnType<typeof bloom> | null = null
   private shimmerEnabled = false
+  private fontLoadToken = 0
+  private logicalWidth = 1
+  private logicalHeight = 1
+  private outputWidth = 1
+  private gridWidth = 1
+  private gridHeight = 1
+
+  private readonly lumaPass: GridRenderPass
+  private readonly cellPass: GridRenderPass
+
+  private readonly atlasColumnsUniform: Node
+  private readonly atlasInnerHeightUniform: Node
+  private readonly atlasInnerXUniform: Node
+  private readonly atlasInnerYUniform: Node
+  private readonly atlasPadXUniform: Node
+  private readonly atlasPadYUniform: Node
+  private readonly atlasRowsUniform: Node
   private readonly bgOpacityUniform: Node
   private readonly bloomIntensityUniform: Node
   private readonly bloomRadiusUniform: Node
   private readonly bloomSoftnessUniform: Node
   private readonly bloomThresholdUniform: Node
+  private readonly boldnessUniform: Node
+  private readonly cellAspectUniform: Node
   private readonly cellSizeUniform: Node
+  private readonly charCountUniform: Node
   private readonly colorModeUniform: Node
   private readonly colorSignalModeUniform: Node
-  private readonly directionBiasUniform: Node
+  private readonly contourStrengthUniform: Node
+  private readonly contourThresholdUniform: Node
+  private readonly edgeStartUniform: Node
   private readonly glyphSignalModeUniform: Node
+  private readonly gridHeightUniform: Node
+  private readonly gridWidthUniform: Node
   private readonly invertUniform: Node
   private readonly logicalHeightUniform: Node
   private readonly logicalWidthUniform: Node
   private readonly monoBlueUniform: Node
   private readonly monoGreenUniform: Node
   private readonly monoRedUniform: Node
-  private readonly numCharsUniform: Node
   private readonly placeholder: THREE.Texture
   private readonly presenceSoftnessUniform: Node
   private readonly presenceThresholdUniform: Node
+  private readonly rampCountUniform: Node
+  private readonly renderScaleUniform: Node
+  private readonly sdfRadiusUniform: Node
   private readonly shimmerAmountUniform: Node
   private readonly shimmerSpeedUniform: Node
   private readonly signalBlackPointUniform: Node
   private readonly signalGammaUniform: Node
   private readonly signalWhitePointUniform: Node
+  private readonly structureContrastUniform: Node
   private readonly timeUniform: Node
   private readonly toneMappingModeUniform: Node
-  private sourceTextureNodes: Node[] = []
 
-  private currentCellSize = 12
+  private currentAutoSort = true
+  private currentCellAspect = 0
   private currentCharset: AsciiCharset = "light"
   private currentCustomChars = DEFAULT_ASCII_CHARS
-  private currentFontWeight: AsciiFontWeight = "regular"
+  private currentFontFamily = DEFAULT_FONT_FAMILY
+  private currentFontWeight = 400
+  private currentGlyphSource: AsciiGlyphSource = "ramp"
+  private currentRenderMode: AsciiRenderMode = "smooth"
 
   constructor(layerId: string) {
     super(layerId)
     this.placeholder = createPipelinePlaceholder()
+    this.lumaPass = new GridRenderPass()
+    this.cellPass = new GridRenderPass()
+    this.atlasColumnsUniform = uniform(1)
+    this.atlasInnerHeightUniform = uniform(ATLAS_INNER_HEIGHT)
+    this.atlasInnerXUniform = uniform(1)
+    this.atlasInnerYUniform = uniform(1)
+    this.atlasPadXUniform = uniform(0)
+    this.atlasPadYUniform = uniform(0)
+    this.atlasRowsUniform = uniform(1)
     this.bgOpacityUniform = uniform(0)
     this.bloomIntensityUniform = uniform(1.25)
     this.bloomRadiusUniform = uniform(6)
     this.bloomSoftnessUniform = uniform(0.35)
     this.bloomThresholdUniform = uniform(0.6)
+    this.boldnessUniform = uniform(0)
+    this.cellAspectUniform = uniform(0.6)
     this.cellSizeUniform = uniform(12)
+    this.charCountUniform = uniform(DEFAULT_ASCII_CHARS.length)
     this.colorModeUniform = uniform(1)
     this.colorSignalModeUniform = uniform(0)
-    this.directionBiasUniform = uniform(0)
+    this.contourStrengthUniform = uniform(1)
+    this.contourThresholdUniform = uniform(0.08)
+    this.edgeStartUniform = uniform(DEFAULT_ASCII_CHARS.length)
     this.glyphSignalModeUniform = uniform(0)
+    this.gridHeightUniform = uniform(1)
+    this.gridWidthUniform = uniform(1)
     this.invertUniform = uniform(0)
     this.logicalHeightUniform = uniform(1)
     this.logicalWidthUniform = uniform(1)
     this.monoBlueUniform = uniform(0.94)
     this.monoGreenUniform = uniform(0.96)
     this.monoRedUniform = uniform(0.96)
-    this.numCharsUniform = uniform(DEFAULT_ASCII_CHARS.length)
     this.presenceSoftnessUniform = uniform(0)
     this.presenceThresholdUniform = uniform(0)
+    this.rampCountUniform = uniform(DEFAULT_ASCII_CHARS.length)
+    this.renderScaleUniform = uniform(1)
+    this.sdfRadiusUniform = uniform(8)
     this.shimmerAmountUniform = uniform(0)
     this.shimmerSpeedUniform = uniform(1)
     this.signalBlackPointUniform = uniform(0)
     this.signalGammaUniform = uniform(1)
     this.signalWhitePointUniform = uniform(1)
+    this.structureContrastUniform = uniform(0.06)
     this.timeUniform = uniform(0)
     this.toneMappingModeUniform = uniform(0)
-    this.atlasTexture = buildAsciiAtlas(
-      DEFAULT_ASCII_CHARS,
-      "regular",
-      this.currentCellSize
-    )
+    this.rebuildAtlas()
+    this.rebuildGridPasses()
     this.rebuildEffectNode()
   }
 
@@ -164,30 +232,61 @@ export class AsciiPass extends PassNode {
     time: number,
     delta: number
   ): void {
-    for (const sourceTextureNode of this.sourceTextureNodes) {
-      sourceTextureNode.value = inputTexture
+    this.syncGridSize()
+
+    for (const node of this.analysisSourceNodes) {
+      node.value = inputTexture
     }
 
-    if (this.atlasTexture) {
-      for (const atlasTextureNode of this.atlasTextureNodes) {
-        atlasTextureNode.value = this.atlasTexture
+    const atlasTexture = this.atlas?.texture
+
+    if (atlasTexture) {
+      for (const node of this.atlasTextureNodes) {
+        node.value = atlasTexture
       }
     }
+
+    const featureTexture = this.atlas?.featureTexture
+
+    if (featureTexture) {
+      for (const node of this.featureTextureNodes) {
+        node.value = featureTexture
+      }
+    }
+
+    this.lumaPass.render(renderer)
+    this.cellPass.render(renderer)
 
     super.render(renderer, inputTexture, outputTarget, time, delta)
   }
 
   override updateParams(params: LayerParameterValues): void {
     const nextCellSize =
-      typeof params.cellSize === "number"
-        ? Math.max(4, Math.round(params.cellSize))
-        : 12
+      typeof params.cellSize === "number" ? Math.max(4, params.cellSize) : 12
     const nextCharset = this.resolveCharset(params.charset)
     const nextCustomChars =
       typeof params.customChars === "string"
         ? params.customChars
         : DEFAULT_ASCII_CHARS
-    const nextFontWeight = this.resolveFontWeight(params.fontWeight)
+    const nextFontFamily =
+      typeof params.fontFamily === "string" && params.fontFamily.length > 0
+        ? params.fontFamily
+        : DEFAULT_FONT_FAMILY
+    const nextFontWeight = this.resolveFontWeight(
+      nextFontFamily,
+      params.fontWeight
+    )
+    const nextCellAspect =
+      typeof params.cellAspect === "number"
+        ? Math.max(0, Math.min(2, params.cellAspect))
+        : 0
+    const nextAutoSort = params.autoSortCharset !== false
+    const nextRenderMode = this.resolveRenderMode(params.renderMode)
+    const nextGlyphSource = this.resolveGlyphSource(params.glyphSource)
+    const nextBoldness =
+      typeof params.boldness === "number"
+        ? Math.max(-1, Math.min(1, params.boldness))
+        : 0
     const nextColorMode = this.resolveColorMode(params.colorMode)
     const nextBgOpacity =
       typeof params.bgOpacity === "number" ? clamp01(params.bgOpacity) : 0
@@ -211,82 +310,104 @@ export class AsciiPass extends PassNode {
     const [red, green, blue] = parseCssColorRgb(
       typeof params.monoColor === "string" ? params.monoColor : "#f5f5f0"
     )
-    const nextToneMapping = this.resolveToneMapping(params.toneMapping)
-    const nextGlyphSignalMode = this.resolveSignalMode(params.glyphSignalMode)
-    const nextColorSignalMode = this.resolveSignalMode(params.colorSignalMode)
-    const nextSignalBlackPoint =
-      typeof params.signalBlackPoint === "number"
-        ? clamp01(params.signalBlackPoint)
-        : 0
-    const nextSignalWhitePoint =
-      typeof params.signalWhitePoint === "number"
-        ? clamp01(params.signalWhitePoint)
-        : 1
-    const nextSignalGamma =
-      typeof params.signalGamma === "number"
-        ? Math.max(0.1, Math.min(5, params.signalGamma))
-        : 1
-    const nextPresenceThreshold =
-      typeof params.presenceThreshold === "number"
-        ? clamp01(params.presenceThreshold)
-        : 0
-    const nextPresenceSoftness =
-      typeof params.presenceSoftness === "number"
-        ? clamp01(params.presenceSoftness)
-        : 0
-    const nextShimmerAmount =
-      typeof params.shimmerAmount === "number"
-        ? clamp01(params.shimmerAmount)
-        : 0
-    const nextShimmerSpeed =
-      typeof params.shimmerSpeed === "number"
-        ? Math.max(0, Math.min(10, params.shimmerSpeed))
-        : 1
-    const nextDirectionBias =
-      typeof params.directionBias === "number"
-        ? clamp01(params.directionBias)
-        : 0
 
     this.bgOpacityUniform.value = nextBgOpacity
     this.bloomIntensityUniform.value = nextBloomIntensity
     this.bloomRadiusUniform.value = nextBloomRadius
     this.bloomSoftnessUniform.value = nextBloomSoftness
     this.bloomThresholdUniform.value = nextBloomThreshold
+    this.boldnessUniform.value = nextBoldness
     this.cellSizeUniform.value = nextCellSize
     this.colorModeUniform.value = this.getColorModeValue(nextColorMode)
-    this.colorSignalModeUniform.value =
-      this.getSignalModeValue(nextColorSignalMode)
-    this.directionBiasUniform.value = nextDirectionBias
-    this.glyphSignalModeUniform.value =
-      this.getSignalModeValue(nextGlyphSignalMode)
+    this.colorSignalModeUniform.value = this.getSignalModeValue(
+      this.resolveSignalMode(params.colorSignalMode)
+    )
+    this.contourStrengthUniform.value =
+      typeof params.contourStrength === "number"
+        ? clamp01(params.contourStrength)
+        : 1
+    this.contourThresholdUniform.value =
+      typeof params.contourThreshold === "number"
+        ? Math.max(0.001, Math.min(1, params.contourThreshold))
+        : 0.08
+    this.glyphSignalModeUniform.value = this.getSignalModeValue(
+      this.resolveSignalMode(params.glyphSignalMode)
+    )
     this.invertUniform.value = params.invert === true ? 1 : 0
     this.monoBlueUniform.value = blue
     this.monoGreenUniform.value = green
     this.monoRedUniform.value = red
-    this.presenceSoftnessUniform.value = nextPresenceSoftness
-    this.presenceThresholdUniform.value = nextPresenceThreshold
+    this.presenceSoftnessUniform.value =
+      typeof params.presenceSoftness === "number"
+        ? clamp01(params.presenceSoftness)
+        : 0
+    this.presenceThresholdUniform.value =
+      typeof params.presenceThreshold === "number"
+        ? clamp01(params.presenceThreshold)
+        : 0
+    this.signalBlackPointUniform.value =
+      typeof params.signalBlackPoint === "number"
+        ? clamp01(params.signalBlackPoint)
+        : 0
+    this.signalGammaUniform.value =
+      typeof params.signalGamma === "number"
+        ? Math.max(0.1, Math.min(5, params.signalGamma))
+        : 1
+    this.signalWhitePointUniform.value =
+      typeof params.signalWhitePoint === "number"
+        ? clamp01(params.signalWhitePoint)
+        : 1
+    this.structureContrastUniform.value =
+      typeof params.structureContrast === "number"
+        ? Math.max(0.001, Math.min(0.5, params.structureContrast))
+        : 0.06
+    this.toneMappingModeUniform.value = this.getToneMappingValue(
+      this.resolveToneMapping(params.toneMapping)
+    )
+
+    const nextShimmerAmount =
+      typeof params.shimmerAmount === "number"
+        ? clamp01(params.shimmerAmount)
+        : 0
     this.shimmerAmountUniform.value = nextShimmerAmount
-    this.shimmerSpeedUniform.value = nextShimmerSpeed
-    this.signalBlackPointUniform.value = nextSignalBlackPoint
-    this.signalGammaUniform.value = nextSignalGamma
-    this.signalWhitePointUniform.value = nextSignalWhitePoint
-    this.toneMappingModeUniform.value =
-      this.getToneMappingValue(nextToneMapping)
+    this.shimmerSpeedUniform.value =
+      typeof params.shimmerSpeed === "number"
+        ? Math.max(0, Math.min(10, params.shimmerSpeed))
+        : 1
     this.shimmerEnabled = nextShimmerAmount > 0
 
     const needsAtlasRebuild =
-      nextCellSize !== this.currentCellSize ||
       nextCharset !== this.currentCharset ||
+      nextFontFamily !== this.currentFontFamily ||
       nextFontWeight !== this.currentFontWeight ||
+      nextCellAspect !== this.currentCellAspect ||
+      nextAutoSort !== this.currentAutoSort ||
       (nextCharset === "custom" && nextCustomChars !== this.currentCustomChars)
 
-    this.currentCellSize = nextCellSize
+    this.currentAutoSort = nextAutoSort
+    this.currentCellAspect = nextCellAspect
     this.currentCharset = nextCharset
     this.currentCustomChars = nextCustomChars
+    this.currentFontFamily = nextFontFamily
     this.currentFontWeight = nextFontWeight
 
-    if (nextBloomEnabled !== this.bloomEnabled) {
-      this.bloomEnabled = nextBloomEnabled
+    if (needsAtlasRebuild) {
+      this.rebuildAtlas()
+    }
+
+    const glyphSourceChanged = nextGlyphSource !== this.currentGlyphSource
+    const renderModeChanged = nextRenderMode !== this.currentRenderMode
+    const bloomChanged = nextBloomEnabled !== this.bloomEnabled
+
+    this.currentGlyphSource = nextGlyphSource
+    this.currentRenderMode = nextRenderMode
+    this.bloomEnabled = nextBloomEnabled
+
+    if (glyphSourceChanged) {
+      this.rebuildGridPasses()
+    }
+
+    if (renderModeChanged || bloomChanged) {
       this.rebuildEffectNode()
     }
 
@@ -297,22 +418,29 @@ export class AsciiPass extends PassNode {
       this.bloomNode.smoothWidth.value =
         this.normalizeBloomSoftness(nextBloomSoftness)
     }
-
-    if (needsAtlasRebuild) {
-      this.rebuildAtlas()
-    }
   }
 
   override dispose(): void {
     this.disposeBloomNode()
     this.placeholder.dispose()
-    this.atlasTexture?.dispose()
+    this.atlas?.texture.dispose()
+    this.atlas?.featureTexture.dispose()
+    this.lumaPass.dispose()
+    this.cellPass.dispose()
     super.dispose()
   }
 
+  override resize(width: number, _height: number): void {
+    this.outputWidth = Math.max(1, width)
+    this.recomputeRenderScale()
+  }
+
   override updateLogicalSize(width: number, height: number): void {
-    this.logicalWidthUniform.value = Math.max(1, width)
-    this.logicalHeightUniform.value = Math.max(1, height)
+    this.logicalWidth = Math.max(1, width)
+    this.logicalHeight = Math.max(1, height)
+    this.logicalWidthUniform.value = this.logicalWidth
+    this.logicalHeightUniform.value = this.logicalHeight
+    this.recomputeRenderScale()
   }
 
   protected override beforeRender(time: number): void {
@@ -323,25 +451,294 @@ export class AsciiPass extends PassNode {
     return this.shimmerEnabled
   }
 
+  private syncGridSize(): void {
+    const aspect = this.atlas?.cellAspect ?? 0.6
+    const cellSize = Math.max(
+      1,
+      (this.cellSizeUniform.value as number) || 12
+    )
+    const cellWidth = Math.max(1, cellSize * aspect)
+    const gridWidth = Math.min(
+      MAX_GRID_DIMENSION,
+      Math.max(1, Math.ceil(this.logicalWidth / cellWidth))
+    )
+    const gridHeight = Math.min(
+      MAX_GRID_DIMENSION,
+      Math.max(1, Math.ceil(this.logicalHeight / cellSize))
+    )
+
+    if (gridWidth === this.gridWidth && gridHeight === this.gridHeight) {
+      return
+    }
+
+    this.gridWidth = gridWidth
+    this.gridHeight = gridHeight
+    this.gridWidthUniform.value = gridWidth
+    this.gridHeightUniform.value = gridHeight
+    this.lumaPass.setSize(gridWidth, gridHeight)
+    this.cellPass.setSize(gridWidth, gridHeight)
+  }
+
+  private getCellUvSize(): Node {
+    return vec2(
+      this.cellSizeUniform
+        .mul(this.cellAspectUniform)
+        .div(this.logicalWidthUniform),
+      this.cellSizeUniform.div(this.logicalHeightUniform)
+    )
+  }
+
+  private buildLumaColorNode(): Node {
+    this.analysisSourceNodes = []
+
+    const gridSize = vec2(this.gridWidthUniform, this.gridHeightUniform)
+    const cellUvSize = this.getCellUvSize()
+    const cellId = floor(uv().mul(gridSize))
+    const cellOrigin = cellId.mul(cellUvSize)
+
+    let accumulated = vec3(float(0), float(0), float(0))
+
+    for (let row = 0; row < SUPERSAMPLE; row += 1) {
+      for (let column = 0; column < SUPERSAMPLE; column += 1) {
+        const offset = vec2(
+          float((column + 0.5) / SUPERSAMPLE),
+          float((row + 0.5) / SUPERSAMPLE)
+        ).mul(cellUvSize)
+        const sampleUv = clamp(
+          cellOrigin.add(offset),
+          vec2(float(0), float(0)),
+          vec2(float(1), float(1))
+        )
+        const sampled = this.trackAnalysisSourceNode(sampleUv)
+        accumulated = accumulated.add(
+          vec3(float(sampled.r), float(sampled.g), float(sampled.b))
+        )
+      }
+    }
+
+    const averaged = accumulated.div(float(SUPERSAMPLE * SUPERSAMPLE))
+
+    return vec4(averaged, float(1))
+  }
+
+  private buildCellColorNode(): Node {
+    this.featureTextureNodes = []
+
+    const gridSize = vec2(this.gridWidthUniform, this.gridHeightUniform)
+    const texelSize = vec2(float(1), float(1)).div(gridSize)
+    const cellId = floor(uv().mul(gridSize))
+    const centerUv = cellId.add(vec2(0.5, 0.5)).mul(texelSize)
+
+    const center = this.trackLumaTextureNode(centerUv)
+    const centerColor = vec3(
+      float(center.r),
+      float(center.g),
+      float(center.b)
+    )
+    const toneMapped = this.buildToneMappedColor(centerColor)
+
+    const glyphSignal = this.buildShapedSignal(
+      toneMapped,
+      this.glyphSignalModeUniform
+    )
+    const colorSignal = this.buildShapedSignal(
+      toneMapped,
+      this.colorSignalModeUniform
+    )
+
+    const neighbourLuma = (offset: Node) => {
+      const sampled = this.trackLumaTextureNode(
+        clamp(
+          centerUv.add(offset),
+          vec2(float(0), float(0)),
+          vec2(float(1), float(1))
+        )
+      )
+
+      return this.buildLuma(
+        vec3(float(sampled.r), float(sampled.g), float(sampled.b))
+      )
+    }
+    const centerLuma = this.buildLuma(centerColor)
+
+    const leftLuma = neighbourLuma(vec2(texelSize.x.negate(), float(0)))
+    const rightLuma = neighbourLuma(vec2(texelSize.x, float(0)))
+    const topLuma = neighbourLuma(vec2(float(0), texelSize.y.negate()))
+    const bottomLuma = neighbourLuma(vec2(float(0), texelSize.y))
+
+    const gradientX = rightLuma.sub(leftLuma)
+    const gradientY = bottomLuma.sub(topLuma)
+    const gradientMagnitude = clamp(
+      sqrt(gradientX.mul(gradientX).add(gradientY.mul(gradientY))),
+      float(0),
+      float(1)
+    )
+    const blurred = leftLuma
+      .add(rightLuma)
+      .add(topLuma)
+      .add(bottomLuma)
+      .div(float(4))
+    const differenceOfGaussians = abs(centerLuma.sub(blurred))
+
+    const rampIndex = floor(
+      clamp(
+        glyphSignal.mul(this.rampCountUniform.sub(float(1))),
+        float(0),
+        this.rampCountUniform.sub(float(1))
+      )
+    )
+
+    let glyphIndex = rampIndex
+
+    if (
+      this.currentGlyphSource === "structure" ||
+      this.currentGlyphSource === "contour-structure"
+    ) {
+      glyphIndex = this.buildStructureIndex(
+        cellId,
+        this.getCellUvSize(),
+        rampIndex
+      )
+    }
+
+    if (
+      this.currentGlyphSource === "contour" ||
+      this.currentGlyphSource === "contour-structure"
+    ) {
+      const edgeOffset = this.buildEdgeOffset(gradientX, gradientY)
+      const edgeIndex = this.edgeStartUniform.add(edgeOffset)
+      const edgeStrength = max(gradientMagnitude, differenceOfGaussians).mul(
+        this.contourStrengthUniform
+      )
+      const edgeGate = step(this.contourThresholdUniform, edgeStrength)
+      glyphIndex = mix(glyphIndex, edgeIndex, edgeGate)
+    }
+
+    return vec4(glyphIndex, colorSignal, glyphSignal, gradientMagnitude)
+  }
+
+  private buildStructureIndex(
+    cellId: Node,
+    cellUvSize: Node,
+    rampIndex: Node
+  ): Node {
+    const cellOrigin = cellId.mul(cellUvSize)
+    const samples: Node[] = []
+    let total = float(0)
+
+    for (let row = 0; row < FEATURE_SIZE; row += 1) {
+      for (let column = 0; column < FEATURE_SIZE; column += 1) {
+        const offset = vec2(
+          float((column + 0.5) / FEATURE_SIZE),
+          float((row + 0.5) / FEATURE_SIZE)
+        ).mul(cellUvSize)
+        const sampled = this.trackAnalysisSourceNode(
+          clamp(
+            cellOrigin.add(offset),
+            vec2(float(0), float(0)),
+            vec2(float(1), float(1))
+          )
+        )
+        const value = this.buildLuma(
+          vec3(float(sampled.r), float(sampled.g), float(sampled.b))
+        )
+        samples.push(value)
+        total = total.add(value)
+      }
+    }
+
+    const mean = total.div(float(FEATURE_SIZE * FEATURE_SIZE))
+    const centered = samples.map((value) => value.sub(mean))
+    let energy = float(0)
+
+    for (const value of centered) {
+      energy = energy.add(value.mul(value))
+    }
+
+    const norm = max(sqrt(energy), float(1e-4))
+    const normalized = centered.map((value) => value.div(norm))
+    const packed: Node[] = []
+
+    for (let texel = 0; texel < FEATURE_TEXELS; texel += 1) {
+      packed.push(
+        vec4(
+          normalized[texel * 4] ?? float(0),
+          normalized[texel * 4 + 1] ?? float(0),
+          normalized[texel * 4 + 2] ?? float(0),
+          normalized[texel * 4 + 3] ?? float(0)
+        )
+      )
+    }
+
+    const bestIndex = float(0).toVar()
+    const bestScore = float(-2).toVar()
+
+    Loop(this.rampCountUniform, ({ i }) => {
+      let score = float(0)
+
+      for (let texel = 0; texel < FEATURE_TEXELS; texel += 1) {
+        const glyphTexel = this.trackFeatureTextureNode(
+          vec2(
+            float(texel).add(float(0.5)).div(float(FEATURE_TEXELS)),
+            float(i).add(float(0.5)).div(this.charCountUniform)
+          )
+        )
+        score = score.add(
+          dot(
+            packed[texel] ?? vec4(float(0), float(0), float(0), float(0)),
+            vec4(
+              float(glyphTexel.r),
+              float(glyphTexel.g),
+              float(glyphTexel.b),
+              float(glyphTexel.a)
+            )
+          )
+        )
+      }
+
+      const better = score.greaterThan(bestScore)
+      bestScore.assign(select(better, score, bestScore))
+      bestIndex.assign(select(better, float(i), bestIndex))
+    })
+
+    const flat = step(norm, this.structureContrastUniform)
+
+    return mix(bestIndex, rampIndex, flat)
+  }
+
+  private buildEdgeOffset(gradientX: Node, gradientY: Node): Node {
+    const absX = abs(gradientX)
+    const absY = abs(gradientY)
+    const diagonalSign = sign(gradientX.mul(gradientY))
+    const diagonalOffset = select(
+      diagonalSign.greaterThanEqual(float(0)),
+      float(3),
+      float(2)
+    )
+
+    return select(
+      absX.greaterThan(absY.mul(float(DIAGONAL_TANGENT))),
+      float(0),
+      select(
+        absY.greaterThan(absX.mul(float(DIAGONAL_TANGENT))),
+        float(1),
+        diagonalOffset
+      )
+    )
+  }
+
   protected override buildEffectNode(): Node {
-    if (!(this.cellSizeUniform && this.numCharsUniform && this.placeholder)) {
+    if (!(this.cellSizeUniform && this.rampCountUniform && this.placeholder)) {
       return this.inputNode
     }
 
     this.disposeBloomNode()
     this.bloomNode = null
-    this.sourceTextureNodes = []
     this.atlasTextureNodes = []
 
     const renderTargetUv = vec2(uv().x, float(1).sub(uv().y))
-    const logicalScreenSize = vec2(
-      this.logicalWidthUniform,
-      this.logicalHeightUniform
-    )
-    const normalizedCellSize = vec2(
-      this.cellSizeUniform,
-      this.cellSizeUniform
-    ).div(logicalScreenSize)
+    const gridSize = vec2(this.gridWidthUniform, this.gridHeightUniform)
+    const cellUvSize = this.getCellUvSize()
 
     const sampleAscii = (sampleUv: Node) => {
       const safeUv = clamp(
@@ -349,152 +746,32 @@ export class AsciiPass extends PassNode {
         vec2(float(0), float(0)),
         vec2(float(1), float(1))
       )
-      const screenPixel = floor(safeUv.mul(logicalScreenSize))
-      const cellCenterUv = floor(safeUv.div(normalizedCellSize))
-        .add(vec2(0.5, 0.5))
-        .mul(normalizedCellSize)
-      const localCellPixel = vec2(
-        mod(screenPixel.x, this.cellSizeUniform),
-        mod(screenPixel.y, this.cellSizeUniform)
+      const cellId = floor(safeUv.div(cellUvSize))
+      const localCellUv = safeUv.div(cellUvSize).sub(cellId)
+      const cellTexelUv = cellId.add(vec2(0.5, 0.5)).div(gridSize)
+
+      const cellData = this.trackCellTextureNode(cellTexelUv)
+      const glyphIndex = floor(float(cellData.r).add(float(0.5)))
+      const colorSignalValue = float(cellData.g)
+      const presenceSignal = float(cellData.b)
+
+      const cellColor = this.trackLumaTextureNode(cellTexelUv)
+      const toneMapped = this.buildToneMappedColor(
+        vec3(float(cellColor.r), float(cellColor.g), float(cellColor.b))
       )
 
-      // Sample source color and apply tone mapping
-      const sampledColor = this.trackSourceTextureNode(cellCenterUv)
-      const sourceColor = vec3(
-        float(sampledColor.r),
-        float(sampledColor.g),
-        float(sampledColor.b)
-      )
-      const toneMapped = this.buildToneMappedColor(sourceColor)
+      const characterMask = this.buildCharacterMask(localCellUv, glyphIndex)
 
-      // Extract independent glyph and color signals
-      const rawGlyphSignal = this.buildSignalExtractor(
-        toneMapped,
-        this.glyphSignalModeUniform
-      )
-      const rawColorSignal = this.buildSignalExtractor(
-        toneMapped,
-        this.colorSignalModeUniform
-      )
-
-      // Invert
-      const invertedGlyphSignal = select(
-        this.invertUniform.greaterThan(float(0.5)),
-        float(1).sub(rawGlyphSignal),
-        rawGlyphSignal
-      )
-      const invertedColorSignal = select(
-        this.invertUniform.greaterThan(float(0.5)),
-        float(1).sub(rawColorSignal),
-        rawColorSignal
-      )
-
-      // Contrast shaping: remap through black/white point and gamma
-      const signalRange = max(
-        this.signalWhitePointUniform.sub(this.signalBlackPointUniform),
-        float(0.001),
-      )
-      const gammaExp = float(1).div(this.signalGammaUniform)
-      const shapedGlyphSignal = pow(
-        clamp(
-          invertedGlyphSignal
-            .sub(this.signalBlackPointUniform)
-            .div(signalRange),
-          float(0),
-          float(1)
-        ),
-        gammaExp
-      )
-      const shapedColorSignal = pow(
-        clamp(
-          invertedColorSignal
-            .sub(this.signalBlackPointUniform)
-            .div(signalRange),
-          float(0),
-          float(1)
-        ),
-        gammaExp
-      )
-
-      // Direction bias: blend glyph signal with edge gradient magnitude
-      const leftSample = this.trackSourceTextureNode(
-        clamp(
-          cellCenterUv.sub(vec2(normalizedCellSize.x, float(0))),
-          vec2(float(0), float(0)),
-          vec2(float(1), float(1))
-        )
-      )
-      const rightSample = this.trackSourceTextureNode(
-        clamp(
-          cellCenterUv.add(vec2(normalizedCellSize.x, float(0))),
-          vec2(float(0), float(0)),
-          vec2(float(1), float(1))
-        )
-      )
-      const topSample = this.trackSourceTextureNode(
-        clamp(
-          cellCenterUv.sub(vec2(float(0), normalizedCellSize.y)),
-          vec2(float(0), float(0)),
-          vec2(float(1), float(1))
-        )
-      )
-      const bottomSample = this.trackSourceTextureNode(
-        clamp(
-          cellCenterUv.add(vec2(float(0), normalizedCellSize.y)),
-          vec2(float(0), float(0)),
-          vec2(float(1), float(1))
-        )
-      )
-      const leftLuma = this.buildLuma(leftSample)
-      const rightLuma = this.buildLuma(rightSample)
-      const topLuma = this.buildLuma(topSample)
-      const bottomLuma = this.buildLuma(bottomSample)
-      const gradX = rightLuma.sub(leftLuma)
-      const gradY = bottomLuma.sub(topLuma)
-      const gradMag = clamp(
-        sqrt(gradX.mul(gradX).add(gradY.mul(gradY))),
-        float(0),
-        float(1)
-      )
-      const biasedGlyphSignal = mix(
-        shapedGlyphSignal,
-        gradMag,
-        this.directionBiasUniform
-      )
-
-      // Character selection from glyph signal
-      const charIndex = floor(
-        clamp(
-          biasedGlyphSignal.mul(this.numCharsUniform.sub(float(1))),
-          float(0),
-          this.numCharsUniform.sub(float(1))
-        )
-      )
-
-      // Atlas lookup
-      const atlasUv = vec2(
-        charIndex
-          .mul(this.cellSizeUniform)
-          .add(localCellPixel.x)
-          .add(float(0.5))
-          .div(this.numCharsUniform.mul(this.cellSizeUniform)),
-        localCellPixel.y.add(float(0.5)).div(this.cellSizeUniform)
-      )
-      const characterMask = float(this.trackAtlasTextureNode(atlasUv).r)
-
-      // Presence mask: fade out characters below the threshold
       const halfSoft = max(
         this.presenceSoftnessUniform.mul(float(0.5)),
-        float(0.001),
+        float(0.001)
       )
       const presenceMask = smoothstep(
         this.presenceThresholdUniform.sub(halfSoft),
         this.presenceThresholdUniform.add(halfSoft),
-        biasedGlyphSignal
+        presenceSignal
       )
 
-      // Temporal shimmer: smooth per-cell opacity oscillation
-      const cellId = floor(safeUv.div(normalizedCellSize))
       const cellPhase = fract(
         sin(dot(cellId, vec2(12.9898, 78.233))).mul(float(43758.5453))
       )
@@ -509,14 +786,13 @@ export class AsciiPass extends PassNode {
       )
       const finalMask = characterMask.mul(presenceMask).mul(shimmerOpacity)
 
-      // Color output driven by color signal
       const monoTint = vec3(
         this.monoRedUniform,
         this.monoGreenUniform,
         this.monoBlueUniform
       )
-      const monochromeColor = monoTint.mul(shapedColorSignal)
-      const greenTerminalColor = vec3(float(0), shapedColorSignal, float(0))
+      const monochromeColor = monoTint.mul(colorSignalValue)
+      const greenTerminalColor = vec3(float(0), colorSignalValue, float(0))
       const glyphColor = select(
         this.colorModeUniform.lessThan(float(0.5)),
         toneMapped,
@@ -566,6 +842,58 @@ export class AsciiPass extends PassNode {
     )
   }
 
+  private buildGlyphAtlasUv(localCellUv: Node, charIndex: Node): Node {
+    const column = mod(charIndex, this.atlasColumnsUniform)
+    const row = floor(charIndex.div(this.atlasColumnsUniform))
+    const uvInCell = vec2(
+      this.atlasPadXUniform.add(localCellUv.x.mul(this.atlasInnerXUniform)),
+      this.atlasPadYUniform.add(localCellUv.y.mul(this.atlasInnerYUniform))
+    )
+
+    return vec2(
+      column.add(uvInCell.x).div(this.atlasColumnsUniform),
+      row.add(uvInCell.y).div(this.atlasRowsUniform)
+    )
+  }
+
+  private buildCharacterMask(localCellUv: Node, charIndex: Node): Node {
+    if (this.currentRenderMode === "pixel") {
+      const steps = vec2(
+        max(this.cellSizeUniform.mul(this.cellAspectUniform), float(1)),
+        max(this.cellSizeUniform, float(1))
+      )
+      const quantizedUv = floor(localCellUv.mul(steps))
+        .add(vec2(0.5, 0.5))
+        .div(steps)
+      const coverage = float(
+        this.trackAtlasTextureNode(
+          this.buildGlyphAtlasUv(quantizedUv, charIndex)
+        ).g
+      )
+
+      return step(float(0.5), coverage)
+    }
+
+    const signedDistance = float(
+      this.trackAtlasTextureNode(
+        this.buildGlyphAtlasUv(localCellUv, charIndex)
+      ).r
+    )
+    const atlasPixelsInside = signedDistance
+      .sub(float(0.5))
+      .mul(this.sdfRadiusUniform)
+      .add(this.boldnessUniform.mul(float(2)))
+    const atlasToDevice = this.cellSizeUniform
+      .mul(this.renderScaleUniform)
+      .div(this.atlasInnerHeightUniform)
+
+    return clamp(
+      smoothstep(float(-0.5), float(0.5), atlasPixelsInside.mul(atlasToDevice)),
+      float(0),
+      float(1)
+    )
+  }
+
   private buildLuma(color: Node): Node {
     return float(color.r)
       .mul(float(0.2126))
@@ -573,15 +901,37 @@ export class AsciiPass extends PassNode {
       .add(float(color.b).mul(float(0.0722)))
   }
 
+  private buildShapedSignal(color: Node, modeUniform: Node): Node {
+    const raw = this.buildSignalExtractor(color, modeUniform)
+    const inverted = select(
+      this.invertUniform.greaterThan(float(0.5)),
+      float(1).sub(raw),
+      raw
+    )
+    const signalRange = max(
+      this.signalWhitePointUniform.sub(this.signalBlackPointUniform),
+      float(0.001)
+    )
+
+    return pow(
+      clamp(
+        inverted.sub(this.signalBlackPointUniform).div(signalRange),
+        float(0),
+        float(1)
+      ),
+      float(1).div(this.signalGammaUniform)
+    )
+  }
+
   private buildSignalExtractor(color: Node, modeUniform: Node): Node {
     const luma = this.buildLuma(color)
-    const avg = float(color.r).add(color.g).add(color.b).div(float(3))
+    const average = float(color.r).add(color.g).add(color.b).div(float(3))
     return select(
       modeUniform.lessThan(float(0.5)),
       luma,
       select(
         modeUniform.lessThan(float(1.5)),
-        avg,
+        average,
         select(
           modeUniform.lessThan(float(2.5)),
           float(color.r),
@@ -619,6 +969,17 @@ export class AsciiPass extends PassNode {
     return this.currentCharset === "custom"
       ? this.currentCustomChars || " "
       : (ASCII_CHARSETS[this.currentCharset] ?? DEFAULT_ASCII_CHARS)
+  }
+
+  private getAtlasOptions(): AsciiAtlasOptions {
+    return {
+      autoSort: this.currentAutoSort,
+      cellAspect: this.currentCellAspect,
+      chars: this.getActiveChars(),
+      edgeChars: DEFAULT_EDGE_CHARS,
+      fontFamily: this.currentFontFamily,
+      fontWeight: this.currentFontWeight,
+    }
   }
 
   private getColorModeValue(colorMode: AsciiColorMode): number {
@@ -662,26 +1023,67 @@ export class AsciiPass extends PassNode {
     }
   }
 
-  private rebuildAtlas(): void {
-    const chars = this.getActiveChars()
-    this.atlasTexture?.dispose()
-    this.atlasTexture = buildAsciiAtlas(
-      chars,
-      this.currentFontWeight,
-      this.currentCellSize
+  private recomputeRenderScale(): void {
+    this.renderScaleUniform.value = Math.max(
+      0.1,
+      this.outputWidth / Math.max(1, this.logicalWidth)
     )
-    this.numCharsUniform.value = chars.length
-    this.rebuildEffectNode()
+  }
+
+  private rebuildGridPasses(): void {
+    this.lumaPass.setColorNode(this.buildLumaColorNode())
+    this.cellPass.setColorNode(this.buildCellColorNode())
+  }
+
+  private rebuildAtlas(): void {
+    if (typeof document === "undefined") {
+      return
+    }
+
+    const options = this.getAtlasOptions()
+    const previousTexture = this.atlas?.texture
+    const previousFeatures = this.atlas?.featureTexture
+    const atlas = buildAsciiAtlas(options)
+    this.atlas = atlas
+    previousTexture?.dispose()
+    previousFeatures?.dispose()
+
+    this.atlasColumnsUniform.value = atlas.columns
+    this.atlasInnerXUniform.value = atlas.innerFractionX
+    this.atlasInnerYUniform.value = atlas.innerFractionY
+    this.atlasPadXUniform.value = atlas.padFractionX
+    this.atlasPadYUniform.value = atlas.padFractionY
+    this.atlasRowsUniform.value = atlas.rows
+    this.cellAspectUniform.value = atlas.cellAspect
+    this.charCountUniform.value = atlas.charCount
+    this.edgeStartUniform.value = atlas.edgeStart
+    this.rampCountUniform.value = atlas.rampCount
+    this.sdfRadiusUniform.value = atlas.sdfRadius
+
+    this.ensureFontLoaded(options)
+  }
+
+  private ensureFontLoaded(options: AsciiAtlasOptions): void {
+    if (isAsciiFontReady(options)) {
+      return
+    }
+
+    this.fontLoadToken += 1
+    const token = this.fontLoadToken
+
+    void loadAsciiFont(options).then(() => {
+      if (token !== this.fontLoadToken) {
+        return
+      }
+
+      this.rebuildAtlas()
+    })
   }
 
   private resolveCharset(value: unknown): AsciiCharset {
-    return value === "binary" ||
-      value === "blocks" ||
-      value === "custom" ||
-      value === "dense" ||
-      value === "hatching" ||
-      value === "light"
-      ? value
+    return typeof value === "string" &&
+      (value === "custom" || value in ASCII_CHARSETS)
+      ? (value as AsciiCharset)
       : "light"
   }
 
@@ -691,8 +1093,27 @@ export class AsciiPass extends PassNode {
       : "monochrome"
   }
 
-  private resolveFontWeight(value: unknown): AsciiFontWeight {
-    return value === "bold" || value === "thin" ? value : "regular"
+  private resolveFontWeight(fontFamily: string, value: unknown): number {
+    if (typeof value === "string") {
+      return normalizeTextFontWeight(
+        fontFamily,
+        LEGACY_FONT_WEIGHTS[value] ?? 400
+      )
+    }
+
+    return normalizeTextFontWeight(fontFamily, value)
+  }
+
+  private resolveGlyphSource(value: unknown): AsciiGlyphSource {
+    return value === "contour" ||
+      value === "contour-structure" ||
+      value === "structure"
+      ? value
+      : "ramp"
+  }
+
+  private resolveRenderMode(value: unknown): AsciiRenderMode {
+    return value === "pixel" ? "pixel" : "smooth"
   }
 
   private resolveSignalMode(value: unknown): AsciiSignalMode {
@@ -755,17 +1176,31 @@ export class AsciiPass extends PassNode {
   }
 
   private trackAtlasTextureNode(uvNode: Node): Node {
-    const atlasTextureNode = tslTexture(
-      this.atlasTexture ?? new THREE.Texture(),
-      uvNode
-    )
-    this.atlasTextureNodes.push(atlasTextureNode)
-    return atlasTextureNode
+    const node = tslTexture(this.atlas?.texture ?? new THREE.Texture(), uvNode)
+    this.atlasTextureNodes.push(node)
+    return node
   }
 
-  private trackSourceTextureNode(uvNode: Node): Node {
-    const sourceTextureNode = tslTexture(this.placeholder, uvNode)
-    this.sourceTextureNodes.push(sourceTextureNode)
-    return sourceTextureNode
+  private trackFeatureTextureNode(uvNode: Node): Node {
+    const node = tslTexture(
+      this.atlas?.featureTexture ?? new THREE.Texture(),
+      uvNode
+    )
+    this.featureTextureNodes.push(node)
+    return node
+  }
+
+  private trackCellTextureNode(uvNode: Node): Node {
+    return tslTexture(this.cellPass.texture, uvNode)
+  }
+
+  private trackLumaTextureNode(uvNode: Node): Node {
+    return tslTexture(this.lumaPass.texture, uvNode)
+  }
+
+  private trackAnalysisSourceNode(uvNode: Node): Node {
+    const node = tslTexture(this.placeholder, uvNode)
+    this.analysisSourceNodes.push(node)
+    return node
   }
 }

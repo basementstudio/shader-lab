@@ -215,6 +215,10 @@ export const TEXT_FONT_OPTIONS = TEXT_FONT_DEFINITIONS.map(
   })
 )
 
+export const GLYPH_FONT_OPTIONS = TEXT_FONT_OPTIONS.filter(({ value }) => {
+  return value !== "impact"
+})
+
 function getTextFontDefinition(value: string): TextFontDefinition {
   return textFontDefinitionByValue.get(value) ?? DEFAULT_TEXT_FONT
 }

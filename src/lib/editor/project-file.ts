@@ -9,6 +9,7 @@ import {
   clampBandConfig,
   createDefaultAudioBands,
 } from "@/lib/editor/audio/bands"
+import { getLayerDefinition } from "@/lib/editor/config/layer-registry"
 import {
   CUSTOM_EFFECT_STARTER,
   CUSTOM_SHADER_STARTER,
@@ -17,6 +18,7 @@ import type {
   EditorAsset,
   EditorAudioSnapshot,
   EditorLayer,
+  LayerParameterValues,
   ProjectPresetConfig,
   SceneConfig,
   Size,
@@ -212,7 +214,7 @@ const projectAudioSchema = z.looseObject({
   source: z.looseObject({ kind: z.string() }).nullable().optional(),
 })
 
-export const CURRENT_PROJECT_FILE_VERSION = 3
+export const CURRENT_PROJECT_FILE_VERSION = 4
 
 const labProjectFileSchema = z.looseObject({
   assets: z.array(assetReferenceSchema),
@@ -427,14 +429,39 @@ function normalizeSceneConfig(sceneConfig: Partial<SceneConfig>): SceneConfig {
   }
 }
 
+const LEGACY_ASCII_FONT_WEIGHTS: Record<string, number> = {
+  bold: 700,
+  regular: 400,
+  thin: 100,
+}
+
+function migrateLayerParams(layer: EditorLayer): LayerParameterValues {
+  const params: LayerParameterValues = { ...layer.params }
+
+  if (layer.type === "ascii" && typeof params.fontWeight === "string") {
+    params.fontWeight = LEGACY_ASCII_FONT_WEIGHTS[params.fontWeight] ?? 400
+  }
+
+  for (const parameter of getLayerDefinition(layer.type).params) {
+    if (params[parameter.key] === undefined) {
+      params[parameter.key] = parameter.defaultValue
+    }
+  }
+
+  return params
+}
+
 function hydrateImportedLayer(
   layer: EditorLayer,
   assetIds: Set<string>,
   assetRefById: Map<string, LabProjectFile["assets"][number]>
 ): EditorLayer {
+  const params = migrateLayerParams(layer)
+
   if (!(layer.assetId && !assetIds.has(layer.assetId))) {
     return {
       ...layer,
+      params,
       runtimeError: layer.runtimeError ?? null,
     }
   }
@@ -443,6 +470,7 @@ function hydrateImportedLayer(
 
   return {
     ...layer,
+    params,
     runtimeError: assetRef
       ? `Missing asset: ${assetRef.fileName}`
       : "Missing asset reference",

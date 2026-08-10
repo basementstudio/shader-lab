@@ -1330,6 +1330,34 @@ const asciiParams = [
     type: "number",
   },
   {
+    animatable: false,
+    defaultValue: "off",
+    description:
+      "Merges neighbouring cells into bigger ones wherever the image is flat, so the grid itself has cells of different sizes instead of one uniform size.",
+    group: "Grid",
+    key: "breakGrid",
+    label: "Break Grid",
+    options: [
+      { label: "Off", value: "off" },
+      { label: "Up to 2x", value: "2x" },
+      { label: "Up to 4x", value: "4x" },
+      { label: "Up to 8x", value: "8x" },
+    ],
+    type: "select",
+  },
+  {
+    defaultValue: 0.06,
+    description:
+      "How flat a region must be before its cells merge. Higher merges more.",
+    group: "Grid",
+    key: "breakThreshold",
+    label: "Break Threshold",
+    max: 1,
+    min: 0.001,
+    step: 0.001,
+    type: "number",
+  },
+  {
     defaultValue: 0,
     description:
       "Scales each character inside its cell by a signal, so size carries information as well as the character itself.",

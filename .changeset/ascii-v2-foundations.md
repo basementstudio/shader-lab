@@ -57,3 +57,9 @@ The layer now runs two tiny passes at grid resolution — one texel per characte
 - Both are clipped to the glyph's own cell, so scaling up or rotating never bleeds into a neighbouring character.
 
 Per-cell edge data (angle, gradient magnitude, difference-of-Gaussians) moved into its own grid-resolution buffer.
+
+**Break Grid — cells of different sizes**
+
+`breakGrid` merges neighbouring cells into larger ones wherever the image is flat, so the grid itself stops being uniform: big characters across empty areas, small ones where there is detail. `breakThreshold` sets how flat a region has to be before it merges, and the maximum merge is capped at 2×, 4× or 8×.
+
+A grid-resolution layout pass picks a merge level per cell by testing successively coarser blocks and taking the coarsest one that is flat enough. Because the test depends only on the block a cell belongs to, every cell inside a block independently reaches the same answer, so blocks stay coherent without any cross-cell communication. Glyph selection, antialiasing width and pixel-mode quantisation all scale with the merged block, so a merged character is genuinely one larger character rather than a stretched small one.

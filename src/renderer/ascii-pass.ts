@@ -10,6 +10,7 @@ import {
   fract,
   Loop,
   max,
+  min,
   mix,
   mod,
   PI,
@@ -117,6 +118,7 @@ export class AsciiPass extends PassNode {
   private gridHeight = 1
 
   private readonly lumaPass: GridRenderPass
+  private readonly layoutPass: GridRenderPass
   private readonly edgePass: GridRenderPass
   private readonly cellPass: GridRenderPass
 
@@ -133,6 +135,7 @@ export class AsciiPass extends PassNode {
   private readonly bloomSoftnessUniform: Node
   private readonly bloomThresholdUniform: Node
   private readonly boldnessUniform: Node
+  private readonly breakThresholdUniform: Node
   private readonly cellAspectUniform: Node
   private readonly cellSizeUniform: Node
   private readonly charCountUniform: Node
@@ -170,6 +173,7 @@ export class AsciiPass extends PassNode {
   private readonly toneMappingModeUniform: Node
 
   private currentAutoSort = true
+  private currentBreakLevels = 0
   private currentCellAspect = 0
   private currentCharset: AsciiCharset = "light"
   private currentCustomChars = DEFAULT_ASCII_CHARS
@@ -182,6 +186,7 @@ export class AsciiPass extends PassNode {
     super(layerId)
     this.placeholder = new THREE.Texture()
     this.lumaPass = new GridRenderPass()
+    this.layoutPass = new GridRenderPass()
     this.edgePass = new GridRenderPass()
     this.cellPass = new GridRenderPass()
     this.atlasColumnsUniform = uniform(1)
@@ -197,6 +202,7 @@ export class AsciiPass extends PassNode {
     this.bloomSoftnessUniform = uniform(0.35)
     this.bloomThresholdUniform = uniform(0.6)
     this.boldnessUniform = uniform(0)
+    this.breakThresholdUniform = uniform(0.06)
     this.cellAspectUniform = uniform(0.6)
     this.cellSizeUniform = uniform(12)
     this.charCountUniform = uniform(DEFAULT_ASCII_CHARS.length)
@@ -266,6 +272,7 @@ export class AsciiPass extends PassNode {
     }
 
     this.lumaPass.render(renderer)
+    this.layoutPass.render(renderer)
     this.edgePass.render(renderer)
     this.cellPass.render(renderer)
 
@@ -293,6 +300,7 @@ export class AsciiPass extends PassNode {
         ? Math.max(0, Math.min(2, params.cellAspect))
         : 0
     const nextAutoSort = params.autoSortCharset !== false
+    const nextBreakLevels = this.resolveBreakLevels(params.breakGrid)
     const nextRenderMode = this.resolveRenderMode(params.renderMode)
     const nextGlyphSource = this.resolveGlyphSource(params.glyphSource)
     const nextBoldness =
@@ -329,6 +337,10 @@ export class AsciiPass extends PassNode {
     this.bloomSoftnessUniform.value = nextBloomSoftness
     this.bloomThresholdUniform.value = nextBloomThreshold
     this.boldnessUniform.value = nextBoldness
+    this.breakThresholdUniform.value =
+      typeof params.breakThreshold === "number"
+        ? Math.max(0.001, Math.min(1, params.breakThreshold))
+        : 0.06
     this.cellSizeUniform.value = nextCellSize
     this.colorModeUniform.value = this.getColorModeValue(nextColorMode)
     this.colorSignalModeUniform.value = this.getSignalModeValue(
@@ -420,6 +432,8 @@ export class AsciiPass extends PassNode {
       this.rebuildAtlas()
     }
 
+    const breakLevelsChanged = nextBreakLevels !== this.currentBreakLevels
+    this.currentBreakLevels = nextBreakLevels
     const glyphSourceChanged = nextGlyphSource !== this.currentGlyphSource
     const renderModeChanged = nextRenderMode !== this.currentRenderMode
     const bloomChanged = nextBloomEnabled !== this.bloomEnabled
@@ -428,7 +442,7 @@ export class AsciiPass extends PassNode {
     this.currentRenderMode = nextRenderMode
     this.bloomEnabled = nextBloomEnabled
 
-    if (glyphSourceChanged) {
+    if (glyphSourceChanged || breakLevelsChanged) {
       this.rebuildGridPasses()
     }
 
@@ -451,6 +465,7 @@ export class AsciiPass extends PassNode {
     this.atlas?.texture.dispose()
     this.atlas?.featureTexture.dispose()
     this.lumaPass.dispose()
+    this.layoutPass.dispose()
     this.edgePass.dispose()
     this.cellPass.dispose()
     super.dispose()
@@ -502,6 +517,7 @@ export class AsciiPass extends PassNode {
     this.gridWidthUniform.value = gridWidth
     this.gridHeightUniform.value = gridHeight
     this.lumaPass.setSize(gridWidth, gridHeight)
+    this.layoutPass.setSize(gridWidth, gridHeight)
     this.edgePass.setSize(gridWidth, gridHeight)
     this.cellPass.setSize(gridWidth, gridHeight)
   }
@@ -619,12 +635,20 @@ export class AsciiPass extends PassNode {
     const cellId = floor(gridUv.mul(gridSize))
     const centerUv = cellId.add(vec2(0.5, 0.5)).mul(texelSize)
 
-    const center = this.trackLumaTextureNode(centerUv)
-    const centerColor = vec3(
-      float(center.r),
-      float(center.g),
-      float(center.b)
-    )
+    const level = float(this.trackLayoutTextureNode(centerUv).r)
+    const span = pow(float(2), level)
+    const blockOrigin = floor(cellId.div(span)).mul(span)
+    const quadrants = this.buildBlockQuadrantCells(blockOrigin, span)
+    let blockColor = vec3(float(0), float(0), float(0))
+
+    for (const quadrant of quadrants) {
+      const sampled = this.sampleCellLuma(quadrant, gridSize)
+      blockColor = blockColor.add(
+        vec3(float(sampled.r), float(sampled.g), float(sampled.b))
+      )
+    }
+
+    const centerColor = blockColor.div(float(4))
     const toneMapped = this.buildToneMappedColor(centerColor)
 
     const glyphSignal = this.buildShapedSignal(
@@ -656,8 +680,8 @@ export class AsciiPass extends PassNode {
       this.currentGlyphSource === "contour-structure"
     ) {
       glyphIndex = this.buildStructureIndex(
-        cellId,
-        this.getCellUvSize(),
+        blockOrigin,
+        this.getCellUvSize().mul(span),
         rampIndex
       )
     }
@@ -804,8 +828,14 @@ export class AsciiPass extends PassNode {
         vec2(float(1), float(1))
       )
       const cellId = floor(safeUv.div(cellUvSize))
-      const localCellUv = safeUv.div(cellUvSize).sub(cellId)
       const cellTexelUv = cellId.add(vec2(0.5, 0.5)).div(gridSize)
+      const blockLevel = float(this.trackLayoutTextureNode(cellTexelUv).r)
+      const blockSpan = pow(float(2), blockLevel)
+      const blockOriginUv = floor(cellId.div(blockSpan))
+        .mul(blockSpan)
+        .mul(cellUvSize)
+      const blockUvSize = cellUvSize.mul(blockSpan)
+      const localCellUv = safeUv.sub(blockOriginUv).div(blockUvSize)
 
       const cellData = this.trackCellTextureNode(cellTexelUv)
       const glyphIndex = floor(float(cellData.r).add(float(0.5)))
@@ -831,7 +861,8 @@ export class AsciiPass extends PassNode {
 
       const characterMask = this.buildCharacterMask(
         transformedUv,
-        glyphIndex
+        glyphIndex,
+        blockSpan
       ).mul(insideCell)
 
       const halfSoft = max(
@@ -968,11 +999,17 @@ export class AsciiPass extends PassNode {
     )
   }
 
-  private buildCharacterMask(localCellUv: Node, charIndex: Node): Node {
+  private buildCharacterMask(
+    localCellUv: Node,
+    charIndex: Node,
+    blockSpan: Node
+  ): Node {
+    const blockCellSize = this.cellSizeUniform.mul(blockSpan)
+
     if (this.currentRenderMode === "pixel") {
       const steps = vec2(
-        max(this.cellSizeUniform.mul(this.cellAspectUniform), float(1)),
-        max(this.cellSizeUniform, float(1))
+        max(blockCellSize.mul(this.cellAspectUniform), float(1)),
+        max(blockCellSize, float(1))
       )
       const quantizedUv = floor(localCellUv.mul(steps))
         .add(vec2(0.5, 0.5))
@@ -995,7 +1032,7 @@ export class AsciiPass extends PassNode {
       .sub(float(0.5))
       .mul(this.sdfRadiusUniform)
       .add(this.boldnessUniform.mul(float(2)))
-    const atlasToDevice = this.cellSizeUniform
+    const atlasToDevice = blockCellSize
       .mul(this.renderScaleUniform)
       .div(this.atlasInnerHeightUniform)
 
@@ -1152,12 +1189,83 @@ export class AsciiPass extends PassNode {
 
   private rebuildGridPasses(): void {
     this.lumaPass.setColorNode(this.buildLumaColorNode())
+    this.layoutPass.setColorNode(this.buildLayoutColorNode())
     this.edgePass.setColorNode(this.buildEdgeColorNode())
     this.cellPass.setColorNode(this.buildCellColorNode())
   }
 
   private trackEdgeTextureNode(uvNode: Node): Node {
     return tslTexture(this.edgePass.texture, uvNode)
+  }
+
+  private trackLayoutTextureNode(uvNode: Node): Node {
+    return tslTexture(this.layoutPass.texture, uvNode)
+  }
+
+  private sampleCellLuma(cellIndex: Node, gridSize: Node): Node {
+    return this.trackLumaTextureNode(
+      clamp(
+        cellIndex.add(vec2(0.5, 0.5)).div(gridSize),
+        vec2(float(0), float(0)),
+        vec2(float(1), float(1))
+      )
+    )
+  }
+
+  private buildBlockQuadrantCells(blockOrigin: Node, span: Node): Node[] {
+    const half = span.mul(float(0.5))
+    const cells: Node[] = []
+
+    for (const [qx, qy] of [
+      [0, 0],
+      [1, 0],
+      [0, 1],
+      [1, 1],
+    ]) {
+      cells.push(
+        blockOrigin.add(
+          vec2(
+            float((qx ?? 0) + 0.5),
+            float((qy ?? 0) + 0.5)
+          ).mul(half)
+        )
+      )
+    }
+
+    return cells
+  }
+
+  private buildLayoutColorNode(): Node {
+    const gridSize = vec2(this.gridWidthUniform, this.gridHeightUniform)
+    const gridUv = vec2(uv().x, float(1).sub(uv().y))
+    const cellId = floor(gridUv.mul(gridSize))
+
+    let chosen = float(0)
+    let found = float(0)
+
+    for (let level = this.currentBreakLevels; level >= 1; level -= 1) {
+      const span = float(2 ** level)
+      const blockOrigin = floor(cellId.div(span)).mul(span)
+      const quadrants = this.buildBlockQuadrantCells(blockOrigin, span)
+      let lowest = float(1e9)
+      let highest = float(-1e9)
+
+      for (const quadrant of quadrants) {
+        const sampled = this.sampleCellLuma(quadrant, gridSize)
+        const luma = this.buildLuma(
+          vec3(float(sampled.r), float(sampled.g), float(sampled.b))
+        )
+        lowest = min(lowest, luma)
+        highest = max(highest, luma)
+      }
+
+      const flat = step(highest.sub(lowest), this.breakThresholdUniform)
+      const take = flat.mul(float(1).sub(found))
+      chosen = mix(chosen, float(level), take)
+      found = max(found, flat)
+    }
+
+    return vec4(chosen, float(0), float(0), float(1))
   }
 
   private rebuildAtlas(): void {
@@ -1227,6 +1335,18 @@ export class AsciiPass extends PassNode {
     }
 
     return normalizeTextFontWeight(fontFamily, value)
+  }
+
+  private resolveBreakLevels(value: unknown): number {
+    if (value === "2x") {
+      return 1
+    }
+
+    if (value === "4x") {
+      return 2
+    }
+
+    return value === "8x" ? 3 : 0
   }
 
   private resolveGlyphSource(value: unknown): AsciiGlyphSource {

@@ -84,6 +84,7 @@ export interface TimelineStoreActions {
   ) => void
   removeKeyframe: (trackId: string, keyframeId: string) => void
   removeSelectedKeyframes: () => void
+  seedDurationFromMedia: (durationSeconds: number | null | undefined) => void
   setCurrentTime: (time: number) => void
   setDuration: (duration: number) => void
   setLoop: (loop: boolean) => void
@@ -384,6 +385,20 @@ export const useTimelineStore = create<TimelineStore>((set, get) => ({
 
   setLoop: (loop) => {
     set({ loop })
+  },
+
+  seedDurationFromMedia: (durationSeconds) => {
+    if (
+      !(
+        typeof durationSeconds === "number" &&
+        Number.isFinite(durationSeconds) &&
+        durationSeconds > 0
+      )
+    ) {
+      return
+    }
+
+    get().setDuration(durationSeconds)
   },
 
   setDuration: (duration) => {

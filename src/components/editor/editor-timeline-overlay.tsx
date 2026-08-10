@@ -332,7 +332,6 @@ function TimelineTransport({
   autoKey,
   currentTime,
   duration,
-  durationReadOnly,
   expanded,
   isPlaying,
   loop,
@@ -348,7 +347,6 @@ function TimelineTransport({
   autoKey: boolean
   currentTime: number
   duration: number
-  durationReadOnly: boolean
   expanded: boolean
   isPlaying: boolean
   loop: boolean
@@ -454,11 +452,7 @@ function TimelineTransport({
         <NumberInput
           aria-label="Timeline duration in seconds"
           size={5}
-          className={cn(
-            "min-h-7 appearance-none rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-[10px] text-center font-[var(--ds-font-mono)] text-[12px] leading-4 text-[var(--ds-color-text-primary)] outline-none transition-[background-color,border-color] duration-160 ease-[var(--ease-out-cubic)] focus:border-[var(--ds-border-hover)]",
-            durationReadOnly && "cursor-not-allowed text-white/55 opacity-60"
-          )}
-          disabled={durationReadOnly}
+          className="min-h-7 appearance-none rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-[10px] text-center font-[var(--ds-font-mono)] text-[12px] leading-4 text-[var(--ds-color-text-primary)] outline-none transition-[background-color,border-color] duration-160 ease-[var(--ease-out-cubic)] focus:border-[var(--ds-border-hover)]"
           formatValue={(value) =>
             Number.isInteger(value) ? value.toString() : value.toFixed(1)
           }
@@ -608,12 +602,10 @@ export function EditorTimelineOverlay() {
     (state) => state.toggleSelectedKeyframes
   )
   const togglePlaying = useTimelineStore((state) => state.togglePlaying)
-  const derivedVideoDuration = useMemo(
-    () => getLongestVideoLayerDuration(layers, assets),
+  const hasVideoLayer = useMemo(
+    () => getLongestVideoLayerDuration(layers, assets) !== null,
     [assets, layers]
   )
-  const hasDerivedVideoDuration = derivedVideoDuration !== null
-  const effectiveDuration = derivedVideoDuration ?? duration
 
   const [monitorEnabled, setMonitorEnabled] = useState(true)
   useAudioMonitor(monitorEnabled)
@@ -636,15 +628,15 @@ export function EditorTimelineOverlay() {
   const [focusedPropertyId, setFocusedPropertyId] = useState<string | null>(
     null
   )
-  const previousHasDerivedVideoDurationRef = useRef<boolean | null>(null)
+  const previousHasVideoLayerRef = useRef<boolean | null>(null)
   const scrubSurfaceRef = useRef<HTMLDivElement | null>(null)
   const trackCanvasRef = useRef<HTMLDivElement | null>(null)
   const keyframeButtonRefs = useRef(new Map<string, HTMLButtonElement>())
   const [dragState, setDragState] = useState<DragState | null>(null)
   const [viewportSize, setViewportSize] = useState({ height: 900, width: 1440 })
   const tickPositions = useMemo(
-    () => createTickPositions(effectiveDuration),
-    [effectiveDuration]
+    () => createTickPositions(duration),
+    [duration]
   )
   const selectedKeyframeIdSet = useMemo(
     () => new Set(selectedKeyframeIds),
@@ -695,27 +687,14 @@ export function EditorTimelineOverlay() {
   )
 
   useEffect(() => {
-    if (!(hasDerivedVideoDuration && derivedVideoDuration !== duration)) {
-      return
-    }
+    const previousHasVideoLayer = previousHasVideoLayerRef.current
 
-    setDuration(derivedVideoDuration)
-  }, [derivedVideoDuration, duration, hasDerivedVideoDuration, setDuration])
-
-  useEffect(() => {
-    const previousHasDerivedVideoDuration =
-      previousHasDerivedVideoDurationRef.current
-
-    if (
-      hasDerivedVideoDuration &&
-      previousHasDerivedVideoDuration !== true &&
-      !isPlaying
-    ) {
+    if (hasVideoLayer && previousHasVideoLayer !== true && !isPlaying) {
       setPlaying(true)
     }
 
-    previousHasDerivedVideoDurationRef.current = hasDerivedVideoDuration
-  }, [hasDerivedVideoDuration, isPlaying, setPlaying])
+    previousHasVideoLayerRef.current = hasVideoLayer
+  }, [hasVideoLayer, isPlaying, setPlaying])
 
   useEffect(() => {
     if (!(timelinePanelOpen && selectedLayer)) {
@@ -1145,7 +1124,7 @@ export function EditorTimelineOverlay() {
     const rect = surface.getBoundingClientRect()
     const progress =
       rect.width > 0 ? clamp((clientX - rect.left) / rect.width, 0, 1) : 0
-    return progress * effectiveDuration
+    return progress * duration
   })
 
   const handleDragMove = useEffectEvent((event: PointerEvent) => {
@@ -1214,7 +1193,7 @@ export function EditorTimelineOverlay() {
   const selectedTrack =
     layerTracks.find((track) => track.id === selectedTrackId) ?? null
   const progress =
-    effectiveDuration > 0 ? clamp(currentTime / effectiveDuration, 0, 1) : 0
+    duration > 0 ? clamp(currentTime / duration, 0, 1) : 0
   const shellWidth = timelinePanelOpen
     ? Math.min(EXPANDED_SHELL_WIDTH, Math.max(640, viewportSize.width - 96))
     : Math.min(COLLAPSED_SHELL_WIDTH, Math.max(360, viewportSize.width - 48))
@@ -1349,8 +1328,7 @@ export function EditorTimelineOverlay() {
               <TimelineTransport
                 autoKey={timelineAutoKey}
                 currentTime={currentTime}
-                duration={effectiveDuration}
-                durationReadOnly={hasDerivedVideoDuration}
+                duration={duration}
                 expanded={timelinePanelOpen}
                 isPlaying={isPlaying}
                 loop={loop}
@@ -1515,7 +1493,7 @@ export function EditorTimelineOverlay() {
                         className="absolute bottom-0 h-[10px] w-px bg-white/6"
                         key={`minor-${tick}`}
                         style={{
-                          left: `${(tick / effectiveDuration) * 100}%`,
+                          left: `${(tick / duration) * 100}%`,
                         }}
                       />
                     ))}
@@ -1526,7 +1504,7 @@ export function EditorTimelineOverlay() {
                         className="absolute bottom-0 h-[18px] w-px bg-white/14"
                         key={`major-${tick}`}
                         style={{
-                          left: `${(tick / effectiveDuration) * 100}%`,
+                          left: `${(tick / duration) * 100}%`,
                         }}
                       />
                     ))}
@@ -1539,10 +1517,10 @@ export function EditorTimelineOverlay() {
                         tone="muted"
                         variant="monoXs"
                         style={{
-                          left: `${(tick / effectiveDuration) * 100}%`,
+                          left: `${(tick / duration) * 100}%`,
                         }}
                       >
-                        {formatTickLabel(tick, effectiveDuration)}
+                        {formatTickLabel(tick, duration)}
                       </Typography>
                     ))}
                   </div>
@@ -1578,7 +1556,7 @@ export function EditorTimelineOverlay() {
                             {entry.audioLink?.enabled ? (
                               <AudioEnvelopeBackdrop
                                 bandId={entry.audioLink.band}
-                                durationSeconds={effectiveDuration}
+                                durationSeconds={duration}
                               />
                             ) : null}
                             <div
@@ -1667,7 +1645,7 @@ export function EditorTimelineOverlay() {
                                     keyframeButtonRefs.current.delete(keyframe.id)
                                   }}
                                   style={{
-                                    left: `${(keyframe.time / effectiveDuration) * 100}%`,
+                                    left: `${(keyframe.time / duration) * 100}%`,
                                   }}
                                   type="button"
                                 >

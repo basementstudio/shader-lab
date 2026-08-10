@@ -2,8 +2,8 @@ import { describe, expect, test } from "bun:test"
 import {
   clampDuration,
   DEFAULT_DURATION,
-  getEffectiveTimelineDuration,
   getLongestVideoLayerDuration,
+  getSeedableMediaDuration,
   MAX_DURATION,
   MIN_DURATION,
 } from "@/lib/editor/timeline-duration"
@@ -81,15 +81,35 @@ describe("getLongestVideoLayerDuration", () => {
   })
 })
 
-describe("getEffectiveTimelineDuration", () => {
-  test("prefers video, falls back to the manual duration", () => {
+describe("getSeedableMediaDuration", () => {
+  test("reads video and audio durations", () => {
+    expect(getSeedableMediaDuration(videoAsset("a", 42))).toBe(42)
+    expect(getSeedableMediaDuration({ duration: 247.5, kind: "audio" })).toBe(
+      247.5
+    )
+  })
+
+  test("ignores media without a usable duration", () => {
+    expect(getSeedableMediaDuration(videoAsset("a", undefined))).toBeNull()
+    expect(getSeedableMediaDuration({ duration: 0, kind: "video" })).toBeNull()
     expect(
-      getEffectiveTimelineDuration(
-        [videoLayer("a", "asset-a")],
-        [videoAsset("asset-a", 42)],
-        180
-      )
-    ).toBe(42)
-    expect(getEffectiveTimelineDuration([], [], 180)).toBe(180)
+      getSeedableMediaDuration({ duration: Number.NaN, kind: "audio" })
+    ).toBeNull()
+    expect(
+      getSeedableMediaDuration({
+        duration: Number.POSITIVE_INFINITY,
+        kind: "audio",
+      })
+    ).toBeNull()
+  })
+
+  test("never seeds from a still image", () => {
+    expect(getSeedableMediaDuration({ duration: 10, kind: "image" })).toBeNull()
+  })
+
+  test("clamps out-of-range media", () => {
+    expect(
+      getSeedableMediaDuration({ duration: MAX_DURATION * 3, kind: "video" })
+    ).toBe(MAX_DURATION)
   })
 })

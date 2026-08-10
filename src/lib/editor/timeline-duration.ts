@@ -12,6 +12,24 @@ export function clampDuration(duration: number): number {
   return Math.min(MAX_DURATION, Math.max(MIN_DURATION, duration))
 }
 
+export function getSeedableMediaDuration(
+  asset: Pick<EditorAsset, "duration" | "kind">
+): number | null {
+  if (!(asset.kind === "video" || asset.kind === "audio")) {
+    return null
+  }
+
+  const { duration } = asset
+
+  if (
+    !(typeof duration === "number" && Number.isFinite(duration) && duration > 0)
+  ) {
+    return null
+  }
+
+  return clampDuration(duration)
+}
+
 export function getLongestVideoLayerDuration(
   layers: readonly EditorLayer[],
   assets: readonly EditorAsset[]
@@ -40,12 +58,4 @@ export function getLongestVideoLayerDuration(
   }
 
   return longestDuration > 0 ? clampDuration(longestDuration) : null
-}
-
-export function getEffectiveTimelineDuration(
-  layers: readonly EditorLayer[],
-  assets: readonly EditorAsset[],
-  manualDuration: number
-): number {
-  return getLongestVideoLayerDuration(layers, assets) ?? manualDuration
 }

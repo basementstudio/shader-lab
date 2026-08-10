@@ -1,4 +1,3 @@
-import { getEffectiveTimelineDuration } from "@/lib/editor/timeline-duration"
 import { useAssetStore } from "@/store/asset-store"
 import { selectAudioModulationInput, useAudioStore } from "@/store/audio-store"
 import { useEditorStore } from "@/store/editor-store"
@@ -17,11 +16,6 @@ function buildRenderProjectState() {
   const layers = useLayerStore.getState().layers
   const timelineState = useTimelineStore.getState()
   const editorState = useEditorStore.getState()
-  const effectiveDuration = getEffectiveTimelineDuration(
-    layers,
-    assets,
-    timelineState.duration
-  )
 
   return {
     assets,
@@ -31,7 +25,7 @@ function buildRenderProjectState() {
     sceneConfig: editorState.sceneConfig,
     timeline: {
       currentTime: timelineState.currentTime,
-      duration: effectiveDuration,
+      duration: timelineState.duration,
       isPlaying: timelineState.isPlaying,
       loop: timelineState.loop,
       selectedKeyframeId: timelineState.selectedKeyframeId,

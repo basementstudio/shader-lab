@@ -8,6 +8,7 @@ import { useBandValueElement } from "@/hooks/use-band-value-element"
 import { cn } from "@/lib/cn"
 import { MIN_RELEASE_MS } from "@/lib/editor/audio/bands"
 import { AUDIO_FILE_ACCEPT } from "@/lib/editor/media-file"
+import { getSeedableMediaDuration } from "@/lib/editor/timeline-duration"
 import { useAssetStore, useAudioStore, useTimelineStore } from "@/store"
 import { AUDIO_BAND_IDS, type AudioBandId } from "@/types/editor"
 import { IconButton } from "@/components/ui/icon-button"
@@ -246,16 +247,17 @@ export function AudioSourceControl({
       const asset = await loadAsset(file)
       setSource({ assetId: asset.id, kind: "asset" })
 
-      if (asset.duration && asset.duration > 0) {
-        useTimelineStore.getState().setDuration(asset.duration)
-      }
+      const assetDuration = getSeedableMediaDuration(asset)
+      useTimelineStore.getState().seedDurationFromMedia(assetDuration)
 
       await analyze(asset.url)
 
-      const analyzed = useAudioStore.getState().spectrogram
-
-      if (analyzed && !(asset.duration && asset.duration > 0)) {
-        useTimelineStore.getState().setDuration(analyzed.durationSeconds)
+      if (assetDuration === null) {
+        useTimelineStore
+          .getState()
+          .seedDurationFromMedia(
+            useAudioStore.getState().spectrogram?.durationSeconds ?? null
+          )
       }
     } catch (caught) {
       setLoadError(

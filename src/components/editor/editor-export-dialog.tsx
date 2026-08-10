@@ -61,10 +61,6 @@ import {
 } from "@/lib/editor/shader-export"
 import { generateShaderExportSnippet } from "@/lib/editor/shader-export-snippet"
 import {
-  getEffectiveTimelineDuration,
-  getLongestVideoLayerDuration,
-} from "@/lib/editor/timeline-duration"
-import {
   type AudioAnalysisStatus,
   selectAudioModulationInput,
 } from "@/store/audio-store"
@@ -329,20 +325,10 @@ export function EditorExportDialog({
       ),
     [layers]
   )
-  const derivedVideoDuration = useMemo(
-    () => getLongestVideoLayerDuration(layers, assets),
-    [assets, layers]
-  )
   const defaultVideoDuration = useMemo(
     () =>
-      roundDurationForExport(
-        getEffectiveTimelineDuration(
-          layers,
-          assets,
-          timelineDuration || DEFAULT_VIDEO_EXPORT_DURATION
-        )
-      ),
-    [assets, layers, timelineDuration]
+      roundDurationForExport(timelineDuration || DEFAULT_VIDEO_EXPORT_DURATION),
+    [timelineDuration]
   )
   const shaderSnippet = useMemo(() => {
     if (shaderExportIssues.length > 0) {
@@ -1095,7 +1081,6 @@ export function EditorExportDialog({
                           onVideoWidthChange={updateVideoWidth}
                           videoAspect={videoAspect}
                           videoDuration={videoDuration}
-                          videoDurationReadOnly={derivedVideoDuration !== null}
                           videoFormat={videoFormat}
                           videoFps={videoFps}
                           videoProgress={videoProgress}
@@ -1182,9 +1167,6 @@ export function EditorExportDialog({
                             onVideoWidthChange={updateVideoWidth}
                             videoAspect={videoAspect}
                             videoDuration={videoDuration}
-                            videoDurationReadOnly={
-                              derivedVideoDuration !== null
-                            }
                             videoFormat={videoFormat}
                             videoFps={videoFps}
                             videoProgress={videoProgress}
@@ -1423,7 +1405,6 @@ function VideoTabContent({
   onVideoWidthChange,
   videoAspect,
   videoDuration,
-  videoDurationReadOnly,
   videoFormat,
   videoFps,
   videoProgress,
@@ -1452,7 +1433,6 @@ function VideoTabContent({
   onVideoWidthChange: (value: number) => void
   videoAspect: ExportAspectPreset
   videoDuration: number
-  videoDurationReadOnly: boolean
   videoFormat: VideoExportFormat
   videoFps: number
   videoProgress: { label: string; value: number } | null
@@ -1569,10 +1549,7 @@ function VideoTabContent({
 
         <FieldLabel label="Duration">
           <NumberInput
-            disabled={videoDurationReadOnly}
-            formatValue={(value) =>
-              videoDurationReadOnly ? value.toFixed(2) : value.toString()
-            }
+            formatValue={(value) => value.toString()}
             min={0.25}
             onChange={onVideoDurationChange}
             step={0.25}
@@ -1912,12 +1889,6 @@ function buildRenderProjectState() {
   const layers = useLayerStore.getState().layers
   const timelineState = useTimelineStore.getState()
   const editorState = useEditorStore.getState()
-  const effectiveDuration = getEffectiveTimelineDuration(
-    layers,
-    assets,
-    timelineState.duration
-  )
-
   return {
     assets,
     audio: selectAudioModulationInput(useAudioStore.getState()),
@@ -1926,7 +1897,7 @@ function buildRenderProjectState() {
     sceneConfig: editorState.sceneConfig,
     timeline: {
       currentTime: timelineState.currentTime,
-      duration: effectiveDuration,
+      duration: timelineState.duration,
       isPlaying: timelineState.isPlaying,
       loop: timelineState.loop,
       selectedKeyframeId: timelineState.selectedKeyframeId,

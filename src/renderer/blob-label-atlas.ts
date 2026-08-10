@@ -31,8 +31,6 @@ export function buildLabelAtlas(): THREE.CanvasTexture | null {
     return null
   }
 
-  // White ink on opaque black: the shader reads the red channel as coverage,
-  // which keeps antialiasing without depending on alpha semantics.
   context.fillStyle = "#000"
   context.fillRect(0, 0, canvas.width, canvas.height)
   context.fillStyle = "#fff"

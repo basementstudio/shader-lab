@@ -84,8 +84,6 @@ const CONNECTOR_ALPHA = 0.8
 const DASH_PERIOD = 0.024
 const DASH_DUTY = 0.55
 const MAX_LABEL_CHARS = 16
-// Matches the canvas overlay's old `height / 54` font size so switching to the
-// atlas does not change label scale.
 const LABEL_HEIGHT_FRACTION = 1 / 54
 
 const ANALYSIS_RT_OPTIONS = {
@@ -147,8 +145,6 @@ const DEFAULT_DECORATIONS: DecorationConfig = {
   trailDecay: 0.35,
 }
 
-// Toggles baked into the decoration node; changing one recompiles the material
-// rather than paying for dead branches on every fragment.
 function decorationStructureKey(config: DecorationConfig): string {
   return [
     config.centerShape,
@@ -585,9 +581,6 @@ export class BlobTrackingPass extends PassNode {
       mask.mul(this.innerActiveUniform)
     )
 
-    // Outlines, centre markers and connectors are SDFs evaluated here; the
-    // canvas overlay is left with only what it is still the right tool for
-    // (trails and text labels).
     const decorated = mix(
       interior,
       vec3(
@@ -659,8 +652,6 @@ export class BlobTrackingPass extends PassNode {
     const shapeKind = this.shapeKind
     const decorations = this.decorations
 
-    // Everything below works in aspect-corrected space so a stroke authored in
-    // logical pixels stays the same thickness on both axes.
     const point = vec2(float(screenUv.x).mul(aspect), float(screenUv.y))
 
     const strokeBand = (distance: Node): Node =>
@@ -717,8 +708,6 @@ export class BlobTrackingPass extends PassNode {
           let markerSdf: Node
           if (decorations.centerShape === "cross") {
             const arm = markerRadius.mul(float(1.6))
-            // Union of a horizontal and a vertical bar; box SDFs are negative
-            // inside, so the union is the min of the two.
             const horizontal = max(offsetX.sub(arm), offsetY.sub(halfStroke))
             const vertical = max(offsetX.sub(halfStroke), offsetY.sub(arm))
             markerSdf = min(horizontal, vertical)
@@ -766,7 +755,6 @@ export class BlobTrackingPass extends PassNode {
         Loop(this.blobCountUniform, ({ i }) => {
           const entry = this.blobTableNode.element(i)
           const halfSize = float(entry.z).mul(shapeScale)
-          // Left-aligned under the shape, mirroring the old canvas placement.
           const originX = float(entry.x).mul(aspect).sub(halfSize)
           const originY = float(entry.y)
             .add(halfSize)
@@ -938,8 +926,6 @@ export class BlobTrackingPass extends PassNode {
   private syncTrackerOutputs(forceRedraw = false): void {
     const blobs = this.tracker.getBlobs()
     this.updateBlobTable(blobs)
-    // GPU decorations track the blobs every step; only the canvas overlay
-    // (trails and labels) is throttled below.
     this.updateConnectorGeometry(blobs)
     this.updateLabelGlyphs(blobs)
 
@@ -1036,8 +1022,6 @@ export class BlobTrackingPass extends PassNode {
       this.decorations.strokeColor,
       THREE.SRGBColorSpace
     )
-    // Stroke width is authored in logical pixels; the decoration SDFs work in
-    // aspect-corrected units where 1.0 spans the composition height.
     this.strokeHalfUniform.value =
       this.decorations.strokeWidth / 2 / Math.max(1, this.logicalHeight)
     const labelHeight = LABEL_HEIGHT_FRACTION
@@ -1057,7 +1041,6 @@ export class BlobTrackingPass extends PassNode {
       return []
     }
 
-    // Greedy nearest-neighbour chain starting from the first blob.
     const remaining = active.slice(1)
     const chain = [active[0] as Blob]
     while (remaining.length > 0) {
@@ -1130,8 +1113,6 @@ export class BlobTrackingPass extends PassNode {
       const deltaX = to.cx - from.cx
       const deltaY = to.cy - from.cy
       const span = Math.hypot(deltaX, deltaY) || 1
-      // Control point mirrors the canvas version: midpoint pushed out along the
-      // segment normal by 15% of its length.
       const controlX = (from.cx + to.cx) / 2 - deltaY * 0.15
       const controlY = (from.cy + to.cy) / 2 + deltaX * 0.15
 

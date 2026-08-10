@@ -20,11 +20,16 @@ export class GridRenderPass {
   private width = 1
   private height = 1
 
-  constructor() {
+  constructor(options: { linear?: boolean } = {}) {
     this.scene = new THREE.Scene()
     this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
     this.material = new THREE.MeshBasicNodeMaterial()
     this.target = new THREE.WebGLRenderTarget(1, 1, TARGET_OPTIONS)
+
+    if (options.linear) {
+      this.target.texture.magFilter = THREE.LinearFilter
+      this.target.texture.minFilter = THREE.LinearFilter
+    }
 
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.material)
     mesh.frustumCulled = false

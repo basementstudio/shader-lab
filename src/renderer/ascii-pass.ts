@@ -64,6 +64,7 @@ const SUPERSAMPLE = 3
 const FEATURE_SIZE = 4
 const FEATURE_TEXELS = 4
 const MAX_GRID_DIMENSION = 4096
+const WARP_MAX_CELLS = 12
 
 const LEGACY_FONT_WEIGHTS: Record<string, number> = {
   bold: 700,
@@ -136,6 +137,8 @@ export class AsciiPass extends PassNode {
   private readonly bloomThresholdUniform: Node
   private readonly boldnessUniform: Node
   private readonly breakBiasUniform: Node
+  private readonly flowWarpUniform: Node
+  private readonly rowWarpUniform: Node
   private readonly breakThresholdUniform: Node
   private readonly cellAspectUniform: Node
   private readonly cellSizeUniform: Node
@@ -175,6 +178,7 @@ export class AsciiPass extends PassNode {
 
   private currentAutoSort = true
   private currentBreakLevels = 0
+  private currentWarpEnabled = false
   private currentCellAspect = 0
   private currentCharset: AsciiCharset = "light"
   private currentCustomChars = DEFAULT_ASCII_CHARS
@@ -186,7 +190,7 @@ export class AsciiPass extends PassNode {
   constructor(layerId: string) {
     super(layerId)
     this.placeholder = new THREE.Texture()
-    this.lumaPass = new GridRenderPass()
+    this.lumaPass = new GridRenderPass({ linear: true })
     this.layoutPass = new GridRenderPass()
     this.edgePass = new GridRenderPass()
     this.cellPass = new GridRenderPass()
@@ -204,6 +208,8 @@ export class AsciiPass extends PassNode {
     this.bloomThresholdUniform = uniform(0.6)
     this.boldnessUniform = uniform(0)
     this.breakBiasUniform = uniform(0)
+    this.flowWarpUniform = uniform(0)
+    this.rowWarpUniform = uniform(0)
     this.breakThresholdUniform = uniform(0.06)
     this.cellAspectUniform = uniform(0.6)
     this.cellSizeUniform = uniform(12)
@@ -303,6 +309,11 @@ export class AsciiPass extends PassNode {
         : 0
     const nextAutoSort = params.autoSortCharset !== false
     const nextBreakLevels = this.resolveBreakLevels(params.breakGrid)
+    const nextRowWarp =
+      typeof params.rowWarp === "number" ? clamp01(params.rowWarp) : 0
+    const nextFlowWarp =
+      typeof params.flowWarp === "number" ? clamp01(params.flowWarp) : 0
+    const nextWarpEnabled = nextRowWarp > 0 || nextFlowWarp > 0
     const nextRenderMode = this.resolveRenderMode(params.renderMode)
     const nextGlyphSource = this.resolveGlyphSource(params.glyphSource)
     const nextBoldness =
@@ -339,6 +350,8 @@ export class AsciiPass extends PassNode {
     this.bloomSoftnessUniform.value = nextBloomSoftness
     this.bloomThresholdUniform.value = nextBloomThreshold
     this.boldnessUniform.value = nextBoldness
+    this.flowWarpUniform.value = nextFlowWarp
+    this.rowWarpUniform.value = nextRowWarp
     this.breakBiasUniform.value =
       typeof params.breakBias === "number"
         ? Math.max(0, Math.min(3, params.breakBias))
@@ -441,6 +454,8 @@ export class AsciiPass extends PassNode {
     const breakLevelsChanged = nextBreakLevels !== this.currentBreakLevels
     this.currentBreakLevels = nextBreakLevels
     const glyphSourceChanged = nextGlyphSource !== this.currentGlyphSource
+    const warpEnabledChanged = nextWarpEnabled !== this.currentWarpEnabled
+    this.currentWarpEnabled = nextWarpEnabled
     const renderModeChanged = nextRenderMode !== this.currentRenderMode
     const bloomChanged = nextBloomEnabled !== this.bloomEnabled
 
@@ -452,7 +467,7 @@ export class AsciiPass extends PassNode {
       this.rebuildGridPasses()
     }
 
-    if (renderModeChanged || bloomChanged) {
+    if (renderModeChanged || bloomChanged || warpEnabledChanged) {
       this.rebuildEffectNode()
     }
 
@@ -833,14 +848,15 @@ export class AsciiPass extends PassNode {
         vec2(float(0), float(0)),
         vec2(float(1), float(1))
       )
-      const cellId = floor(safeUv.div(cellUvSize))
+      const gridUv = this.buildWarpedUv(safeUv, cellUvSize)
+      const cellId = floor(gridUv.div(cellUvSize))
       const cellTexelUv = cellId.add(vec2(0.5, 0.5)).div(gridSize)
       const blockLevel = float(this.trackLayoutTextureNode(cellTexelUv).r)
       const blockSpan = pow(float(2), blockLevel)
       const blockOriginCell = floor(cellId.div(blockSpan)).mul(blockSpan)
       const blockOriginUv = blockOriginCell.mul(cellUvSize)
       const blockUvSize = cellUvSize.mul(blockSpan)
-      const localCellUv = safeUv.sub(blockOriginUv).div(blockUvSize)
+      const localCellUv = gridUv.sub(blockOriginUv).div(blockUvSize)
       const blockTexelUv = blockOriginCell
         .add(blockSpan.mul(float(0.5)))
         .div(gridSize)
@@ -950,6 +966,51 @@ export class AsciiPass extends PassNode {
         vec3(float(1), float(1), float(1))
       ),
       float(1)
+    )
+  }
+
+  private buildWarpedUv(safeUv: Node, cellUvSize: Node): Node {
+    if (!this.currentWarpEnabled) {
+      return safeUv
+    }
+
+    const sampleLuma = (offset: Node) => {
+      const sampled = this.trackLumaTextureNode(
+        clamp(
+          safeUv.add(offset),
+          vec2(float(0), float(0)),
+          vec2(float(1), float(1))
+        )
+      )
+
+      return this.buildLuma(
+        vec3(float(sampled.r), float(sampled.g), float(sampled.b))
+      )
+    }
+
+    const centre = sampleLuma(vec2(float(0), float(0)))
+    const left = sampleLuma(vec2(cellUvSize.x.negate(), float(0)))
+    const right = sampleLuma(vec2(cellUvSize.x, float(0)))
+    const top = sampleLuma(vec2(float(0), cellUvSize.y.negate()))
+    const bottom = sampleLuma(vec2(float(0), cellUvSize.y))
+
+    const rowOffset = centre
+      .sub(float(0.5))
+      .mul(this.rowWarpUniform)
+      .mul(cellUvSize.y)
+      .mul(float(WARP_MAX_CELLS))
+
+    const gradientX = right.sub(left)
+    const gradientY = bottom.sub(top)
+    const flowX = gradientY.negate()
+    const flowY = gradientX
+    const flowScale = this.flowWarpUniform.mul(float(WARP_MAX_CELLS))
+
+    return safeUv.add(
+      vec2(
+        flowX.mul(flowScale).mul(cellUvSize.x),
+        rowOffset.add(flowY.mul(flowScale).mul(cellUvSize.y))
+      )
     )
   }
 

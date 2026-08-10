@@ -1417,6 +1417,30 @@ const asciiParams = [
   {
     defaultValue: 0,
     description:
+      "Bends the rows of text by brightness, so lines curve around the subject like a contour map instead of running straight.",
+    group: "Grid",
+    key: "rowWarp",
+    label: "Row Warp",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+  },
+  {
+    defaultValue: 0,
+    description:
+      "Pushes the whole lattice along the image's edges, so the grid flows around the form rather than sitting square to the frame.",
+    group: "Grid",
+    key: "flowWarp",
+    label: "Flow Warp",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+  },
+  {
+    defaultValue: 0,
+    description:
       "Rotates each character to follow the image's gradient, so glyphs lie along the form like hatching.",
     group: "Grid",
     key: "glyphRotation",

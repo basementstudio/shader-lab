@@ -65,3 +65,10 @@ Per-cell edge data (angle, gradient magnitude, difference-of-Gaussians) moved in
 A grid-resolution layout pass picks a merge level per cell by testing successively coarser blocks and taking the coarsest one that is flat enough. Because the test depends only on the block a cell belongs to, every cell inside a block independently reaches the same answer, so blocks stay coherent without any cross-cell communication. Glyph selection, antialiasing width and pixel-mode quantisation all scale with the merged block, so a merged character is genuinely one larger character rather than a stretched small one.
 
 `breakGrid` goes up to 32x, and `breakBias` shifts the size distribution towards the big end by scaling the merge threshold per level — at 0 every size merges on the same rule, and high values let the largest cells win almost everywhere, which is how you get poster-scale characters. Pushed far enough it collapses the whole image to one cell size, which is a legitimate destination rather than a failure.
+
+**Warping the lattice**
+
+- `rowWarp` bends the rows of text by brightness, so lines curve around the subject like a contour map instead of running straight.
+- `flowWarp` pushes the whole lattice along the image's edges, so the grid flows around the form rather than sitting square to the frame.
+
+Both displace the sampling position *before* the cell grid is derived, so they deform the grid itself rather than moving glyphs within fixed cells. The displacement field is read from the per-cell luminance buffer, which is linearly filtered so the warp is smooth rather than stepping cell by cell — every other read of that buffer lands exactly on a texel centre, where linear and nearest agree. The extra samples are only compiled in when one of the two warps is non-zero.

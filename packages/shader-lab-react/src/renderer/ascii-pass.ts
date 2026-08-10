@@ -1,7 +1,9 @@
 import { bloom } from "three/examples/jsm/tsl/display/BloomNode.js"
 import {
   abs,
+  atan,
   clamp,
+  cos,
   dot,
   float,
   floor,
@@ -10,9 +12,9 @@ import {
   max,
   mix,
   mod,
+  PI,
   pow,
   select,
-  sign,
   sin,
   smoothstep,
   sqrt,
@@ -61,7 +63,6 @@ const SUPERSAMPLE = 3
 const FEATURE_SIZE = 4
 const FEATURE_TEXELS = 4
 const MAX_GRID_DIMENSION = 4096
-const DIAGONAL_TANGENT = 2.414
 
 const LEGACY_FONT_WEIGHTS: Record<string, number> = {
   bold: 700,
@@ -116,6 +117,7 @@ export class AsciiPass extends PassNode {
   private gridHeight = 1
 
   private readonly lumaPass: GridRenderPass
+  private readonly edgePass: GridRenderPass
   private readonly cellPass: GridRenderPass
 
   private readonly atlasColumnsUniform: Node
@@ -139,6 +141,10 @@ export class AsciiPass extends PassNode {
   private readonly contourStrengthUniform: Node
   private readonly contourThresholdUniform: Node
   private readonly edgeStartUniform: Node
+  private readonly glyphRotationUniform: Node
+  private readonly glyphScaleAmountUniform: Node
+  private readonly glyphScaleMinUniform: Node
+  private readonly glyphScaleSourceUniform: Node
   private readonly glyphSignalModeUniform: Node
   private readonly gridHeightUniform: Node
   private readonly gridWidthUniform: Node
@@ -176,6 +182,7 @@ export class AsciiPass extends PassNode {
     super(layerId)
     this.placeholder = createPipelinePlaceholder()
     this.lumaPass = new GridRenderPass()
+    this.edgePass = new GridRenderPass()
     this.cellPass = new GridRenderPass()
     this.atlasColumnsUniform = uniform(1)
     this.atlasInnerHeightUniform = uniform(ATLAS_INNER_HEIGHT)
@@ -198,6 +205,10 @@ export class AsciiPass extends PassNode {
     this.contourStrengthUniform = uniform(1)
     this.contourThresholdUniform = uniform(0.08)
     this.edgeStartUniform = uniform(DEFAULT_ASCII_CHARS.length)
+    this.glyphRotationUniform = uniform(0)
+    this.glyphScaleAmountUniform = uniform(0)
+    this.glyphScaleMinUniform = uniform(0.2)
+    this.glyphScaleSourceUniform = uniform(0)
     this.glyphSignalModeUniform = uniform(0)
     this.gridHeightUniform = uniform(1)
     this.gridWidthUniform = uniform(1)
@@ -255,6 +266,7 @@ export class AsciiPass extends PassNode {
     }
 
     this.lumaPass.render(renderer)
+    this.edgePass.render(renderer)
     this.cellPass.render(renderer)
 
     super.render(renderer, inputTexture, outputTarget, time, delta)
@@ -330,6 +342,19 @@ export class AsciiPass extends PassNode {
       typeof params.contourThreshold === "number"
         ? Math.max(0.001, Math.min(1, params.contourThreshold))
         : 0.08
+    this.glyphRotationUniform.value =
+      typeof params.glyphRotation === "number"
+        ? clamp01(params.glyphRotation)
+        : 0
+    this.glyphScaleAmountUniform.value =
+      typeof params.glyphScale === "number" ? clamp01(params.glyphScale) : 0
+    this.glyphScaleMinUniform.value =
+      typeof params.glyphScaleMin === "number"
+        ? clamp01(params.glyphScaleMin)
+        : 0.2
+    this.glyphScaleSourceUniform.value = this.getScaleSourceValue(
+      params.glyphScaleSource
+    )
     this.glyphSignalModeUniform.value = this.getSignalModeValue(
       this.resolveSignalMode(params.glyphSignalMode)
     )
@@ -426,6 +451,7 @@ export class AsciiPass extends PassNode {
     this.atlas?.texture.dispose()
     this.atlas?.featureTexture.dispose()
     this.lumaPass.dispose()
+    this.edgePass.dispose()
     this.cellPass.dispose()
     super.dispose()
   }
@@ -476,6 +502,7 @@ export class AsciiPass extends PassNode {
     this.gridWidthUniform.value = gridWidth
     this.gridHeightUniform.value = gridHeight
     this.lumaPass.setSize(gridWidth, gridHeight)
+    this.edgePass.setSize(gridWidth, gridHeight)
     this.cellPass.setSize(gridWidth, gridHeight)
   }
 
@@ -521,6 +548,66 @@ export class AsciiPass extends PassNode {
     return vec4(averaged, float(1))
   }
 
+  private buildEdgeColorNode(): Node {
+    const gridSize = vec2(this.gridWidthUniform, this.gridHeightUniform)
+    const texelSize = vec2(float(1), float(1)).div(gridSize)
+    const cellId = floor(uv().mul(gridSize))
+    const centerUv = cellId.add(vec2(0.5, 0.5)).mul(texelSize)
+
+    const sampleLuma = (offset: Node) => {
+      const sampled = this.trackLumaTextureNode(
+        clamp(
+          centerUv.add(offset),
+          vec2(float(0), float(0)),
+          vec2(float(1), float(1))
+        )
+      )
+
+      return this.buildLuma(
+        vec3(float(sampled.r), float(sampled.g), float(sampled.b))
+      )
+    }
+
+    const centerLuma = sampleLuma(vec2(float(0), float(0)))
+    const leftLuma = sampleLuma(vec2(texelSize.x.negate(), float(0)))
+    const rightLuma = sampleLuma(vec2(texelSize.x, float(0)))
+    const topLuma = sampleLuma(vec2(float(0), texelSize.y.negate()))
+    const bottomLuma = sampleLuma(vec2(float(0), texelSize.y))
+
+    const gradientX = rightLuma.sub(leftLuma)
+    const gradientY = bottomLuma.sub(topLuma)
+    const gradientMagnitude = clamp(
+      sqrt(gradientX.mul(gradientX).add(gradientY.mul(gradientY))),
+      float(0),
+      float(1)
+    )
+    const blurred = leftLuma
+      .add(rightLuma)
+      .add(topLuma)
+      .add(bottomLuma)
+      .div(float(4))
+    const differenceOfGaussians = abs(centerLuma.sub(blurred))
+
+    const isFlat = gradientMagnitude.lessThan(float(1e-5))
+    const safeGradientX = select(isFlat, float(1), gradientX)
+    const safeGradientY = select(isFlat, float(0), gradientY)
+    const edgeAngle = atan(safeGradientY, safeGradientX).add(PI.mul(float(0.5)))
+    const normalizedAngle = fract(edgeAngle.div(PI))
+    const flowConfidence = smoothstep(
+      float(0),
+      this.contourThresholdUniform,
+      gradientMagnitude
+    )
+    const packedAngle = mix(float(0.5), normalizedAngle, flowConfidence)
+
+    return vec4(
+      packedAngle,
+      gradientMagnitude,
+      differenceOfGaussians,
+      float(1)
+    )
+  }
+
   private buildCellColorNode(): Node {
     this.featureTextureNodes = []
 
@@ -546,39 +633,10 @@ export class AsciiPass extends PassNode {
       this.colorSignalModeUniform
     )
 
-    const neighbourLuma = (offset: Node) => {
-      const sampled = this.trackLumaTextureNode(
-        clamp(
-          centerUv.add(offset),
-          vec2(float(0), float(0)),
-          vec2(float(1), float(1))
-        )
-      )
-
-      return this.buildLuma(
-        vec3(float(sampled.r), float(sampled.g), float(sampled.b))
-      )
-    }
-    const centerLuma = this.buildLuma(centerColor)
-
-    const leftLuma = neighbourLuma(vec2(texelSize.x.negate(), float(0)))
-    const rightLuma = neighbourLuma(vec2(texelSize.x, float(0)))
-    const topLuma = neighbourLuma(vec2(float(0), texelSize.y.negate()))
-    const bottomLuma = neighbourLuma(vec2(float(0), texelSize.y))
-
-    const gradientX = rightLuma.sub(leftLuma)
-    const gradientY = bottomLuma.sub(topLuma)
-    const gradientMagnitude = clamp(
-      sqrt(gradientX.mul(gradientX).add(gradientY.mul(gradientY))),
-      float(0),
-      float(1)
-    )
-    const blurred = leftLuma
-      .add(rightLuma)
-      .add(topLuma)
-      .add(bottomLuma)
-      .div(float(4))
-    const differenceOfGaussians = abs(centerLuma.sub(blurred))
+    const edgeData = this.trackEdgeTextureNode(centerUv)
+    const packedAngle = float(edgeData.r)
+    const gradientMagnitude = float(edgeData.g)
+    const differenceOfGaussians = float(edgeData.b)
 
     const rampIndex = floor(
       clamp(
@@ -605,7 +663,7 @@ export class AsciiPass extends PassNode {
       this.currentGlyphSource === "contour" ||
       this.currentGlyphSource === "contour-structure"
     ) {
-      const edgeOffset = this.buildEdgeOffset(gradientX, gradientY)
+      const edgeOffset = this.buildEdgeOffset(packedAngle)
       const edgeIndex = this.edgeStartUniform.add(edgeOffset)
       const edgeStrength = max(gradientMagnitude, differenceOfGaussians).mul(
         this.contourStrengthUniform
@@ -614,7 +672,7 @@ export class AsciiPass extends PassNode {
       glyphIndex = mix(glyphIndex, edgeIndex, edgeGate)
     }
 
-    return vec4(glyphIndex, colorSignal, glyphSignal, gradientMagnitude)
+    return vec4(glyphIndex, colorSignal, glyphSignal, float(1))
   }
 
   private buildStructureIndex(
@@ -706,23 +764,19 @@ export class AsciiPass extends PassNode {
     return mix(bestIndex, rampIndex, flat)
   }
 
-  private buildEdgeOffset(gradientX: Node, gradientY: Node): Node {
-    const absX = abs(gradientX)
-    const absY = abs(gradientY)
-    const diagonalSign = sign(gradientX.mul(gradientY))
-    const diagonalOffset = select(
-      diagonalSign.greaterThanEqual(float(0)),
-      float(3),
-      float(2)
+  private buildEdgeOffset(packedAngle: Node): Node {
+    const bucket = mod(
+      floor(packedAngle.mul(float(4)).add(float(0.5))),
+      float(4)
     )
 
     return select(
-      absX.greaterThan(absY.mul(float(DIAGONAL_TANGENT))),
-      float(0),
+      bucket.lessThan(float(0.5)),
+      float(1),
       select(
-        absY.greaterThan(absX.mul(float(DIAGONAL_TANGENT))),
-        float(1),
-        diagonalOffset
+        bucket.lessThan(float(1.5)),
+        float(2),
+        select(bucket.lessThan(float(2.5)), float(0), float(3))
       )
     )
   }
@@ -754,13 +808,28 @@ export class AsciiPass extends PassNode {
       const glyphIndex = floor(float(cellData.r).add(float(0.5)))
       const colorSignalValue = float(cellData.g)
       const presenceSignal = float(cellData.b)
+      const packedAngle = float(this.trackEdgeTextureNode(cellTexelUv).r)
+
+      const transformedUv = this.buildGlyphTransform(
+        localCellUv,
+        packedAngle,
+        presenceSignal,
+        colorSignalValue
+      )
+      const insideCell = step(float(0), transformedUv.x)
+        .mul(step(transformedUv.x, float(1)))
+        .mul(step(float(0), transformedUv.y))
+        .mul(step(transformedUv.y, float(1)))
 
       const cellColor = this.trackLumaTextureNode(cellTexelUv)
       const toneMapped = this.buildToneMappedColor(
         vec3(float(cellColor.r), float(cellColor.g), float(cellColor.b))
       )
 
-      const characterMask = this.buildCharacterMask(localCellUv, glyphIndex)
+      const characterMask = this.buildCharacterMask(
+        transformedUv,
+        glyphIndex
+      ).mul(insideCell)
 
       const halfSoft = max(
         this.presenceSoftnessUniform.mul(float(0.5)),
@@ -840,6 +909,46 @@ export class AsciiPass extends PassNode {
       ),
       float(1)
     )
+  }
+
+  private buildGlyphTransform(
+    localCellUv: Node,
+    packedAngle: Node,
+    glyphSignal: Node,
+    colorSignal: Node
+  ): Node {
+    const scaleSignal = select(
+      this.glyphScaleSourceUniform.lessThan(float(0.5)),
+      glyphSignal,
+      select(
+        this.glyphScaleSourceUniform.lessThan(float(1.5)),
+        float(1).sub(glyphSignal),
+        colorSignal
+      )
+    )
+    const scale = mix(
+      float(1),
+      mix(this.glyphScaleMinUniform, float(1), scaleSignal),
+      this.glyphScaleAmountUniform
+    )
+    const safeScale = max(scale, float(0.01))
+
+    const rotation = packedAngle
+      .sub(float(0.5))
+      .mul(PI)
+      .mul(this.glyphRotationUniform)
+    const cosine = cos(rotation)
+    const sine = sin(rotation)
+
+    const centered = localCellUv.sub(vec2(0.5, 0.5))
+    const squared = vec2(centered.x.mul(this.cellAspectUniform), centered.y)
+    const rotated = vec2(
+      squared.x.mul(cosine).sub(squared.y.mul(sine)),
+      squared.x.mul(sine).add(squared.y.mul(cosine))
+    )
+    const unsquared = vec2(rotated.x.div(this.cellAspectUniform), rotated.y)
+
+    return unsquared.div(safeScale).add(vec2(0.5, 0.5))
   }
 
   private buildGlyphAtlasUv(localCellUv: Node, charIndex: Node): Node {
@@ -993,6 +1102,14 @@ export class AsciiPass extends PassNode {
     }
   }
 
+  private getScaleSourceValue(value: unknown): number {
+    if (value === "inverse") {
+      return 1
+    }
+
+    return value === "color" ? 2 : 0
+  }
+
   private getSignalModeValue(mode: AsciiSignalMode): number {
     switch (mode) {
       case "lightness":
@@ -1032,7 +1149,12 @@ export class AsciiPass extends PassNode {
 
   private rebuildGridPasses(): void {
     this.lumaPass.setColorNode(this.buildLumaColorNode())
+    this.edgePass.setColorNode(this.buildEdgeColorNode())
     this.cellPass.setColorNode(this.buildCellColorNode())
+  }
+
+  private trackEdgeTextureNode(uvNode: Node): Node {
+    return tslTexture(this.edgePass.texture, uvNode)
   }
 
   private rebuildAtlas(): void {

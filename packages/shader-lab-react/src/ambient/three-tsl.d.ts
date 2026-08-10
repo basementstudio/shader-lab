@@ -97,7 +97,7 @@ declare module "three/tsl" {
   export const PI: TSLNode
   export function abs(value: unknown): TSLNode
   export function add(left: unknown, right: unknown): TSLNode
-  export function atan(value: unknown): TSLNode
+  export function atan(value: unknown, x?: unknown): TSLNode
   export function clamp(value: unknown, min?: unknown, max?: unknown): TSLNode
   export function cos(value: unknown): TSLNode
   export function cross(left: unknown, right: unknown): TSLNode

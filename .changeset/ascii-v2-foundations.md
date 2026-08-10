@@ -49,3 +49,11 @@ The layer now runs two tiny passes at grid resolution — one texel per characte
 - Changing charset, custom characters, font, or weight no longer recompiles the shader; atlas layout moved into uniforms.
 - Project files are now version 4. An ASCII layer saved with the old string `fontWeight` is migrated to its numeric equivalent, and any parameter missing from an older file is backfilled from the layer's defaults.
 - Blob tracking labels were affected by the same font-resolution bug and now use the real monospace family.
+
+**Per-glyph size and rotation**
+
+- `glyphScale` scales each character inside its cell from a routed signal (`glyphScaleSource`: luminance, inverse luminance, or the colour signal), with `glyphScaleMin` setting the floor. Size then carries information alongside the character itself — the two read best when driven by different things.
+- `glyphRotation` rotates each character to follow the image's local gradient, so glyphs lie along the form the way engraving hatching does. Rotation is applied in aspect-corrected space, otherwise non-square cells shear the letterform.
+- Both are clipped to the glyph's own cell, so scaling up or rotating never bleeds into a neighbouring character.
+
+Per-cell edge data (angle, gradient magnitude, difference-of-Gaussians) moved into its own grid-resolution buffer.

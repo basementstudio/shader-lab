@@ -163,15 +163,12 @@ export class MediaPass extends PassNode {
     return this.videoTexture !== null
   }
 
-  override async prepareForExportFrame(
-    time: number,
-    loop: boolean
-  ): Promise<void> {
+  override async prepareForExportFrame(time: number): Promise<void> {
     if (!this.videoHandle) {
       return
     }
 
-    this.videoHandle.setLoop(loop)
+    this.videoHandle.setLoop(true)
     await this.videoHandle.prepareFrame(time)
   }
 

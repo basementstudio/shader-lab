@@ -2,8 +2,10 @@ import { subscribeToCustomShaderCompiles } from "@/lib/agent-bridge/compile-even
 import { pumpAgentFrame } from "@/lib/agent-bridge/frame-pump"
 import { getLayerDefinition, getLayerDefinitions } from "@/lib/editor/config/layer-registry"
 import { isParameterAnimatable } from "@/lib/editor/parameter-schema"
+import { getSeedableMediaDuration } from "@/lib/editor/timeline-duration"
 import { useEditorStore } from "@/store/editor-store"
 import { useLayerStore } from "@/store/layer-store"
+import { useTimelineStore } from "@/store/timeline-store"
 import type {
   BlendMode,
   EditorLayer,
@@ -605,6 +607,9 @@ async function addMediaLayer(payload: CommandPayload) {
   const layerId = store.addLayer(layerType, insertIndex)
 
   store.setLayerAsset(layerId, asset.id)
+  useTimelineStore
+    .getState()
+    .seedDurationFromMedia(getSeedableMediaDuration(asset))
 
   if (name) {
     store.renameLayer(layerId, name)

@@ -37,9 +37,11 @@ import { Typography } from "@/components/ui/typography"
 import { playUISound } from "@/lib/audio/shader-lab-sounds"
 import { cn } from "@/lib/cn"
 import { AUDIO_FILE_ACCEPT, inferFileAssetKind } from "@/lib/editor/media-file"
+import { getSeedableMediaDuration } from "@/lib/editor/timeline-duration"
 import { useAssetStore } from "@/store/asset-store"
 import { useEditorStore } from "@/store/editor-store"
 import { useLayerStore } from "@/store/layer-store"
+import { useTimelineStore } from "@/store/timeline-store"
 import type { AssetKind, EditorAsset, EditorLayer } from "@/types/editor"
 
 type LayerAction = "delete" | "reset"
@@ -437,6 +439,9 @@ export function LayerSidebar() {
   const setLayersVisibility = useLayerStore(
     (state) => state.setLayersVisibility
   )
+  const seedDurationFromMedia = useTimelineStore(
+    (state) => state.seedDurationFromMedia
+  )
   const assets = useAssetStore((state) => state.assets)
   const loadAsset = useAssetStore((state) => state.loadAsset)
   const removeAsset = useAssetStore((state) => state.removeAsset)
@@ -497,6 +502,7 @@ export function LayerSidebar() {
       const asset = await loadAsset(file)
       const layerId = addLayer(layerType)
       setLayerAsset(layerId, asset.id)
+      seedDurationFromMedia(getSeedableMediaDuration(asset))
       playUISound("action.addLayer")
     } catch {
       return
@@ -599,6 +605,7 @@ export function LayerSidebar() {
       }
 
       setLayerAsset(target.layerId, asset.id)
+      seedDurationFromMedia(getSeedableMediaDuration(asset))
       playUISound("action.relinkAsset")
     } catch (error) {
       setLayerRuntimeError(

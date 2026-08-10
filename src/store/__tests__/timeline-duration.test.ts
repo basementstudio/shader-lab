@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, test } from "bun:test"
-import { MAX_DURATION, MIN_DURATION } from "@/lib/editor/timeline-duration"
+import {
+  getSeedableMediaDuration,
+  MAX_DURATION,
+  MIN_DURATION,
+} from "@/lib/editor/timeline-duration"
 import { useTimelineStore } from "@/store/timeline-store"
 
 function keyframeTimes(): number[] {
@@ -64,5 +68,40 @@ describe("setDuration", () => {
     useTimelineStore.getState().setCurrentTime(150)
     useTimelineStore.getState().setDuration(30)
     expect(useTimelineStore.getState().currentTime).toBe(30)
+  })
+})
+
+describe("seedDurationFromMedia", () => {
+  beforeEach(() => {
+    useTimelineStore.getState().setDuration(6)
+  })
+
+  test("ignores media that carries no usable duration", () => {
+    for (const value of [null, undefined, 0, -1, Number.NaN]) {
+      useTimelineStore.getState().seedDurationFromMedia(value)
+      expect(useTimelineStore.getState().duration).toBe(6)
+    }
+  })
+
+  test("the last import wins", () => {
+    const video = getSeedableMediaDuration({ duration: 10, kind: "video" })
+    const song = getSeedableMediaDuration({ duration: 120, kind: "audio" })
+
+    useTimelineStore.getState().seedDurationFromMedia(video)
+    expect(useTimelineStore.getState().duration).toBe(10)
+
+    useTimelineStore.getState().seedDurationFromMedia(song)
+    expect(useTimelineStore.getState().duration).toBe(120)
+  })
+
+  test("a short video no longer overrides a manual choice", () => {
+    useTimelineStore
+      .getState()
+      .seedDurationFromMedia(
+        getSeedableMediaDuration({ duration: 120, kind: "audio" })
+      )
+    useTimelineStore.getState().setDuration(30)
+
+    expect(useTimelineStore.getState().duration).toBe(30)
   })
 })

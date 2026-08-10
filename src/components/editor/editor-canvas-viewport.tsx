@@ -23,9 +23,11 @@ import {
   getWheelZoomFactor,
 } from "@/lib/editor/view-transform"
 import { getCompositionFrame } from "@/lib/editor/composition"
+import { getSeedableMediaDuration } from "@/lib/editor/timeline-duration"
 import { useAssetStore } from "@/store/asset-store"
 import { useEditorStore } from "@/store/editor-store"
 import { useLayerStore } from "@/store/layer-store"
+import { useTimelineStore } from "@/store/timeline-store"
 
 export function EditorCanvasViewport() {
   const { canvasRef, isReady, viewportRef } = useEditorRenderer()
@@ -68,6 +70,9 @@ export function EditorCanvasViewport() {
   const [isPointerPanning, setIsPointerPanning] = useState(false)
   const addLayer = useLayerStore((state) => state.addLayer)
   const setLayerAsset = useLayerStore((state) => state.setLayerAsset)
+  const seedDurationFromMedia = useTimelineStore(
+    (state) => state.seedDurationFromMedia
+  )
   const loadAsset = useAssetStore((state) => state.loadAsset)
   const pointerPanRef = useRef<{
     pointerId: number
@@ -110,13 +115,14 @@ export function EditorCanvasViewport() {
             const asset = await loadAsset(file)
             const layerId = addLayer(kind)
             setLayerAsset(layerId, asset.id)
+            seedDurationFromMedia(getSeedableMediaDuration(asset))
           } catch {
             return
           }
         }
       }
     },
-    [addLayer, loadAsset, setLayerAsset]
+    [addLayer, loadAsset, seedDurationFromMedia, setLayerAsset]
   )
 
   useEffect(() => {

@@ -1047,8 +1047,6 @@ export class AsciiPass extends PassNode {
       mix(this.glyphScaleMinUniform, float(1), scaleSignal),
       this.glyphScaleAmountUniform
     )
-    const safeScale = max(scale, float(0.01))
-
     const rotation = packedAngle
       .sub(float(0.5))
       .mul(PI)
@@ -1056,13 +1054,24 @@ export class AsciiPass extends PassNode {
     const cosine = cos(rotation)
     const sine = sin(rotation)
 
+    const aspect = this.cellAspectUniform
+    const absCos = abs(cosine)
+    const absSin = abs(sine)
+    const fitX = aspect.div(
+      max(aspect.mul(absCos).add(absSin), float(1e-4))
+    )
+    const fitY = float(1).div(
+      max(aspect.mul(absSin).add(absCos), float(1e-4))
+    )
+    const safeScale = max(min(scale, min(fitX, fitY)), float(0.01))
+
     const centered = localCellUv.sub(vec2(0.5, 0.5))
-    const squared = vec2(centered.x.mul(this.cellAspectUniform), centered.y)
+    const squared = vec2(centered.x.mul(aspect), centered.y)
     const rotated = vec2(
       squared.x.mul(cosine).sub(squared.y.mul(sine)),
       squared.x.mul(sine).add(squared.y.mul(cosine))
     )
-    const unsquared = vec2(rotated.x.div(this.cellAspectUniform), rotated.y)
+    const unsquared = vec2(rotated.x.div(aspect), rotated.y)
 
     return unsquared.div(safeScale).add(vec2(0.5, 0.5))
   }

@@ -122,6 +122,7 @@ export class AsciiPass extends PassNode {
   private readonly layoutPass: GridRenderPass
   private readonly edgePass: GridRenderPass
   private readonly cellPass: GridRenderPass
+  private readonly statePass: GridRenderPass
 
   private readonly atlasColumnsUniform: Node
   private readonly atlasInnerHeightUniform: Node
@@ -136,6 +137,10 @@ export class AsciiPass extends PassNode {
   private readonly bloomSoftnessUniform: Node
   private readonly bloomThresholdUniform: Node
   private readonly boldnessUniform: Node
+  private readonly advectionUniform: Node
+  private readonly scrambleAmountUniform: Node
+  private readonly scrambleDecayUniform: Node
+  private readonly temporalResetUniform: Node
   private readonly breakBiasUniform: Node
   private readonly flowWarpUniform: Node
   private readonly warpQuantumUniform: Node
@@ -187,6 +192,11 @@ export class AsciiPass extends PassNode {
   private currentBreakLevels = 0
   private currentWarpEnabled = false
   private currentWarpRigid = false
+  private currentTemporalEnabled = false
+  private lastRenderTime = 0
+  private temporalResetPending = true
+  private stateReadNodes: Node[] = []
+  private stateOutputNodes: Node[] = []
   private currentCellAspect = 0
   private currentCharset: AsciiCharset = "light"
   private currentCustomChars = DEFAULT_ASCII_CHARS
@@ -202,6 +212,7 @@ export class AsciiPass extends PassNode {
     this.layoutPass = new GridRenderPass()
     this.edgePass = new GridRenderPass()
     this.cellPass = new GridRenderPass()
+    this.statePass = new GridRenderPass({ pingPong: true })
     this.atlasColumnsUniform = uniform(1)
     this.atlasInnerHeightUniform = uniform(ATLAS_INNER_HEIGHT)
     this.atlasInnerXUniform = uniform(1)
@@ -215,6 +226,10 @@ export class AsciiPass extends PassNode {
     this.bloomSoftnessUniform = uniform(0.35)
     this.bloomThresholdUniform = uniform(0.6)
     this.boldnessUniform = uniform(0)
+    this.advectionUniform = uniform(0)
+    this.scrambleAmountUniform = uniform(0)
+    this.scrambleDecayUniform = uniform(0.85)
+    this.temporalResetUniform = uniform(1)
     this.breakBiasUniform = uniform(0)
     this.flowWarpUniform = uniform(0)
     this.warpQuantumUniform = uniform(1)
@@ -297,6 +312,28 @@ export class AsciiPass extends PassNode {
     this.edgePass.render(renderer)
     this.cellPass.render(renderer)
 
+    if (this.currentTemporalEnabled) {
+      const scrubbedBackwards = time < this.lastRenderTime
+      this.temporalResetUniform.value =
+        this.temporalResetPending || scrubbedBackwards ? 0 : 1
+      this.temporalResetPending = false
+
+      // Before rendering, `texture` is still last frame's result — that is what
+      // the state graph must read. `previousTexture` is the buffer about to be
+      // written, and sampling it while writing it is undefined.
+      for (const node of this.stateReadNodes) {
+        node.value = this.statePass.texture
+      }
+
+      this.statePass.render(renderer)
+
+      for (const node of this.stateOutputNodes) {
+        node.value = this.statePass.texture
+      }
+    }
+
+    this.lastRenderTime = time
+
     super.render(renderer, inputTexture, outputTarget, time, delta)
   }
 
@@ -333,6 +370,13 @@ export class AsciiPass extends PassNode {
       typeof params.flowWarp === "number" ? clamp01(params.flowWarp) : 0
     const nextWarpEnabled = nextRowWarp > 0 || nextFlowWarp > 0
     const nextWarpRigid = params.warpMode === "rigid"
+    const nextAdvection =
+      typeof params.advection === "number" ? clamp01(params.advection) : 0
+    const nextScramble =
+      typeof params.motionScramble === "number"
+        ? clamp01(params.motionScramble)
+        : 0
+    const nextTemporalEnabled = nextAdvection > 0 || nextScramble > 0
     const nextRenderMode = this.resolveRenderMode(params.renderMode)
     const nextGlyphSource = this.resolveGlyphSource(params.glyphSource)
     const nextBoldness =
@@ -369,6 +413,12 @@ export class AsciiPass extends PassNode {
     this.bloomSoftnessUniform.value = nextBloomSoftness
     this.bloomThresholdUniform.value = nextBloomThreshold
     this.boldnessUniform.value = nextBoldness
+    this.advectionUniform.value = nextAdvection
+    this.scrambleAmountUniform.value = nextScramble
+    this.scrambleDecayUniform.value =
+      typeof params.scrambleDecay === "number"
+        ? Math.max(0, Math.min(0.99, params.scrambleDecay))
+        : 0.85
     this.flowWarpUniform.value = nextFlowWarp
     this.warpQuantumUniform.value = 2 ** nextBreakLevels
     this.rowWarpUniform.value = nextRowWarp
@@ -474,6 +524,8 @@ export class AsciiPass extends PassNode {
     const breakLevelsChanged = nextBreakLevels !== this.currentBreakLevels
     this.currentBreakLevels = nextBreakLevels
     const glyphSourceChanged = nextGlyphSource !== this.currentGlyphSource
+    const temporalChanged = nextTemporalEnabled !== this.currentTemporalEnabled
+    this.currentTemporalEnabled = nextTemporalEnabled
     const warpEnabledChanged =
       nextWarpEnabled !== this.currentWarpEnabled ||
       nextWarpRigid !== this.currentWarpRigid
@@ -486,11 +538,16 @@ export class AsciiPass extends PassNode {
     this.currentRenderMode = nextRenderMode
     this.bloomEnabled = nextBloomEnabled
 
-    if (glyphSourceChanged || breakLevelsChanged) {
+    if (glyphSourceChanged || breakLevelsChanged || temporalChanged) {
       this.rebuildGridPasses()
     }
 
-    if (renderModeChanged || bloomChanged || warpEnabledChanged) {
+    if (
+      renderModeChanged ||
+      bloomChanged ||
+      warpEnabledChanged ||
+      temporalChanged
+    ) {
       this.rebuildEffectNode()
     }
 
@@ -512,6 +569,7 @@ export class AsciiPass extends PassNode {
     this.layoutPass.dispose()
     this.edgePass.dispose()
     this.cellPass.dispose()
+    this.statePass.dispose()
     super.dispose()
   }
 
@@ -533,7 +591,7 @@ export class AsciiPass extends PassNode {
   }
 
   override needsContinuousRender(): boolean {
-    return this.shimmerEnabled
+    return this.shimmerEnabled || this.currentTemporalEnabled
   }
 
   private getCompositionFrameSize(): {
@@ -600,6 +658,7 @@ export class AsciiPass extends PassNode {
     this.layoutPass.setSize(gridWidth, gridHeight)
     this.edgePass.setSize(gridWidth, gridHeight)
     this.cellPass.setSize(gridWidth, gridHeight)
+    this.statePass.setSize(gridWidth, gridHeight)
   }
 
 
@@ -643,6 +702,118 @@ export class AsciiPass extends PassNode {
     const averaged = accumulated.div(float(SUPERSAMPLE * SUPERSAMPLE))
 
     return vec4(averaged, float(1))
+  }
+
+  private trackStateReadNode(uvNode: Node): Node {
+    const node = tslTexture(this.statePass.previousTexture, uvNode)
+    this.stateReadNodes.push(node)
+    return node
+  }
+
+  private trackStateOutputNode(uvNode: Node): Node {
+    const node = tslTexture(this.statePass.texture, uvNode)
+    this.stateOutputNodes.push(node)
+    return node
+  }
+
+  // Per-cell temporal state, ping-ponged so it can read its own last frame.
+  // R = the glyph this cell is currently showing, carried across frames.
+  // G = scramble energy, decaying.
+  // B = last frame's luminance, which is what makes motion detectable at all.
+  private buildStateColorNode(): Node {
+    this.stateReadNodes = []
+
+    const gridSize = vec2(this.gridWidthUniform, this.gridHeightUniform)
+    const texelSize = vec2(float(1), float(1)).div(gridSize)
+    const gridUv = vec2(uv().x, float(1).sub(uv().y))
+    const cellId = floor(gridUv.mul(gridSize))
+    const centerUv = cellId.add(vec2(0.5, 0.5)).mul(texelSize)
+
+    const sampleLuma = (offset: Node) => {
+      const sampled = this.trackLumaTextureNode(
+        clamp(
+          centerUv.add(offset),
+          vec2(float(0), float(0)),
+          vec2(float(1), float(1))
+        )
+      )
+
+      return this.buildLuma(
+        vec3(float(sampled.r), float(sampled.g), float(sampled.b))
+      )
+    }
+
+    const currentLuma = sampleLuma(vec2(float(0), float(0)))
+    const previousSelf = this.trackStateReadNode(centerUv)
+    const previousLuma = float(previousSelf.b)
+    const lumaDelta = currentLuma.sub(previousLuma)
+
+    // Optical flow, one Lucas-Kanade step: v = -dI/dt * grad / |grad|^2.
+    // Tells us where this cell's content sat last frame, so the character can
+    // travel with the image instead of being re-picked from scratch.
+    const gradientX = sampleLuma(vec2(texelSize.x, float(0)))
+      .sub(sampleLuma(vec2(texelSize.x.negate(), float(0))))
+      .mul(float(0.5))
+    const gradientY = sampleLuma(vec2(float(0), texelSize.y))
+      .sub(sampleLuma(vec2(float(0), texelSize.y.negate())))
+      .mul(float(0.5))
+    const gradientSquared = gradientX
+      .mul(gradientX)
+      .add(gradientY.mul(gradientY))
+      .add(float(1e-4))
+    const flowScale = lumaDelta.negate().div(gradientSquared)
+    const flow = vec2(
+      clamp(gradientX.mul(flowScale), float(-2), float(2)),
+      clamp(gradientY.mul(flowScale), float(-2), float(2))
+    ).mul(texelSize)
+
+    const advectedUv = clamp(
+      centerUv.sub(flow.mul(this.advectionUniform)),
+      vec2(float(0), float(0)),
+      vec2(float(1), float(1))
+    )
+    const previousAdvected = this.trackStateReadNode(advectedUv)
+    const carriedIndex = float(previousAdvected.r)
+    const carriedEnergy = float(previousAdvected.g)
+
+    const targetIndex = float(this.trackCellTextureNode(centerUv).r)
+
+    // Keep the carried character while it still represents this cell within
+    // tolerance. Advection widens the tolerance; at zero it never carries.
+    const tolerance = this.advectionUniform.mul(this.rampCountUniform).mul(
+      float(0.35)
+    )
+    const keepCarried = step(abs(carriedIndex.sub(targetIndex)), tolerance)
+    const settledIndex = mix(targetIndex, carriedIndex, keepCarried)
+
+    const motion = abs(lumaDelta)
+    const energy = max(
+      carriedEnergy.mul(this.scrambleDecayUniform),
+      motion.mul(this.scrambleAmountUniform).mul(float(6))
+    )
+
+    const noise = fract(
+      sin(
+        dot(
+          cellId.add(floor(this.timeUniform.mul(float(24)))),
+          vec2(12.9898, 78.233)
+        )
+      ).mul(float(43758.5453))
+    )
+    const randomIndex = floor(noise.mul(this.rampCountUniform))
+    const scrambleGate = step(float(0.35), energy)
+    const scrambled = mix(settledIndex, randomIndex, scrambleGate)
+
+    // On a backward scrub the history is meaningless, so fall back to the
+    // freshly chosen character and let the state rebuild from there.
+    const resolvedIndex = mix(targetIndex, scrambled, this.temporalResetUniform)
+
+    return vec4(
+      resolvedIndex,
+      energy.mul(this.temporalResetUniform),
+      currentLuma,
+      float(1)
+    )
   }
 
   private buildEdgeColorNode(): Node {
@@ -896,6 +1067,7 @@ export class AsciiPass extends PassNode {
     this.disposeBloomNode()
     this.bloomNode = null
     this.atlasTextureNodes = []
+    this.stateOutputNodes = []
 
     const renderTargetUv = vec2(uv().x, float(1).sub(uv().y))
     const gridSize = vec2(this.gridWidthUniform, this.gridHeightUniform)
@@ -922,7 +1094,15 @@ export class AsciiPass extends PassNode {
         .div(gridSize)
 
       const cellData = this.trackCellTextureNode(cellTexelUv)
-      const glyphIndex = floor(float(cellData.r).add(float(0.5)))
+      const stateData = this.currentTemporalEnabled
+        ? this.trackStateOutputNode(cellTexelUv)
+        : null
+      const glyphIndex = floor(
+        float(stateData ? stateData.r : cellData.r).add(float(0.5))
+      )
+      const scrambleEnergy = stateData
+        ? clamp(float(stateData.g), float(0), float(1))
+        : float(0)
       const colorSignalValue = float(cellData.g)
       const presenceSignal = float(cellData.b)
       const packedAngle = float(this.trackEdgeTextureNode(blockTexelUv).r)
@@ -972,13 +1152,14 @@ export class AsciiPass extends PassNode {
         shimmerWave.add(float(1)).mul(float(0.5)).mul(this.shimmerAmountUniform)
       )
       const finalMask = characterMask.mul(presenceMask).mul(shimmerOpacity)
+      const flare = float(1).add(scrambleEnergy.mul(float(1.5)))
 
       const monoTint = vec3(
         this.monoRedUniform,
         this.monoGreenUniform,
         this.monoBlueUniform
       )
-      const monochromeColor = monoTint.mul(colorSignalValue)
+      const monochromeColor = monoTint.mul(colorSignalValue).mul(flare)
       const greenTerminalColor = vec3(float(0), colorSignalValue, float(0))
       const glyphColor = select(
         this.colorModeUniform.lessThan(float(0.5)),
@@ -1335,6 +1516,11 @@ export class AsciiPass extends PassNode {
     this.layoutPass.setColorNode(this.buildLayoutColorNode())
     this.edgePass.setColorNode(this.buildEdgeColorNode())
     this.cellPass.setColorNode(this.buildCellColorNode())
+
+    if (this.currentTemporalEnabled) {
+      this.statePass.setColorNode(this.buildStateColorNode())
+      this.temporalResetPending = true
+    }
   }
 
   private trackEdgeTextureNode(uvNode: Node): Node {

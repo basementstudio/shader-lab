@@ -42,6 +42,7 @@ const COLLAPSIBLE_PARAM_GROUPS = new Set([
   "Effects",
   "Glyph",
   "Grid",
+  "Life",
   "Points",
   "Presence",
   "Render",

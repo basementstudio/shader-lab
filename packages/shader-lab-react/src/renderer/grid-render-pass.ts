@@ -12,23 +12,29 @@ const TARGET_OPTIONS = {
 } as const
 
 export class GridRenderPass {
-  readonly target: THREE.WebGLRenderTarget
-
   private readonly scene: THREE.Scene
   private readonly camera: THREE.OrthographicCamera
   private readonly material: THREE.MeshBasicNodeMaterial
+  private readonly targets: THREE.WebGLRenderTarget[]
+  private currentIndex = 0
   private width = 1
   private height = 1
 
-  constructor(options: { linear?: boolean } = {}) {
+  constructor(options: { linear?: boolean; pingPong?: boolean } = {}) {
     this.scene = new THREE.Scene()
     this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
     this.material = new THREE.MeshBasicNodeMaterial()
-    this.target = new THREE.WebGLRenderTarget(1, 1, TARGET_OPTIONS)
+    this.targets = [new THREE.WebGLRenderTarget(1, 1, TARGET_OPTIONS)]
+
+    if (options.pingPong) {
+      this.targets.push(new THREE.WebGLRenderTarget(1, 1, TARGET_OPTIONS))
+    }
 
     if (options.linear) {
-      this.target.texture.magFilter = THREE.LinearFilter
-      this.target.texture.minFilter = THREE.LinearFilter
+      for (const target of this.targets) {
+        target.texture.magFilter = THREE.LinearFilter
+        target.texture.minFilter = THREE.LinearFilter
+      }
     }
 
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.material)
@@ -36,12 +42,23 @@ export class GridRenderPass {
     this.scene.add(mesh)
   }
 
+  get target(): THREE.WebGLRenderTarget {
+    return this.targets[this.currentIndex] as THREE.WebGLRenderTarget
+  }
+
   get texture(): THREE.Texture {
     return this.target.texture
   }
 
+  get previousTexture(): THREE.Texture {
+    const previous =
+      this.targets[(this.currentIndex + 1) % this.targets.length]
+    return (previous ?? this.target).texture
+  }
+
   setColorNode(node: TSLNode): void {
-    this.material.colorNode = node as unknown as THREE.MeshBasicNodeMaterial["colorNode"]
+    this.material.colorNode =
+      node as unknown as THREE.MeshBasicNodeMaterial["colorNode"]
     this.material.needsUpdate = true
   }
 
@@ -55,13 +72,21 @@ export class GridRenderPass {
 
     this.width = nextWidth
     this.height = nextHeight
-    this.target.setSize(nextWidth, nextHeight)
+
+    for (const target of this.targets) {
+      target.setSize(nextWidth, nextHeight)
+    }
+
     return true
   }
 
   render(renderer: THREE.WebGPURenderer): void {
-    renderer.setRenderTarget(this.target)
+    const writeIndex = (this.currentIndex + 1) % this.targets.length
+    const writeTarget = this.targets[writeIndex] as THREE.WebGLRenderTarget
+
+    renderer.setRenderTarget(writeTarget)
     renderer.render(this.scene, this.camera)
+    this.currentIndex = writeIndex
   }
 
   getCompileTarget(): { camera: THREE.Camera; scene: THREE.Scene } {
@@ -71,6 +96,9 @@ export class GridRenderPass {
   dispose(): void {
     this.scene.clear()
     this.material.dispose()
-    this.target.dispose()
+
+    for (const target of this.targets) {
+      target.dispose()
+    }
   }
 }

@@ -84,3 +84,12 @@ Rotated characters no longer clip against their cell edge. Rotating a glyph rota
 `cellUnit` adds a Columns option that measures the grid against the composition instead, so "80 columns" means 80 columns across the composition at any output size. Pixels remains the default, so existing projects are untouched.
 
 Along the way the grid gained an explicit origin and cell size in canvas UV, shared by the grid passes and the composite. Previously the grid passes derived a cell from `ceil(logical / cellSize)` while the composite derived it from `cellSize` directly, which disagreed by up to one cell along the right and bottom edges. The grid also aligns a cell boundary to the composition's top-left, so the phase matches between preview and export and not just the density.
+
+**Advection and motion scramble**
+
+The layer now keeps per-cell state across frames in a ping-ponged grid buffer holding the character each cell is showing, a decaying scramble energy, and last frame's luminance.
+
+- `advection` carries characters with the moving image instead of re-picking each one from scratch every frame. Per-cell motion is estimated with a single Lucas-Kanade step from the temporal derivative and the spatial gradient, and the character is kept while it still represents the cell within a tolerance that widens with the setting. This is what stops ASCII video crawling.
+- `motionScramble` scrambles and flares the characters movement passes through, with `scrambleDecay` controlling how long the flare lasts.
+
+Both are compiled in only when non-zero, so a static composition pays nothing. On a still source the output is pixel-identical to having them off. Scrubbing backwards resets the history rather than carrying meaningless state across the jump.

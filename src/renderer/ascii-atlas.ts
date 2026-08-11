@@ -24,6 +24,7 @@ const CELL_INNER_HEIGHT = 64
 const CELL_PADDING = 6
 const SDF_RADIUS = 8
 const GLYPH_FONT_SCALE = 0.8
+const MIN_INK_COVERAGE = 0.0008
 const MIN_CELL_ASPECT = 0.25
 const MAX_CELL_ASPECT = 2
 const FEATURE_SIZE = 4
@@ -248,7 +249,10 @@ function buildFeatureVector(
     : centered.map(() => 0)
 }
 
-export function buildAsciiAtlas(options: AsciiAtlasOptions): AsciiAtlas {
+export function buildAsciiAtlas(
+  options: AsciiAtlasOptions,
+  allowCharsetFallback = true
+): AsciiAtlas {
   const rampChars = normalizeChars(options.chars)
   const edgeChars = normalizeChars(options.edgeChars)
   const allChars = [...rampChars, ...edgeChars]
@@ -310,7 +314,23 @@ export function buildAsciiAtlas(options: AsciiAtlasOptions): AsciiAtlas {
     rampOrder.sort((left, right) => left.coverage - right.coverage)
   }
 
-  const ordered = [...rampOrder, ...rasters.slice(rampCount)]
+  // A font only covers the characters it actually has. Anything else
+  // rasterises blank, so it would punch invisible holes in the ramp — or, for
+  // a charset the font does not cover at all, render nothing whatsoever.
+  const usableRamp = rampOrder.filter(
+    (raster) => raster.char === " " || raster.coverage > MIN_INK_COVERAGE
+  )
+
+  if (usableRamp.length < 2 && allowCharsetFallback) {
+    return buildAsciiAtlas({ ...options, chars: DEFAULT_ASCII_CHARS }, false)
+  }
+
+  const ordered = [
+    ...(usableRamp.length >= 2 ? usableRamp : rampOrder),
+    ...rasters.slice(rampCount),
+  ]
+  const resolvedRampCount =
+    usableRamp.length >= 2 ? usableRamp.length : rampOrder.length
   const charCount = ordered.length
   const columns = Math.max(1, Math.ceil(Math.sqrt(charCount)))
   const rows = Math.max(1, Math.ceil(charCount / columns))
@@ -393,13 +413,13 @@ export function buildAsciiAtlas(options: AsciiAtlasOptions): AsciiAtlas {
     chars: ordered.map((raster) => raster.char).join(""),
     columns,
     coverage,
-    edgeStart: rampCount,
+    edgeStart: resolvedRampCount,
     featureTexture,
     innerFractionX: innerWidth / pitchWidth,
     innerFractionY: innerHeight / pitchHeight,
     padFractionX: CELL_PADDING / pitchWidth,
     padFractionY: CELL_PADDING / pitchHeight,
-    rampCount,
+    rampCount: resolvedRampCount,
     rows,
     sdfRadius: SDF_RADIUS,
     texture,

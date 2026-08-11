@@ -318,9 +318,6 @@ export class AsciiPass extends PassNode {
         this.temporalResetPending || scrubbedBackwards ? 0 : 1
       this.temporalResetPending = false
 
-      // Before rendering, `texture` is still last frame's result — that is what
-      // the state graph must read. `previousTexture` is the buffer about to be
-      // written, and sampling it while writing it is undefined.
       for (const node of this.stateReadNodes) {
         node.value = this.statePass.texture
       }
@@ -612,9 +609,6 @@ export class AsciiPass extends PassNode {
     const aspect = this.atlas?.cellAspect ?? 0.6
     const frame = this.getCompositionFrameSize()
 
-    // Cell height in logical px. In Columns mode it is derived from the
-    // composition frame, so the same setting yields the same number of cells
-    // across the composition in the viewport and in an export of any size.
     const cellHeight =
       this.currentCellUnit === "columns"
         ? Math.max(1, frame.width / Math.max(1, this.currentColumns) / aspect)
@@ -624,9 +618,6 @@ export class AsciiPass extends PassNode {
     const cellUvWidth = cellWidth / this.logicalWidth
     const cellUvHeight = cellHeight / this.logicalHeight
 
-    // Align a cell boundary to the composition's top-left so the phase of the
-    // grid matches too, not just its density. Shifted back by whole cells to
-    // keep every visible cell index non-negative.
     const frameXUv = frame.x / this.logicalWidth
     const frameYUv = frame.y / this.logicalHeight
     const originX = frameXUv - Math.ceil(frameXUv / cellUvWidth) * cellUvWidth
@@ -716,10 +707,6 @@ export class AsciiPass extends PassNode {
     return node
   }
 
-  // Per-cell temporal state, ping-ponged so it can read its own last frame.
-  // R = the glyph this cell is currently showing, carried across frames.
-  // G = scramble energy, decaying.
-  // B = last frame's luminance, which is what makes motion detectable at all.
   private buildStateColorNode(): Node {
     this.stateReadNodes = []
 
@@ -748,9 +735,6 @@ export class AsciiPass extends PassNode {
     const previousLuma = float(previousSelf.b)
     const lumaDelta = currentLuma.sub(previousLuma)
 
-    // Optical flow, one Lucas-Kanade step: v = -dI/dt * grad / |grad|^2.
-    // Tells us where this cell's content sat last frame, so the character can
-    // travel with the image instead of being re-picked from scratch.
     const gradientX = sampleLuma(vec2(texelSize.x, float(0)))
       .sub(sampleLuma(vec2(texelSize.x.negate(), float(0))))
       .mul(float(0.5))
@@ -778,8 +762,6 @@ export class AsciiPass extends PassNode {
 
     const targetIndex = float(this.trackCellTextureNode(centerUv).r)
 
-    // Keep the carried character while it still represents this cell within
-    // tolerance. Advection widens the tolerance; at zero it never carries.
     const tolerance = this.advectionUniform.mul(this.rampCountUniform).mul(
       float(0.35)
     )
@@ -804,8 +786,6 @@ export class AsciiPass extends PassNode {
     const scrambleGate = step(float(0.35), energy)
     const scrambled = mix(settledIndex, randomIndex, scrambleGate)
 
-    // On a backward scrub the history is meaningless, so fall back to the
-    // freshly chosen character and let the state rebuild from there.
     const resolvedIndex = mix(targetIndex, scrambled, this.temporalResetUniform)
 
     return vec4(

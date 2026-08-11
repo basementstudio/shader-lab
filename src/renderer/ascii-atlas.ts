@@ -88,9 +88,6 @@ function resolveFont(options: AsciiAtlasOptions): {
   shorthand: string
   weight: number
 } {
-  // Web fonts rarely cover katakana or box-drawing glyphs; ending the list
-  // with a CJK-capable system family lets Canvas2D rasterize those charsets
-  // per glyph instead of drawing blanks for the coverage filter to discard.
   const fontFamilyList = `${resolveTextFontFamily(options.fontFamily)}, "Hiragino Kaku Gothic ProN", monospace`
   const weight = normalizeTextFontWeight(options.fontFamily, options.fontWeight)
   const fontSize = Math.max(4, Math.round(CELL_INNER_HEIGHT * GLYPH_FONT_SCALE))
@@ -317,9 +314,6 @@ export function buildAsciiAtlas(
     rampOrder.sort((left, right) => left.coverage - right.coverage)
   }
 
-  // A font only covers the characters it actually has. Anything else
-  // rasterises blank, so it would punch invisible holes in the ramp — or, for
-  // a charset the font does not cover at all, render nothing whatsoever.
   const usableRamp = rampOrder.filter(
     (raster) => raster.char === " " || raster.coverage > MIN_INK_COVERAGE
   )

@@ -366,9 +366,6 @@ export class AsciiPass extends PassNode {
     const aspect = this.atlas?.cellAspect ?? 0.6
     const frame = this.getCompositionFrameSize()
 
-    // Columns measures cells against the composition frame, so the same
-    // setting yields the same lattice in the viewport and in an export of any
-    // size.
     const cellWidth = Math.max(
       0.5,
       frame.width / Math.max(1, this.currentColumns)
@@ -378,9 +375,6 @@ export class AsciiPass extends PassNode {
     const cellUvWidth = cellWidth / this.logicalWidth
     const cellUvHeight = cellHeight / this.logicalHeight
 
-    // Align a cell boundary to the composition's top-left so the phase of the
-    // grid matches too, not just its density. Shifted back by whole cells to
-    // keep every visible cell index non-negative.
     const frameXUv = frame.x / this.logicalWidth
     const frameYUv = frame.y / this.logicalHeight
     const originX = frameXUv - Math.ceil(frameXUv / cellUvWidth) * cellUvWidth
@@ -445,8 +439,6 @@ export class AsciiPass extends PassNode {
     return dot(vec3(color), vec3(0.2126, 0.7152, 0.0722))
   }
 
-  // Average source colour per cell. The grid target is sampled back by the
-  // composite, so a fragment written at v reads back at 1 - v.
   private buildAnalysisColorNode(): Node {
     this.analysisSourceNodes = []
 
@@ -489,8 +481,6 @@ export class AsciiPass extends PassNode {
     )
   }
 
-  // Highest power-of-two block size whose four quadrants stay within the
-  // brightness threshold. One channel out, R = level.
   private buildLayoutColorNode(): Node {
     const gridSize = vec2(this.gridWidthUniform, this.gridHeightUniform)
     const gridUv = vec2(uv().x, float(1).sub(uv().y))
@@ -594,8 +584,6 @@ export class AsciiPass extends PassNode {
     ).mul(insideCell)
   }
 
-  // Everything about one drawable unit (a cell, or a merged block when break
-  // grid is on): where its glyph lives, its colour, and its local uv.
   private buildCellSample(candidateCell: Node, gridUv: Node): {
     color: Node
     mask: Node
@@ -771,9 +759,6 @@ export class AsciiPass extends PassNode {
       node.value = atlas.texture
     }
 
-    // Disposing the old textures here would destroy them while the composite
-    // still has them in a live bind group and kill the render loop. Defer to
-    // after the next frame has rendered with the new texture.
     if (previousTexture) {
       this.retiredAtlasTextures.push(previousTexture)
     }

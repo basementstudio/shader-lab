@@ -3,7 +3,7 @@ import {
   CUSTOM_SHADER_INTERNAL_VISIBILITY,
   CUSTOM_SHADER_STARTER,
 } from "@/lib/editor/custom-shader/shared"
-import { TEXT_FONT_OPTIONS } from "@/lib/editor/text-fonts"
+import { GLYPH_FONT_OPTIONS, TEXT_FONT_OPTIONS } from "@/lib/editor/text-fonts"
 import type {
   EffectLayerType,
   LayerDefinition,
@@ -1220,6 +1220,7 @@ const asciiParams = [
       { label: "2x", value: "2x" },
       { label: "4x", value: "4x" },
       { label: "8x", value: "8x" },
+      { label: "16x", value: "16x" },
     ],
     type: "select",
   },
@@ -1249,6 +1250,7 @@ const asciiParams = [
       { label: "Hatching", value: "hatching" },
       { label: "Hex", value: "hex" },
       { label: "Binary", value: "binary" },
+      { label: "Katakana", value: "katakana" },
       { label: "Custom", value: "custom" },
     ],
     type: "select",
@@ -1265,6 +1267,15 @@ const asciiParams = [
       equals: "custom",
       key: "charset",
     },
+  },
+  {
+    animatable: false,
+    defaultValue: "mono",
+    group: "Glyphs",
+    key: "fontFamily",
+    label: "Font",
+    options: GLYPH_FONT_OPTIONS,
+    type: "select",
   },
   {
     animatable: false,

@@ -38,7 +38,7 @@ type AsciiColorMode = "monochrome" | "source"
 type AsciiCharset = keyof typeof ASCII_CHARSETS | "custom"
 
 const ATLAS_INNER_HEIGHT = 64
-const FONT_FAMILY = "mono"
+const DEFAULT_FONT_FAMILY = "mono"
 const SUPERSAMPLE = 3
 const MAX_GRID_DIMENSION = 4096
 
@@ -46,6 +46,7 @@ const BREAK_LEVELS: Record<string, number> = {
   "2x": 1,
   "4x": 2,
   "8x": 3,
+  "16x": 4,
   off: 0,
 }
 
@@ -134,6 +135,7 @@ export class AsciiPass extends PassNode {
   private currentRowWarpEnabled = false
   private currentCharset: AsciiCharset = "light"
   private currentCustomChars = DEFAULT_ASCII_CHARS
+  private currentFontFamily = DEFAULT_FONT_FAMILY
   private currentFontWeight = 400
   private currentColorMode: AsciiColorMode = "monochrome"
 
@@ -229,6 +231,10 @@ export class AsciiPass extends PassNode {
       typeof params.customChars === "string"
         ? params.customChars
         : DEFAULT_ASCII_CHARS
+    const nextFontFamily =
+      typeof params.fontFamily === "string" && params.fontFamily.length > 0
+        ? params.fontFamily
+        : DEFAULT_FONT_FAMILY
     const nextFontWeight =
       typeof params.fontWeight === "number"
         ? Math.max(100, Math.min(900, Math.round(params.fontWeight)))
@@ -236,11 +242,13 @@ export class AsciiPass extends PassNode {
 
     const needsAtlasRebuild =
       nextCharset !== this.currentCharset ||
+      nextFontFamily !== this.currentFontFamily ||
       nextFontWeight !== this.currentFontWeight ||
       (nextCharset === "custom" && nextCustomChars !== this.currentCustomChars)
 
     this.currentCharset = nextCharset
     this.currentCustomChars = nextCustomChars
+    this.currentFontFamily = nextFontFamily
     this.currentFontWeight = nextFontWeight
 
     if (needsAtlasRebuild) {
@@ -743,7 +751,7 @@ export class AsciiPass extends PassNode {
       cellAspect: 0,
       chars: this.getActiveChars(),
       edgeChars: DEFAULT_EDGE_CHARS,
-      fontFamily: FONT_FAMILY,
+      fontFamily: this.currentFontFamily,
       fontWeight: this.currentFontWeight,
     }
   }

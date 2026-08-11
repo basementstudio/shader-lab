@@ -88,7 +88,10 @@ function resolveFont(options: AsciiAtlasOptions): {
   shorthand: string
   weight: number
 } {
-  const fontFamilyList = resolveTextFontFamily(options.fontFamily)
+  // Web fonts rarely cover katakana or box-drawing glyphs; ending the list
+  // with a CJK-capable system family lets Canvas2D rasterize those charsets
+  // per glyph instead of drawing blanks for the coverage filter to discard.
+  const fontFamilyList = `${resolveTextFontFamily(options.fontFamily)}, "Hiragino Kaku Gothic ProN", monospace`
   const weight = normalizeTextFontWeight(options.fontFamily, options.fontWeight)
   const fontSize = Math.max(4, Math.round(CELL_INNER_HEIGHT * GLYPH_FONT_SCALE))
 

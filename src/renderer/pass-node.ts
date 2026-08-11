@@ -30,13 +30,18 @@ export class PassNode {
 
   protected readonly scene: THREE.Scene
   protected readonly camera: THREE.OrthographicCamera
-  protected readonly material: THREE.MeshBasicNodeMaterial
+  protected material: THREE.MeshBasicNodeMaterial
   protected readonly inputNode: Node
   protected effectNode: Node
   protected readonly hueUniform: Node
   protected readonly saturationUniform: Node
+  protected lastRenderer: THREE.WebGPURenderer | null = null
 
   private readonly opacityUniform: Node
+  private readonly compositeGeometry: THREE.PlaneGeometry
+  private readonly compositeMesh: THREE.Mesh
+  private lastOutputTarget: THREE.WebGLRenderTarget | null = null
+  private effectSwapGeneration = 0
   private blendMode = "normal"
   private compositeMode: LayerCompositeMode = "filter"
   private maskSource = "luminance"
@@ -59,9 +64,10 @@ export class PassNode {
     this.effectNode = this.buildEffectNode()
     this.rebuildColorNode()
 
-    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.material)
-    mesh.frustumCulled = false
-    this.scene.add(mesh)
+    this.compositeGeometry = new THREE.PlaneGeometry(2, 2)
+    this.compositeMesh = new THREE.Mesh(this.compositeGeometry, this.material)
+    this.compositeMesh.frustumCulled = false
+    this.scene.add(this.compositeMesh)
   }
 
   render(
@@ -71,6 +77,8 @@ export class PassNode {
     time: number,
     delta: number,
   ): void {
+    this.lastRenderer = renderer
+    this.lastOutputTarget = outputTarget
     this.inputNode.value = inputTexture
     this.beforeRender(time, delta)
     renderer.setRenderTarget(outputTarget)
@@ -160,8 +168,10 @@ export class PassNode {
   }
 
   dispose(): void {
+    this.effectSwapGeneration += 1
     this.scene.clear()
     this.material.dispose()
+    this.compositeGeometry.dispose()
   }
 
   getMaterialVersion(): number {
@@ -181,15 +191,74 @@ export class PassNode {
   }
 
   protected rebuildEffectNode(): void {
+    this.effectSwapGeneration += 1
     this.effectNode = this.buildEffectNode()
     this.colorNodeDirty = false
     this.rebuildColorNode()
     this.material.needsUpdate = true
   }
 
+  protected async swapEffectNodeAsync(nextEffectNode: Node): Promise<boolean> {
+    const renderer = this.lastRenderer
+
+    if (!renderer) {
+      this.effectSwapGeneration += 1
+      this.effectNode = nextEffectNode
+      this.colorNodeDirty = false
+      this.rebuildColorNode()
+      this.material.needsUpdate = true
+      return true
+    }
+
+    const generation = ++this.effectSwapGeneration
+    const nextMaterial = new THREE.MeshBasicNodeMaterial()
+    nextMaterial.colorNode = this.composeColorNode(nextEffectNode)
+
+    const standbyScene = new THREE.Scene()
+    const standbyMesh = new THREE.Mesh(this.compositeGeometry, nextMaterial)
+    standbyMesh.frustumCulled = false
+    standbyScene.add(standbyMesh)
+
+    const compiler = renderer as unknown as {
+      compileAsync(scene: THREE.Scene, camera: THREE.Camera): Promise<void>
+      getRenderTarget(): THREE.WebGLRenderTarget | null
+      setRenderTarget(target: THREE.WebGLRenderTarget | null): void
+    }
+    const previousTarget = compiler.getRenderTarget()
+
+    if (this.lastOutputTarget) {
+      compiler.setRenderTarget(this.lastOutputTarget)
+    }
+
+    try {
+      await compiler.compileAsync(standbyScene, this.camera)
+    } finally {
+      compiler.setRenderTarget(previousTarget)
+    }
+
+    standbyScene.remove(standbyMesh)
+
+    if (generation !== this.effectSwapGeneration) {
+      nextMaterial.dispose()
+      return false
+    }
+
+    const previousMaterial = this.material
+    this.effectNode = nextEffectNode
+    this.colorNodeDirty = false
+    this.material = nextMaterial
+    this.compositeMesh.material = nextMaterial
+    previousMaterial.dispose()
+    return true
+  }
+
   protected rebuildColorNode(): void {
-    const adjustedEffectNode = this.applySharedColorAdjustments(this.effectNode)
-    this.material.colorNode = buildBlendNode(
+    this.material.colorNode = this.composeColorNode(this.effectNode)
+  }
+
+  private composeColorNode(effectNode: Node): Node {
+    const adjustedEffectNode = this.applySharedColorAdjustments(effectNode)
+    return buildBlendNode(
       this.blendMode,
       this.inputNode,
       adjustedEffectNode,

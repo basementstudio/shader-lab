@@ -1,3 +1,5 @@
+import { resolveAuthBaseUrl, resolveDatabaseUrl } from "@/lib/community/env"
+
 export type CommunityCapability = "auth" | "database" | "media" | "turnstile"
 
 function hasValue(value: string | undefined): boolean {
@@ -5,12 +7,12 @@ function hasValue(value: string | undefined): boolean {
 }
 
 export function isDatabaseConfigured(): boolean {
-  return hasValue(process.env.DATABASE_URL)
+  return resolveDatabaseUrl() !== null
 }
 
 export function isAuthConfigured(): boolean {
   return (
-    hasValue(process.env.NEON_AUTH_BASE_URL) &&
+    resolveAuthBaseUrl() !== null &&
     hasValue(process.env.NEON_AUTH_COOKIE_SECRET)
   )
 }

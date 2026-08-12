@@ -37,6 +37,8 @@
     "typecheck:tsc": "tsc --noEmit --incremental false"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1108.0",
+    "@aws-sdk/s3-request-presigner": "^3.1108.0",
     "@base-ui/react": "^1.3.0",
     "@basementstudio/shader-lab": "workspace:*",
     "@neondatabase/auth": "^0.5.0-beta",
@@ -51,6 +53,7 @@
     "drizzle-orm": "^0.45.2",
     "motion": "^12.38.0",
     "mp4-muxer": "^5.2.2",
+    "nanoid": "^6.0.1",
     "next": "^16.2.3",
     "react": "19.2.4",
     "react-dom": "19.2.4",

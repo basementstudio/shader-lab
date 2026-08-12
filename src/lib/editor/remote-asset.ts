@@ -5,6 +5,15 @@ const BUILT_IN_ASSET_HOSTS = ["cloudflarestream.com", "videodelivery.net"]
 
 const LOOPBACK_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"])
 
+export function normalizeHost(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/^[a-z][a-z0-9+.-]*:\/\//, "")
+    .replace(/\/.*$/, "")
+    .replace(/:\d+$/, "")
+}
+
 function parseHostList(value: string | undefined): string[] {
   if (!value) {
     return []
@@ -12,7 +21,7 @@ function parseHostList(value: string | undefined): string[] {
 
   return value
     .split(",")
-    .map((entry) => entry.trim().toLowerCase())
+    .map((entry) => normalizeHost(entry))
     .filter((entry) => entry.length > 0)
 }
 

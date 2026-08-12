@@ -71,12 +71,29 @@ describe("resolveThumbnailUrl", () => {
     )
   })
 
-  test("builds a Cloudflare Images variant url from an id", () => {
+  test("builds a Cloudflare Images variant url including the account hash", () => {
     setEnv("NEXT_PUBLIC_CF_IMAGES_HOST", "imagedelivery.net")
+    setEnv("NEXT_PUBLIC_CF_IMAGES_ACCOUNT_HASH", "HASH123")
 
     expect(resolveThumbnailUrl("abc123")).toBe(
-      "https://imagedelivery.net/abc123/grid"
+      "https://imagedelivery.net/HASH123/abc123/grid"
     )
+  })
+
+  test("tolerates a host written with a scheme", () => {
+    setEnv("NEXT_PUBLIC_CF_IMAGES_HOST", "https://imagedelivery.net/")
+    setEnv("NEXT_PUBLIC_CF_IMAGES_ACCOUNT_HASH", "HASH123")
+
+    expect(resolveThumbnailUrl("abc123")).toBe(
+      "https://imagedelivery.net/HASH123/abc123/grid"
+    )
+  })
+
+  test("returns null without the account hash, rather than a broken url", () => {
+    setEnv("NEXT_PUBLIC_CF_IMAGES_HOST", "imagedelivery.net")
+    setEnv("NEXT_PUBLIC_CF_IMAGES_ACCOUNT_HASH", undefined)
+
+    expect(resolveThumbnailUrl("abc123")).toBeNull()
   })
 
   test("returns null for a bare id when Images is not configured", () => {

@@ -1,6 +1,7 @@
 import { and, desc, eq, ilike, or, sql } from "drizzle-orm"
 import { getDatabase } from "@/lib/db"
 import { profiles, scenes } from "@/lib/db/schema"
+import { normalizeHost } from "@/lib/editor/remote-asset"
 import type { LayerType } from "@/types/editor"
 
 export const SCENE_SORTS = ["latest", "popular", "featured"] as const
@@ -35,9 +36,9 @@ export function resolveLabUrl(labKey: string): string {
     return labKey
   }
 
-  const host = process.env.NEXT_PUBLIC_R2_PUBLIC_HOST
+  const host = normalizeHost(process.env.NEXT_PUBLIC_R2_PUBLIC_HOST ?? "")
 
-  return host ? `https://${host}/${labKey}` : labKey
+  return host ? `https://${host}/${labKey.replace(/^\/+/, "")}` : labKey
 }
 
 export function resolveThumbnailUrl(
@@ -54,9 +55,14 @@ export function resolveThumbnailUrl(
     return thumbnailImageId
   }
 
-  const host = process.env.NEXT_PUBLIC_CF_IMAGES_HOST
+  const host = normalizeHost(process.env.NEXT_PUBLIC_CF_IMAGES_HOST ?? "")
+  const accountHash = process.env.NEXT_PUBLIC_CF_IMAGES_ACCOUNT_HASH?.trim()
 
-  return host ? `https://${host}/${thumbnailImageId}/grid` : null
+  if (!(host && accountHash)) {
+    return null
+  }
+
+  return `https://${host}/${accountHash}/${thumbnailImageId}/grid`
 }
 
 const summaryColumns = {

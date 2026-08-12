@@ -78,7 +78,10 @@ const nextConfig: NextConfig = {
   },
   images: {
     dangerouslyAllowSVG: true,
-    remotePatterns: [],
+    remotePatterns: [
+      { hostname: "avatars.githubusercontent.com", protocol: "https" },
+      { hostname: "lh3.googleusercontent.com", protocol: "https" },
+    ],
     minimumCacheTTL: 60 * 60 * 24 * 30, // 30 days
     qualities: [90],
     formats: ["image/avif", "image/webp"],

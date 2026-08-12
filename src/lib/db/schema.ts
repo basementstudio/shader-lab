@@ -24,7 +24,9 @@ const updatedAt = timestamp("updated_at", { withTimezone: true })
   .defaultNow()
 
 export const profiles = pgTable("profiles", {
+  avatarUrl: text("avatar_url"),
   createdAt,
+  displayName: text("display_name"),
   handle: text("handle").notNull().unique(),
   updatedAt,
   userId: uuid("user_id").primaryKey(),

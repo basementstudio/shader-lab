@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from "drizzle-orm"
+import { and, desc, eq, ilike, or, sql } from "drizzle-orm"
 import { getDatabase } from "@/lib/db"
 import { profiles, scenes } from "@/lib/db/schema"
 import type { LayerType } from "@/types/editor"
@@ -7,7 +7,9 @@ export const SCENE_SORTS = ["latest", "popular", "featured"] as const
 export type SceneSort = (typeof SCENE_SORTS)[number]
 
 export interface CommunitySceneSummary {
+  authorAvatarUrl: string | null
   authorHandle: string
+  authorName: string | null
   compositionHeight: number
   compositionWidth: number
   durationSeconds: number
@@ -58,7 +60,9 @@ export function resolveThumbnailUrl(
 }
 
 const summaryColumns = {
+  authorAvatarUrl: profiles.avatarUrl,
   authorHandle: profiles.handle,
+  authorName: profiles.displayName,
   compositionHeight: scenes.compositionHeight,
   compositionWidth: scenes.compositionWidth,
   durationSeconds: scenes.durationSeconds,
@@ -74,7 +78,9 @@ const summaryColumns = {
 }
 
 function toSummary(row: {
+  authorAvatarUrl: string | null
   authorHandle: string
+  authorName: string | null
   compositionHeight: number
   compositionWidth: number
   durationSeconds: number
@@ -89,7 +95,9 @@ function toSummary(row: {
   title: string
 }): CommunitySceneSummary {
   return {
+    authorAvatarUrl: row.authorAvatarUrl,
     authorHandle: row.authorHandle,
+    authorName: row.authorName,
     compositionHeight: row.compositionHeight,
     compositionWidth: row.compositionWidth,
     durationSeconds: row.durationSeconds,
@@ -117,21 +125,40 @@ function buildOrderBy(sort: SceneSort) {
   return [desc(scenes.publishedAt)]
 }
 
+function escapeLike(value: string): string {
+  return value.replace(/[\\%_]/g, (match) => `\\${match}`)
+}
+
 export async function listPublishedScenes(options?: {
   limit?: number
+  query?: string
   sort?: SceneSort
 }): Promise<CommunitySceneSummary[]> {
   const limit = Math.min(Math.max(options?.limit ?? 24, 1), 60)
   const sort = options?.sort ?? "latest"
+  const query = options?.query?.trim() ?? ""
 
   const orderBy = buildOrderBy(sort)
-  const where =
-    sort === "featured"
-      ? and(
-          eq(scenes.status, "published"),
-          sql`${scenes.featuredAt} is not null`
-        )
-      : eq(scenes.status, "published")
+  const filters = [eq(scenes.status, "published")]
+
+  if (sort === "featured") {
+    filters.push(sql`${scenes.featuredAt} is not null`)
+  }
+
+  if (query.length > 0) {
+    const pattern = `%${escapeLike(query)}%`
+    const match = or(
+      ilike(scenes.title, pattern),
+      ilike(profiles.handle, pattern),
+      ilike(profiles.displayName, pattern)
+    )
+
+    if (match) {
+      filters.push(match)
+    }
+  }
+
+  const where = and(...filters)
 
   const rows = await getDatabase()
     .select(summaryColumns)

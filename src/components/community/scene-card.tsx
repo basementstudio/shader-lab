@@ -2,7 +2,6 @@
 
 import Image from "next/image"
 import { Typography } from "@/components/ui/typography"
-import { cn } from "@/lib/cn"
 import type { CommunitySceneSummary } from "@/lib/community/scenes"
 
 function RemixGlyph() {
@@ -25,6 +24,31 @@ function RemixGlyph() {
   )
 }
 
+function AuthorAvatar({ scene }: { scene: CommunitySceneSummary }) {
+  const label = scene.authorName ?? scene.authorHandle
+  const initial = label.trim().charAt(0).toUpperCase() || "?"
+
+  if (scene.authorAvatarUrl) {
+    return (
+      <Image
+        alt=""
+        className="size-5 shrink-0 rounded-full border border-[var(--ds-border-subtle)] object-cover"
+        height={20}
+        src={scene.authorAvatarUrl}
+        width={20}
+      />
+    )
+  }
+
+  return (
+    <span className="flex size-5 shrink-0 items-center justify-center rounded-full border border-[var(--ds-border-subtle)] bg-[var(--ds-color-surface-control)]">
+      <Typography as="span" tone="secondary" variant="monoXs">
+        {initial}
+      </Typography>
+    </span>
+  )
+}
+
 export function SceneCard({
   onSelect,
   scene,
@@ -34,7 +58,7 @@ export function SceneCard({
 }) {
   return (
     <button
-      className="group flex w-full origin-center cursor-pointer flex-col gap-[var(--ds-space-2)] rounded-[10px] border border-transparent text-left transition-[transform] duration-160 ease-[var(--ease-out-cubic)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--ds-border-active)] focus-visible:outline-offset-2 active:scale-[0.99]"
+      className="group flex w-full cursor-pointer flex-col gap-[var(--ds-space-2)] rounded-[10px] text-left focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--ds-border-active)] focus-visible:outline-offset-2"
       onClick={() => onSelect(scene.slug)}
       type="button"
     >
@@ -42,7 +66,7 @@ export function SceneCard({
         {scene.thumbnailUrl ? (
           <Image
             alt={scene.title}
-            className="object-cover transition-transform duration-[320ms] ease-[var(--ease-out-cubic)] group-hover:scale-[1.03]"
+            className="object-cover"
             fill
             sizes="(max-width: 900px) 45vw, 260px"
             src={scene.thumbnailUrl}
@@ -59,25 +83,26 @@ export function SceneCard({
         </div>
       </div>
 
-      <div className="flex min-w-0 flex-col gap-[2px] px-[2px]">
+      <div className="flex min-w-0 flex-col gap-[5px] px-[2px]">
         <Typography
           as="span"
-          className={cn(
-            "overflow-hidden text-ellipsis whitespace-nowrap transition-colors duration-160",
-            "group-hover:text-white"
-          )}
+          className="overflow-hidden text-ellipsis whitespace-nowrap transition-colors duration-160 group-hover:text-white"
           variant="label"
         >
           {scene.title}
         </Typography>
-        <Typography
-          as="span"
-          className="overflow-hidden text-ellipsis whitespace-nowrap"
-          tone="tertiary"
-          variant="monoXs"
-        >
-          @{scene.authorHandle}
-        </Typography>
+
+        <span className="flex min-w-0 items-center gap-1.5">
+          <AuthorAvatar scene={scene} />
+          <Typography
+            as="span"
+            className="overflow-hidden text-ellipsis whitespace-nowrap"
+            tone="tertiary"
+            variant="caption"
+          >
+            {scene.authorName ?? `@${scene.authorHandle}`}
+          </Typography>
+        </span>
       </div>
     </button>
   )

@@ -36,7 +36,13 @@ async function main() {
   }
 
   const sql = neon(url)
-  const [author] = await sql`select id, name, email from neon_auth.user limit 1`
+
+  if (process.argv.includes("--clear")) {
+    const removed = await sql`delete from scenes where id like ${"seed-%"} returning id`
+    console.log(`removed ${removed.length} seeded scenes`)
+    return
+  }
+  const [author] = await sql`select id, name, email, image from neon_auth.user limit 1`
 
   if (!author) {
     throw new Error(
@@ -45,6 +51,7 @@ async function main() {
   }
 
   const profile = await ensureProfile(author.id, {
+    avatarUrl: author.image,
     email: author.email,
     name: author.name,
   })

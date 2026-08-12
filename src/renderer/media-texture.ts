@@ -124,6 +124,7 @@ function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
 function loadImageElement(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const image = new Image()
+    image.crossOrigin = "anonymous"
     image.decoding = "async"
     image.onload = () => resolve(image)
     image.onerror = () => {
@@ -221,6 +222,7 @@ export function loadImageTexture(
 export function createVideoTexture(url: string): Promise<VideoHandle> {
   return new Promise((resolve, reject) => {
     const video = document.createElement("video")
+    video.crossOrigin = "anonymous"
     video.loop = true
     video.muted = true
     video.playsInline = true

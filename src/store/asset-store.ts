@@ -165,6 +165,7 @@ export const useAssetStore = create<AssetStore>((set, get) => ({
       kind,
       mimeType: file.type,
       sizeBytes: file.size,
+      source: "local" as const,
       status: "ready" as const,
       url,
     }
@@ -217,7 +218,7 @@ export const useAssetStore = create<AssetStore>((set, get) => ({
   removeAsset: (id) => {
     const asset = get().assets.find((entry) => entry.id === id)
 
-    if (asset) {
+    if (asset?.source === "local") {
       URL.revokeObjectURL(asset.url)
     }
 
@@ -234,7 +235,7 @@ export const useAssetStore = create<AssetStore>((set, get) => ({
     const retained = new Set(assets.map((asset) => asset.url))
 
     for (const asset of get().assets) {
-      if (!retained.has(asset.url)) {
+      if (asset.source === "local" && !retained.has(asset.url)) {
         URL.revokeObjectURL(asset.url)
       }
     }

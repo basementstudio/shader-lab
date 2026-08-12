@@ -5,6 +5,7 @@ import {
   DragHandleDots2Icon,
   GearIcon,
   GlobeIcon,
+  UploadIcon,
   GitHubLogoIcon,
   ResetIcon,
   SpeakerLoudIcon,
@@ -40,6 +41,14 @@ import {
   useSoundStore,
   useTimelineStore,
 } from "@/store"
+
+const PublishDialog = dynamic(
+  () =>
+    import("@/components/community/publish-dialog").then(
+      (mod) => mod.PublishDialog
+    ),
+  { ssr: false }
+)
 
 const CommunityModal = dynamic(
   () =>
@@ -112,6 +121,8 @@ export function EditorTopBar() {
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false)
   const [hasOpenedExport, setHasOpenedExport] = useState(false)
   const [communityOpen, setCommunityOpen] = useState(false)
+  const [publishOpen, setPublishOpen] = useState(false)
+  const [hasOpenedPublish, setHasOpenedPublish] = useState(false)
   const [hasOpenedCommunity, setHasOpenedCommunity] = useState(false)
 
   const handleExportDialogOpenChange = useCallback((open: boolean) => {
@@ -555,6 +566,19 @@ export function EditorTopBar() {
                 )}
               </IconButton>
               <IconButton
+                aria-label="Publish to community"
+                className="h-7 w-7"
+                onClick={() => {
+                  setHasOpenedPublish(true)
+                  setPublishOpen(true)
+                }}
+                tooltip="Publish to community"
+                tooltipSide="bottom"
+                variant="default"
+              >
+                <UploadIcon height={16} width={16} />
+              </IconButton>
+              <IconButton
                 aria-label="Community scenes"
                 className="h-7 w-7"
                 onClick={() => {
@@ -678,6 +702,10 @@ export function EditorTopBar() {
             </div>
           </GlassPanel>
         </div>
+      ) : null}
+
+      {hasOpenedPublish ? (
+        <PublishDialog onOpenChange={setPublishOpen} open={publishOpen} />
       ) : null}
 
       {hasOpenedCommunity ? (

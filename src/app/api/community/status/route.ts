@@ -32,6 +32,8 @@ function hostOf(value: string | undefined): string | null {
   }
 }
 
+export const dynamic = "force-dynamic"
+
 export function GET() {
   return Response.json({
     capabilities: {

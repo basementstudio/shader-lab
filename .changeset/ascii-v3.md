@@ -26,4 +26,8 @@ Crisp runtime-SDF glyphs (grid-packed atlas, shared baseline, analytic edge, adj
 
 Color mode and invert compile branchlessly, so source mode selects exactly the same glyphs as monochrome. Generated shaders avoid chained vector swizzles, working around a Tint compiler regression in current Chrome Canary that killed pipeline creation. Retired atlas textures now outlive their bind groups, fixing a render-loop crash (`mipLevelCount` of undefined) when a font finished loading after boot.
 
+**Fonts in the package**
+
+The package now ships Geist Sans, Geist Mono, and BSMNT Grotesque with an importable stylesheet — `import "@basementstudio/shader-lab/fonts.css"` — that declares the `@font-face` rules and sets the CSS variables the font resolver reads. The commercially licensed families remain available in the hosted app only; hosts can enable them (or any font) by loading the font themselves and setting the matching CSS variable. See the Fonts section of the package README.
+
 **Removed** (breaking): `cellUnit`/`cellSize` (use `columns`), `glyphSource` structure/contour matching, `flowWarp`/`warpMode`, `glyphRotation`, `glyphScale`/`glyphScaleSource`/`glyphScaleMin`, `toneMapping`, `glyphSignalMode`/`colorSignalMode`, `signalGamma`, `presenceThreshold`/`presenceSoftness`, `shimmerAmount`/`shimmerSpeed`, `advection`/`motionScramble`/`scrambleDecay`, `directionBias`, `cellAspect` (now always follows the font), `renderMode` (always smooth), green-terminal color mode (use monochrome with a green tint), and the 32x break level. Unknown parameters in saved configs are ignored and fall back to defaults.

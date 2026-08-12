@@ -28,9 +28,9 @@ afterEach(() => {
 })
 
 describe("resolveLabUrl", () => {
-  test("passes through a local seed path untouched", () => {
-    expect(resolveLabUrl("/community-seed/voxel-demo.lab.json")).toBe(
-      "/community-seed/voxel-demo.lab.json"
+  test("passes through a root-relative path untouched", () => {
+    expect(resolveLabUrl("/local/scene.lab.json")).toBe(
+      "/local/scene.lab.json"
     )
   })
 

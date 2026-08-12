@@ -53,13 +53,13 @@ export function SceneCard({
   onSelect,
   scene,
 }: {
-  onSelect: (slug: string) => void
+  onSelect: (scene: CommunitySceneSummary) => void
   scene: CommunitySceneSummary
 }) {
   return (
     <button
       className="group flex w-full cursor-pointer flex-col gap-[var(--ds-space-2)] rounded-[10px] text-left focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--ds-border-active)] focus-visible:outline-offset-2"
-      onClick={() => onSelect(scene.slug)}
+      onClick={() => onSelect(scene)}
       type="button"
     >
       <div className="relative aspect-[16/10] w-full overflow-hidden rounded-[8px] border border-[var(--ds-border-subtle)] bg-[var(--ds-color-surface-subtle)] transition-[border-color] duration-160 ease-[var(--ease-out-cubic)] group-hover:border-[var(--ds-border-hover)]">

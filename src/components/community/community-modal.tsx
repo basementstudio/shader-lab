@@ -66,6 +66,7 @@ export function CommunityModal({
   const [search, setSearch] = useState("")
   const [query, setQuery] = useState("")
   const [items, setItems] = useState<CommunitySceneSummary[] | null>(null)
+  const [selected, setSelected] = useState<CommunitySceneSummary | null>(null)
   const [detail, setDetail] = useState<CommunitySceneDetail | null>(null)
   const [remixing, setRemixing] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -131,7 +132,8 @@ export function CommunityModal({
         return
       }
 
-      if (detail) {
+      if (selected) {
+        setSelected(null)
         setDetail(null)
         return
       }
@@ -142,32 +144,49 @@ export function CommunityModal({
     window.addEventListener("keydown", onKeyDown)
 
     return () => window.removeEventListener("keydown", onKeyDown)
-  }, [detail, onOpenChange, open])
+  }, [onOpenChange, open, selected])
 
-  const openScene = useCallback(async (slug: string) => {
-    setError(null)
+  const openScene = useCallback(
+    async (summary: CommunitySceneSummary) => {
+      setError(null)
+      setSelected(summary)
+      setDetail(null)
 
-    try {
-      const res = await fetch(`/api/community/scenes/${slug}`)
-      const data = (await res.json()) as { scene?: CommunitySceneDetail }
+      try {
+        const res = await fetch(`/api/community/scenes/${summary.slug}`)
+        const data = (await res.json()) as { scene?: CommunitySceneDetail }
 
-      if (data.scene) {
-        setDetail(data.scene)
-      } else {
-        setError("That scene is no longer available.")
+        if (data.scene) {
+          setDetail(data.scene)
+        } else {
+          setError("That scene is no longer available.")
+        }
+      } catch {
+        setError("Could not load that scene.")
       }
-    } catch {
-      setError("Could not load that scene.")
-    }
-  }, [])
+    },
+    []
+  )
 
   useEffect(() => {
     if (!(open && focusSlug)) {
       return
     }
 
-    void openScene(focusSlug)
-  }, [focusSlug, open, openScene])
+    void (async () => {
+      try {
+        const res = await fetch(`/api/community/scenes/${focusSlug}`)
+        const data = (await res.json()) as { scene?: CommunitySceneDetail }
+
+        if (data.scene) {
+          setSelected(data.scene)
+          setDetail(data.scene)
+        }
+      } catch {
+        setError("Could not open that scene.")
+      }
+    })()
+  }, [focusSlug, open])
 
   const remix = useCallback(
     async (scene: CommunitySceneDetail) => {
@@ -191,6 +210,7 @@ export function CommunityModal({
 
         applyLabProjectFile(projectFile, useAssetStore.getState().assets)
         onOpenChange(false)
+        setSelected(null)
         setDetail(null)
       } catch (cause) {
         setError(
@@ -286,9 +306,12 @@ export function CommunityModal({
 
                 <div className="flex h-[48px] shrink-0 items-center justify-between gap-[var(--ds-space-3)] overflow-hidden border-b border-[var(--ds-border-divider)] px-4">
                   <div className="flex min-w-0 items-center gap-1.5">
-                  {detail ? (
+                  {selected ? (
                     <Button
-                      onClick={() => setDetail(null)}
+                      onClick={() => {
+                        setSelected(null)
+                        setDetail(null)
+                      }}
                       size="compact"
                       variant="ghost"
                     >
@@ -319,7 +342,7 @@ export function CommunityModal({
                   )}
                   </div>
 
-                  {detail ? null : (
+                  {selected ? null : (
                     <label className="inline-flex h-7 min-w-0 shrink-0 items-center gap-1.5 rounded-[var(--ds-radius-control)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-2 transition-[border-color] duration-160 ease-[var(--ease-out-cubic)] focus-within:border-[var(--ds-border-active)]">
                       <span className="text-[var(--ds-color-text-tertiary)]">
                         <MagnifyingGlassIcon height={13} width={13} />
@@ -348,11 +371,12 @@ export function CommunityModal({
                 ) : null}
 
                 <div className="h-[min(62vh,560px)]">
-                  {detail ? (
+                  {selected ? (
                     <SceneDetail
+                      detail={detail}
                       onRemix={remix}
                       remixing={remixing}
-                      scene={detail}
+                      scene={selected}
                     />
                   ) : (
                     <div className="h-full overflow-y-auto p-4">

@@ -4,7 +4,10 @@ import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Typography } from "@/components/ui/typography"
 import { getLayerLabel } from "@/lib/editor/config/layer-catalog"
-import type { CommunitySceneDetail } from "@/lib/community/scenes"
+import type {
+  CommunitySceneDetail,
+  CommunitySceneSummary,
+} from "@/lib/community/scenes"
 
 function formatPublishedAt(value: string | null): string {
   if (!value) {
@@ -19,14 +22,18 @@ function formatPublishedAt(value: string | null): string {
 }
 
 export function SceneDetail({
+  detail,
   onRemix,
   remixing,
   scene,
 }: {
+  detail: CommunitySceneDetail | null
   onRemix: (scene: CommunitySceneDetail) => void
   remixing: boolean
-  scene: CommunitySceneDetail
+  scene: CommunitySceneSummary
 }) {
+  const description = detail?.description ?? null
+  const forkedFrom = detail?.forkedFrom ?? null
   return (
     <div className="grid h-full grid-cols-1 gap-4 overflow-y-auto p-4 min-[760px]:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] min-[760px]:overflow-hidden">
       <div className="flex min-w-0 flex-col gap-[var(--ds-space-3)]">
@@ -39,9 +46,9 @@ export function SceneDetail({
             {scene.title}
           </Typography>
 
-          {scene.description ? (
+          {description ? (
             <Typography as="p" tone="secondary" variant="body">
-              {scene.description}
+              {description}
             </Typography>
           ) : null}
         </div>
@@ -66,17 +73,17 @@ export function SceneDetail({
           ) : null}
         </div>
 
-        {scene.forkedFrom ? (
+        {forkedFrom ? (
           <Typography as="p" tone="tertiary" variant="caption">
-            Forked from {scene.forkedFrom.title}
+            Forked from {forkedFrom.title}
           </Typography>
         ) : null}
 
         <div className="mt-auto flex flex-col gap-[var(--ds-space-2)] pt-[var(--ds-space-3)]">
           <Button
-            disabled={remixing}
+            disabled={remixing || !detail}
             fullWidth
-            onClick={() => onRemix(scene)}
+            onClick={() => detail && onRemix(detail)}
             uiSound="action.addLayer"
             variant="primary"
           >
@@ -95,14 +102,24 @@ export function SceneDetail({
 
       <div className="relative min-h-[220px] w-full overflow-hidden rounded-[8px] border border-[var(--ds-border-subtle)] bg-[var(--ds-color-surface-subtle)]">
         {scene.thumbnailUrl ? (
-          <Image
-            alt={scene.title}
-            className="object-cover"
-            fill
-            priority
-            sizes="640px"
-            src={scene.thumbnailUrl}
-          />
+          <>
+            <Image
+              alt=""
+              aria-hidden="true"
+              className="object-cover"
+              fill
+              priority
+              sizes="(max-width: 900px) 45vw, 260px"
+              src={scene.thumbnailUrl}
+            />
+            <Image
+              alt={scene.title}
+              className="object-cover"
+              fill
+              sizes="640px"
+              src={scene.thumbnailUrl}
+            />
+          </>
         ) : null}
       </div>
     </div>

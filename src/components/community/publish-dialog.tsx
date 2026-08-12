@@ -1,0 +1,321 @@
+"use client"
+
+import { Cross2Icon } from "@radix-ui/react-icons"
+import { AnimatePresence, motion, useReducedMotion } from "motion/react"
+import { useCallback, useEffect, useRef, useState } from "react"
+import { createPortal } from "react-dom"
+import { Button } from "@/components/ui/button"
+import { GlassPanel } from "@/components/ui/glass-panel"
+import { IconButton } from "@/components/ui/icon-button"
+import { Slider } from "@/components/ui/slider"
+import { Typography } from "@/components/ui/typography"
+import {
+  captureThumbnail,
+  getThumbnailTimeBounds,
+  type PublishProgress,
+  publishScene,
+} from "@/lib/community/publish-client"
+import { numberInputControlClassName } from "@/components/ui/number-input"
+import { cn } from "@/lib/cn"
+import { useTimelineStore } from "@/store/timeline-store"
+
+type Phase = "form" | "publishing" | "done"
+
+export function PublishDialog({
+  onOpenChange,
+  open,
+}: {
+  onOpenChange: (open: boolean) => void
+  open: boolean
+}) {
+  const reduceMotion = useReducedMotion() ?? false
+  const duration = useTimelineStore((state) => state.duration)
+  const currentTime = useTimelineStore((state) => state.currentTime)
+  const bounds = getThumbnailTimeBounds(duration)
+
+  const [mounted, setMounted] = useState(false)
+  const [title, setTitle] = useState("")
+  const [description, setDescription] = useState("")
+  const [thumbnailTime, setThumbnailTime] = useState(0)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [capturing, setCapturing] = useState(false)
+  const [phase, setPhase] = useState<Phase>("form")
+  const [progress, setProgress] = useState<PublishProgress | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [slug, setSlug] = useState<string | null>(null)
+  const previewUrlRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    if (!open) {
+      return
+    }
+
+    setPhase("form")
+    setError(null)
+    setProgress(null)
+    setSlug(null)
+    const seeded = Math.min(Math.max(currentTime, bounds.min), bounds.max)
+    setThumbnailTime(Math.round(seeded * 100) / 100)
+  }, [bounds.max, bounds.min, currentTime, open])
+
+  useEffect(
+    () => () => {
+      if (previewUrlRef.current) {
+        URL.revokeObjectURL(previewUrlRef.current)
+      }
+    },
+    []
+  )
+
+  const refreshPreview = useCallback(async (time: number) => {
+    setCapturing(true)
+    setError(null)
+
+    try {
+      const blob = await captureThumbnail(time)
+      const url = URL.createObjectURL(blob)
+
+      if (previewUrlRef.current) {
+        URL.revokeObjectURL(previewUrlRef.current)
+      }
+
+      previewUrlRef.current = url
+      setPreviewUrl(url)
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "Could not capture a preview."
+      )
+    } finally {
+      setCapturing(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!open) {
+      return
+    }
+
+    const timeout = window.setTimeout(() => {
+      void refreshPreview(thumbnailTime)
+    }, 260)
+
+    return () => window.clearTimeout(timeout)
+  }, [open, refreshPreview, thumbnailTime])
+
+  const submit = useCallback(async () => {
+    setPhase("publishing")
+    setError(null)
+
+    try {
+      const result = await publishScene({
+        description,
+        onProgress: setProgress,
+        thumbnailTime,
+        title,
+      })
+
+      setSlug(result.slug)
+      setPhase("done")
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "Could not publish this scene."
+      )
+      setPhase("form")
+    }
+  }, [description, thumbnailTime, title])
+
+  if (!mounted) {
+    return null
+  }
+
+  const canSubmit = title.trim().length > 0 && !capturing && phase === "form"
+
+  return createPortal(
+    <AnimatePresence initial={false}>
+      {open ? (
+        <div className="fixed inset-0 z-90" role="presentation">
+          <motion.button
+            animate={{ opacity: 1 }}
+            aria-label="Close publish dialog"
+            className="absolute inset-0 w-full border-0 bg-[rgb(4_5_7_/_0.56)]"
+            exit={{ opacity: 0 }}
+            initial={{ opacity: 0 }}
+            onClick={() => onOpenChange(false)}
+            tabIndex={-1}
+            transition={{
+              duration: reduceMotion ? 0.12 : 0.18,
+              ease: "easeOut",
+            }}
+            type="button"
+          />
+
+          <div className="absolute top-[76px] left-1/2 w-[min(720px,calc(100vw-32px))] -translate-x-1/2">
+            <motion.div
+              animate={
+                reduceMotion ? { opacity: 1 } : { opacity: 1, scale: 1, y: 0 }
+              }
+              exit={
+                reduceMotion
+                  ? { opacity: 0 }
+                  : { opacity: 0, scale: 0.985, y: -10 }
+              }
+              initial={
+                reduceMotion
+                  ? { opacity: 0 }
+                  : { opacity: 0, scale: 0.985, y: 10 }
+              }
+              transition={
+                reduceMotion
+                  ? { duration: 0.12, ease: "easeOut" }
+                  : { duration: 0.22, ease: [0.22, 1, 0.36, 1] }
+              }
+            >
+              <GlassPanel
+                aria-modal="true"
+                className="overflow-hidden p-0"
+                role="dialog"
+                variant="panel"
+              >
+                <div className="flex items-center justify-between border-b border-[var(--ds-border-divider)] px-4 pt-[14px] pb-3">
+                  <Typography as="h2" className="leading-5" variant="title">
+                    Publish to community
+                  </Typography>
+                  <IconButton
+                    aria-label="Close publish dialog"
+                    className="h-7 w-7"
+                    onClick={() => onOpenChange(false)}
+                    variant="default"
+                  >
+                    <Cross2Icon height={18} width={18} />
+                  </IconButton>
+                </div>
+
+                {error ? (
+                  <div
+                    className="border-b border-[var(--ds-border-divider)] bg-[rgb(120_28_28_/_0.22)] px-4 py-2"
+                    role="alert"
+                  >
+                    <Typography as="p" variant="caption">
+                      {error}
+                    </Typography>
+                  </div>
+                ) : null}
+
+                {phase === "done" ? (
+                  <div className="flex flex-col gap-[var(--ds-space-3)] p-4">
+                    <Typography as="p" variant="label">
+                      Published
+                    </Typography>
+                    <Typography as="p" tone="tertiary" variant="caption">
+                      {slug
+                        ? `Your scene is live in the community as "${slug}".`
+                        : "Your scene is live in the community."}
+                    </Typography>
+                    <Button
+                      onClick={() => onOpenChange(false)}
+                      variant="primary"
+                    >
+                      Done
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-4 p-4 min-[640px]:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                    <div className="flex flex-col gap-[var(--ds-space-3)]">
+                      <label className="flex flex-col gap-1.5">
+                        <Typography as="span" tone="tertiary" variant="overline">
+                          Title
+                        </Typography>
+                        <input
+                          className={cn(numberInputControlClassName, "px-2")}
+                          maxLength={80}
+                          onChange={(event) => setTitle(event.target.value)}
+                          placeholder="Name your scene"
+                          value={title}
+                        />
+                      </label>
+
+                      <label className="flex flex-col gap-1.5">
+                        <Typography as="span" tone="tertiary" variant="overline">
+                          Description
+                        </Typography>
+                        <textarea
+                          className={cn(
+                            numberInputControlClassName,
+                            "min-h-[76px] resize-none px-2 py-1.5"
+                          )}
+                          maxLength={500}
+                          onChange={(event) =>
+                            setDescription(event.target.value)
+                          }
+                          placeholder="What is going on in this scene?"
+                          value={description}
+                        />
+                      </label>
+
+                      <Slider
+                        label="Thumbnail frame"
+                        max={bounds.max}
+                        min={bounds.min}
+                        onValueChange={setThumbnailTime}
+                        step={0.05}
+                        value={thumbnailTime}
+                        valueFormatOptions={{
+                          maximumFractionDigits: 2,
+                          minimumFractionDigits: 2,
+                        }}
+                        valueSuffix="s"
+                      />
+
+                      {progress ? (
+                        <Typography as="p" tone="tertiary" variant="monoXs">
+                          {progress.label} ({progress.done}/{progress.total})
+                        </Typography>
+                      ) : null}
+
+                      <Button
+                        disabled={!canSubmit}
+                        fullWidth
+                        onClick={submit}
+                        variant="primary"
+                      >
+                        {phase === "publishing" ? "Publishing…" : "Publish"}
+                      </Button>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <Typography as="span" tone="tertiary" variant="overline">
+                        Thumbnail
+                      </Typography>
+                      <div className="relative aspect-[16/10] w-full overflow-hidden rounded-[8px] border border-[var(--ds-border-subtle)] bg-[var(--ds-color-surface-subtle)]">
+                        {previewUrl ? (
+                          // biome-ignore lint/performance/noImgElement: object URL from a freshly captured frame, not a remote asset
+                          <img
+                            alt="Thumbnail preview"
+                            className="absolute inset-0 h-full w-full object-cover"
+                            src={previewUrl}
+                          />
+                        ) : null}
+                        {capturing ? (
+                          <div className="absolute inset-0 animate-pulse bg-[rgb(8_9_12_/_0.35)]" />
+                        ) : null}
+                      </div>
+                      <Typography as="p" tone="tertiary" variant="monoXs">
+                        {thumbnailTime.toFixed(2)}s of first{" "}
+                        {bounds.max.toFixed(0)}s
+                      </Typography>
+                    </div>
+                  </div>
+                )}
+              </GlassPanel>
+            </motion.div>
+          </div>
+        </div>
+      ) : null}
+    </AnimatePresence>,
+    document.body
+  )
+}

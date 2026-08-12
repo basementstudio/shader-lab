@@ -1,0 +1,227 @@
+import { buildRenderProjectState } from "@/lib/agent-bridge/screenshot"
+import { buildLabProjectFile } from "@/lib/editor/project-file"
+import { useAssetStore } from "@/store/asset-store"
+import type { PresetAssetReference } from "@/types/editor"
+
+export const THUMBNAIL_MAX_TIME_SECONDS = 10
+export const THUMBNAIL_WIDTH = 1280
+export const THUMBNAIL_MIME = "image/webp"
+
+export interface PublishProgress {
+  done: number
+  label: string
+  total: number
+}
+
+export interface PublishResult {
+  slug: string | null
+}
+
+interface UploadTarget {
+  contentType: string
+  key: string
+  publicUrl: string
+  sha256: string
+  uploadUrl: string
+}
+
+export function getThumbnailTimeBounds(duration: number): {
+  max: number
+  min: number
+} {
+  const safeDuration = Number.isFinite(duration) ? Math.max(0, duration) : 0
+
+  return { max: Math.min(safeDuration, THUMBNAIL_MAX_TIME_SECONDS), min: 0 }
+}
+
+export async function sha256Hex(bytes: ArrayBuffer): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", bytes)
+
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("")
+}
+
+export async function captureThumbnail(time: number): Promise<Blob> {
+  const { exportStillImage } = await import("@/lib/editor/export")
+  const projectState = buildRenderProjectState()
+  const composition = projectState.compositionSize
+  const scale = THUMBNAIL_WIDTH / Math.max(1, composition.width)
+
+  return exportStillImage(projectState, {
+    aspectPreset: "original",
+    height: Math.max(1, Math.round(composition.height * scale)),
+    qualityPreset: "standard",
+    time,
+    type: THUMBNAIL_MIME,
+    width: Math.max(1, Math.round(composition.width * scale)),
+  })
+}
+
+async function readLocalAssetBytes(url: string): Promise<ArrayBuffer> {
+  const response = await fetch(url)
+
+  if (!response.ok) {
+    throw new Error("Could not read one of the scene's media files.")
+  }
+
+  return await response.arrayBuffer()
+}
+
+async function upload(target: UploadTarget, bytes: ArrayBuffer): Promise<void> {
+  const response = await fetch(target.uploadUrl, {
+    body: bytes,
+    headers: {
+      "content-length": String(bytes.byteLength),
+      "content-type": target.contentType,
+    },
+    method: "PUT",
+  })
+
+  if (!response.ok) {
+    throw new Error(`Upload failed (${response.status}).`)
+  }
+}
+
+export async function publishScene(input: {
+  description: string
+  onProgress?: (progress: PublishProgress) => void
+  thumbnailTime: number
+  title: string
+  turnstileToken?: string | null
+}): Promise<PublishResult> {
+  const report = (label: string, done: number, total: number) =>
+    input.onProgress?.({ done, label, total })
+
+  const projectFile = buildLabProjectFile()
+  const assets = useAssetStore.getState().assets
+  const localAssets = assets.filter((asset) => asset.source === "local")
+
+  const total = localAssets.length + 3
+  let done = 0
+
+  report("Capturing thumbnail", done, total)
+  const thumbnailBlob = await captureThumbnail(input.thumbnailTime)
+  const thumbnailBytes = await thumbnailBlob.arrayBuffer()
+  const thumbnailHash = await sha256Hex(thumbnailBytes)
+  done += 1
+
+  report("Preparing media", done, total)
+  const assetPayloads = await Promise.all(
+    localAssets.map(async (asset) => {
+      const bytes = await readLocalAssetBytes(asset.url)
+
+      return {
+        asset,
+        bytes,
+        sha256: await sha256Hex(bytes),
+      }
+    })
+  )
+  done += 1
+
+  const draftResponse = await fetch("/api/community/drafts", {
+    body: JSON.stringify({
+      uploads: [
+        {
+          contentLength: thumbnailBytes.byteLength,
+          contentType: THUMBNAIL_MIME,
+          kind: "thumbnail",
+          sha256: thumbnailHash,
+        },
+        ...assetPayloads.map((entry) => ({
+          contentLength: entry.bytes.byteLength,
+          contentType: entry.asset.mimeType,
+          kind: entry.asset.kind,
+          sha256: entry.sha256,
+        })),
+      ],
+    }),
+    headers: { "content-type": "application/json" },
+    method: "POST",
+  })
+
+  const draft = (await draftResponse.json()) as {
+    draftId?: string
+    error?: string
+    uploads?: UploadTarget[]
+  }
+
+  if (!(draftResponse.ok && draft.draftId && draft.uploads)) {
+    throw new Error(draft.error ?? "Could not start publishing.")
+  }
+
+  const [thumbnailTarget, ...assetTargets] = draft.uploads
+
+  if (!thumbnailTarget) {
+    throw new Error("Could not prepare the thumbnail upload.")
+  }
+
+  report("Uploading thumbnail", done, total)
+  await upload(thumbnailTarget, thumbnailBytes)
+  done += 1
+
+  const referencesById = new Map<string, PresetAssetReference>()
+
+  for (const [index, entry] of assetPayloads.entries()) {
+    const target = assetTargets[index]
+
+    if (!target) {
+      throw new Error("Could not prepare one of the media uploads.")
+    }
+
+    report(`Uploading ${entry.asset.fileName}`, done, total)
+    await upload(target, entry.bytes)
+    done += 1
+
+    referencesById.set(entry.asset.id, {
+      duration: entry.asset.duration,
+      fileName: entry.asset.fileName,
+      height: entry.asset.height,
+      id: entry.asset.id,
+      kind: entry.asset.kind,
+      mimeType: entry.asset.mimeType,
+      sha256: entry.sha256,
+      sizeBytes: entry.bytes.byteLength,
+      url: target.publicUrl,
+      width: entry.asset.width,
+    })
+  }
+
+  const publishable = {
+    ...projectFile,
+    assets: projectFile.assets.map(
+      (reference) => referencesById.get(reference.id) ?? reference
+    ),
+  }
+
+  report("Publishing", done, total)
+
+  const publishResponse = await fetch(
+    `/api/community/drafts/${draft.draftId}/publish`,
+    {
+      body: JSON.stringify({
+        description: input.description,
+        projectFile: JSON.stringify(publishable),
+        thumbnailUrl: thumbnailTarget.publicUrl,
+        title: input.title,
+        turnstileToken: input.turnstileToken ?? null,
+      }),
+      headers: { "content-type": "application/json" },
+      method: "POST",
+    }
+  )
+
+  const published = (await publishResponse.json()) as {
+    error?: string
+    scene?: { slug: string | null }
+  }
+
+  if (!(publishResponse.ok && published.scene)) {
+    throw new Error(published.error ?? "Could not publish this scene.")
+  }
+
+  report("Published", total, total)
+
+  return { slug: published.scene.slug }
+}

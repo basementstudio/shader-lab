@@ -11,7 +11,7 @@ interface ScreenshotOptions {
   time?: number | undefined
 }
 
-function buildRenderProjectState() {
+export function buildRenderProjectState() {
   const assets = useAssetStore.getState().assets
   const layers = useLayerStore.getState().layers
   const timelineState = useTimelineStore.getState()

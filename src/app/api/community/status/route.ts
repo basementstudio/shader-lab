@@ -1,3 +1,4 @@
+import { connection } from "next/server"
 import {
   getMissingCommunityCapabilities,
   isAuthConfigured,
@@ -32,9 +33,9 @@ function hostOf(value: string | undefined): string | null {
   }
 }
 
-export const dynamic = "force-dynamic"
+export async function GET() {
+  await connection()
 
-export function GET() {
   return Response.json({
     capabilities: {
       auth: isAuthConfigured(),

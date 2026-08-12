@@ -5,7 +5,6 @@ import {
   DragHandleDots2Icon,
   GearIcon,
   GlobeIcon,
-  UploadIcon,
   GitHubLogoIcon,
   ResetIcon,
   SpeakerLoudIcon,
@@ -47,6 +46,12 @@ const PublishDialog = dynamic(
     import("@/components/community/publish-dialog").then(
       (mod) => mod.PublishDialog
     ),
+  { ssr: false }
+)
+
+const AuthMenu = dynamic(
+  () =>
+    import("@/components/community/auth-menu").then((mod) => mod.AuthMenu),
   { ssr: false }
 )
 
@@ -566,19 +571,6 @@ export function EditorTopBar() {
                 )}
               </IconButton>
               <IconButton
-                aria-label="Publish to community"
-                className="h-7 w-7"
-                onClick={() => {
-                  setHasOpenedPublish(true)
-                  setPublishOpen(true)
-                }}
-                tooltip="Publish to community"
-                tooltipSide="bottom"
-                variant="default"
-              >
-                <UploadIcon height={16} width={16} />
-              </IconButton>
-              <IconButton
                 aria-label="Community scenes"
                 className="h-7 w-7"
                 onClick={() => {
@@ -591,6 +583,7 @@ export function EditorTopBar() {
               >
                 <GlobeIcon height={16} width={16} />
               </IconButton>
+              <AuthMenu />
               <IconButton
                 aria-label="Export"
                 className="h-7 w-7 disabled:opacity-45"
@@ -709,7 +702,15 @@ export function EditorTopBar() {
       ) : null}
 
       {hasOpenedCommunity ? (
-        <CommunityModal onOpenChange={setCommunityOpen} open={communityOpen} />
+        <CommunityModal
+          onOpenChange={setCommunityOpen}
+          onRequestPublish={() => {
+            setCommunityOpen(false)
+            setHasOpenedPublish(true)
+            setPublishOpen(true)
+          }}
+          open={communityOpen}
+        />
       ) : null}
 
       {hasOpenedExport ? (

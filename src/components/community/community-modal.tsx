@@ -8,6 +8,7 @@ import {
 import { AnimatePresence, motion, useReducedMotion } from "motion/react"
 import { useCallback, useEffect, useState } from "react"
 import { createPortal } from "react-dom"
+import { AuthMenu } from "@/components/community/auth-menu"
 import { SceneCard } from "@/components/community/scene-card"
 import { SceneDetail } from "@/components/community/scene-detail"
 import { SceneEmptyState } from "@/components/community/scene-empty-state"
@@ -15,6 +16,7 @@ import { Button } from "@/components/ui/button"
 import { GlassPanel } from "@/components/ui/glass-panel"
 import { IconButton } from "@/components/ui/icon-button"
 import { Typography } from "@/components/ui/typography"
+import { authClient } from "@/lib/auth/client"
 import { cn } from "@/lib/cn"
 import type {
   CommunitySceneDetail,
@@ -48,12 +50,15 @@ const SORT_TABS: readonly { label: string; value: SceneSort }[] = [
 
 export function CommunityModal({
   onOpenChange,
+  onRequestPublish,
   open,
 }: {
   onOpenChange: (open: boolean) => void
+  onRequestPublish: () => void
   open: boolean
 }) {
   const reduceMotion = useReducedMotion() ?? false
+  const { data: session } = authClient.useSession()
   const [mounted, setMounted] = useState(false)
   const [sort, setSort] = useState<SceneSort>("latest")
   const [search, setSearch] = useState("")
@@ -243,14 +248,30 @@ export function CommunityModal({
                   <Typography as="h2" className="leading-5" variant="title">
                     Community
                   </Typography>
-                  <IconButton
-                    aria-label="Close community scenes"
-                    className="h-7 w-7"
-                    onClick={() => onOpenChange(false)}
-                    variant="default"
-                  >
-                    <Cross2Icon height={18} width={18} />
-                  </IconButton>
+                  <div className="flex items-center gap-[var(--ds-space-2)]">
+                    {session?.user ? (
+                      <Button
+                        onClick={onRequestPublish}
+                        size="compact"
+                        variant="primary"
+                      >
+                        Publish a scene
+                      </Button>
+                    ) : (
+                      <Typography as="span" tone="tertiary" variant="caption">
+                        Sign in to publish
+                      </Typography>
+                    )}
+                    <AuthMenu />
+                    <IconButton
+                      aria-label="Close community scenes"
+                      className="h-7 w-7"
+                      onClick={() => onOpenChange(false)}
+                      variant="default"
+                    >
+                      <Cross2Icon height={18} width={18} />
+                    </IconButton>
+                  </div>
                 </div>
 
                 <div className="flex h-[48px] shrink-0 items-center justify-between gap-[var(--ds-space-3)] overflow-hidden border-b border-[var(--ds-border-divider)] px-4">

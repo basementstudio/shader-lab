@@ -24,6 +24,18 @@ export function createHeadlessRenderer(
   const ownsRenderer = !options.renderer
   let renderer: THREE.WebGPURenderer | null = options.renderer ?? null
   let pipeline: PipelineManager | null = null
+  let currentPixelRatio = 1
+
+  function toPipelineSize(size: { height: number; width: number }) {
+    if (!ownsRenderer) {
+      return size
+    }
+
+    return {
+      height: Math.max(1, Math.round(size.height * currentPixelRatio)),
+      width: Math.max(1, Math.round(size.width * currentPixelRatio)),
+    }
+  }
 
   return {
     async initialize() {
@@ -43,11 +55,13 @@ export function createHeadlessRenderer(
     },
 
     resize(newSize, pixelRatio) {
+      currentPixelRatio = pixelRatio
+
       if (ownsRenderer && renderer) {
         renderer.setPixelRatio(pixelRatio)
         renderer.setSize(newSize.width, newSize.height, false)
       }
-      pipeline?.resize(newSize)
+      pipeline?.resize(toPipelineSize(newSize))
     },
 
     render(
@@ -59,7 +73,7 @@ export function createHeadlessRenderer(
       if (!pipeline) {
         pipeline = new PipelineManager(
           renderer,
-          frame.viewportSize,
+          toPipelineSize(frame.viewportSize),
           options.onRuntimeError
         )
       }

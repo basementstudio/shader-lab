@@ -240,7 +240,10 @@ export class PipelineManager {
   render(time: number, delta: number, timelineTime = time): boolean {
     if (this.activePassesDirty) {
       this.cachedActivePasses = this.passes.filter(
-        (pass) => pass.enabled && !this.compilingPasses.has(pass.layerId)
+        (pass) =>
+          pass.enabled &&
+          (!this.compilingPasses.has(pass.layerId) ||
+            this.compiledVersions.has(pass.layerId))
       )
       this.activePassesDirty = false
     }

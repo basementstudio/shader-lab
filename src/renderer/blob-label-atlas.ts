@@ -1,4 +1,5 @@
 import * as THREE from "three/webgpu"
+import { resolveTextFontFamily } from "@/lib/editor/text-fonts"
 
 export const LABEL_CHARS = "0123456789xy:.,- #"
 export const LABEL_CELL_ASPECT = 0.55
@@ -34,7 +35,7 @@ export function buildLabelAtlas(): THREE.CanvasTexture | null {
   context.fillStyle = "#000"
   context.fillRect(0, 0, canvas.width, canvas.height)
   context.fillStyle = "#fff"
-  context.font = `${Math.round(CELL_HEIGHT_PX * 0.72)}px ui-monospace, "Geist Mono", monospace`
+  context.font = `${Math.round(CELL_HEIGHT_PX * 0.72)}px ${resolveTextFontFamily("mono")}`
   context.textAlign = "center"
   context.textBaseline = "middle"
 

@@ -14,7 +14,8 @@
     ".": {
       "types": "./dist/src/index.d.ts",
       "default": "./dist/src/index.js"
-    }
+    },
+    "./fonts.css": "./assets/fonts.css"
   },
   "repository": {
     "type": "git",

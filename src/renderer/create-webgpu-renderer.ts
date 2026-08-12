@@ -36,10 +36,18 @@ export async function createWebGPURenderer(
     canvas,
   })
   let pipeline: PipelineManager | null = null
+  let currentPixelRatio = 1
+
+  function toDeviceSize(size: Size): Size {
+    return {
+      height: Math.max(1, Math.round(size.height * currentPixelRatio)),
+      width: Math.max(1, Math.round(size.width * currentPixelRatio)),
+    }
+  }
 
   function renderFrame(frame: RendererFrame) {
     if (!pipeline) {
-      pipeline = new PipelineManager(renderer, frame.viewportSize)
+      pipeline = new PipelineManager(renderer, toDeviceSize(frame.viewportSize))
     }
 
     pipeline.updateLogicalSize(frame.logicalSize)
@@ -84,9 +92,10 @@ export async function createWebGPURenderer(
     },
 
     resize(size: Size, pixelRatio: number) {
+      currentPixelRatio = pixelRatio
       renderer.setPixelRatio(pixelRatio)
       renderer.setSize(size.width, size.height, false)
-      pipeline?.resize(size)
+      pipeline?.resize(toDeviceSize(size))
     },
 
     render(frame: RendererFrame) {

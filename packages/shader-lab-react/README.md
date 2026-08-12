@@ -40,6 +40,29 @@ Supported effect layers include ASCII, blob tracking, CRT, directional blur, dit
 
 The blob-tracking layer detects moving (or bright) regions of the content below and frames them with CCTV-style shapes, labels, connecting lines, and trails. One inner effect can render inside the detected shapes via `params.innerEffectType` (any pass-backed effect type) and `params.innerEffectParams` (a JSON string of that effect's parameter overrides; see the `ShaderLabBlobInnerEffect` type). Set `params.outputMode` to `"mask"` to emit white-on-black fills for use with `compositeMode: "mask"`.
 
+## Fonts
+
+The ASCII and text layers resolve font families at runtime by reading CSS
+custom properties (`--geist-mono`, `--bsmnt-grotesque`, `--adhesion`, …) from
+the document root. The value of each variable is used as the CSS
+`font-family` for glyph rasterization; when a variable is unset, the layer
+falls back to a system font.
+
+The package ships the three openly licensed families — Geist Sans, Geist
+Mono, and BSMNT Grotesque — with a stylesheet that declares the `@font-face`
+rules and sets their variables:
+
+```ts
+import "@basementstudio/shader-lab/fonts.css"
+```
+
+The remaining families selectable in the Shader Lab editor (Adhesion, Blob,
+Bunker, Caniche, Carpenter, Curia, FFFlauta, Numero, Xer0, Trovador, B-Mecha)
+are commercially licensed. They are used in the hosted Shader Lab app but are
+deliberately not distributed with this package. To use them (or any font of
+your own), load the font in your host app and set the matching CSS variable
+to its family name, e.g. `:root { --adhesion: "Adhesion" }`.
+
 ## API Overview
 
 ### High-level API

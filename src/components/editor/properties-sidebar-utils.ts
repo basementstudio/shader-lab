@@ -38,7 +38,17 @@ export const maskModeOptions = [
   { label: "Stencil", value: "stencil" },
 ] as const
 
-const COLLAPSIBLE_PARAM_GROUPS = new Set(["Points", "Effects"])
+const COLLAPSIBLE_PARAM_GROUPS = new Set([
+  "Effects",
+  "Glyph",
+  "Grid",
+  "Life",
+  "Points",
+  "Presence",
+  "Render",
+  "Shimmer",
+  "Signal",
+])
 export const DEFAULT_PARAM_GROUP = "Settings"
 
 export type ParamGroup = {
@@ -125,6 +135,10 @@ export function isParamVisible(
 
     if ("equals" in definition.visibleWhen) {
       if (controllingValue !== definition.visibleWhen.equals) {
+        return false
+      }
+    } else if ("notEquals" in definition.visibleWhen) {
+      if (controllingValue === definition.visibleWhen.notEquals) {
         return false
       }
     } else if (

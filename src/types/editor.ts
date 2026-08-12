@@ -151,6 +151,9 @@ export type ParameterVisibilityCondition = {
   | {
       gte: number
     }
+  | {
+      notEquals: boolean | number | string
+    }
 )
 
 type ParameterDefinitionBase<

@@ -1,11 +1,16 @@
 "use client"
 
-import { ArrowLeftIcon, Cross2Icon } from "@radix-ui/react-icons"
+import {
+  ArrowLeftIcon,
+  Cross2Icon,
+  MagnifyingGlassIcon,
+} from "@radix-ui/react-icons"
 import { AnimatePresence, motion, useReducedMotion } from "motion/react"
 import { useCallback, useEffect, useState } from "react"
 import { createPortal } from "react-dom"
 import { SceneCard } from "@/components/community/scene-card"
 import { SceneDetail } from "@/components/community/scene-detail"
+import { SceneEmptyState } from "@/components/community/scene-empty-state"
 import { Button } from "@/components/ui/button"
 import { GlassPanel } from "@/components/ui/glass-panel"
 import { IconButton } from "@/components/ui/icon-button"
@@ -46,6 +51,8 @@ export function CommunityModal({
   const reduceMotion = useReducedMotion() ?? false
   const [mounted, setMounted] = useState(false)
   const [sort, setSort] = useState<SceneSort>("latest")
+  const [search, setSearch] = useState("")
+  const [query, setQuery] = useState("")
   const [items, setItems] = useState<CommunitySceneSummary[] | null>(null)
   const [detail, setDetail] = useState<CommunitySceneDetail | null>(null)
   const [remixing, setRemixing] = useState(false)
@@ -56,6 +63,12 @@ export function CommunityModal({
   }, [])
 
   useEffect(() => {
+    const timeout = window.setTimeout(() => setQuery(search), 220)
+
+    return () => window.clearTimeout(timeout)
+  }, [search])
+
+  useEffect(() => {
     if (!open) {
       return
     }
@@ -64,7 +77,13 @@ export function CommunityModal({
     setItems(null)
     setError(null)
 
-    fetch(`/api/community/scenes?sort=${sort}&limit=24`)
+    const params = new URLSearchParams({ limit: "24", sort })
+
+    if (query.trim().length > 0) {
+      params.set("q", query.trim())
+    }
+
+    fetch(`/api/community/scenes?${params.toString()}`)
       .then((res) => res.json())
       .then((data: { scenes?: CommunitySceneSummary[] }) => {
         if (!cancelled) {
@@ -80,7 +99,7 @@ export function CommunityModal({
     return () => {
       cancelled = true
     }
-  }, [open, sort])
+  }, [open, query, sort])
 
   useEffect(() => {
     if (!open) {
@@ -221,7 +240,8 @@ export function CommunityModal({
                   </IconButton>
                 </div>
 
-                <div className="flex h-[48px] shrink-0 items-center gap-1.5 overflow-hidden border-b border-[var(--ds-border-divider)] px-4">
+                <div className="flex h-[48px] shrink-0 items-center justify-between gap-[var(--ds-space-3)] overflow-hidden border-b border-[var(--ds-border-divider)] px-4">
+                  <div className="flex min-w-0 items-center gap-1.5">
                   {detail ? (
                     <Button
                       onClick={() => setDetail(null)}
@@ -253,6 +273,23 @@ export function CommunityModal({
                       </button>
                     ))
                   )}
+                  </div>
+
+                  {detail ? null : (
+                    <label className="inline-flex h-7 min-w-0 shrink-0 items-center gap-1.5 rounded-[var(--ds-radius-control)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-2 transition-[border-color] duration-160 ease-[var(--ease-out-cubic)] focus-within:border-[var(--ds-border-active)]">
+                      <span className="text-[var(--ds-color-text-tertiary)]">
+                        <MagnifyingGlassIcon height={13} width={13} />
+                      </span>
+                      <input
+                        aria-label="Search scenes"
+                        className="w-[150px] min-w-0 border-0 bg-transparent font-[var(--ds-font-sans)] text-[11px] text-[var(--ds-color-text-primary)] outline-none placeholder:text-[var(--ds-color-text-disabled)]"
+                        onChange={(event) => setSearch(event.target.value)}
+                        placeholder="Search scenes"
+                        type="search"
+                        value={search}
+                      />
+                    </label>
+                  )}
                 </div>
 
                 {error ? (
@@ -279,17 +316,27 @@ export function CommunityModal({
                         <div className="grid grid-cols-2 gap-[var(--ds-space-4)] min-[720px]:grid-cols-4">
                           {SKELETON_KEYS.map((key) => (
                             <div
-                              className="aspect-[16/10] w-full animate-pulse rounded-[8px] border border-[var(--ds-border-subtle)] bg-[var(--ds-color-surface-subtle)]"
+                              className="flex animate-pulse flex-col gap-[var(--ds-space-2)]"
                               key={key}
-                            />
+                            >
+                              <div className="aspect-[16/10] w-full rounded-[8px] border border-[var(--ds-border-subtle)] bg-[var(--ds-color-surface-subtle)]" />
+                              <div className="flex flex-col gap-[6px] px-[2px]">
+                                <div className="h-[10px] w-3/5 rounded-[3px] bg-[var(--ds-color-surface-subtle)]" />
+                                <div className="flex items-center gap-1.5">
+                                  <div className="size-5 shrink-0 rounded-full bg-[var(--ds-color-surface-subtle)]" />
+                                  <div className="h-[9px] w-2/5 rounded-[3px] bg-[var(--ds-color-surface-subtle)]" />
+                                </div>
+                              </div>
+                            </div>
                           ))}
                         </div>
                       ) : null}
 
                       {items?.length === 0 ? (
-                        <Typography as="p" tone="secondary" variant="body">
-                          No published scenes yet.
-                        </Typography>
+                        <SceneEmptyState
+                          onClearSearch={() => setSearch("")}
+                          query={query}
+                        />
                       ) : null}
 
                       {items && items.length > 0 ? (

@@ -14,8 +14,10 @@ export async function GET(request: Request) {
   const limit = Number.parseInt(url.searchParams.get("limit") ?? "", 10)
 
   try {
+    const query = url.searchParams.get("q")?.slice(0, 80) ?? ""
     const items = await listPublishedScenes({
       ...(Number.isFinite(limit) ? { limit } : {}),
+      ...(query.trim().length > 0 ? { query } : {}),
       sort: parseSort(url.searchParams.get("sort")),
     })
 

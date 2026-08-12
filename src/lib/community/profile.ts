@@ -4,11 +4,14 @@ import { getDatabase } from "@/lib/db"
 import { profiles } from "@/lib/db/schema"
 
 export interface ProfileSeed {
+  avatarUrl?: string | null
   email?: string | null
   name?: string | null
 }
 
 export interface CommunityProfile {
+  avatarUrl: string | null
+  displayName: string | null
   handle: string
   userId: string
 }
@@ -42,7 +45,12 @@ export async function findProfile(
   userId: string
 ): Promise<CommunityProfile | null> {
   const rows = await getDatabase()
-    .select({ handle: profiles.handle, userId: profiles.userId })
+    .select({
+      avatarUrl: profiles.avatarUrl,
+      displayName: profiles.displayName,
+      handle: profiles.handle,
+      userId: profiles.userId,
+    })
     .from(profiles)
     .where(eq(profiles.userId, userId))
     .limit(1)
@@ -50,24 +58,51 @@ export async function findProfile(
   return rows[0] ?? null
 }
 
+const RETURNING = {
+  avatarUrl: profiles.avatarUrl,
+  displayName: profiles.displayName,
+  handle: profiles.handle,
+  userId: profiles.userId,
+}
+
 export async function ensureProfile(
   userId: string,
   seed: ProfileSeed
 ): Promise<CommunityProfile> {
+  const db = getDatabase()
   const existing = await findProfile(userId)
 
   if (existing) {
-    return existing
-  }
+    const displayName = seed.name ?? existing.displayName
+    const avatarUrl = seed.avatarUrl ?? existing.avatarUrl
 
-  const db = getDatabase()
+    if (
+      displayName === existing.displayName &&
+      avatarUrl === existing.avatarUrl
+    ) {
+      return existing
+    }
+
+    const refreshed = await db
+      .update(profiles)
+      .set({ avatarUrl, displayName, updatedAt: new Date() })
+      .where(eq(profiles.userId, userId))
+      .returning(RETURNING)
+
+    return refreshed[0] ?? existing
+  }
 
   for (const handle of buildHandleCandidates(seed)) {
     try {
       const inserted = await db
         .insert(profiles)
-        .values({ handle, userId })
-        .returning({ handle: profiles.handle, userId: profiles.userId })
+        .values({
+          avatarUrl: seed.avatarUrl ?? null,
+          displayName: seed.name ?? null,
+          handle,
+          userId,
+        })
+        .returning(RETURNING)
 
       const row = inserted[0]
 

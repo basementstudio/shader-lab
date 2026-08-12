@@ -6,6 +6,13 @@ import {
   isMediaConfigured,
   isTurnstileConfigured,
 } from "@/lib/community/config"
+import {
+  AUTH_BASE_URL_VARS,
+  DATABASE_URL_VARS,
+  resolveAuthBaseUrl,
+  resolveDatabaseUrl,
+  resolvedVarName,
+} from "@/lib/community/env"
 
 function present(name: string): boolean {
   return Boolean(process.env[name]?.trim())
@@ -35,12 +42,16 @@ export function GET() {
     },
     enabled: isCommunityEnabled(),
     endpoints: {
-      authHost: hostOf(process.env.NEON_AUTH_BASE_URL),
-      databaseHost: hostOf(process.env.DATABASE_URL),
+      authHost: hostOf(resolveAuthBaseUrl() ?? undefined),
+      authVar: resolvedVarName(AUTH_BASE_URL_VARS),
+      databaseHost: hostOf(resolveDatabaseUrl() ?? undefined),
+      databaseVar: resolvedVarName(DATABASE_URL_VARS),
     },
     missing: getMissingCommunityCapabilities(),
     vars: {
       CLOUDFLARE_ACCOUNT_ID: present("CLOUDFLARE_ACCOUNT_ID"),
+      COMMUNITY_DATABASE_URL: present("COMMUNITY_DATABASE_URL"),
+      COMMUNITY_NEON_AUTH_BASE_URL: present("COMMUNITY_NEON_AUTH_BASE_URL"),
       DATABASE_URL: present("DATABASE_URL"),
       NEON_AUTH_BASE_URL: present("NEON_AUTH_BASE_URL"),
       NEON_AUTH_COOKIE_SECRET: present("NEON_AUTH_COOKIE_SECRET"),

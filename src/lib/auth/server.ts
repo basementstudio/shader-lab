@@ -1,4 +1,5 @@
 import { createNeonAuth } from "@neondatabase/auth/next/server"
+import { resolveAuthBaseUrl } from "@/lib/community/env"
 
 export interface NeonAuthConfigValues {
   baseUrl: string
@@ -6,7 +7,7 @@ export interface NeonAuthConfigValues {
 }
 
 export function getAuthConfig(): NeonAuthConfigValues | null {
-  const baseUrl = process.env.NEON_AUTH_BASE_URL?.trim()
+  const baseUrl = resolveAuthBaseUrl()
   const secret = process.env.NEON_AUTH_COOKIE_SECRET?.trim()
 
   if (!(baseUrl && secret)) {

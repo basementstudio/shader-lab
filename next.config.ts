@@ -3,6 +3,22 @@ import type { NextConfig } from "next"
 
 const shaderLabRuntimeEntry = "./packages/shader-lab-react/dist/src/index.js"
 
+function hostnameOf(value: string | undefined): string | null {
+  const bare = (value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/^[a-z][a-z0-9+.-]*:\/\//, "")
+    .replace(/\/.*$/, "")
+    .replace(/:\d+$/, "")
+
+  return bare.length > 0 ? bare : null
+}
+
+const communityImageHosts = [
+  hostnameOf(process.env.NEXT_PUBLIC_R2_PUBLIC_HOST),
+  hostnameOf(process.env.NEXT_PUBLIC_CF_IMAGES_HOST),
+].filter((host): host is string => host !== null)
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   reactCompiler: true,
@@ -81,6 +97,9 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       { hostname: "avatars.githubusercontent.com", protocol: "https" },
       { hostname: "lh3.googleusercontent.com", protocol: "https" },
+      ...communityImageHosts.map(
+        (hostname) => ({ hostname, protocol: "https" }) as const
+      ),
     ],
     minimumCacheTTL: 60 * 60 * 24 * 30, // 30 days
     qualities: [90],

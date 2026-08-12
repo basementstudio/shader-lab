@@ -7,12 +7,6 @@ export const THUMBNAIL_MAX_TIME_SECONDS = 10
 export const THUMBNAIL_WIDTH = 1280
 export const THUMBNAIL_MIME = "image/webp"
 
-export interface PublishProgress {
-  done: number
-  label: string
-  total: number
-}
-
 export interface PublishResult {
   slug: string | null
 }
@@ -85,28 +79,19 @@ async function upload(target: UploadTarget, bytes: ArrayBuffer): Promise<void> {
 
 export async function publishScene(input: {
   description: string
-  onProgress?: (progress: PublishProgress) => void
   thumbnailTime: number
   title: string
   turnstileToken?: string | null
 }): Promise<PublishResult> {
-  const report = (label: string, done: number, total: number) =>
-    input.onProgress?.({ done, label, total })
-
   const projectFile = buildLabProjectFile()
   const assets = useAssetStore.getState().assets
   const localAssets = assets.filter((asset) => asset.source === "local")
 
-  const total = localAssets.length + 3
-  let done = 0
 
-  report("Capturing thumbnail", done, total)
   const thumbnailBlob = await captureThumbnail(input.thumbnailTime)
   const thumbnailBytes = await thumbnailBlob.arrayBuffer()
   const thumbnailHash = await sha256Hex(thumbnailBytes)
-  done += 1
 
-  report("Preparing media", done, total)
   const assetPayloads = await Promise.all(
     localAssets.map(async (asset) => {
       const bytes = await readLocalAssetBytes(asset.url)
@@ -118,7 +103,6 @@ export async function publishScene(input: {
       }
     })
   )
-  done += 1
 
   const draftResponse = await fetch("/api/community/drafts", {
     body: JSON.stringify({
@@ -157,9 +141,7 @@ export async function publishScene(input: {
     throw new Error("Could not prepare the thumbnail upload.")
   }
 
-  report("Uploading thumbnail", done, total)
   await upload(thumbnailTarget, thumbnailBytes)
-  done += 1
 
   const referencesById = new Map<string, PresetAssetReference>()
 
@@ -170,9 +152,7 @@ export async function publishScene(input: {
       throw new Error("Could not prepare one of the media uploads.")
     }
 
-    report(`Uploading ${entry.asset.fileName}`, done, total)
     await upload(target, entry.bytes)
-    done += 1
 
     referencesById.set(entry.asset.id, {
       duration: entry.asset.duration,
@@ -195,7 +175,6 @@ export async function publishScene(input: {
     ),
   }
 
-  report("Publishing", done, total)
 
   const publishResponse = await fetch(
     `/api/community/drafts/${draft.draftId}/publish`,
@@ -221,7 +200,6 @@ export async function publishScene(input: {
     throw new Error(published.error ?? "Could not publish this scene.")
   }
 
-  report("Published", total, total)
 
   return { slug: published.scene.slug }
 }

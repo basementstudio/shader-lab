@@ -1,9 +1,31 @@
+function unwrap(value: string): string {
+  const trimmed = value.trim()
+
+  for (const quote of ['"', "'"]) {
+    if (
+      trimmed.length >= 2 &&
+      trimmed.startsWith(quote) &&
+      trimmed.endsWith(quote)
+    ) {
+      return trimmed.slice(1, -1).trim()
+    }
+  }
+
+  return trimmed
+}
+
 function firstValue(names: readonly string[]): string | null {
   for (const name of names) {
-    const value = process.env[name]?.trim()
+    const value = process.env[name]
 
-    if (value) {
-      return value
+    if (value === undefined) {
+      continue
+    }
+
+    const unwrapped = unwrap(value)
+
+    if (unwrapped) {
+      return unwrapped
     }
   }
 
@@ -30,7 +52,9 @@ export function resolveAuthBaseUrl(): string | null {
 
 export function resolvedVarName(names: readonly string[]): string | null {
   for (const name of names) {
-    if (process.env[name]?.trim()) {
+    const value = process.env[name]
+
+    if (value !== undefined && unwrap(value)) {
       return name
     }
   }

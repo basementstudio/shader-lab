@@ -303,10 +303,6 @@ export function PublishDialog({
                           </div>
                         ) : null}
                       </div>
-                      <Typography as="p" tone="tertiary" variant="monoXs">
-                        {thumbnailTime.toFixed(2)}s of first{" "}
-                        {bounds.max.toFixed(0)}s
-                      </Typography>
                     </div>
                   </div>
               </GlassPanel>

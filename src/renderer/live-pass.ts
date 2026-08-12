@@ -17,6 +17,8 @@ import type { LayerParameterValues } from "@/types/editor"
 
 type Node = TSLNode
 
+const CAMERA_FRAME_TIMEOUT_MS = 4000
+
 export class LivePass extends PassNode {
   private readonly canvasAspectUniform: Node
   private readonly fitModeUniform: Node
@@ -151,6 +153,39 @@ export class LivePass extends PassNode {
 
   override needsContinuousRender(): boolean {
     return this.videoTexture !== null
+  }
+
+  override async prepareForExportFrame(): Promise<void> {
+    if (!this.videoTexture) {
+      await this.startCamera(this.getFacingMode()).catch(() => undefined)
+    }
+
+    const video = this.videoElement
+
+    if (!video) {
+      return
+    }
+
+    if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
+      await new Promise<void>((resolve) => {
+        const settle = () => {
+          video.removeEventListener("loadeddata", settle)
+          window.clearTimeout(timeout)
+          resolve()
+        }
+        const timeout = window.setTimeout(settle, CAMERA_FRAME_TIMEOUT_MS)
+
+        video.addEventListener("loadeddata", settle, { once: true })
+      })
+    }
+
+    await new Promise<void>((resolve) => {
+      window.requestAnimationFrame(() => resolve())
+    })
+
+    if (this.videoTexture) {
+      this.videoTexture.needsUpdate = true
+    }
   }
 
   override dispose(): void {

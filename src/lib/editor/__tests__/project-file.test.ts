@@ -279,4 +279,97 @@ describe("parseLabProjectFile", () => {
     expect(parsed.layers).toHaveLength(1)
     expect(parsed.layers[0]?.params).toEqual({ futureParam: "kept", speed: 1 })
   })
+
+  test("accepts a v3 asset reference that carries no remote fields", () => {
+    const fixture = {
+      ...createValidProjectFile(),
+      assets: [{ fileName: "photo.png", id: "asset-1", kind: "image" }],
+      version: 3,
+    }
+
+    const parsed = parseLabProjectFile(JSON.stringify(fixture))
+
+    expect(parsed.assets).toHaveLength(1)
+    expect(parsed.assets[0]?.url).toBeUndefined()
+  })
+
+  test("round-trips the v4 remote asset fields", () => {
+    const fixture = {
+      ...createValidProjectFile(),
+      assets: [
+        {
+          duration: 12.5,
+          fileName: "clip.mp4",
+          height: 1080,
+          id: "asset-1",
+          kind: "video",
+          mimeType: "video/mp4",
+          sha256: "abc123",
+          sizeBytes: 2048,
+          url: "https://videodelivery.net/uid/clip.mp4",
+          width: 1920,
+        },
+      ],
+      version: CURRENT_PROJECT_FILE_VERSION,
+    }
+
+    const parsed = parseLabProjectFile(JSON.stringify(fixture))
+
+    expect(parsed.assets[0]).toEqual(fixture.assets[0])
+  })
+
+  test("accepts a null width or duration on an audio asset reference", () => {
+    const fixture = {
+      ...createValidProjectFile(),
+      assets: [
+        {
+          duration: 30,
+          fileName: "track.opus",
+          height: null,
+          id: "asset-1",
+          kind: "audio",
+          url: "https://videodelivery.net/uid/track.opus",
+          width: null,
+        },
+      ],
+      version: CURRENT_PROJECT_FILE_VERSION,
+    }
+
+    expect(() => parseLabProjectFile(JSON.stringify(fixture))).not.toThrow()
+  })
+
+  test("reports the asset list when a remote asset field has the wrong type", () => {
+    const fixture = {
+      ...createValidProjectFile(),
+      assets: [
+        {
+          fileName: "clip.mp4",
+          id: "asset-1",
+          kind: "video",
+          url: 42,
+        },
+      ],
+      version: CURRENT_PROJECT_FILE_VERSION,
+    }
+
+    expect(() => parseLabProjectFile(JSON.stringify(fixture))).toThrow(
+      "Project file has an unreadable asset list."
+    )
+  })
+
+  test("v5 adds remote assets on top of the v4 ascii migration", () => {
+    expect(CURRENT_PROJECT_FILE_VERSION).toBe(5)
+
+    for (const version of [4, 5]) {
+      const fixture = { ...createValidProjectFile(), version }
+
+      expect(parseLabProjectFile(JSON.stringify(fixture)).version).toBe(version)
+    }
+
+    const future = { ...createValidProjectFile(), version: 6 }
+
+    expect(() => parseLabProjectFile(JSON.stringify(future))).toThrow(
+      "Unsupported Shader Lab project version."
+    )
+  })
 })

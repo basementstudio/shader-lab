@@ -14,11 +14,13 @@ import {
   CUSTOM_EFFECT_STARTER,
   CUSTOM_SHADER_STARTER,
 } from "@/lib/editor/custom-shader/shared"
+import { collectRemoteAssets } from "@/lib/editor/remote-asset"
 import type {
   EditorAsset,
   EditorAudioSnapshot,
   EditorLayer,
   LayerParameterValues,
+  PresetAssetReference,
   ProjectPresetConfig,
   SceneConfig,
   Size,
@@ -41,6 +43,28 @@ export interface LabProjectFile extends ProjectPresetConfig {
   sceneConfig?: SceneConfig
 }
 
+function toAssetReference(asset: EditorAsset): PresetAssetReference {
+  const reference: PresetAssetReference = {
+    fileName: asset.fileName,
+    id: asset.id,
+    kind: asset.kind,
+  }
+
+  if (asset.source !== "remote") {
+    return reference
+  }
+
+  return {
+    ...reference,
+    duration: asset.duration,
+    height: asset.height,
+    mimeType: asset.mimeType,
+    sizeBytes: asset.sizeBytes,
+    url: asset.url,
+    width: asset.width,
+  }
+}
+
 export function buildLabProjectFile(): LabProjectFile {
   const assets = useAssetStore.getState().assets
   const editorState = useEditorStore.getState()
@@ -48,11 +72,7 @@ export function buildLabProjectFile(): LabProjectFile {
   const timelineState = useTimelineStore.getState()
 
   return {
-    assets: assets.map((asset) => ({
-      fileName: asset.fileName,
-      id: asset.id,
-      kind: asset.kind,
-    })),
+    assets: assets.map(toAssetReference),
     audio: structuredClone(useAudioStore.getState().getSnapshot()),
     composition: structuredClone(editorState.outputSize),
     exportedAt: new Date().toISOString(),
@@ -184,9 +204,16 @@ const timelineTrackSchema = z.looseObject({
 })
 
 const assetReferenceSchema = z.looseObject({
+  duration: z.number().nullable().optional(),
   fileName: z.string(),
+  height: z.number().nullable().optional(),
   id: z.string(),
   kind: z.string(),
+  mimeType: z.string().optional(),
+  sha256: z.string().optional(),
+  sizeBytes: z.number().optional(),
+  url: z.string().optional(),
+  width: z.number().nullable().optional(),
 })
 
 const audioBandConfigSchema = z.looseObject({
@@ -214,7 +241,7 @@ const projectAudioSchema = z.looseObject({
   source: z.looseObject({ kind: z.string() }).nullable().optional(),
 })
 
-export const CURRENT_PROJECT_FILE_VERSION = 4
+export const CURRENT_PROJECT_FILE_VERSION = 5
 
 const labProjectFileSchema = z.looseObject({
   assets: z.array(assetReferenceSchema),
@@ -267,6 +294,10 @@ const PARSE_ISSUE_MESSAGES: {
   {
     matches: (path) => path[0] === "audio",
     message: "Project file has an unreadable audio configuration.",
+  },
+  {
+    matches: (path) => path[0] === "assets",
+    message: "Project file has an unreadable asset list.",
   },
 ]
 
@@ -345,7 +376,19 @@ export function applyLabProjectFile(
   projectFile: LabProjectFile,
   currentAssets: EditorAsset[]
 ): { missingAssetCount: number; missingAudioSource: boolean } {
-  const assetIds = new Set(currentAssets.map((asset) => asset.id))
+  const existingIds = new Set(currentAssets.map((asset) => asset.id))
+  const remoteAssets = collectRemoteAssets(projectFile.assets, existingIds)
+
+  if (remoteAssets.length > 0) {
+    useAssetStore
+      .getState()
+      .replaceAssets([...currentAssets, ...remoteAssets])
+  }
+
+  const assetIds = new Set([
+    ...existingIds,
+    ...remoteAssets.map((asset) => asset.id),
+  ])
   const assetRefById = new Map(
     projectFile.assets.map((asset) => [asset.id, asset])
   )

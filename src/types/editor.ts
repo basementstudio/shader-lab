@@ -295,6 +295,8 @@ export type EditorLayer = SourceLayer | EffectLayer | ModelLayer
 
 export type AssetStatus = "idle" | "loading" | "ready" | "error"
 
+export type AssetSource = "local" | "remote"
+
 export interface EditorAsset {
   createdAt: string
   duration: number | null
@@ -304,6 +306,7 @@ export interface EditorAsset {
   kind: AssetKind
   mimeType: string
   sizeBytes: number
+  source: AssetSource
   status: AssetStatus
   url: string
   width: number | null
@@ -555,6 +558,13 @@ export interface PresetAssetReference {
   fileName: string
   id: string
   kind: AssetKind
+  duration?: number | null
+  height?: number | null
+  mimeType?: string
+  sha256?: string
+  sizeBytes?: number
+  url?: string
+  width?: number | null
 }
 
 export interface ProjectPresetConfig {

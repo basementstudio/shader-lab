@@ -1,6 +1,7 @@
 "use client"
 
 import Image from "next/image"
+import { AuthorAvatar } from "@/components/community/author-avatar"
 import { Button } from "@/components/ui/button"
 import { Typography } from "@/components/ui/typography"
 import { getLayerLabel } from "@/lib/editor/config/layer-catalog"
@@ -37,9 +38,25 @@ export function SceneDetail({
   return (
     <div className="grid h-full grid-cols-1 gap-4 overflow-y-auto p-4 min-[760px]:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] min-[760px]:overflow-hidden">
       <div className="flex min-w-0 flex-col gap-[var(--ds-space-3)]">
-        <Typography as="p" tone="tertiary" variant="monoXs">
-          @{scene.authorHandle} · {formatPublishedAt(scene.publishedAt)}
-        </Typography>
+        <div className="flex min-w-0 items-center gap-[var(--ds-space-2)]">
+          <AuthorAvatar
+            avatarUrl={scene.authorAvatarUrl}
+            name={scene.authorName ?? scene.authorHandle}
+            size={24}
+          />
+          <div className="flex min-w-0 flex-col">
+            <Typography
+              as="span"
+              className="overflow-hidden text-ellipsis whitespace-nowrap"
+              variant="label"
+            >
+              {scene.authorName ?? `@${scene.authorHandle}`}
+            </Typography>
+            <Typography as="span" tone="tertiary" variant="monoXs">
+              {formatPublishedAt(scene.publishedAt)}
+            </Typography>
+          </div>
+        </div>
 
         <div className="flex flex-col gap-[var(--ds-space-2)]">
           <Typography as="h3" variant="heading">

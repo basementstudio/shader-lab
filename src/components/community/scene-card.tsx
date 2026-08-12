@@ -1,6 +1,7 @@
 "use client"
 
 import Image from "next/image"
+import { AuthorAvatar } from "@/components/community/author-avatar"
 import { Typography } from "@/components/ui/typography"
 import type { CommunitySceneSummary } from "@/lib/community/scenes"
 
@@ -21,31 +22,6 @@ function RemixGlyph() {
         strokeWidth={1.4}
       />
     </svg>
-  )
-}
-
-function AuthorAvatar({ scene }: { scene: CommunitySceneSummary }) {
-  const label = scene.authorName ?? scene.authorHandle
-  const initial = label.trim().charAt(0).toUpperCase() || "?"
-
-  if (scene.authorAvatarUrl) {
-    return (
-      <Image
-        alt=""
-        className="size-5 shrink-0 rounded-full border border-[var(--ds-border-subtle)] object-cover"
-        height={20}
-        src={scene.authorAvatarUrl}
-        width={20}
-      />
-    )
-  }
-
-  return (
-    <span className="flex size-5 shrink-0 items-center justify-center rounded-full border border-[var(--ds-border-subtle)] bg-[var(--ds-color-surface-control)]">
-      <Typography as="span" tone="secondary" variant="monoXs">
-        {initial}
-      </Typography>
-    </span>
   )
 }
 
@@ -93,7 +69,10 @@ export function SceneCard({
         </Typography>
 
         <span className="flex min-w-0 items-center gap-1.5">
-          <AuthorAvatar scene={scene} />
+          <AuthorAvatar
+            avatarUrl={scene.authorAvatarUrl}
+            name={scene.authorName ?? scene.authorHandle}
+          />
           <Typography
             as="span"
             className="overflow-hidden text-ellipsis whitespace-nowrap"

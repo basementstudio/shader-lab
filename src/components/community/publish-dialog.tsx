@@ -12,7 +12,6 @@ import { Typography } from "@/components/ui/typography"
 import {
   captureThumbnail,
   getThumbnailTimeBounds,
-  type PublishProgress,
   publishScene,
   THUMBNAIL_MAX_TIME_SECONDS,
 } from "@/lib/community/publish-client"
@@ -21,13 +20,13 @@ import { numberInputControlClassName } from "@/components/ui/number-input"
 import { cn } from "@/lib/cn"
 import { useTimelineStore } from "@/store/timeline-store"
 
-type Phase = "form" | "publishing" | "done"
-
 export function PublishDialog({
   onOpenChange,
+  onPublished,
   open,
 }: {
   onOpenChange: (open: boolean) => void
+  onPublished: (slug: string | null) => void
   open: boolean
 }) {
   const reduceMotion = useReducedMotion() ?? false
@@ -40,10 +39,8 @@ export function PublishDialog({
   const [thumbnailTime, setThumbnailTime] = useState(0)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [capturing, setCapturing] = useState(false)
-  const [phase, setPhase] = useState<Phase>("form")
-  const [progress, setProgress] = useState<PublishProgress | null>(null)
+  const [publishing, setPublishing] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [slug, setSlug] = useState<string | null>(null)
   const previewUrlRef = useRef<string | null>(null)
 
   useEffect(() => {
@@ -55,10 +52,8 @@ export function PublishDialog({
       return
     }
 
-    setPhase("form")
+    setPublishing(false)
     setError(null)
-    setProgress(null)
-    setSlug(null)
 
     const state = useTimelineStore.getState()
     const max = Math.min(
@@ -123,32 +118,27 @@ export function PublishDialog({
   }, [open, refreshPreview, thumbnailTime])
 
   const submit = useCallback(async () => {
-    setPhase("publishing")
+    setPublishing(true)
     setError(null)
 
     try {
-      const result = await publishScene({
-        description,
-        onProgress: setProgress,
-        thumbnailTime,
-        title,
-      })
+      const result = await publishScene({ description, thumbnailTime, title })
 
-      setSlug(result.slug)
-      setPhase("done")
+      onPublished(result.slug)
     } catch (cause) {
       setError(
         cause instanceof Error ? cause.message : "Could not publish this scene."
       )
-      setPhase("form")
+    } finally {
+      setPublishing(false)
     }
-  }, [description, thumbnailTime, title])
+  }, [description, onPublished, thumbnailTime, title])
 
   if (!mounted) {
     return null
   }
 
-  const canSubmit = title.trim().length > 0 && !capturing && phase === "form"
+  const canSubmit = title.trim().length > 0 && !(capturing || publishing)
 
   return createPortal(
     <AnimatePresence initial={false}>
@@ -221,25 +211,7 @@ export function PublishDialog({
                   </div>
                 ) : null}
 
-                {phase === "done" ? (
-                  <div className="flex flex-col gap-[var(--ds-space-3)] p-4">
-                    <Typography as="p" variant="label">
-                      Published
-                    </Typography>
-                    <Typography as="p" tone="tertiary" variant="caption">
-                      {slug
-                        ? `Your scene is live in the community as "${slug}".`
-                        : "Your scene is live in the community."}
-                    </Typography>
-                    <Button
-                      onClick={() => onOpenChange(false)}
-                      variant="primary"
-                    >
-                      Done
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 gap-4 p-4 min-[640px]:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                <div className="grid grid-cols-1 gap-4 p-4 min-[640px]:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
                     <div className="flex flex-col gap-[var(--ds-space-3)]">
                       <label className="flex flex-col gap-1.5">
                         <Typography as="span" tone="tertiary" variant="overline">
@@ -286,19 +258,22 @@ export function PublishDialog({
                         valueSuffix="s"
                       />
 
-                      {progress ? (
-                        <Typography as="p" tone="tertiary" variant="monoXs">
-                          {progress.label} ({progress.done}/{progress.total})
-                        </Typography>
-                      ) : null}
-
                       <Button
+                        className="relative overflow-hidden"
                         disabled={!canSubmit}
                         fullWidth
                         onClick={submit}
                         variant="primary"
                       >
-                        {phase === "publishing" ? "Publishing…" : "Publish"}
+                        {publishing ? "Publishing…" : "Publish"}
+                        {publishing ? (
+                          <span
+                            aria-hidden="true"
+                            className="absolute inset-x-0 bottom-0 h-px overflow-hidden bg-black/12"
+                          >
+                            <span className="absolute inset-y-0 left-0 w-[38%] animate-[loader-sweep_1.15s_cubic-bezier(0.22,1,0.36,1)_infinite] bg-black/45" />
+                          </span>
+                        ) : null}
                       </Button>
                     </div>
 
@@ -334,7 +309,6 @@ export function PublishDialog({
                       </Typography>
                     </div>
                   </div>
-                )}
               </GlassPanel>
             </motion.div>
           </div>

@@ -49,10 +49,12 @@ const SORT_TABS: readonly { label: string; value: SceneSort }[] = [
 ]
 
 export function CommunityModal({
+  focusSlug,
   onOpenChange,
   onRequestPublish,
   open,
 }: {
+  focusSlug?: string | null
   onOpenChange: (open: boolean) => void
   onRequestPublish: () => void
   open: boolean
@@ -158,6 +160,14 @@ export function CommunityModal({
       setError("Could not load that scene.")
     }
   }, [])
+
+  useEffect(() => {
+    if (!(open && focusSlug)) {
+      return
+    }
+
+    void openScene(focusSlug)
+  }, [focusSlug, open, openScene])
 
   const remix = useCallback(
     async (scene: CommunitySceneDetail) => {

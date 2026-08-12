@@ -128,6 +128,7 @@ export function EditorTopBar() {
   const [communityOpen, setCommunityOpen] = useState(false)
   const [publishOpen, setPublishOpen] = useState(false)
   const [hasOpenedPublish, setHasOpenedPublish] = useState(false)
+  const [publishedSlug, setPublishedSlug] = useState<string | null>(null)
   const [hasOpenedCommunity, setHasOpenedCommunity] = useState(false)
 
   const handleExportDialogOpenChange = useCallback((open: boolean) => {
@@ -698,13 +699,30 @@ export function EditorTopBar() {
       ) : null}
 
       {hasOpenedPublish ? (
-        <PublishDialog onOpenChange={setPublishOpen} open={publishOpen} />
+        <PublishDialog
+          onOpenChange={setPublishOpen}
+          onPublished={(slug) => {
+            setPublishOpen(false)
+            setPublishedSlug(slug)
+            setHasOpenedCommunity(true)
+            setCommunityOpen(true)
+          }}
+          open={publishOpen}
+        />
       ) : null}
 
       {hasOpenedCommunity ? (
         <CommunityModal
-          onOpenChange={setCommunityOpen}
+          focusSlug={publishedSlug}
+          onOpenChange={(next) => {
+            setCommunityOpen(next)
+
+            if (!next) {
+              setPublishedSlug(null)
+            }
+          }}
           onRequestPublish={() => {
+            setPublishedSlug(null)
             setCommunityOpen(false)
             setHasOpenedPublish(true)
             setPublishOpen(true)

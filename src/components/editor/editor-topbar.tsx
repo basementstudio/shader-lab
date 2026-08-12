@@ -572,6 +572,18 @@ export function EditorTopBar() {
                 )}
               </IconButton>
               <IconButton
+                aria-label="Export"
+                className="h-7 w-7 disabled:opacity-45"
+                onClick={() => handleExportDialogOpenChange(true)}
+                tooltip="Export"
+                tooltipSide="bottom"
+                uiSound="action.export"
+                variant="default"
+              >
+                <DownloadIcon height={16} width={16} />
+              </IconButton>
+              <GitHubStarLink />
+              <IconButton
                 aria-label="Community scenes"
                 className="h-7 w-7"
                 onClick={() => {
@@ -585,18 +597,6 @@ export function EditorTopBar() {
                 <GlobeIcon height={16} width={16} />
               </IconButton>
               <AuthMenu />
-              <IconButton
-                aria-label="Export"
-                className="h-7 w-7 disabled:opacity-45"
-                onClick={() => handleExportDialogOpenChange(true)}
-                tooltip="Export"
-                tooltipSide="bottom"
-                uiSound="action.export"
-                variant="default"
-              >
-                <DownloadIcon height={16} width={16} />
-              </IconButton>
-              <GitHubStarLink />
             </div>
           </GlassPanel>
         )}

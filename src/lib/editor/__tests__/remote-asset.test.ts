@@ -3,6 +3,7 @@ import {
   collectRemoteAssets,
   createRemoteAsset,
   isAllowedAssetOrigin,
+  normalizeHost,
 } from "@/lib/editor/remote-asset"
 import type { PresetAssetReference } from "@/types/editor"
 
@@ -214,5 +215,29 @@ describe("collectRemoteAssets", () => {
     )
 
     expect(collected).toHaveLength(1)
+  })
+})
+
+describe("normalizeHost", () => {
+  test("strips a scheme, because Cloudflare hands you the host with https:// on it", () => {
+    expect(normalizeHost("https://pub-abc.r2.dev")).toBe("pub-abc.r2.dev")
+    expect(normalizeHost("http://pub-abc.r2.dev")).toBe("pub-abc.r2.dev")
+  })
+
+  test("leaves a bare host alone", () => {
+    expect(normalizeHost("pub-abc.r2.dev")).toBe("pub-abc.r2.dev")
+  })
+
+  test("strips paths, trailing slashes, ports and case", () => {
+    expect(normalizeHost("HTTPS://Pub-ABC.R2.DEV/")).toBe("pub-abc.r2.dev")
+    expect(normalizeHost("https://pub-abc.r2.dev/scenes/x")).toBe("pub-abc.r2.dev")
+    expect(normalizeHost("  localhost:3000  ")).toBe("localhost")
+  })
+
+  test("an allowlist entry written with a scheme still matches", () => {
+    process.env[HOSTS_ENV] = "https://pub-abc.r2.dev/"
+
+    expect(isAllowedAssetOrigin("https://pub-abc.r2.dev/scenes/a.png")).toBe(true)
+    expect(isAllowedAssetOrigin("https://other.test/a.png")).toBe(false)
   })
 })

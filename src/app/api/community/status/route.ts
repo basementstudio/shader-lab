@@ -11,6 +11,20 @@ function present(name: string): boolean {
   return Boolean(process.env[name]?.trim())
 }
 
+function hostOf(value: string | undefined): string | null {
+  const raw = value?.trim()
+
+  if (!raw) {
+    return null
+  }
+
+  try {
+    return new URL(raw).hostname
+  } catch {
+    return null
+  }
+}
+
 export function GET() {
   return Response.json({
     capabilities: {
@@ -20,6 +34,10 @@ export function GET() {
       turnstile: isTurnstileConfigured(),
     },
     enabled: isCommunityEnabled(),
+    endpoints: {
+      authHost: hostOf(process.env.NEON_AUTH_BASE_URL),
+      databaseHost: hostOf(process.env.DATABASE_URL),
+    },
     missing: getMissingCommunityCapabilities(),
     vars: {
       CLOUDFLARE_ACCOUNT_ID: present("CLOUDFLARE_ACCOUNT_ID"),

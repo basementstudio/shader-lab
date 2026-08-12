@@ -268,7 +268,10 @@ export class PipelineManager {
 
   render(time: number, delta: number): boolean {
     const activePasses = this.passes.filter(
-      (pass) => pass.enabled && !this.compilingPasses.has(pass.layerId)
+      (pass) =>
+        pass.enabled &&
+        (!this.compilingPasses.has(pass.layerId) ||
+          this.compiledVersions.has(pass.layerId))
     )
     const needsContinuousRender = activePasses.some((pass) =>
       pass.needsContinuousRender()
@@ -311,7 +314,10 @@ export class PipelineManager {
     inputTexture?: THREE.Texture
   ): THREE.Texture | null {
     const activePasses = this.passes.filter(
-      (pass) => pass.enabled && !this.compilingPasses.has(pass.layerId)
+      (pass) =>
+        pass.enabled &&
+        (!this.compilingPasses.has(pass.layerId) ||
+          this.compiledVersions.has(pass.layerId))
     )
     const needsContinuousRender = activePasses.some((pass) =>
       pass.needsContinuousRender()

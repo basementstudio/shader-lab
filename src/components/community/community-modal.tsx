@@ -21,7 +21,12 @@ import type {
   CommunitySceneSummary,
   SceneSort,
 } from "@/lib/community/scenes"
-import { applyLabProjectFile, hasImportedCustomShaderCode, parseLabProjectFile } from "@/lib/editor/project-file"
+import { acquirePreviewRenderLock } from "@/lib/editor/preview-render-lock"
+import {
+  applyLabProjectFile,
+  hasImportedCustomShaderCode,
+  parseLabProjectFile,
+} from "@/lib/editor/project-file"
 import { useAssetStore } from "@/store/asset-store"
 
 const SKELETON_KEYS = [
@@ -61,6 +66,14 @@ export function CommunityModal({
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  useEffect(() => {
+    if (!open) {
+      return
+    }
+
+    return acquirePreviewRenderLock()
+  }, [open])
 
   useEffect(() => {
     const timeout = window.setTimeout(() => setQuery(search), 220)

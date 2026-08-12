@@ -1,11 +1,12 @@
 "use client"
 
-import { Cross2Icon } from "@radix-ui/react-icons"
+import { ArrowLeftIcon, Cross2Icon } from "@radix-ui/react-icons"
 import { AnimatePresence, motion, useReducedMotion } from "motion/react"
 import { useCallback, useEffect, useState } from "react"
 import { createPortal } from "react-dom"
 import { SceneCard } from "@/components/community/scene-card"
 import { SceneDetail } from "@/components/community/scene-detail"
+import { Button } from "@/components/ui/button"
 import { GlassPanel } from "@/components/ui/glass-panel"
 import { IconButton } from "@/components/ui/icon-button"
 import { Typography } from "@/components/ui/typography"
@@ -206,59 +207,74 @@ export function CommunityModal({
                 role="dialog"
                 variant="panel"
               >
-                {detail ? (
-                  <SceneDetail
-                    onBack={() => setDetail(null)}
-                    onRemix={remix}
-                    remixing={remixing}
-                    scene={detail}
-                  />
-                ) : (
-                  <>
-                    <div className="flex items-center justify-between border-b border-[var(--ds-border-divider)] px-4 pt-[14px] pb-3">
-                      <Typography as="h2" className="leading-5" variant="title">
-                        Community
-                      </Typography>
-                      <IconButton
-                        aria-label="Close community scenes"
-                        className="h-7 w-7"
-                        onClick={() => onOpenChange(false)}
-                        variant="default"
+                <div className="flex items-center justify-between border-b border-[var(--ds-border-divider)] px-4 pt-[14px] pb-3">
+                  <Typography as="h2" className="leading-5" variant="title">
+                    Community
+                  </Typography>
+                  <IconButton
+                    aria-label="Close community scenes"
+                    className="h-7 w-7"
+                    onClick={() => onOpenChange(false)}
+                    variant="default"
+                  >
+                    <Cross2Icon height={18} width={18} />
+                  </IconButton>
+                </div>
+
+                <div className="flex h-[48px] shrink-0 items-center gap-1.5 overflow-hidden border-b border-[var(--ds-border-divider)] px-4">
+                  {detail ? (
+                    <Button
+                      onClick={() => setDetail(null)}
+                      size="compact"
+                      variant="ghost"
+                    >
+                      <ArrowLeftIcon height={14} width={14} />
+                      All scenes
+                    </Button>
+                  ) : (
+                    SORT_TABS.map((tab) => (
+                      <button
+                        className={cn(
+                          "inline-flex min-h-7 cursor-pointer items-center justify-center rounded-[var(--ds-radius-control)] border border-transparent px-[10px] leading-none transition-[background-color,border-color,color] duration-160 ease-[var(--ease-out-cubic)] hover:border-[var(--ds-border-subtle)] hover:bg-[var(--ds-color-surface-subtle)]",
+                          sort === tab.value &&
+                            "border-[var(--ds-border-active)] bg-[var(--ds-color-surface-active)]"
+                        )}
+                        key={tab.value}
+                        onClick={() => setSort(tab.value)}
+                        type="button"
                       >
-                        <Cross2Icon height={18} width={18} />
-                      </IconButton>
-                    </div>
-
-                    <div className="flex gap-1.5 border-b border-[var(--ds-border-divider)] px-4 py-[10px]">
-                      {SORT_TABS.map((tab) => (
-                        <button
-                          className={cn(
-                            "inline-flex min-h-7 cursor-pointer items-center justify-center rounded-[var(--ds-radius-control)] border border-transparent px-[10px] leading-none transition-[background-color,border-color,color] duration-160 ease-[var(--ease-out-cubic)] hover:border-[var(--ds-border-subtle)] hover:bg-[var(--ds-color-surface-subtle)]",
-                            sort === tab.value &&
-                              "border-[var(--ds-border-active)] bg-[var(--ds-color-surface-active)]"
-                          )}
-                          key={tab.value}
-                          onClick={() => setSort(tab.value)}
-                          type="button"
+                        <Typography
+                          as="span"
+                          tone={sort === tab.value ? "primary" : "tertiary"}
+                          variant="label"
                         >
-                          <Typography
-                            as="span"
-                            tone={sort === tab.value ? "primary" : "tertiary"}
-                            variant="label"
-                          >
-                            {tab.label}
-                          </Typography>
-                        </button>
-                      ))}
-                    </div>
-
-                    <div className="max-h-[min(62vh,560px)] overflow-y-auto p-4">
-                      {error ? (
-                        <Typography as="p" tone="secondary" variant="body">
-                          {error}
+                          {tab.label}
                         </Typography>
-                      ) : null}
+                      </button>
+                    ))
+                  )}
+                </div>
 
+                {error ? (
+                  <div
+                    className="border-b border-[var(--ds-border-divider)] bg-[rgb(120_28_28_/_0.22)] px-4 py-2"
+                    role="alert"
+                  >
+                    <Typography as="p" variant="caption">
+                      {error}
+                    </Typography>
+                  </div>
+                ) : null}
+
+                <div className="h-[min(62vh,560px)]">
+                  {detail ? (
+                    <SceneDetail
+                      onRemix={remix}
+                      remixing={remixing}
+                      scene={detail}
+                    />
+                  ) : (
+                    <div className="h-full overflow-y-auto p-4">
                       {items === null && !error ? (
                         <div className="grid grid-cols-2 gap-[var(--ds-space-4)] min-[720px]:grid-cols-4">
                           {SKELETON_KEYS.map((key) => (
@@ -288,8 +304,9 @@ export function CommunityModal({
                         </div>
                       ) : null}
                     </div>
-                  </>
-                )}
+                  )}
+                </div>
+
               </GlassPanel>
             </motion.div>
           </div>

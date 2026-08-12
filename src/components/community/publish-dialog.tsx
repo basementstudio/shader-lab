@@ -14,7 +14,9 @@ import {
   getThumbnailTimeBounds,
   type PublishProgress,
   publishScene,
+  THUMBNAIL_MAX_TIME_SECONDS,
 } from "@/lib/community/publish-client"
+import { acquirePreviewRenderLock } from "@/lib/editor/preview-render-lock"
 import { numberInputControlClassName } from "@/components/ui/number-input"
 import { cn } from "@/lib/cn"
 import { useTimelineStore } from "@/store/timeline-store"
@@ -30,7 +32,6 @@ export function PublishDialog({
 }) {
   const reduceMotion = useReducedMotion() ?? false
   const duration = useTimelineStore((state) => state.duration)
-  const currentTime = useTimelineStore((state) => state.currentTime)
   const bounds = getThumbnailTimeBounds(duration)
 
   const [mounted, setMounted] = useState(false)
@@ -58,9 +59,24 @@ export function PublishDialog({
     setError(null)
     setProgress(null)
     setSlug(null)
-    const seeded = Math.min(Math.max(currentTime, bounds.min), bounds.max)
+
+    const state = useTimelineStore.getState()
+    const max = Math.min(
+      Number.isFinite(state.duration) ? Math.max(0, state.duration) : 0,
+      THUMBNAIL_MAX_TIME_SECONDS
+    )
+    const seeded = Math.min(Math.max(state.currentTime, 0), max)
+
     setThumbnailTime(Math.round(seeded * 100) / 100)
-  }, [bounds.max, bounds.min, currentTime, open])
+  }, [open])
+
+  useEffect(() => {
+    if (!open) {
+      return
+    }
+
+    return acquirePreviewRenderLock()
+  }, [open])
 
   useEffect(
     () => () => {
@@ -300,7 +316,16 @@ export function PublishDialog({
                           />
                         ) : null}
                         {capturing ? (
-                          <div className="absolute inset-0 animate-pulse bg-[rgb(8_9_12_/_0.35)]" />
+                          <div className="absolute inset-0 flex items-center justify-center bg-[rgb(8_9_12_/_0.45)]">
+                            <Typography
+                              align="center"
+                              as="span"
+                              tone="secondary"
+                              variant="monoXs"
+                            >
+                              Rendering frame…
+                            </Typography>
+                          </div>
                         ) : null}
                       </div>
                       <Typography as="p" tone="tertiary" variant="monoXs">

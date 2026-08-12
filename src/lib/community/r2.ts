@@ -37,6 +37,8 @@ function getClient() {
       },
       endpoint: `https://${config.accountId}.r2.cloudflarestorage.com`,
       region: "auto",
+      requestChecksumCalculation: "WHEN_REQUIRED",
+      responseChecksumValidation: "WHEN_REQUIRED",
     })
   }
 

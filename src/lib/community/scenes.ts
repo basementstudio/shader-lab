@@ -1,4 +1,8 @@
 import { and, desc, eq, ilike, isNull, or, sql } from "drizzle-orm"
+import {
+  encodeSceneCursor,
+  type SceneCursor,
+} from "@/lib/community/scene-cursor"
 import { getDatabase } from "@/lib/db"
 import { profiles, scenes } from "@/lib/db/schema"
 import { normalizeHost } from "@/lib/editor/remote-asset"
@@ -124,25 +128,41 @@ function toSummary(row: {
 
 function buildOrderBy(sort: SceneSort) {
   if (sort === "popular") {
-    return [desc(scenes.likeCount), desc(scenes.publishedAt)]
+    return [desc(scenes.likeCount), desc(scenes.publishedAt), desc(scenes.id)]
   }
 
   if (sort === "featured") {
-    return [desc(scenes.featuredAt), desc(scenes.publishedAt)]
+    return [desc(scenes.featuredAt), desc(scenes.publishedAt), desc(scenes.id)]
   }
 
-  return [desc(scenes.publishedAt)]
+  return [desc(scenes.publishedAt), desc(scenes.id)]
+}
+
+function buildKeysetFilter(sort: SceneSort, cursor: SceneCursor) {
+  const publishedAt = new Date(cursor.publishedAt)
+
+  if (sort === "popular") {
+    return sql`(${scenes.likeCount}, ${scenes.publishedAt}, ${scenes.id}) < (${cursor.likeCount}::int, ${publishedAt}::timestamptz, ${cursor.id}::text)`
+  }
+
+  return sql`(${scenes.publishedAt}, ${scenes.id}) < (${publishedAt}::timestamptz, ${cursor.id}::text)`
 }
 
 function escapeLike(value: string): string {
   return value.replace(/[\\%_]/g, (match) => `\\${match}`)
 }
 
+export interface SceneListPage {
+  nextCursor: string | null
+  scenes: CommunitySceneSummary[]
+}
+
 export async function listPublishedScenes(options?: {
+  cursor?: SceneCursor | null
   limit?: number
   query?: string
   sort?: SceneSort
-}): Promise<CommunitySceneSummary[]> {
+}): Promise<SceneListPage> {
   const limit = Math.min(Math.max(options?.limit ?? 24, 1), 60)
   const sort = options?.sort ?? DEFAULT_SCENE_SORT
   const query = options?.query?.trim() ?? ""
@@ -152,6 +172,10 @@ export async function listPublishedScenes(options?: {
 
   if (sort === "featured") {
     filters.push(sql`${scenes.featuredAt} is not null`)
+  }
+
+  if (options?.cursor) {
+    filters.push(buildKeysetFilter(sort, options.cursor))
   }
 
   if (query.length > 0) {
@@ -170,14 +194,28 @@ export async function listPublishedScenes(options?: {
   const where = and(...filters)
 
   const rows = await getDatabase()
-    .select(summaryColumns)
+    .select({ ...summaryColumns, publishedAtRaw: scenes.publishedAt })
     .from(scenes)
     .innerJoin(profiles, eq(profiles.userId, scenes.authorId))
     .where(where)
     .orderBy(...orderBy)
-    .limit(limit)
+    .limit(limit + 1)
 
-  return rows.map(toSummary)
+  const page = rows.slice(0, limit)
+  const last = page.at(-1)
+  const hasMore = rows.length > limit
+
+  return {
+    nextCursor:
+      hasMore && last?.publishedAtRaw
+        ? encodeSceneCursor({
+            id: last.id,
+            likeCount: last.likeCount,
+            publishedAt: last.publishedAtRaw.toISOString(),
+          })
+        : null,
+    scenes: page.map(toSummary),
+  }
 }
 
 export interface AuthoredScene extends CommunitySceneSummary {

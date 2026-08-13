@@ -6,7 +6,7 @@ import {
   MagnifyingGlassIcon,
 } from "@radix-ui/react-icons"
 import { AnimatePresence, motion, useReducedMotion } from "motion/react"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { AuthMenu } from "@/components/community/auth-menu"
 import { MyScenesGrid } from "@/components/community/my-scenes-grid"
@@ -46,6 +46,40 @@ const VIEW_TABS: readonly { label: string; value: "explore" | "mine" }[] = [
   { label: "My scenes", value: "mine" },
 ]
 
+const PAGE_SIZE = 24
+
+const MAX_CACHED_PAGES = 12
+
+interface ScenePage {
+  nextCursor?: string | null
+  scenes?: CommunitySceneSummary[]
+}
+
+function pageKey(sort: SceneSort, query: string): string {
+  return `${sort}|${query.trim().toLowerCase()}`
+}
+
+function scenesUrl(input: {
+  cursor?: string | null
+  query: string
+  sort: SceneSort
+}): string {
+  const params = new URLSearchParams({
+    limit: String(PAGE_SIZE),
+    sort: input.sort,
+  })
+
+  if (input.query.trim().length > 0) {
+    params.set("q", input.query.trim())
+  }
+
+  if (input.cursor) {
+    params.set("cursor", input.cursor)
+  }
+
+  return `/api/community/scenes?${params.toString()}`
+}
+
 const TAB_CLASS_NAME =
   "inline-flex min-h-7 cursor-pointer items-center justify-center rounded-[var(--ds-radius-control)] border border-transparent px-[10px] leading-none transition-[background-color,border-color,color] duration-160 ease-[var(--ease-out-cubic)] hover:border-[var(--ds-border-subtle)] hover:bg-[var(--ds-color-surface-subtle)]"
 
@@ -71,6 +105,15 @@ export function CommunityModal({
   const [search, setSearch] = useState("")
   const [query, setQuery] = useState("")
   const [items, setItems] = useState<CommunitySceneSummary[] | null>(null)
+  const [nextCursor, setNextCursor] = useState<string | null>(null)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const pageCache = useRef(
+    new Map<
+      string,
+      { nextCursor: string | null; scenes: CommunitySceneSummary[] }
+    >()
+  )
+  const sentinelRef = useRef<HTMLDivElement | null>(null)
   const [selected, setSelected] = useState<CommunitySceneSummary | null>(null)
   const [detail, setDetail] = useState<CommunitySceneDetail | null>(null)
   const [remixing, setRemixing] = useState(false)
@@ -99,22 +142,37 @@ export function CommunityModal({
       return
     }
 
-    let cancelled = false
-    setItems(null)
-    setError(null)
+    const key = pageKey(sort, query)
+    const cached = pageCache.current.get(key)
 
-    const params = new URLSearchParams({ limit: "24", sort })
+    if (cached) {
+      setItems(cached.scenes)
+      setNextCursor(cached.nextCursor)
+      setError(null)
 
-    if (query.trim().length > 0) {
-      params.set("q", query.trim())
+      return
     }
 
-    fetch(`/api/community/scenes?${params.toString()}`)
+    let cancelled = false
+    setItems(null)
+    setNextCursor(null)
+    setError(null)
+
+    fetch(scenesUrl({ query, sort }))
       .then((res) => res.json())
-      .then((data: { scenes?: CommunitySceneSummary[] }) => {
-        if (!cancelled) {
-          setItems(data.scenes ?? [])
+      .then((data: ScenePage) => {
+        if (cancelled) {
+          return
         }
+
+        const scenes = data.scenes ?? []
+
+        pageCache.current.set(key, {
+          nextCursor: data.nextCursor ?? null,
+          scenes,
+        })
+        setItems(scenes)
+        setNextCursor(data.nextCursor ?? null)
       })
       .catch(() => {
         if (!cancelled) {
@@ -126,6 +184,70 @@ export function CommunityModal({
       cancelled = true
     }
   }, [open, query, sort])
+
+  const loadMore = useCallback(async () => {
+    if (!nextCursor || loadingMore) {
+      return
+    }
+
+    setLoadingMore(true)
+
+    try {
+      const res = await fetch(scenesUrl({ cursor: nextCursor, query, sort }))
+      const data = (await res.json()) as ScenePage
+
+      setItems((current) => {
+        const seen = new Set((current ?? []).map((entry) => entry.slug))
+        const merged = [
+          ...(current ?? []),
+          ...(data.scenes ?? []).filter((entry) => !seen.has(entry.slug)),
+        ]
+
+        const key = pageKey(sort, query)
+
+        if (pageCache.current.size >= MAX_CACHED_PAGES) {
+          const oldest = pageCache.current.keys().next().value
+
+          if (oldest !== undefined) {
+            pageCache.current.delete(oldest)
+          }
+        }
+
+        pageCache.current.set(key, {
+          nextCursor: data.nextCursor ?? null,
+          scenes: merged,
+        })
+
+        return merged
+      })
+      setNextCursor(data.nextCursor ?? null)
+    } catch {
+      setNextCursor(null)
+    } finally {
+      setLoadingMore(false)
+    }
+  }, [loadingMore, nextCursor, query, sort])
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current
+
+    if (!(open && sentinel && nextCursor) || selected || tab !== "explore") {
+      return
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          void loadMore()
+        }
+      },
+      { rootMargin: "320px" }
+    )
+
+    observer.observe(sentinel)
+
+    return () => observer.disconnect()
+  }, [loadMore, nextCursor, open, selected, tab])
 
   useEffect(() => {
     if (!session?.user) {
@@ -296,6 +418,13 @@ export function CommunityModal({
       const patch = <T extends CommunitySceneSummary>(entry: T): T =>
         entry.slug === slug ? { ...entry, ...counts } : entry
 
+      for (const [key, page] of pageCache.current) {
+        pageCache.current.set(key, {
+          nextCursor: page.nextCursor,
+          scenes: page.scenes.map(patch),
+        })
+      }
+
       setItems((current) => (current ? current.map(patch) : current))
       setMine((current) => (current ? current.map(patch) : current))
       setSelected((current) => (current ? patch(current) : current))
@@ -323,6 +452,13 @@ export function CommunityModal({
   )
 
   const forgetScene = useCallback((slug: string) => {
+    for (const [key, page] of pageCache.current) {
+      pageCache.current.set(key, {
+        nextCursor: page.nextCursor,
+        scenes: page.scenes.filter((entry) => entry.slug !== slug),
+      })
+    }
+
     setMine((current) =>
       current ? current.filter((entry) => entry.slug !== slug) : current
     )
@@ -619,6 +755,23 @@ export function CommunityModal({
                               scene={scene}
                             />
                           ))}
+                        </div>
+                      ) : null}
+
+                      {items && items.length > 0 ? (
+                        <div
+                          className="flex h-10 items-center justify-center"
+                          ref={sentinelRef}
+                        >
+                          {loadingMore ? (
+                            <Typography
+                              as="span"
+                              tone="tertiary"
+                              variant="caption"
+                            >
+                              Loading more…
+                            </Typography>
+                          ) : null}
                         </div>
                       ) : null}
                     </div>

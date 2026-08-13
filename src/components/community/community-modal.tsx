@@ -202,25 +202,32 @@ export function CommunityModal({
     }
   }, [])
 
+  const openSceneBySlug = useCallback(async (slug: string) => {
+    setError(null)
+
+    try {
+      const res = await fetch(`/api/community/scenes/${slug}`)
+      const data = (await res.json()) as { scene?: CommunitySceneDetail }
+
+      if (data.scene) {
+        setSelected(data.scene)
+        setDetail(data.scene)
+        return
+      }
+
+      setError("That scene is no longer available.")
+    } catch {
+      setError("Could not load that scene.")
+    }
+  }, [])
+
   useEffect(() => {
     if (!(open && focusSlug)) {
       return
     }
 
-    void (async () => {
-      try {
-        const res = await fetch(`/api/community/scenes/${focusSlug}`)
-        const data = (await res.json()) as { scene?: CommunitySceneDetail }
-
-        if (data.scene) {
-          setSelected(data.scene)
-          setDetail(data.scene)
-        }
-      } catch {
-        setError("Could not open that scene.")
-      }
-    })()
-  }, [focusSlug, open])
+    void openSceneBySlug(focusSlug)
+  }, [focusSlug, open, openSceneBySlug])
 
   const remix = useCallback(
     async (scene: CommunitySceneDetail) => {
@@ -505,6 +512,7 @@ export function CommunityModal({
                       detail={detail}
                       isOwn={ownedSlugs.has(selected.slug)}
                       onDeleted={forgetScene}
+                      onOpenSlug={openSceneBySlug}
                       onRemix={remix}
                       onUpvoteChange={(next) =>
                         changeUpvote(selected.slug, next)

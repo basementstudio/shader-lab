@@ -3,11 +3,13 @@
 import Image from "next/image"
 import { AuthorAvatar } from "@/components/community/author-avatar"
 import { DeleteSceneControl } from "@/components/community/delete-scene-control"
+import { RemixCredit } from "@/components/community/remix-credit"
 import { ReportControl } from "@/components/community/report-control"
 import { ShareSceneButton } from "@/components/community/share-scene-button"
 import { UpvoteButton } from "@/components/community/upvote-button"
 import { Button } from "@/components/ui/button"
 import { Typography } from "@/components/ui/typography"
+import { lineageLabel } from "@/lib/community/lineage"
 import type {
   CommunitySceneDetail,
   CommunitySceneSummary,
@@ -30,6 +32,7 @@ export function SceneDetail({
   detail,
   isOwn,
   onDeleted,
+  onOpenSlug,
   onRemix,
   onUpvoteChange,
   remixing,
@@ -39,6 +42,7 @@ export function SceneDetail({
   detail: CommunitySceneDetail | null
   isOwn: boolean
   onDeleted: (slug: string) => void
+  onOpenSlug: (slug: string) => void
   onRemix: (scene: CommunitySceneDetail) => void
   onUpvoteChange: (next: { count: number; upvoted: boolean }) => void
   remixing: boolean
@@ -103,9 +107,15 @@ export function SceneDetail({
         </div>
 
         {forkedFrom ? (
-          <Typography as="p" tone="tertiary" variant="caption">
-            Remixed from {forkedFrom.title}
-          </Typography>
+          <button
+            aria-label={lineageLabel(forkedFrom)}
+            className="w-fit cursor-pointer rounded-[var(--ds-radius-control)] transition-opacity duration-160 hover:opacity-80"
+            onClick={() => onOpenSlug(forkedFrom.slug)}
+            title={forkedFrom.title}
+            type="button"
+          >
+            <RemixCredit lineage={forkedFrom} />
+          </button>
         ) : null}
 
         <div className="mt-auto flex flex-col gap-[var(--ds-space-2)] pt-[var(--ds-space-3)]">

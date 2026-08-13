@@ -1,12 +1,14 @@
-import type { Metadata } from "next"
+import type { Metadata, Route } from "next"
 import Image from "next/image"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { Suspense } from "react"
 import { AuthorAvatar } from "@/components/community/author-avatar"
+import { RemixCredit } from "@/components/community/remix-credit"
 import { Typography } from "@/components/ui/typography"
 import { APP_BASE_URL } from "@/lib/app"
 import { isCommunityEnabled } from "@/lib/community/config"
+import { lineageLabel } from "@/lib/community/lineage"
 import { getPublicScene } from "@/lib/community/public-scenes"
 import { getLayerLabel } from "@/lib/editor/config/layer-catalog"
 
@@ -161,15 +163,14 @@ async function SceneBody({ params }: PageProps) {
           </div>
 
           {scene.forkedFrom ? (
-            <Typography as="p" tone="tertiary" variant="caption">
-              Remixed from{" "}
-              <Link
-                className="underline decoration-dotted underline-offset-2"
-                href={`/community/${scene.forkedFrom.slug}`}
-              >
-                {scene.forkedFrom.title}
-              </Link>
-            </Typography>
+            <Link
+              aria-label={lineageLabel(scene.forkedFrom)}
+              className="w-fit rounded-[var(--ds-radius-control)] transition-opacity duration-160 hover:opacity-80"
+              href={`/community/${scene.forkedFrom.slug}` as Route}
+              title={scene.forkedFrom.title}
+            >
+              <RemixCredit lineage={scene.forkedFrom} />
+            </Link>
           ) : null}
 
           <div className="flex flex-wrap items-center gap-[var(--ds-space-3)]">

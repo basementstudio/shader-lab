@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { isModerator } from "@/lib/community/moderation"
-import { deleteScenePrefix } from "@/lib/community/r2"
+import {
+  deleteSceneObjects,
+  keyFromPublicUrl,
+  scenePrefixOf,
+} from "@/lib/community/r2"
 import { isReportReason, REPORT_REASONS } from "@/lib/community/report-reasons"
 
 const saved = new Map<string, string | undefined>()
@@ -32,6 +36,14 @@ afterEach(() => {
 
 function sessionWith(email: string | null) {
   return { user: { email, id: "user-1", image: null, name: null } }
+}
+
+function configureR2() {
+  setEnv("R2_ACCESS_KEY_ID", "key")
+  setEnv("R2_SECRET_ACCESS_KEY", "secret")
+  setEnv("R2_BUCKET", "bucket")
+  setEnv("CLOUDFLARE_ACCOUNT_ID", "account")
+  setEnv("NEXT_PUBLIC_R2_PUBLIC_HOST", "pub-example.r2.dev")
 }
 
 describe("isModerator", () => {
@@ -78,33 +90,69 @@ describe("isReportReason", () => {
   })
 })
 
-describe("deleteScenePrefix guard", () => {
-  const rejected = [
-    "",
-    "/",
-    "scenes/",
-    "scenes",
-    "scenes//",
-    "scenes/../",
-    "scenes/scn_1",
-    "scenes/scn_1/nested/",
-    "other/scn_1/",
-    "scenes/scn 1/",
-    "*",
-  ]
+describe("keyFromPublicUrl", () => {
+  test("recovers the object key from one of our urls", () => {
+    configureR2()
 
-  test.each(rejected)("refuses to delete by %p", async (prefix) => {
-    await expect(deleteScenePrefix(prefix)).rejects.toThrow(
-      /Refusing to delete by prefix/
-    )
+    expect(
+      keyFromPublicUrl("https://pub-example.r2.dev/scenes/scn_abc/file.mp4")
+    ).toBe("scenes/scn_abc/file.mp4")
   })
 
-  test("the guard runs before any credential is needed", async () => {
+  test("refuses a url on any other host, so a crafted asset url cannot target our bucket", () => {
+    configureR2()
+
+    expect(
+      keyFromPublicUrl("https://evil.example.com/scenes/scn_abc/file.mp4")
+    ).toBeNull()
+  })
+
+  test("refuses paths outside the scenes layout", () => {
+    configureR2()
+
+    for (const url of [
+      "https://pub-example.r2.dev/scenes/scn_abc/nested/file.mp4",
+      "https://pub-example.r2.dev/other/scn_abc/file.mp4",
+      "https://pub-example.r2.dev/scenes/scn_abc/",
+      "https://pub-example.r2.dev/",
+      "not-a-url",
+    ]) {
+      expect(keyFromPublicUrl(url)).toBeNull()
+    }
+  })
+})
+
+describe("scenePrefixOf", () => {
+  test("names the scene that owns an object", () => {
+    expect(scenePrefixOf("scenes/scn_abc/file.mp4")).toBe("scenes/scn_abc")
+  })
+
+  test("returns nothing for a key it cannot attribute", () => {
+    expect(scenePrefixOf("file.mp4")).toBeNull()
+    expect(scenePrefixOf("other/scn_abc/file.mp4")).toBeNull()
+  })
+})
+
+describe("deleteSceneObjects", () => {
+  test("deletes nothing when given nothing", async () => {
+    expect(await deleteSceneObjects([])).toBe(0)
+  })
+
+  test("drops keys outside the scenes layout instead of sending them", async () => {
     setEnv("R2_ACCESS_KEY_ID", undefined)
     setEnv("R2_BUCKET", undefined)
 
-    await expect(deleteScenePrefix("")).rejects.toThrow(
-      /Refusing to delete by prefix/
-    )
+    for (const key of [
+      "",
+      "/",
+      "scenes/",
+      "scenes/scn_abc",
+      "scenes/scn_abc/nested/file.mp4",
+      "other/scn_abc/file.mp4",
+      "../secrets",
+      "*",
+    ]) {
+      expect(await deleteSceneObjects([key])).toBe(0)
+    }
   })
 })

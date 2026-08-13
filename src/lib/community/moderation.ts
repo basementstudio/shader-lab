@@ -1,16 +1,95 @@
-import { and, desc, eq, isNull, sql } from "drizzle-orm"
+import { and, desc, eq, isNull, ne, sql } from "drizzle-orm"
 import { nanoid } from "nanoid"
 import type { CommunitySession } from "@/lib/auth/server"
 import { isAdminEmail } from "@/lib/community/config"
-import { deleteScenePrefix } from "@/lib/community/r2"
+import {
+  deleteSceneObjects,
+  keyFromPublicUrl,
+  scenePrefixOf,
+} from "@/lib/community/r2"
 import type { ReportReason } from "@/lib/community/report-reasons"
 import { getDatabase } from "@/lib/db"
-import { profiles, reports, scenes } from "@/lib/db/schema"
+import { profiles, reports, sceneAssets, scenes } from "@/lib/db/schema"
 
 export type RemovalOutcome =
   | { kind: "forbidden" }
   | { kind: "notFound" }
-  | { kind: "removed"; mode: "deleted" | "takendown"; purgedObjects: number }
+  | {
+      kind: "removed"
+      mode: "deleted" | "takendown"
+      purgedObjects: number
+      retainedObjects: number
+    }
+
+async function collectDeletableKeys(sceneId: string): Promise<{
+  deletable: string[]
+  retained: number
+}> {
+  const db = getDatabase()
+
+  const scene = (
+    await db
+      .select({
+        labKey: scenes.labKey,
+        thumbnailImageId: scenes.thumbnailImageId,
+      })
+      .from(scenes)
+      .where(eq(scenes.id, sceneId))
+      .limit(1)
+  )[0]
+
+  const ownPrefix = `scenes/${sceneId}`
+  const deletable: string[] = []
+  let retained = 0
+
+  if (scene?.labKey && scenePrefixOf(scene.labKey) === ownPrefix) {
+    deletable.push(scene.labKey)
+  }
+
+  const thumbnailKey = scene?.thumbnailImageId
+    ? keyFromPublicUrl(scene.thumbnailImageId)
+    : null
+
+  if (thumbnailKey && scenePrefixOf(thumbnailKey) === ownPrefix) {
+    deletable.push(thumbnailKey)
+  }
+
+  const assets = await db
+    .select({ url: sceneAssets.url })
+    .from(sceneAssets)
+    .where(eq(sceneAssets.sceneId, sceneId))
+
+  for (const asset of assets) {
+    const key = keyFromPublicUrl(asset.url)
+
+    if (!key || scenePrefixOf(key) !== ownPrefix) {
+      continue
+    }
+
+    const usedElsewhere = await db
+      .select({ sceneId: sceneAssets.sceneId })
+      .from(sceneAssets)
+      .innerJoin(scenes, eq(scenes.id, sceneAssets.sceneId))
+      .where(
+        and(
+          eq(sceneAssets.url, asset.url),
+          ne(sceneAssets.sceneId, sceneId),
+          eq(scenes.status, "published"),
+          isNull(scenes.deletedAt)
+        )
+      )
+      .limit(1)
+
+    if (usedElsewhere.length > 0) {
+      retained += 1
+      continue
+    }
+
+    deletable.push(key)
+  }
+
+  return { deletable, retained }
+}
 
 export function isModerator(session: CommunitySession | null): boolean {
   return isAdminEmail(session?.user.email)
@@ -53,6 +132,7 @@ export async function removeScene(input: {
       kind: "removed",
       mode: moderator ? "takendown" : "deleted",
       purgedObjects: 0,
+      retainedObjects: 0,
     }
   }
 
@@ -68,14 +148,18 @@ export async function removeScene(input: {
     .where(eq(scenes.id, scene.id))
 
   let purgedObjects = 0
+  let retainedObjects = 0
 
   try {
-    purgedObjects = await deleteScenePrefix(`scenes/${scene.id}/`)
+    const { deletable, retained } = await collectDeletableKeys(scene.id)
+
+    retainedObjects = retained
+    purgedObjects = await deleteSceneObjects(deletable)
   } catch {
     purgedObjects = -1
   }
 
-  return { kind: "removed", mode, purgedObjects }
+  return { kind: "removed", mode, purgedObjects, retainedObjects }
 }
 
 export async function reportScene(input: {

@@ -162,7 +162,7 @@ async function SceneBody({ params }: PageProps) {
 
           {scene.forkedFrom ? (
             <Typography as="p" tone="tertiary" variant="caption">
-              Forked from{" "}
+              Remixed from{" "}
               <Link
                 className="underline decoration-dotted underline-offset-2"
                 href={`/community/${scene.forkedFrom.slug}`}

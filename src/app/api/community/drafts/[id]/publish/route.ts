@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm"
+import { and, eq, isNull } from "drizzle-orm"
 import { nanoid } from "nanoid"
 import { getOptionalSession } from "@/lib/auth/server"
 import { isCommunityEnabled, isMediaConfigured } from "@/lib/community/config"
@@ -20,6 +20,26 @@ const DRAFT_ID_PATTERN = /^scn_[A-Za-z0-9_-]{16}$/
 
 function badRequest(error: string, status = 400) {
   return Response.json({ error }, { status })
+}
+
+async function resolveForkedFromId(slug: unknown): Promise<string | null> {
+  if (typeof slug !== "string" || slug.length === 0 || slug.length > 120) {
+    return null
+  }
+
+  const rows = await getDatabase()
+    .select({ id: scenes.id })
+    .from(scenes)
+    .where(
+      and(
+        eq(scenes.slug, slug),
+        eq(scenes.status, "published"),
+        isNull(scenes.deletedAt)
+      )
+    )
+    .limit(1)
+
+  return rows[0]?.id ?? null
 }
 
 export async function POST(
@@ -45,6 +65,7 @@ export async function POST(
 
   let payload: {
     description?: unknown
+    forkedFromSlug?: unknown
     projectFile?: unknown
     thumbnailUrl?: unknown
     title?: unknown
@@ -131,6 +152,7 @@ export async function POST(
   const db = getDatabase()
   const now = new Date()
   const composition = validated.projectFile.composition
+  const forkedFromId = await resolveForkedFromId(payload.forkedFromSlug)
 
   await db.insert(scenes).values({
     authorId: profile.userId,
@@ -138,6 +160,7 @@ export async function POST(
     compositionWidth: Math.round(composition.width),
     description,
     durationSeconds: validated.projectFile.timeline.duration,
+    forkedFromId,
     hasCustomShader: validated.hasCustomShader,
     id: draftId,
     labKey,

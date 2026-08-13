@@ -104,7 +104,7 @@ export function SceneDetail({
 
         {forkedFrom ? (
           <Typography as="p" tone="tertiary" variant="caption">
-            Forked from {forkedFrom.title}
+            Remixed from {forkedFrom.title}
           </Typography>
         ) : null}
 

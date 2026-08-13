@@ -2,6 +2,7 @@
 
 import { CheckIcon, Link2Icon } from "@radix-ui/react-icons"
 import { useCallback, useEffect, useState } from "react"
+import { OPEN_IN_EDITOR_PARAM } from "@/components/community/open-in-editor"
 import { IconButton } from "@/components/ui/icon-button"
 
 const LABELS = {
@@ -36,7 +37,7 @@ export function sceneShareUrl(slug: string): string {
       ? ""
       : window.location.origin.replace(/\/$/, "")
 
-  return `${origin}/tools/shader-lab?scene=${encodeURIComponent(slug)}`
+  return `${origin}/community/${slug}?${OPEN_IN_EDITOR_PARAM}=1`
 }
 
 export function ShareSceneButton({ slug }: { slug: string }) {

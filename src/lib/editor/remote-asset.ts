@@ -1,4 +1,3 @@
-import { readEnv } from "@/lib/read-env"
 import type { EditorAsset, PresetAssetReference } from "@/types/editor"
 import { ASSET_KINDS } from "@/types/editor"
 
@@ -8,6 +7,8 @@ const LOOPBACK_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"])
 
 export function normalizeHost(value: string): string {
   return value
+    .trim()
+    .replace(/^["']+|["']+$/g, "")
     .trim()
     .toLowerCase()
     .replace(/^[a-z][a-z0-9+.-]*:\/\//, "")
@@ -33,9 +34,9 @@ function isLoopbackHostname(hostname: string): boolean {
 export function getAllowedAssetHosts(): string[] {
   return [
     ...BUILT_IN_ASSET_HOSTS,
-    ...parseHostList(readEnv("NEXT_PUBLIC_CF_IMAGES_HOST")),
-    ...parseHostList(readEnv("NEXT_PUBLIC_R2_PUBLIC_HOST")),
-    ...parseHostList(readEnv("NEXT_PUBLIC_COMMUNITY_ASSET_HOSTS")),
+    ...parseHostList(process.env.NEXT_PUBLIC_CF_IMAGES_HOST),
+    ...parseHostList(process.env.NEXT_PUBLIC_R2_PUBLIC_HOST),
+    ...parseHostList(process.env.NEXT_PUBLIC_COMMUNITY_ASSET_HOSTS),
   ]
 }
 

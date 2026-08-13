@@ -131,6 +131,23 @@ export function EditorTopBar() {
   const [publishedSlug, setPublishedSlug] = useState<string | null>(null)
   const [hasOpenedCommunity, setHasOpenedCommunity] = useState(false)
 
+  useEffect(() => {
+    const requested = new URLSearchParams(window.location.search).get("scene")
+
+    if (!requested) {
+      return
+    }
+
+    setPublishedSlug(requested)
+    setHasOpenedCommunity(true)
+    setCommunityOpen(true)
+
+    const url = new URL(window.location.href)
+
+    url.searchParams.delete("scene")
+    window.history.replaceState(null, "", url.toString())
+  }, [])
+
   const handleExportDialogOpenChange = useCallback((open: boolean) => {
     if (open) {
       setHasOpenedExport(true)

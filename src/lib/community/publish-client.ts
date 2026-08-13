@@ -5,7 +5,7 @@ import type { PresetAssetReference } from "@/types/editor"
 
 export const THUMBNAIL_MAX_TIME_SECONDS = 10
 export const THUMBNAIL_WIDTH = 1280
-export const THUMBNAIL_MIME = "image/webp"
+export const THUMBNAIL_MIME = "image/jpeg"
 
 export interface PublishResult {
   slug: string | null

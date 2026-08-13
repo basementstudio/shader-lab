@@ -8,7 +8,7 @@ function resolveAppBaseUrl() {
   const explicitBaseUrl = process.env.NEXT_PUBLIC_BASE_URL;
 
   if (explicitBaseUrl) {
-    return explicitBaseUrl;
+    return explicitBaseUrl.replace(/\/+$/, "");
   }
 
   const vercelProductionUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL;

@@ -443,7 +443,7 @@ export async function exportVideo(
   projectState: RenderProjectState,
   options: VideoExportOptions
 ): Promise<Blob | null> {
-  const releasePreviewLock = acquirePreviewRenderLock()
+  const releasePreviewLock = acquirePreviewRenderLock("export")
 
   try {
     return await runVideoExport(projectState, options)

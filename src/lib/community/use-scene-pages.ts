@@ -46,6 +46,18 @@ export function sceneListUrl(input: {
   return `/api/community/scenes?${params.toString()}`
 }
 
+async function fetchScenePage(url: string): Promise<CachedPage> {
+  const res = await fetch(url)
+
+  if (!res.ok) {
+    throw new Error(`Scene request failed (${res.status}).`)
+  }
+
+  const data = (await res.json()) as ScenePageResponse
+
+  return { nextCursor: data.nextCursor ?? null, scenes: data.scenes ?? [] }
+}
+
 export interface ScenePagesState {
   error: boolean
   hasMore: boolean
@@ -69,7 +81,7 @@ export function useScenePages(input: {
 
   const cache = useRef(new Map<string, CachedPage>())
   const inFlight = useRef<string | null>(null)
-  const loadingKey = useRef<string | null>(null)
+  const pending = useRef(new Map<string, Promise<CachedPage>>())
 
   if (input.initial && !cache.current.has(key)) {
     cache.current.set(key, input.initial)
@@ -114,43 +126,38 @@ export function useScenePages(input: {
       return
     }
 
-    if (loadingKey.current === key) {
-      return
-    }
-
     let cancelled = false
 
-    loadingKey.current = key
     setScenes(null)
     setNextCursor(null)
     setError(false)
 
-    fetch(sceneListUrl({ query, sort }))
-      .then((res) =>
-        res.ok ? res.json() : Promise.reject(new Error("failed"))
-      )
-      .then((data: ScenePageResponse) => {
-        if (cancelled) {
-          return
-        }
+    let request = pending.current.get(key)
 
-        const page = {
-          nextCursor: data.nextCursor ?? null,
-          scenes: data.scenes ?? [],
-        }
+    if (!request) {
+      request = fetchScenePage(sceneListUrl({ query, sort }))
+        .then((page) => {
+          remember(key, page)
 
-        remember(key, page)
-        setScenes(page.scenes)
-        setNextCursor(page.nextCursor)
+          return page
+        })
+        .finally(() => {
+          pending.current.delete(key)
+        })
+
+      pending.current.set(key, request)
+    }
+
+    request
+      .then((page) => {
+        if (!cancelled) {
+          setScenes(page.scenes)
+          setNextCursor(page.nextCursor)
+        }
       })
       .catch(() => {
         if (!cancelled) {
           setError(true)
-        }
-      })
-      .finally(() => {
-        if (loadingKey.current === key) {
-          loadingKey.current = null
         }
       })
 
@@ -168,19 +175,16 @@ export function useScenePages(input: {
     setLoading(true)
     setError(false)
 
-    void fetch(sceneListUrl({ cursor: nextCursor, query, sort }))
-      .then((res) =>
-        res.ok ? res.json() : Promise.reject(new Error("failed"))
-      )
-      .then((data: ScenePageResponse) => {
+    void fetchScenePage(sceneListUrl({ cursor: nextCursor, query, sort }))
+      .then((page) => {
         setScenes((current) => {
-          const merged = mergeScenePages(current ?? [], data.scenes ?? [])
+          const merged = mergeScenePages(current ?? [], page.scenes)
 
-          remember(key, { nextCursor: data.nextCursor ?? null, scenes: merged })
+          remember(key, { nextCursor: page.nextCursor, scenes: merged })
 
           return merged
         })
-        setNextCursor(data.nextCursor ?? null)
+        setNextCursor(page.nextCursor)
       })
       .catch(() => setError(true))
       .finally(() => {

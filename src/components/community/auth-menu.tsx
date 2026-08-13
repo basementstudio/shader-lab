@@ -53,8 +53,10 @@ export function AuthMenu() {
 
     const outcome = await startSignIn(provider)
 
-    setProblem(outcome)
-    setBusy(null)
+    if (outcome) {
+      setProblem(outcome)
+      setBusy(null)
+    }
   }, [])
 
   const signOut = useCallback(async () => {

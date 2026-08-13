@@ -9,6 +9,7 @@ import { GlassPanel } from "@/components/ui/glass-panel"
 import { Typography } from "@/components/ui/typography"
 import { authClient } from "@/lib/auth/client"
 import { type SocialProvider, signInWithPopup } from "@/lib/auth/sign-in-popup"
+import { cn } from "@/lib/cn"
 
 function GoogleGlyph() {
   return (
@@ -102,40 +103,22 @@ export function AuthMenu() {
         >
           <Popover.Popup className="outline-none">
             <GlassPanel
-              className="w-[224px] p-[var(--ds-space-3)]"
+              className={cn(
+                "p-[var(--ds-space-2)]",
+                user ? "w-[132px]" : "w-[224px] p-[var(--ds-space-3)]"
+              )}
               variant="panel"
             >
               {user ? (
-                <div className="flex flex-col gap-[var(--ds-space-3)]">
-                  <div className="flex min-w-0 flex-col gap-[2px]">
-                    <Typography
-                      as="span"
-                      className="overflow-hidden text-ellipsis whitespace-nowrap"
-                      variant="label"
-                    >
-                      {user.name ?? "Signed in"}
-                    </Typography>
-                    {user.email ? (
-                      <Typography
-                        as="span"
-                        className="overflow-hidden text-ellipsis whitespace-nowrap"
-                        tone="tertiary"
-                        variant="monoXs"
-                      >
-                        {user.email}
-                      </Typography>
-                    ) : null}
-                  </div>
-                  <Button
-                    disabled={busy !== null}
-                    fullWidth
-                    onClick={signOut}
-                    size="compact"
-                    variant="secondary"
-                  >
-                    Sign out
-                  </Button>
-                </div>
+                <Button
+                  disabled={busy !== null}
+                  fullWidth
+                  onClick={signOut}
+                  size="compact"
+                  variant="secondary"
+                >
+                  Sign out
+                </Button>
               ) : (
                 <div className="flex flex-col gap-[var(--ds-space-3)]">
                   <div className="flex flex-col gap-[2px]">

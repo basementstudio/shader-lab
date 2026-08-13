@@ -37,9 +37,8 @@ import { useAssetStore } from "@/store/asset-store"
 const SKELETON_KEYS = ["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8"] as const
 
 const SORT_TABS: readonly { label: string; value: SceneSort }[] = [
-  { label: "Latest", value: "latest" },
   { label: "Popular", value: "popular" },
-  { label: "Featured", value: "featured" },
+  { label: "Latest", value: "latest" },
 ]
 
 const VIEW_TABS: readonly { label: string; value: "explore" | "mine" }[] = [
@@ -68,7 +67,7 @@ export function CommunityModal({
   const [mine, setMine] = useState<AuthoredScene[] | null>(null)
   const [mineFailed, setMineFailed] = useState(false)
   const [upvoted, setUpvoted] = useState<Set<string>>(new Set())
-  const [sort, setSort] = useState<SceneSort>("latest")
+  const [sort, setSort] = useState<SceneSort>("popular")
   const [search, setSearch] = useState("")
   const [query, setQuery] = useState("")
   const [items, setItems] = useState<CommunitySceneSummary[] | null>(null)
@@ -396,7 +395,7 @@ export function CommunityModal({
                         size="compact"
                         variant="primary"
                       >
-                        Publish a scene
+                        Publish your scene
                       </Button>
                     ) : (
                       <Typography as="span" tone="tertiary" variant="caption">
@@ -570,7 +569,7 @@ export function CommunityModal({
                               size="compact"
                               variant="primary"
                             >
-                              Publish a scene
+                              Publish your scene
                             </Button>
                           )}
                         </div>

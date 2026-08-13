@@ -11,10 +11,13 @@ import { Slider } from "@/components/ui/slider"
 import { Typography } from "@/components/ui/typography"
 import {
   captureThumbnail,
+  describePublishPlan,
   getThumbnailTimeBounds,
+  type PublishPlan,
   publishScene,
   THUMBNAIL_MAX_TIME_SECONDS,
 } from "@/lib/community/publish-client"
+import { formatBytes } from "@/lib/community/upload-limits"
 import { acquirePreviewRenderLock } from "@/lib/editor/preview-render-lock"
 import { numberInputControlClassName } from "@/components/ui/number-input"
 import { cn } from "@/lib/cn"
@@ -41,6 +44,7 @@ export function PublishDialog({
   const [capturing, setCapturing] = useState(false)
   const [publishing, setPublishing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [plan, setPlan] = useState<PublishPlan | null>(null)
   const previewUrlRef = useRef<string | null>(null)
 
   useEffect(() => {
@@ -54,6 +58,7 @@ export function PublishDialog({
 
     setPublishing(false)
     setError(null)
+    setPlan(describePublishPlan())
 
     const state = useTimelineStore.getState()
     const max = Math.min(
@@ -138,7 +143,22 @@ export function PublishDialog({
     return null
   }
 
-  const canSubmit = title.trim().length > 0 && !(capturing || publishing)
+  const blocked = plan?.problem ?? null
+  const notice = blocked ?? error
+  const canSubmit =
+    title.trim().length > 0 && !(blocked || capturing || publishing)
+  const summary = plan
+    ? [
+        plan.assetCount > 0
+          ? `${plan.assetCount} ${plan.assetCount === 1 ? "file" : "files"} · ${formatBytes(plan.totalBytes)}`
+          : "No media to upload",
+        plan.hiddenLayerCount > 0
+          ? `${plan.hiddenLayerCount} hidden ${plan.hiddenLayerCount === 1 ? "layer" : "layers"} excluded`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(" · ")
+    : null
 
   return createPortal(
     <AnimatePresence initial={false}>
@@ -200,13 +220,13 @@ export function PublishDialog({
                   </IconButton>
                 </div>
 
-                {error ? (
+                {notice ? (
                   <div
                     className="border-b border-[var(--ds-border-divider)] bg-[rgb(120_28_28_/_0.22)] px-4 py-2"
                     role="alert"
                   >
                     <Typography as="p" variant="caption">
-                      {error}
+                      {notice}
                     </Typography>
                   </div>
                 ) : null}
@@ -257,6 +277,12 @@ export function PublishDialog({
                         }}
                         valueSuffix="s"
                       />
+
+                      {summary ? (
+                        <Typography as="p" tone="tertiary" variant="monoXs">
+                          {summary}
+                        </Typography>
+                      ) : null}
 
                       <Button
                         className="relative overflow-hidden"

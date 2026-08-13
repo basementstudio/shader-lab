@@ -84,6 +84,46 @@ export function collectReferencedAssetIds(input: {
   return referenced
 }
 
+export function buildPublishableProjectFile(
+  file: LabProjectFile
+): LabProjectFile {
+  const audioSource = file.audio?.source ?? null
+  const audioLayerId =
+    audioSource?.kind === "video-layer" ? audioSource.layerId : null
+  const layers = file.layers.filter(
+    (layer) => layer.visible || layer.id === audioLayerId
+  )
+
+  if (layers.length === file.layers.length) {
+    return file
+  }
+
+  const keptIds = new Set(layers.map((layer) => layer.id))
+  const referenced = collectReferencedAssetIds({ audioSource, layers })
+
+  return {
+    ...file,
+    assets: file.assets.filter((asset) => referenced.has(asset.id)),
+    ...(file.audio
+      ? {
+          audio: {
+            ...file.audio,
+            links: file.audio.links.filter((link) => keptIds.has(link.layerId)),
+          },
+        }
+      : {}),
+    layers,
+    selectedLayerId:
+      file.selectedLayerId && keptIds.has(file.selectedLayerId)
+        ? file.selectedLayerId
+        : null,
+    timeline: {
+      ...file.timeline,
+      tracks: file.timeline.tracks.filter((track) => keptIds.has(track.layerId)),
+    },
+  }
+}
+
 export function buildLabProjectFile(): LabProjectFile {
   const assets = useAssetStore.getState().assets
   const editorState = useEditorStore.getState()

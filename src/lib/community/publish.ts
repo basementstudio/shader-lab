@@ -60,6 +60,10 @@ export function validateProjectFilePayload(raw: string): PublishValidation {
 
   const projectFile = parseLabProjectFile(raw)
 
+  if (projectFile.layers.length === 0) {
+    throw new Error("A scene needs at least one visible layer.")
+  }
+
   for (const asset of projectFile.assets) {
     if (!asset.url) {
       throw new Error(

@@ -1,3 +1,4 @@
+import { connection } from "next/server"
 import { getOptionalSession } from "@/lib/auth/server"
 import { isCommunityEnabled } from "@/lib/community/config"
 import {
@@ -11,6 +12,8 @@ function notFound() {
 }
 
 export async function GET() {
+  await connection()
+
   if (!isCommunityEnabled()) {
     return notFound()
   }

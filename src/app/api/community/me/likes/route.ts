@@ -1,8 +1,11 @@
+import { connection } from "next/server"
 import { getOptionalSession } from "@/lib/auth/server"
 import { isCommunityEnabled } from "@/lib/community/config"
 import { listLikedSlugs } from "@/lib/community/engagement"
 
 export async function GET() {
+  await connection()
+
   if (!isCommunityEnabled()) {
     return Response.json({ error: "Not available." }, { status: 503 })
   }

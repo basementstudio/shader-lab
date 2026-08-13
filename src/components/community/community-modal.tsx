@@ -19,6 +19,7 @@ import { IconButton } from "@/components/ui/icon-button"
 import { Typography } from "@/components/ui/typography"
 import { authClient } from "@/lib/auth/client"
 import { cn } from "@/lib/cn"
+import { getAnonId } from "@/lib/community/anon-id"
 import type {
   AuthoredScene,
   CommunitySceneDetail,
@@ -66,6 +67,7 @@ export function CommunityModal({
   const [tab, setTab] = useState<"explore" | "mine">("explore")
   const [mine, setMine] = useState<AuthoredScene[] | null>(null)
   const [mineFailed, setMineFailed] = useState(false)
+  const [upvoted, setUpvoted] = useState<Set<string>>(new Set())
   const [sort, setSort] = useState<SceneSort>("latest")
   const [search, setSearch] = useState("")
   const [query, setQuery] = useState("")
@@ -130,8 +132,30 @@ export function CommunityModal({
     if (!session?.user) {
       setTab("explore")
       setMine(null)
+      setUpvoted(new Set())
     }
   }, [session?.user])
+
+  useEffect(() => {
+    if (!(open && session?.user)) {
+      return
+    }
+
+    let cancelled = false
+
+    fetch("/api/community/me/likes")
+      .then((res) => res.json())
+      .then((data: { slugs?: string[] }) => {
+        if (!cancelled) {
+          setUpvoted(new Set(data.slugs ?? []))
+        }
+      })
+      .catch(() => undefined)
+
+    return () => {
+      cancelled = true
+    }
+  }, [open, session?.user])
 
   useEffect(() => {
     if (!(open && session?.user)) {
@@ -245,6 +269,13 @@ export function CommunityModal({
         }
 
         applyLabProjectFile(projectFile, useAssetStore.getState().assets)
+
+        void fetch(`/api/community/scenes/${scene.slug}/remix`, {
+          body: JSON.stringify({ anonId: getAnonId() }),
+          headers: { "Content-Type": "application/json" },
+          method: "POST",
+        }).catch(() => undefined)
+
         onOpenChange(false)
         setSelected(null)
         setDetail(null)
@@ -260,6 +291,37 @@ export function CommunityModal({
   )
 
   const ownedSlugs = new Set((mine ?? []).map((entry) => entry.slug))
+
+  const applyCounts = useCallback(
+    (slug: string, counts: { likeCount?: number; remixCount?: number }) => {
+      const patch = <T extends CommunitySceneSummary>(entry: T): T =>
+        entry.slug === slug ? { ...entry, ...counts } : entry
+
+      setItems((current) => (current ? current.map(patch) : current))
+      setMine((current) => (current ? current.map(patch) : current))
+      setSelected((current) => (current ? patch(current) : current))
+      setDetail((current) => (current ? patch(current) : current))
+    },
+    []
+  )
+
+  const changeUpvote = useCallback(
+    (slug: string, next: { count: number; upvoted: boolean }) => {
+      applyCounts(slug, { likeCount: next.count })
+      setUpvoted((current) => {
+        const nextSet = new Set(current)
+
+        if (next.upvoted) {
+          nextSet.add(slug)
+        } else {
+          nextSet.delete(slug)
+        }
+
+        return nextSet
+      })
+    },
+    [applyCounts]
+  )
 
   const forgetScene = useCallback((slug: string) => {
     setMine((current) =>
@@ -465,8 +527,12 @@ export function CommunityModal({
                       isOwn={ownedSlugs.has(selected.slug)}
                       onDeleted={forgetScene}
                       onRemix={remix}
+                      onUpvoteChange={(next) =>
+                        changeUpvote(selected.slug, next)
+                      }
                       remixing={remixing}
                       scene={selected}
+                      upvoted={upvoted.has(selected.slug)}
                     />
                   ) : null}
 

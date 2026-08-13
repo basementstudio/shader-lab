@@ -5,6 +5,26 @@ import { AuthorAvatar } from "@/components/community/author-avatar"
 import { Typography } from "@/components/ui/typography"
 import type { CommunitySceneSummary } from "@/lib/community/scenes"
 
+function CaretUpGlyph() {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      height={10}
+      viewBox="0 0 16 16"
+      width={10}
+    >
+      <path
+        d="M8 3.5 13.5 11h-11L8 3.5Z"
+        fill="currentColor"
+        stroke="currentColor"
+        strokeLinejoin="round"
+        strokeWidth={1.2}
+      />
+    </svg>
+  )
+}
+
 function RemixGlyph() {
   return (
     <svg
@@ -49,13 +69,26 @@ export function SceneCard({
           />
         ) : null}
 
-        <div className="pointer-events-none absolute top-1.5 right-1.5 inline-flex items-center gap-1 rounded-[var(--ds-radius-control)] border border-white/10 bg-[rgb(8_9_12_/_0.68)] px-1.5 py-[3px] backdrop-blur-[8px]">
-          <span className="text-[var(--ds-color-text-secondary)]">
-            <RemixGlyph />
+        <div className="pointer-events-none absolute top-1.5 right-1.5 inline-flex items-center gap-1.5 rounded-[var(--ds-radius-control)] border border-white/10 bg-[rgb(8_9_12_/_0.68)] px-1.5 py-[3px] backdrop-blur-[8px]">
+          <span className="inline-flex items-center gap-1">
+            <span className="text-[var(--ds-color-text-secondary)]">
+              <CaretUpGlyph />
+            </span>
+            <Typography as="span" tone="secondary" variant="monoXs">
+              {scene.likeCount}
+            </Typography>
           </span>
-          <Typography as="span" tone="secondary" variant="monoXs">
-            {scene.remixCount}
-          </Typography>
+
+          <span aria-hidden="true" className="h-2.5 w-px bg-white/12" />
+
+          <span className="inline-flex items-center gap-1">
+            <span className="text-[var(--ds-color-text-secondary)]">
+              <RemixGlyph />
+            </span>
+            <Typography as="span" tone="secondary" variant="monoXs">
+              {scene.remixCount}
+            </Typography>
+          </span>
         </div>
       </div>
 

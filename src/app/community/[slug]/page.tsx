@@ -4,15 +4,13 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { Suspense } from "react"
 import { AuthorAvatar } from "@/components/community/author-avatar"
-import {
-  editorSceneHref,
-  OpenInEditor,
-} from "@/components/community/open-in-editor"
+import { OpenInEditor } from "@/components/community/open-in-editor"
 import { RemixCredit } from "@/components/community/remix-credit"
 import { Typography } from "@/components/ui/typography"
 import { APP_BASE_URL } from "@/lib/app"
 import { isCommunityEnabled } from "@/lib/community/config"
 import { lineageLabel } from "@/lib/community/lineage"
+import { editorSceneHref } from "@/lib/community/scene-links"
 import { getPublicScene } from "@/lib/community/public-scenes"
 import { getLayerLabel } from "@/lib/editor/config/layer-catalog"
 

@@ -4,6 +4,7 @@ import Image from "next/image"
 import { AuthorAvatar } from "@/components/community/author-avatar"
 import { DeleteSceneControl } from "@/components/community/delete-scene-control"
 import { ReportControl } from "@/components/community/report-control"
+import { UpvoteButton } from "@/components/community/upvote-button"
 import { Button } from "@/components/ui/button"
 import { Typography } from "@/components/ui/typography"
 import type {
@@ -29,15 +30,19 @@ export function SceneDetail({
   isOwn,
   onDeleted,
   onRemix,
+  onUpvoteChange,
   remixing,
   scene,
+  upvoted,
 }: {
   detail: CommunitySceneDetail | null
   isOwn: boolean
   onDeleted: (slug: string) => void
   onRemix: (scene: CommunitySceneDetail) => void
+  onUpvoteChange: (next: { count: number; upvoted: boolean }) => void
   remixing: boolean
   scene: CommunitySceneSummary
+  upvoted: boolean
 }) {
   const description = detail?.description ?? null
   const forkedFrom = detail?.forkedFrom ?? null
@@ -103,23 +108,32 @@ export function SceneDetail({
         ) : null}
 
         <div className="mt-auto flex flex-col gap-[var(--ds-space-2)] pt-[var(--ds-space-3)]">
-          <Button
-            disabled={remixing || !detail}
-            fullWidth
-            onClick={() => detail && onRemix(detail)}
-            uiSound="action.addLayer"
-            variant="primary"
-          >
-            {remixing ? "Loading scene…" : "Remix this scene"}
-            <Typography
-              as="span"
-              className="rounded-[4px] bg-black/12 px-1.5 py-[1px]"
-              tone="onLight"
-              variant="monoXs"
+          <div className="flex items-stretch gap-[var(--ds-space-2)]">
+            <UpvoteButton
+              count={scene.likeCount}
+              onChange={onUpvoteChange}
+              slug={scene.slug}
+              upvoted={upvoted}
+            />
+
+            <Button
+              className="flex-1"
+              disabled={remixing || !detail}
+              onClick={() => detail && onRemix(detail)}
+              uiSound="action.addLayer"
+              variant="primary"
             >
-              {scene.remixCount}
-            </Typography>
-          </Button>
+              {remixing ? "Loading scene…" : "Remix this scene"}
+              <Typography
+                as="span"
+                className="rounded-[4px] bg-black/12 px-1.5 py-[1px]"
+                tone="onLight"
+                variant="monoXs"
+              >
+                {scene.remixCount}
+              </Typography>
+            </Button>
+          </div>
 
           {isOwn ? (
             <DeleteSceneControl onDeleted={onDeleted} slug={scene.slug} />

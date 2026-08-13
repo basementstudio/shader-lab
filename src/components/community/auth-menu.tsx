@@ -99,7 +99,7 @@ export function AuthMenu() {
           align="end"
           className="z-100"
           side="bottom"
-          sideOffset={10}
+          sideOffset={16}
         >
           <Popover.Popup className="outline-none">
             <GlassPanel
@@ -125,7 +125,12 @@ export function AuthMenu() {
                     <Typography as="span" variant="label">
                       Sign in
                     </Typography>
-                    <Typography as="span" tone="tertiary" variant="caption">
+                    <Typography
+                      as="span"
+                      tone="tertiary"
+                      variant="caption"
+                      className="text-balance"
+                    >
                       {failed
                         ? "Could not start sign in. Try again."
                         : "To publish scenes and remix with credit."}

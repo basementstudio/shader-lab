@@ -2,20 +2,27 @@
 
 import { useEffect } from "react"
 import { Typography } from "@/components/ui/typography"
-import { AUTH_POPUP_MESSAGE } from "@/lib/auth/sign-in-popup"
+import { AUTH_RETURN_TO_KEY } from "@/lib/auth/sign-in"
+
+function resolveReturnTo(): string {
+  try {
+    const stored = window.sessionStorage.getItem(AUTH_RETURN_TO_KEY)
+
+    window.sessionStorage.removeItem(AUTH_RETURN_TO_KEY)
+
+    if (stored?.startsWith("/") && !stored.startsWith("//")) {
+      return stored
+    }
+  } catch {
+    // sessionStorage can be unavailable; fall back to the editor
+  }
+
+  return "/tools/shader-lab"
+}
 
 export function AuthCompleteHandoff() {
   useEffect(() => {
-    const opener = window.opener as Window | null
-
-    if (opener && opener !== window) {
-      opener.postMessage({ type: AUTH_POPUP_MESSAGE }, window.location.origin)
-      window.close()
-
-      return
-    }
-
-    window.location.replace("/tools/shader-lab")
+    window.location.replace(resolveReturnTo())
   }, [])
 
   return (

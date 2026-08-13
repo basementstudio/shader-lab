@@ -16,6 +16,8 @@ const iconButtonVariants = cva(
           "bg-transparent text-[var(--ds-color-text-tertiary)] hover:bg-transparent hover:text-[var(--ds-color-text-primary)] hover:shadow-none",
         default:
           "bg-[var(--ds-color-surface-subtle)] text-[var(--ds-color-text-tertiary)] hover:bg-white/8 hover:text-[var(--ds-color-text-secondary)]",
+        outline:
+          "border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] text-[var(--ds-color-text-secondary)] hover:not-disabled:border-[var(--ds-border-hover)] hover:not-disabled:bg-white/8 hover:not-disabled:text-[var(--ds-color-text-primary)] hover:not-disabled:shadow-none",
         hover:
           "bg-[var(--ds-color-surface-active)] text-[var(--ds-color-text-secondary)]",
         active: "bg-white/12 text-white/70",

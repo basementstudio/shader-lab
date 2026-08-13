@@ -77,7 +77,7 @@ export function AuthMenu() {
     <Popover.Root>
       <Popover.Trigger
         aria-label={user ? "Account" : "Sign in"}
-        className="inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-[var(--ds-radius-icon)] border border-transparent text-[var(--ds-color-text-secondary)] transition-[background-color,border-color,color] duration-160 ease-[var(--ease-out-cubic)] hover:border-[var(--ds-border-subtle)] hover:bg-[var(--ds-color-surface-subtle)] hover:text-[var(--ds-color-text-primary)]"
+        className="inline-flex size-7 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] text-[var(--ds-color-text-secondary)] transition-[background-color,border-color,color] duration-160 ease-[var(--ease-out-cubic)] hover:border-[var(--ds-border-hover)] hover:bg-white/8 hover:text-[var(--ds-color-text-primary)]"
         disabled={isPending}
       >
         {user?.image ? (
@@ -145,7 +145,7 @@ export function AuthMenu() {
                     <Typography as="span" tone="tertiary" variant="caption">
                       {failed
                         ? "Could not start sign in. Try again."
-                        : "Opens in a small window. Your scene stays open."}
+                        : "To publish scenes and remix with credit."}
                     </Typography>
                   </div>
 

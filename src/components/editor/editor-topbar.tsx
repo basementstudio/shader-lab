@@ -78,8 +78,8 @@ function GitHubStarLink({ mobile = false }: { mobile?: boolean }) {
         aria-label="Open Shader Lab on GitHub"
         className={
           mobile
-            ? "inline-flex size-8 items-center justify-center rounded-[var(--ds-radius-control)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] text-[var(--ds-color-text-secondary)] transition-[background-color,border-color,color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:border-[var(--ds-border-hover)] hover:bg-white/8 hover:text-[var(--ds-color-text-primary)] active:scale-[0.98]"
-            : "inline-flex h-7 w-7 items-center justify-center rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] text-[var(--ds-color-text-secondary)] transition-[background-color,border-color,color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:border-[var(--ds-border-hover)] hover:bg-white/8 hover:text-[var(--ds-color-text-primary)] active:scale-[0.98]"
+            ? "inline-flex size-8 items-center justify-center rounded-[var(--ds-radius-control)] bg-[var(--ds-color-surface-subtle)] text-[var(--ds-color-text-tertiary)] transition-[background-color,color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:bg-white/8 hover:text-[var(--ds-color-text-primary)] active:scale-[0.98]"
+            : "inline-flex h-7 w-7 items-center justify-center rounded-[var(--ds-radius-icon)] bg-[var(--ds-color-surface-subtle)] text-[var(--ds-color-text-tertiary)] transition-[background-color,color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:bg-white/8 hover:text-[var(--ds-color-text-primary)] active:scale-[0.98]"
         }
         href={GITHUB_REPO_URL}
         rel="noreferrer"
@@ -609,7 +609,7 @@ export function EditorTopBar() {
                 }}
                 tooltip="Community scenes"
                 tooltipSide="bottom"
-                variant="default"
+                variant="outline"
               >
                 <GlobeIcon height={16} width={16} />
               </IconButton>

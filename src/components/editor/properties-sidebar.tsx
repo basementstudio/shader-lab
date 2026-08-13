@@ -61,6 +61,7 @@ export function PropertiesSidebar() {
   )
   const endInteractiveEdit = useEditorStore((state) => state.endInteractiveEdit)
   const selectedLayerId = useLayerStore((state) => state.selectedLayerId)
+  const hasLayers = useLayerStore((state) => state.layers.length > 0)
   const selectedLayer = useLayerStore((state) => {
     if (!selectedLayerId) return null
     return state.layers.find((layer) => layer.id === selectedLayerId) ?? null
@@ -598,6 +599,10 @@ export function PropertiesSidebar() {
         <EmptyPropertiesContent />
       </motion.div>
     )
+  }
+
+  if (!hasLayers) {
+    return null
   }
 
   return (

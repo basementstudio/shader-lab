@@ -2,6 +2,7 @@
 
 import Image from "next/image"
 import { AuthorAvatar } from "@/components/community/author-avatar"
+import { DeleteSceneControl } from "@/components/community/delete-scene-control"
 import { ReportControl } from "@/components/community/report-control"
 import { Button } from "@/components/ui/button"
 import { Typography } from "@/components/ui/typography"
@@ -25,11 +26,15 @@ function formatPublishedAt(value: string | null): string {
 
 export function SceneDetail({
   detail,
+  isOwn,
+  onDeleted,
   onRemix,
   remixing,
   scene,
 }: {
   detail: CommunitySceneDetail | null
+  isOwn: boolean
+  onDeleted: (slug: string) => void
   onRemix: (scene: CommunitySceneDetail) => void
   remixing: boolean
   scene: CommunitySceneSummary
@@ -116,7 +121,11 @@ export function SceneDetail({
             </Typography>
           </Button>
 
-          <ReportControl slug={scene.slug} />
+          {isOwn ? (
+            <DeleteSceneControl onDeleted={onDeleted} slug={scene.slug} />
+          ) : (
+            <ReportControl slug={scene.slug} />
+          )}
         </div>
       </div>
 

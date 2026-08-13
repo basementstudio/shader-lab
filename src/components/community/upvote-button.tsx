@@ -69,12 +69,13 @@ export function UpvoteButton({
       aria-label={upvoted ? "Remove upvote" : "Upvote this scene"}
       aria-pressed={upvoted}
       className={cn(
-        "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[var(--ds-radius-control)] border px-2.5 transition-[background-color,border-color,color] duration-160 ease-[var(--ease-out-cubic)]",
-        signedIn ? "cursor-pointer" : "cursor-default",
+        "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[var(--ds-radius-control)] border px-2.5 transition-[background-color,border-color,color,opacity] duration-160 ease-[var(--ease-out-cubic)]",
         upvoted
           ? "border-[var(--ds-border-active)] bg-[var(--ds-color-surface-active)] text-[var(--ds-color-text-primary)]"
           : "border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] text-[var(--ds-color-text-secondary)]",
-        signedIn && !upvoted && "hover:border-[var(--ds-border-hover)]"
+        signedIn
+          ? "cursor-pointer hover:not-disabled:border-[var(--ds-border-hover)]"
+          : "cursor-not-allowed opacity-45"
       )}
       disabled={!signedIn}
       onClick={() => void toggle()}

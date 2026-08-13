@@ -22,11 +22,7 @@ export function ReportControl({ slug }: { slug: string }) {
   const [sending, setSending] = useState(false)
 
   if (!session?.user) {
-    return (
-      <Typography align="center" as="p" tone="tertiary" variant="caption">
-        Sign in to report this scene
-      </Typography>
-    )
+    return null
   }
 
   if (stage === "sent") {

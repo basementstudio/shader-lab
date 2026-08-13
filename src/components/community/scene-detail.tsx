@@ -134,9 +134,9 @@ export function SceneDetail({
                 {scene.remixCount}
               </Typography>
             </Button>
-          </div>
 
-          <ShareSceneButton slug={scene.slug} />
+            <ShareSceneButton slug={scene.slug} />
+          </div>
 
           {isOwn ? (
             <DeleteSceneControl onDeleted={onDeleted} slug={scene.slug} />

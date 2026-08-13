@@ -2,7 +2,33 @@
 
 import { CheckIcon, Link2Icon } from "@radix-ui/react-icons"
 import { useCallback, useEffect, useState } from "react"
-import { Button } from "@/components/ui/button"
+import { IconButton } from "@/components/ui/icon-button"
+
+const LABELS = {
+  copied: "Link copied",
+  failed: "Could not copy the link",
+  idle: "Copy link to this scene",
+} as const
+
+function copyViaSelection(text: string): boolean {
+  try {
+    const field = document.createElement("textarea")
+
+    field.value = text
+    field.setAttribute("readonly", "")
+    field.style.cssText = "position:fixed;top:-1000px;opacity:0"
+    document.body.appendChild(field)
+    field.select()
+
+    const copied = document.execCommand("copy")
+
+    field.remove()
+
+    return copied
+  } catch {
+    return false
+  }
+}
 
 export function sceneShareUrl(slug: string): string {
   const origin =
@@ -32,26 +58,28 @@ export function ShareSceneButton({ slug }: { slug: string }) {
     try {
       await navigator.clipboard.writeText(url)
       setState("copied")
+
+      return
     } catch {
-      setState("failed")
+      setState(copyViaSelection(url) ? "copied" : "failed")
     }
   }, [slug])
 
+  const label = LABELS[state]
+
   return (
-    <Button
-      fullWidth
+    <IconButton
+      aria-label={label}
+      className="h-8 w-8 shrink-0"
       onClick={() => void copy()}
-      size="compact"
-      variant="secondary"
+      title={label}
+      variant="outline"
     >
       {state === "copied" ? (
-        <CheckIcon height={13} width={13} />
+        <CheckIcon height={14} width={14} />
       ) : (
-        <Link2Icon height={13} width={13} />
+        <Link2Icon height={14} width={14} />
       )}
-      {state === "copied" ? "Link copied" : null}
-      {state === "failed" ? "Press Cmd+C to copy" : null}
-      {state === "idle" ? "Copy link" : null}
-    </Button>
+    </IconButton>
   )
 }

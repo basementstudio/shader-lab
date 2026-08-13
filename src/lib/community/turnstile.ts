@@ -1,3 +1,5 @@
+import { readEnv } from "@/lib/read-env"
+
 const VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
 
 export interface TurnstileResult {
@@ -7,14 +9,14 @@ export interface TurnstileResult {
 }
 
 export function isTurnstileEnabled(): boolean {
-  return Boolean(process.env.TURNSTILE_SECRET_KEY?.trim())
+  return readEnv("TURNSTILE_SECRET_KEY") !== null
 }
 
 export async function verifyTurnstile(
   token: string | null | undefined,
   remoteIp?: string | null
 ): Promise<TurnstileResult> {
-  const secret = process.env.TURNSTILE_SECRET_KEY?.trim()
+  const secret = readEnv("TURNSTILE_SECRET_KEY")
 
   if (!secret) {
     return { errorCodes: [], ok: true, skipped: true }
@@ -43,6 +45,10 @@ export async function verifyTurnstile(
       skipped: false,
     }
   } catch {
-    return { errorCodes: ["verification-unreachable"], ok: false, skipped: false }
+    return {
+      errorCodes: ["verification-unreachable"],
+      ok: false,
+      skipped: false,
+    }
   }
 }

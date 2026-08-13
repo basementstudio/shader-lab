@@ -6,17 +6,18 @@ import {
 } from "@aws-sdk/client-s3"
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
 import { normalizeHost } from "@/lib/editor/remote-asset"
+import { readEnv } from "@/lib/read-env"
 
 export const UPLOAD_URL_TTL_SECONDS = 60
 
 let cached: S3Client | null = null
 
 export function getR2Config() {
-  const accessKeyId = process.env.R2_ACCESS_KEY_ID?.trim()
-  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID?.trim()
-  const bucket = process.env.R2_BUCKET?.trim()
-  const publicHost = normalizeHost(process.env.NEXT_PUBLIC_R2_PUBLIC_HOST ?? "")
-  const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY?.trim()
+  const accessKeyId = readEnv("R2_ACCESS_KEY_ID")
+  const accountId = readEnv("CLOUDFLARE_ACCOUNT_ID")
+  const bucket = readEnv("R2_BUCKET")
+  const publicHost = normalizeHost(readEnv("NEXT_PUBLIC_R2_PUBLIC_HOST") ?? "")
+  const secretAccessKey = readEnv("R2_SECRET_ACCESS_KEY")
 
   if (!(accessKeyId && accountId && bucket && publicHost && secretAccessKey)) {
     return null

@@ -1,31 +1,11 @@
-function unwrap(value: string): string {
-  const trimmed = value.trim()
-
-  for (const quote of ['"', "'"]) {
-    if (
-      trimmed.length >= 2 &&
-      trimmed.startsWith(quote) &&
-      trimmed.endsWith(quote)
-    ) {
-      return trimmed.slice(1, -1).trim()
-    }
-  }
-
-  return trimmed
-}
+import { readEnv } from "@/lib/read-env"
 
 function firstValue(names: readonly string[]): string | null {
   for (const name of names) {
-    const value = process.env[name]
+    const value = readEnv(name)
 
-    if (value === undefined) {
-      continue
-    }
-
-    const unwrapped = unwrap(value)
-
-    if (unwrapped) {
-      return unwrapped
+    if (value) {
+      return value
     }
   }
 
@@ -52,9 +32,7 @@ export function resolveAuthBaseUrl(): string | null {
 
 export function resolvedVarName(names: readonly string[]): string | null {
   for (const name of names) {
-    const value = process.env[name]
-
-    if (value !== undefined && unwrap(value)) {
+    if (readEnv(name)) {
       return name
     }
   }

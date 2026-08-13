@@ -65,6 +65,7 @@ export function CommunityModal({
   const [mounted, setMounted] = useState(false)
   const [tab, setTab] = useState<"explore" | "mine">("explore")
   const [mine, setMine] = useState<AuthoredScene[] | null>(null)
+  const [mineFailed, setMineFailed] = useState(false)
   const [sort, setSort] = useState<SceneSort>("latest")
   const [search, setSearch] = useState("")
   const [query, setQuery] = useState("")
@@ -133,13 +134,13 @@ export function CommunityModal({
   }, [session?.user])
 
   useEffect(() => {
-    if (!(open && tab === "mine" && session?.user)) {
+    if (!(open && session?.user)) {
       return
     }
 
     let cancelled = false
     setMine(null)
-    setError(null)
+    setMineFailed(false)
 
     fetch("/api/community/me/scenes")
       .then((res) => res.json())
@@ -150,14 +151,15 @@ export function CommunityModal({
       })
       .catch(() => {
         if (!cancelled) {
-          setError("Could not load your scenes.")
+          setMine([])
+          setMineFailed(true)
         }
       })
 
     return () => {
       cancelled = true
     }
-  }, [open, session?.user, tab])
+  }, [open, session?.user])
 
   useEffect(() => {
     if (!open) {
@@ -256,6 +258,19 @@ export function CommunityModal({
     },
     [onOpenChange]
   )
+
+  const ownedSlugs = new Set((mine ?? []).map((entry) => entry.slug))
+
+  const forgetScene = useCallback((slug: string) => {
+    setMine((current) =>
+      current ? current.filter((entry) => entry.slug !== slug) : current
+    )
+    setItems((current) =>
+      current ? current.filter((entry) => entry.slug !== slug) : current
+    )
+    setSelected(null)
+    setDetail(null)
+  }, [])
 
   if (!mounted) {
     return null
@@ -447,6 +462,8 @@ export function CommunityModal({
                   {selected ? (
                     <SceneDetail
                       detail={detail}
+                      isOwn={ownedSlugs.has(selected.slug)}
+                      onDeleted={forgetScene}
                       onRemix={remix}
                       remixing={remixing}
                       scene={selected}
@@ -477,35 +494,24 @@ export function CommunityModal({
                             tone="tertiary"
                             variant="caption"
                           >
-                            You have not published a scene yet.
+                            {mineFailed
+                              ? "Could not load your scenes."
+                              : "You have not published a scene yet."}
                           </Typography>
-                          <Button
-                            onClick={onRequestPublish}
-                            size="compact"
-                            variant="primary"
-                          >
-                            Publish a scene
-                          </Button>
+                          {mineFailed ? null : (
+                            <Button
+                              onClick={onRequestPublish}
+                              size="compact"
+                              variant="primary"
+                            >
+                              Publish a scene
+                            </Button>
+                          )}
                         </div>
                       ) : null}
 
                       {mine && mine.length > 0 ? (
-                        <MyScenesGrid
-                          onDeleted={(slug) => {
-                            setMine((current) =>
-                              (current ?? []).filter(
-                                (entry) => entry.slug !== slug
-                              )
-                            )
-                            setItems((current) =>
-                              current
-                                ? current.filter((entry) => entry.slug !== slug)
-                                : current
-                            )
-                          }}
-                          onSelect={openScene}
-                          scenes={mine}
-                        />
+                        <MyScenesGrid onSelect={openScene} scenes={mine} />
                       ) : null}
                     </div>
                   ) : null}

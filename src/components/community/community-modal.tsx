@@ -35,6 +35,7 @@ import {
   parseLabProjectFile,
 } from "@/lib/editor/project-file"
 import { useAssetStore } from "@/store/asset-store"
+import { useRemixOriginStore } from "@/store/remix-origin-store"
 
 const SKELETON_KEYS = ["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8"] as const
 
@@ -242,6 +243,10 @@ export function CommunityModal({
         }
 
         applyLabProjectFile(projectFile, useAssetStore.getState().assets)
+        useRemixOriginStore.getState().setRemixOrigin({
+          slug: scene.slug,
+          title: scene.title,
+        })
 
         void fetch(`/api/community/scenes/${scene.slug}/remix`, {
           body: JSON.stringify({ anonId: getAnonId() }),

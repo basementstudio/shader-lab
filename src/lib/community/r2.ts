@@ -1,6 +1,5 @@
 import {
   DeleteObjectsCommand,
-  ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3"
@@ -85,49 +84,62 @@ export async function createUploadUrl(input: {
   return { publicUrl: publicUrlForKey(input.key), uploadUrl }
 }
 
-const SCENE_KEY_PREFIX = /^scenes\/[A-Za-z0-9_-]+\/$/
+const SCENE_OBJECT_KEY = /^scenes\/[A-Za-z0-9_-]+\/[A-Za-z0-9._-]+$/
 
-export async function deleteScenePrefix(prefix: string): Promise<number> {
-  if (!SCENE_KEY_PREFIX.test(prefix)) {
-    throw new Error(
-      `Refusing to delete by prefix "${prefix}". Expected scenes/<sceneId>/.`
-    )
+export function keyFromPublicUrl(url: string): string | null {
+  const config = getR2Config()
+
+  if (!config) {
+    return null
+  }
+
+  let parsed: URL
+
+  try {
+    parsed = new URL(url)
+  } catch {
+    return null
+  }
+
+  if (parsed.hostname.toLowerCase() !== config.publicHost.toLowerCase()) {
+    return null
+  }
+
+  const key = parsed.pathname.replace(/^\/+/, "")
+
+  return SCENE_OBJECT_KEY.test(key) ? key : null
+}
+
+export function scenePrefixOf(key: string): string | null {
+  const match = key.match(/^(scenes\/[A-Za-z0-9_-]+)\//)
+
+  return match?.[1] ?? null
+}
+
+export async function deleteSceneObjects(
+  keys: readonly string[]
+): Promise<number> {
+  const safe = [...new Set(keys)].filter((key) => SCENE_OBJECT_KEY.test(key))
+
+  if (safe.length === 0) {
+    return 0
   }
 
   const { client, config } = getClient()
-  let continuationToken: string | undefined
-  let deleted = 0
 
-  do {
-    const listed = await client.send(
-      new ListObjectsV2Command({
+  for (let index = 0; index < safe.length; index += 1000) {
+    await client.send(
+      new DeleteObjectsCommand({
         Bucket: config.bucket,
-        ContinuationToken: continuationToken,
-        Prefix: prefix,
+        Delete: {
+          Objects: safe.slice(index, index + 1000).map((Key) => ({ Key })),
+          Quiet: true,
+        },
       })
     )
+  }
 
-    const keys = (listed.Contents ?? [])
-      .map((entry) => entry.Key)
-      .filter((key): key is string => Boolean(key))
-
-    if (keys.length > 0) {
-      await client.send(
-        new DeleteObjectsCommand({
-          Bucket: config.bucket,
-          Delete: { Objects: keys.map((Key) => ({ Key })), Quiet: true },
-        })
-      )
-
-      deleted += keys.length
-    }
-
-    continuationToken = listed.IsTruncated
-      ? listed.NextContinuationToken
-      : undefined
-  } while (continuationToken)
-
-  return deleted
+  return safe.length
 }
 
 export async function putObject(input: {

@@ -1,6 +1,7 @@
 import { buildRenderProjectState } from "@/lib/agent-bridge/screenshot"
 import { buildLabProjectFile } from "@/lib/editor/project-file"
 import { useAssetStore } from "@/store/asset-store"
+import { useRemixOriginStore } from "@/store/remix-origin-store"
 import type { PresetAssetReference } from "@/types/editor"
 
 export const THUMBNAIL_MAX_TIME_SECONDS = 10
@@ -178,12 +179,12 @@ export async function publishScene(input: {
     ),
   }
 
-
   const publishResponse = await fetch(
     `/api/community/drafts/${draft.draftId}/publish`,
     {
       body: JSON.stringify({
         description: input.description,
+        forkedFromSlug: useRemixOriginStore.getState().origin?.slug ?? null,
         projectFile: JSON.stringify(publishable),
         thumbnailUrl: thumbnailTarget.publicUrl,
         title: input.title,
@@ -203,6 +204,7 @@ export async function publishScene(input: {
     throw new Error(published.error ?? "Could not publish this scene.")
   }
 
+  useRemixOriginStore.getState().clearRemixOrigin()
 
   return { slug: published.scene.slug }
 }

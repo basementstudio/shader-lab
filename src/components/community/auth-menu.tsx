@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { GlassPanel } from "@/components/ui/glass-panel"
 import { Typography } from "@/components/ui/typography"
 import { authClient } from "@/lib/auth/client"
+import { type SocialProvider, signInWithPopup } from "@/lib/auth/sign-in-popup"
 
 function GoogleGlyph() {
   return (
@@ -33,21 +34,32 @@ function GoogleGlyph() {
 }
 
 export function AuthMenu() {
-  const { data: session, isPending } = authClient.useSession()
+  const { data: session, isPending, refetch } = authClient.useSession()
   const [busy, setBusy] = useState<string | null>(null)
+  const [failed, setFailed] = useState(false)
 
-  const signIn = useCallback(async (provider: "github" | "google") => {
-    setBusy(provider)
+  const signIn = useCallback(
+    async (provider: SocialProvider) => {
+      setBusy(provider)
+      setFailed(false)
 
-    try {
-      await authClient.signIn.social({
-        callbackURL: window.location.href,
-        provider,
-      })
-    } finally {
-      setBusy(null)
-    }
-  }, [])
+      try {
+        const outcome = await signInWithPopup(provider)
+
+        if (outcome === "failed") {
+          setFailed(true)
+          return
+        }
+
+        if (outcome === "completed") {
+          await refetch()
+        }
+      } finally {
+        setBusy(null)
+      }
+    },
+    [refetch]
+  )
 
   const signOut = useCallback(async () => {
     setBusy("signout")
@@ -131,7 +143,9 @@ export function AuthMenu() {
                       Sign in
                     </Typography>
                     <Typography as="span" tone="tertiary" variant="caption">
-                      To publish scenes and remix with credit.
+                      {failed
+                        ? "Could not start sign in. Try again."
+                        : "Opens in a small window. Your scene stays open."}
                     </Typography>
                   </div>
 

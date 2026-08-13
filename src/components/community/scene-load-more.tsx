@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Typography } from "@/components/ui/typography"
+import { cn } from "@/lib/cn"
 
 export function SceneLoadMore({
   error,
@@ -52,14 +53,22 @@ export function SceneLoadMore({
         {loading ? "Loading more scenes" : `${total} scenes loaded`}
       </output>
 
-      <Button
-        disabled={loading}
-        onClick={loadMore}
-        size="compact"
-        variant="secondary"
-      >
-        {loading ? "Loading…" : "Load more"}
-      </Button>
+      {loading ? (
+        <Typography align="center" as="p" tone="tertiary" variant="caption">
+          Loading more…
+        </Typography>
+      ) : null}
+
+      <div className={cn(!error && "sr-only focus-within:not-sr-only")}>
+        <Button
+          disabled={loading}
+          onClick={loadMore}
+          size="compact"
+          variant="secondary"
+        >
+          {error ? "Try again" : "Load more scenes"}
+        </Button>
+      </div>
 
       {error ? (
         <Typography align="center" as="p" tone="tertiary" variant="caption">

@@ -14,7 +14,7 @@ import { useEditorRenderer } from "@/hooks/use-editor-renderer"
 import { isEditableTarget } from "@/lib/editor/is-editable-target"
 import { inferFileAssetKind } from "@/lib/editor/media-file"
 import {
-  isPreviewRenderLocked,
+  isPreviewExporting,
   subscribeToPreviewRenderLock,
 } from "@/lib/editor/preview-render-lock"
 import {
@@ -31,9 +31,9 @@ import { useTimelineStore } from "@/store/timeline-store"
 
 export function EditorCanvasViewport() {
   const { canvasRef, isReady, viewportRef } = useEditorRenderer()
-  const previewPaused = useSyncExternalStore(
+  const exportingPreview = useSyncExternalStore(
     subscribeToPreviewRenderLock,
-    isPreviewRenderLocked,
+    isPreviewExporting,
     () => false
   )
   const immersiveCanvas = useEditorStore((state) => state.immersiveCanvas)
@@ -384,7 +384,7 @@ export function EditorCanvasViewport() {
         </div>
       ) : null}
 
-      {previewPaused ? (
+      {exportingPreview ? (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
           <div className="inline-flex items-center gap-2 rounded-full border border-[var(--ds-border-panel)] bg-[rgb(18_18_22_/_0.88)] px-3 py-1.5 backdrop-blur-[28px]">
             <span

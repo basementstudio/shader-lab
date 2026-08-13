@@ -53,11 +53,9 @@ export function DeleteSceneControl({
   }
 
   return (
-    <div className="flex flex-col gap-[var(--ds-space-2)] rounded-[var(--ds-radius-control)] border border-[var(--ds-border-active)] bg-[var(--ds-color-surface-subtle)] p-[var(--ds-space-2)]">
+    <div className="flex items-center justify-between gap-[var(--ds-space-2)]">
       <Typography as="p" tone="secondary" variant="caption">
-        {failed
-          ? "Could not delete that scene."
-          : "This removes the scene and its uploaded files for good."}
+        {failed ? "Could not delete." : "Are you sure?"}
       </Typography>
 
       <div className="flex gap-1.5">
@@ -67,7 +65,7 @@ export function DeleteSceneControl({
           size="compact"
           variant="primary"
         >
-          {deleting ? "Deleting…" : "Delete for good"}
+          {deleting ? "Deleting…" : "Confirm"}
         </Button>
         <Button
           disabled={deleting}

@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, or, sql } from "drizzle-orm"
+import { and, desc, eq, ilike, isNull, or, sql } from "drizzle-orm"
 import { getDatabase } from "@/lib/db"
 import { profiles, scenes } from "@/lib/db/schema"
 import { normalizeHost } from "@/lib/editor/remote-asset"
@@ -145,7 +145,7 @@ export async function listPublishedScenes(options?: {
   const query = options?.query?.trim() ?? ""
 
   const orderBy = buildOrderBy(sort)
-  const filters = [eq(scenes.status, "published")]
+  const filters = [eq(scenes.status, "published"), isNull(scenes.deletedAt)]
 
   if (sort === "featured") {
     filters.push(sql`${scenes.featuredAt} is not null`)
@@ -177,6 +177,25 @@ export async function listPublishedScenes(options?: {
   return rows.map(toSummary)
 }
 
+export interface AuthoredScene extends CommunitySceneSummary {
+  status: string
+}
+
+export async function listScenesByAuthor(
+  authorId: string,
+  limit = 60
+): Promise<AuthoredScene[]> {
+  const rows = await getDatabase()
+    .select({ ...summaryColumns, status: scenes.status })
+    .from(scenes)
+    .innerJoin(profiles, eq(profiles.userId, scenes.authorId))
+    .where(and(eq(scenes.authorId, authorId), isNull(scenes.deletedAt)))
+    .orderBy(desc(scenes.publishedAt), desc(scenes.createdAt))
+    .limit(Math.min(Math.max(limit, 1), 100))
+
+  return rows.map((row) => ({ ...toSummary(row), status: row.status }))
+}
+
 export async function getPublishedScene(
   slug: string
 ): Promise<CommunitySceneDetail | null> {
@@ -189,7 +208,13 @@ export async function getPublishedScene(
     })
     .from(scenes)
     .innerJoin(profiles, eq(profiles.userId, scenes.authorId))
-    .where(and(eq(scenes.slug, slug), eq(scenes.status, "published")))
+    .where(
+      and(
+        eq(scenes.slug, slug),
+        eq(scenes.status, "published"),
+        isNull(scenes.deletedAt)
+      )
+    )
     .limit(1)
 
   const row = rows[0]

@@ -82,8 +82,13 @@ export function AuthMenu() {
       </Popover.Trigger>
 
       <Popover.Portal>
-        <Popover.Positioner align="end" side="bottom" sideOffset={10}>
-          <Popover.Popup className="z-90 outline-none">
+        <Popover.Positioner
+          align="end"
+          className="z-100"
+          side="bottom"
+          sideOffset={10}
+        >
+          <Popover.Popup className="outline-none">
             <GlassPanel
               className="w-[224px] p-[var(--ds-space-3)]"
               variant="panel"

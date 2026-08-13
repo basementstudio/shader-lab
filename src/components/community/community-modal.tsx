@@ -9,6 +9,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react"
 import { useCallback, useEffect, useState } from "react"
 import { createPortal } from "react-dom"
 import { AuthMenu } from "@/components/community/auth-menu"
+import { MyScenesGrid } from "@/components/community/my-scenes-grid"
 import { SceneCard } from "@/components/community/scene-card"
 import { SceneDetail } from "@/components/community/scene-detail"
 import { SceneEmptyState } from "@/components/community/scene-empty-state"
@@ -19,6 +20,7 @@ import { Typography } from "@/components/ui/typography"
 import { authClient } from "@/lib/auth/client"
 import { cn } from "@/lib/cn"
 import type {
+  AuthoredScene,
   CommunitySceneDetail,
   CommunitySceneSummary,
   SceneSort,
@@ -31,22 +33,21 @@ import {
 } from "@/lib/editor/project-file"
 import { useAssetStore } from "@/store/asset-store"
 
-const SKELETON_KEYS = [
-  "s1",
-  "s2",
-  "s3",
-  "s4",
-  "s5",
-  "s6",
-  "s7",
-  "s8",
-] as const
+const SKELETON_KEYS = ["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8"] as const
 
 const SORT_TABS: readonly { label: string; value: SceneSort }[] = [
   { label: "Latest", value: "latest" },
   { label: "Popular", value: "popular" },
   { label: "Featured", value: "featured" },
 ]
+
+const VIEW_TABS: readonly { label: string; value: "explore" | "mine" }[] = [
+  { label: "Explore", value: "explore" },
+  { label: "My scenes", value: "mine" },
+]
+
+const TAB_CLASS_NAME =
+  "inline-flex min-h-7 cursor-pointer items-center justify-center rounded-[var(--ds-radius-control)] border border-transparent px-[10px] leading-none transition-[background-color,border-color,color] duration-160 ease-[var(--ease-out-cubic)] hover:border-[var(--ds-border-subtle)] hover:bg-[var(--ds-color-surface-subtle)]"
 
 export function CommunityModal({
   focusSlug,
@@ -62,6 +63,8 @@ export function CommunityModal({
   const reduceMotion = useReducedMotion() ?? false
   const { data: session } = authClient.useSession()
   const [mounted, setMounted] = useState(false)
+  const [tab, setTab] = useState<"explore" | "mine">("explore")
+  const [mine, setMine] = useState<AuthoredScene[] | null>(null)
   const [sort, setSort] = useState<SceneSort>("latest")
   const [search, setSearch] = useState("")
   const [query, setQuery] = useState("")
@@ -123,6 +126,40 @@ export function CommunityModal({
   }, [open, query, sort])
 
   useEffect(() => {
+    if (!session?.user) {
+      setTab("explore")
+      setMine(null)
+    }
+  }, [session?.user])
+
+  useEffect(() => {
+    if (!(open && tab === "mine" && session?.user)) {
+      return
+    }
+
+    let cancelled = false
+    setMine(null)
+    setError(null)
+
+    fetch("/api/community/me/scenes")
+      .then((res) => res.json())
+      .then((data: { scenes?: AuthoredScene[] }) => {
+        if (!cancelled) {
+          setMine(data.scenes ?? [])
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setError("Could not load your scenes.")
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [open, session?.user, tab])
+
+  useEffect(() => {
     if (!open) {
       return
     }
@@ -146,27 +183,24 @@ export function CommunityModal({
     return () => window.removeEventListener("keydown", onKeyDown)
   }, [onOpenChange, open, selected])
 
-  const openScene = useCallback(
-    async (summary: CommunitySceneSummary) => {
-      setError(null)
-      setSelected(summary)
-      setDetail(null)
+  const openScene = useCallback(async (summary: CommunitySceneSummary) => {
+    setError(null)
+    setSelected(summary)
+    setDetail(null)
 
-      try {
-        const res = await fetch(`/api/community/scenes/${summary.slug}`)
-        const data = (await res.json()) as { scene?: CommunitySceneDetail }
+    try {
+      const res = await fetch(`/api/community/scenes/${summary.slug}`)
+      const data = (await res.json()) as { scene?: CommunitySceneDetail }
 
-        if (data.scene) {
-          setDetail(data.scene)
-        } else {
-          setError("That scene is no longer available.")
-        }
-      } catch {
-        setError("Could not load that scene.")
+      if (data.scene) {
+        setDetail(data.scene)
+      } else {
+        setError("That scene is no longer available.")
       }
-    },
-    []
-  )
+    } catch {
+      setError("Could not load that scene.")
+    }
+  }, [])
 
   useEffect(() => {
     if (!(open && focusSlug)) {
@@ -306,43 +340,82 @@ export function CommunityModal({
 
                 <div className="flex h-[48px] shrink-0 items-center justify-between gap-[var(--ds-space-3)] overflow-hidden border-b border-[var(--ds-border-divider)] px-4">
                   <div className="flex min-w-0 items-center gap-1.5">
-                  {selected ? (
-                    <Button
-                      onClick={() => {
-                        setSelected(null)
-                        setDetail(null)
-                      }}
-                      size="compact"
-                      variant="ghost"
-                    >
-                      <ArrowLeftIcon height={14} width={14} />
-                      All scenes
-                    </Button>
-                  ) : (
-                    SORT_TABS.map((tab) => (
-                      <button
-                        className={cn(
-                          "inline-flex min-h-7 cursor-pointer items-center justify-center rounded-[var(--ds-radius-control)] border border-transparent px-[10px] leading-none transition-[background-color,border-color,color] duration-160 ease-[var(--ease-out-cubic)] hover:border-[var(--ds-border-subtle)] hover:bg-[var(--ds-color-surface-subtle)]",
-                          sort === tab.value &&
-                            "border-[var(--ds-border-active)] bg-[var(--ds-color-surface-active)]"
-                        )}
-                        key={tab.value}
-                        onClick={() => setSort(tab.value)}
-                        type="button"
+                    {selected ? (
+                      <Button
+                        onClick={() => {
+                          setSelected(null)
+                          setDetail(null)
+                        }}
+                        size="compact"
+                        variant="ghost"
                       >
-                        <Typography
-                          as="span"
-                          tone={sort === tab.value ? "primary" : "tertiary"}
-                          variant="label"
-                        >
-                          {tab.label}
-                        </Typography>
-                      </button>
-                    ))
-                  )}
+                        <ArrowLeftIcon height={14} width={14} />
+                        All scenes
+                      </Button>
+                    ) : (
+                      <>
+                        {session?.user ? (
+                          <>
+                            {VIEW_TABS.map((view) => (
+                              <button
+                                className={cn(
+                                  TAB_CLASS_NAME,
+                                  tab === view.value &&
+                                    "border-[var(--ds-border-active)] bg-[var(--ds-color-surface-active)]"
+                                )}
+                                key={view.value}
+                                onClick={() => setTab(view.value)}
+                                type="button"
+                              >
+                                <Typography
+                                  as="span"
+                                  tone={
+                                    tab === view.value ? "primary" : "tertiary"
+                                  }
+                                  variant="label"
+                                >
+                                  {view.label}
+                                </Typography>
+                              </button>
+                            ))}
+                            <span
+                              aria-hidden="true"
+                              className="mx-1 h-4 w-px shrink-0 bg-[var(--ds-border-divider)]"
+                            />
+                          </>
+                        ) : null}
+
+                        {tab === "explore"
+                          ? SORT_TABS.map((sortTab) => (
+                              <button
+                                className={cn(
+                                  TAB_CLASS_NAME,
+                                  sort === sortTab.value &&
+                                    "border-[var(--ds-border-active)] bg-[var(--ds-color-surface-active)]"
+                                )}
+                                key={sortTab.value}
+                                onClick={() => setSort(sortTab.value)}
+                                type="button"
+                              >
+                                <Typography
+                                  as="span"
+                                  tone={
+                                    sort === sortTab.value
+                                      ? "primary"
+                                      : "tertiary"
+                                  }
+                                  variant="label"
+                                >
+                                  {sortTab.label}
+                                </Typography>
+                              </button>
+                            ))
+                          : null}
+                      </>
+                    )}
                   </div>
 
-                  {selected ? null : (
+                  {selected || tab === "mine" ? null : (
                     <label className="inline-flex h-7 min-w-0 shrink-0 items-center gap-1.5 rounded-[var(--ds-radius-control)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-2 transition-[border-color] duration-160 ease-[var(--ease-out-cubic)] focus-within:border-[var(--ds-border-active)]">
                       <span className="text-[var(--ds-color-text-tertiary)]">
                         <MagnifyingGlassIcon height={13} width={13} />
@@ -378,7 +451,66 @@ export function CommunityModal({
                       remixing={remixing}
                       scene={selected}
                     />
-                  ) : (
+                  ) : null}
+
+                  {!selected && tab === "mine" ? (
+                    <div className="h-full overflow-y-auto p-4">
+                      {mine === null && !error ? (
+                        <div className="grid grid-cols-2 gap-[var(--ds-space-4)] min-[720px]:grid-cols-4">
+                          {SKELETON_KEYS.slice(0, 4).map((key) => (
+                            <div
+                              className="flex animate-pulse flex-col gap-[var(--ds-space-2)]"
+                              key={key}
+                            >
+                              <div className="aspect-[16/10] w-full rounded-[8px] border border-[var(--ds-border-subtle)] bg-[var(--ds-color-surface-subtle)]" />
+                              <div className="h-[10px] w-3/5 rounded-[3px] bg-[var(--ds-color-surface-subtle)]" />
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+
+                      {mine?.length === 0 ? (
+                        <div className="flex h-full flex-col items-center justify-center gap-[var(--ds-space-3)]">
+                          <Typography
+                            align="center"
+                            as="p"
+                            tone="tertiary"
+                            variant="caption"
+                          >
+                            You have not published a scene yet.
+                          </Typography>
+                          <Button
+                            onClick={onRequestPublish}
+                            size="compact"
+                            variant="primary"
+                          >
+                            Publish a scene
+                          </Button>
+                        </div>
+                      ) : null}
+
+                      {mine && mine.length > 0 ? (
+                        <MyScenesGrid
+                          onDeleted={(slug) => {
+                            setMine((current) =>
+                              (current ?? []).filter(
+                                (entry) => entry.slug !== slug
+                              )
+                            )
+                            setItems((current) =>
+                              current
+                                ? current.filter((entry) => entry.slug !== slug)
+                                : current
+                            )
+                          }}
+                          onSelect={openScene}
+                          scenes={mine}
+                        />
+                      ) : null}
+                    </div>
+                  ) : null}
+
+                  {!selected && tab === "explore" ? (
                     <div className="h-full overflow-y-auto p-4">
                       {items === null && !error ? (
                         <div className="grid grid-cols-2 gap-[var(--ds-space-4)] min-[720px]:grid-cols-4">
@@ -419,9 +551,8 @@ export function CommunityModal({
                         </div>
                       ) : null}
                     </div>
-                  )}
+                  ) : null}
                 </div>
-
               </GlassPanel>
             </motion.div>
           </div>

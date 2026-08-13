@@ -2,13 +2,14 @@
 
 import Image from "next/image"
 import { AuthorAvatar } from "@/components/community/author-avatar"
+import { ReportControl } from "@/components/community/report-control"
 import { Button } from "@/components/ui/button"
 import { Typography } from "@/components/ui/typography"
-import { getLayerLabel } from "@/lib/editor/config/layer-catalog"
 import type {
   CommunitySceneDetail,
   CommunitySceneSummary,
 } from "@/lib/community/scenes"
+import { getLayerLabel } from "@/lib/editor/config/layer-catalog"
 
 function formatPublishedAt(value: string | null): string {
   if (!value) {
@@ -114,6 +115,8 @@ export function SceneDetail({
               {scene.remixCount}
             </Typography>
           </Button>
+
+          <ReportControl slug={scene.slug} />
         </div>
       </div>
 

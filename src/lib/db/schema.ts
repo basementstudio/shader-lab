@@ -54,6 +54,7 @@ export const scenes = pgTable(
     compositionHeight: integer("composition_height").notNull(),
     compositionWidth: integer("composition_width").notNull(),
     createdAt,
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
     description: text("description"),
     durationSeconds: doublePrecision("duration_seconds").notNull().default(0),
     featuredAt: timestamp("featured_at", { withTimezone: true }),

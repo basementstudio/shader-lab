@@ -1,4 +1,9 @@
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3"
+import {
+  DeleteObjectsCommand,
+  ListObjectsV2Command,
+  PutObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3"
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
 import { normalizeHost } from "@/lib/editor/remote-asset"
 
@@ -77,6 +82,51 @@ export async function createUploadUrl(input: {
   )
 
   return { publicUrl: publicUrlForKey(input.key), uploadUrl }
+}
+
+const SCENE_KEY_PREFIX = /^scenes\/[A-Za-z0-9_-]+\/$/
+
+export async function deleteScenePrefix(prefix: string): Promise<number> {
+  if (!SCENE_KEY_PREFIX.test(prefix)) {
+    throw new Error(
+      `Refusing to delete by prefix "${prefix}". Expected scenes/<sceneId>/.`
+    )
+  }
+
+  const { client, config } = getClient()
+  let continuationToken: string | undefined
+  let deleted = 0
+
+  do {
+    const listed = await client.send(
+      new ListObjectsV2Command({
+        Bucket: config.bucket,
+        ContinuationToken: continuationToken,
+        Prefix: prefix,
+      })
+    )
+
+    const keys = (listed.Contents ?? [])
+      .map((entry) => entry.Key)
+      .filter((key): key is string => Boolean(key))
+
+    if (keys.length > 0) {
+      await client.send(
+        new DeleteObjectsCommand({
+          Bucket: config.bucket,
+          Delete: { Objects: keys.map((Key) => ({ Key })), Quiet: true },
+        })
+      )
+
+      deleted += keys.length
+    }
+
+    continuationToken = listed.IsTruncated
+      ? listed.NextContinuationToken
+      : undefined
+  } while (continuationToken)
+
+  return deleted
 }
 
 export async function putObject(input: {

@@ -16,10 +16,12 @@ export async function getPublicScenes(): Promise<CommunitySceneSummary[]> {
   }
 
   try {
-    return await listPublishedScenes({
+    const page = await listPublishedScenes({
       limit: PUBLIC_GRID_LIMIT,
       sort: "popular",
     })
+
+    return page.scenes
   } catch {
     return []
   }

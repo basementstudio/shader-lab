@@ -6,7 +6,7 @@ import {
   MagnifyingGlassIcon,
 } from "@radix-ui/react-icons"
 import { AnimatePresence, motion, useReducedMotion } from "motion/react"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { AuthMenu } from "@/components/community/auth-menu"
 import { MyScenesGrid } from "@/components/community/my-scenes-grid"
@@ -53,11 +53,13 @@ const TAB_CLASS_NAME =
   "inline-flex min-h-7 cursor-pointer items-center justify-center rounded-[var(--ds-radius-control)] border border-transparent px-[10px] leading-none transition-[background-color,border-color,color] duration-160 ease-[var(--ease-out-cubic)] hover:border-[var(--ds-border-subtle)] hover:bg-[var(--ds-color-surface-subtle)]"
 
 export function CommunityModal({
+  autoOpenSlug,
   focusSlug,
   onOpenChange,
   onRequestPublish,
   open,
 }: {
+  autoOpenSlug?: string | null
   focusSlug?: string | null
   onOpenChange: (open: boolean) => void
   onRequestPublish: () => void
@@ -83,6 +85,7 @@ export function CommunityModal({
   const [detail, setDetail] = useState<CommunitySceneDetail | null>(null)
   const [remixing, setRemixing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const autoOpened = useRef(false)
 
   useEffect(() => {
     setMounted(true)
@@ -274,6 +277,31 @@ export function CommunityModal({
     },
     [onOpenChange]
   )
+
+  useEffect(() => {
+    if (!autoOpenSlug || autoOpened.current) {
+      return
+    }
+
+    autoOpened.current = true
+
+    void (async () => {
+      try {
+        const res = await fetch(`/api/community/scenes/${autoOpenSlug}`)
+        const data = (await res.json()) as { scene?: CommunitySceneDetail }
+
+        if (data.scene) {
+          await remix(data.scene)
+          return
+        }
+      } catch {
+        // fall through to the browser below
+      }
+
+      setError("That scene is no longer available.")
+      onOpenChange(true)
+    })()
+  }, [autoOpenSlug, onOpenChange, remix])
 
   const ownedSlugs = new Set((mine ?? []).map((entry) => entry.slug))
 

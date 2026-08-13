@@ -8,8 +8,24 @@ import { Button } from "@/components/ui/button"
 import { GlassPanel } from "@/components/ui/glass-panel"
 import { Typography } from "@/components/ui/typography"
 import { authClient } from "@/lib/auth/client"
-import { type SocialProvider, signInWithPopup } from "@/lib/auth/sign-in-popup"
+import {
+  openAuthPopup,
+  type SocialProvider,
+  signInWithPopup,
+} from "@/lib/auth/sign-in-popup"
 import { cn } from "@/lib/cn"
+
+function describeSignInProblem(problem: "blocked" | "failed" | null): string {
+  if (problem === "blocked") {
+    return "Your browser blocked the sign-in window. Allow pop-ups for this site, then try again."
+  }
+
+  if (problem === "failed") {
+    return "Could not start sign in. Try again."
+  }
+
+  return "To publish scenes and remix with credit."
+}
 
 function GoogleGlyph() {
   return (
@@ -37,24 +53,24 @@ function GoogleGlyph() {
 export function AuthMenu() {
   const { data: session, isPending, refetch } = authClient.useSession()
   const [busy, setBusy] = useState<string | null>(null)
-  const [failed, setFailed] = useState(false)
+  const [problem, setProblem] = useState<"blocked" | "failed" | null>(null)
 
   const signIn = useCallback(
     async (provider: SocialProvider) => {
+      const popup = openAuthPopup()
+
       setBusy(provider)
-      setFailed(false)
+      setProblem(null)
 
       try {
-        const outcome = await signInWithPopup(provider)
+        const outcome = await signInWithPopup(provider, popup)
 
-        if (outcome === "failed") {
-          setFailed(true)
+        if (outcome !== "completed") {
+          setProblem(outcome)
           return
         }
 
-        if (outcome === "completed") {
-          await refetch()
-        }
+        await refetch()
       } finally {
         setBusy(null)
       }
@@ -131,9 +147,7 @@ export function AuthMenu() {
                       variant="caption"
                       className="text-balance"
                     >
-                      {failed
-                        ? "Could not start sign in. Try again."
-                        : "To publish scenes and remix with credit."}
+                      {describeSignInProblem(problem)}
                     </Typography>
                   </div>
 

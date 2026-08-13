@@ -36,7 +36,7 @@ export function sceneShareUrl(slug: string): string {
       ? ""
       : window.location.origin.replace(/\/$/, "")
 
-  return `${origin}/community/${slug}`
+  return `${origin}/tools/shader-lab?scene=${encodeURIComponent(slug)}`
 }
 
 export function ShareSceneButton({ slug }: { slug: string }) {

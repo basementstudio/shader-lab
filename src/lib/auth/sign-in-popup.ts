@@ -4,7 +4,7 @@ export const AUTH_POPUP_CALLBACK = "/auth/complete"
 
 export type SocialProvider = "github" | "google"
 
-export type PopupSignInOutcome = "completed" | "failed" | "redirected"
+export type PopupSignInOutcome = "blocked" | "completed" | "failed"
 
 const POPUP_FEATURES =
   "popup=yes,width=520,height=680,noopener=no,noreferrer=no"
@@ -74,23 +74,27 @@ function waitForPopup(popup: Window): Promise<void> {
   })
 }
 
+export function openAuthPopup(): Window | null {
+  return window.open("about:blank", "shader-lab-auth", POPUP_FEATURES)
+}
+
 export async function signInWithPopup(
-  provider: SocialProvider
+  provider: SocialProvider,
+  popup: Window | null
 ): Promise<PopupSignInOutcome> {
+  if (!popup) {
+    return "blocked"
+  }
+
   const url = await resolveAuthorizeUrl(provider)
 
   if (!url) {
+    popup.close()
+
     return "failed"
   }
 
-  const popup = window.open(url, "shader-lab-auth", POPUP_FEATURES)
-
-  if (!popup) {
-    window.location.href = url
-
-    return "redirected"
-  }
-
+  popup.location.replace(url)
   popup.focus()
 
   await waitForPopup(popup)

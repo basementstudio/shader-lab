@@ -1,49 +1,10 @@
 "use client"
 
+import { ShuffleIcon, TriangleUpIcon } from "@radix-ui/react-icons"
 import Image from "next/image"
 import { AuthorAvatar } from "@/components/community/author-avatar"
 import { Typography } from "@/components/ui/typography"
 import type { CommunitySceneSummary } from "@/lib/community/scenes"
-
-function CaretUpGlyph() {
-  return (
-    <svg
-      aria-hidden="true"
-      fill="none"
-      height={10}
-      viewBox="0 0 16 16"
-      width={10}
-    >
-      <path
-        d="M8 3.5 13.5 11h-11L8 3.5Z"
-        fill="currentColor"
-        stroke="currentColor"
-        strokeLinejoin="round"
-        strokeWidth={1.2}
-      />
-    </svg>
-  )
-}
-
-function RemixGlyph() {
-  return (
-    <svg
-      aria-hidden="true"
-      fill="none"
-      height={11}
-      viewBox="0 0 16 16"
-      width={11}
-    >
-      <path
-        d="M2 4h3.2c1 0 1.6.5 2.2 1.4l2.6 4.2c.6.9 1.2 1.4 2.2 1.4H14M2 12h3.2c1 0 1.6-.5 2.2-1.4l.9-1.4M11 2.6 14 4l-3 1.4M11 9.6 14 11l-3 1.4"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={1.4}
-      />
-    </svg>
-  )
-}
 
 export function SceneCard({
   onSelect,
@@ -72,7 +33,7 @@ export function SceneCard({
         <div className="pointer-events-none absolute top-1.5 right-1.5 inline-flex items-center gap-1.5 rounded-[var(--ds-radius-control)] border border-white/10 bg-[rgb(8_9_12_/_0.68)] px-1.5 py-[3px] backdrop-blur-[8px]">
           <span className="inline-flex items-center gap-1">
             <span className="text-[var(--ds-color-text-secondary)]">
-              <CaretUpGlyph />
+              <TriangleUpIcon height={11} width={11} />
             </span>
             <Typography as="span" tone="secondary" variant="monoXs">
               {scene.likeCount}
@@ -83,7 +44,7 @@ export function SceneCard({
 
           <span className="inline-flex items-center gap-1">
             <span className="text-[var(--ds-color-text-secondary)]">
-              <RemixGlyph />
+              <ShuffleIcon height={11} width={11} />
             </span>
             <Typography as="span" tone="secondary" variant="monoXs">
               {scene.remixCount}

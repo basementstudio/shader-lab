@@ -4,6 +4,7 @@ import Image from "next/image"
 import { AuthorAvatar } from "@/components/community/author-avatar"
 import { DeleteSceneControl } from "@/components/community/delete-scene-control"
 import { ReportControl } from "@/components/community/report-control"
+import { ShareSceneButton } from "@/components/community/share-scene-button"
 import { UpvoteButton } from "@/components/community/upvote-button"
 import { Button } from "@/components/ui/button"
 import { Typography } from "@/components/ui/typography"
@@ -134,6 +135,8 @@ export function SceneDetail({
               </Typography>
             </Button>
           </div>
+
+          <ShareSceneButton slug={scene.slug} />
 
           {isOwn ? (
             <DeleteSceneControl onDeleted={onDeleted} slug={scene.slug} />

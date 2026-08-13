@@ -5,8 +5,10 @@ import { normalizeHost } from "@/lib/editor/remote-asset"
 import { readEnv } from "@/lib/read-env"
 import type { LayerType } from "@/types/editor"
 
-export const SCENE_SORTS = ["latest", "popular", "featured"] as const
+export const SCENE_SORTS = ["popular", "latest", "featured"] as const
 export type SceneSort = (typeof SCENE_SORTS)[number]
+
+export const DEFAULT_SCENE_SORT: SceneSort = "popular"
 
 export interface CommunitySceneSummary {
   authorAvatarUrl: string | null
@@ -142,7 +144,7 @@ export async function listPublishedScenes(options?: {
   sort?: SceneSort
 }): Promise<CommunitySceneSummary[]> {
   const limit = Math.min(Math.max(options?.limit ?? 24, 1), 60)
-  const sort = options?.sort ?? "latest"
+  const sort = options?.sort ?? DEFAULT_SCENE_SORT
   const query = options?.query?.trim() ?? ""
 
   const orderBy = buildOrderBy(sort)

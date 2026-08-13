@@ -1,8 +1,15 @@
 import { isCommunityEnabled } from "@/lib/community/config"
-import { type SceneSort, SCENE_SORTS, listPublishedScenes } from "@/lib/community/scenes"
+import {
+  DEFAULT_SCENE_SORT,
+  listPublishedScenes,
+  SCENE_SORTS,
+  type SceneSort,
+} from "@/lib/community/scenes"
 
 function parseSort(value: string | null): SceneSort {
-  return SCENE_SORTS.includes(value as SceneSort) ? (value as SceneSort) : "latest"
+  return SCENE_SORTS.includes(value as SceneSort)
+    ? (value as SceneSort)
+    : DEFAULT_SCENE_SORT
 }
 
 export async function GET(request: Request) {

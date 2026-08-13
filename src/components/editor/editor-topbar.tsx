@@ -129,6 +129,7 @@ export function EditorTopBar() {
   const [publishOpen, setPublishOpen] = useState(false)
   const [hasOpenedPublish, setHasOpenedPublish] = useState(false)
   const [publishedSlug, setPublishedSlug] = useState<string | null>(null)
+  const [autoOpenSlug, setAutoOpenSlug] = useState<string | null>(null)
   const [hasOpenedCommunity, setHasOpenedCommunity] = useState(false)
 
   useEffect(() => {
@@ -138,9 +139,8 @@ export function EditorTopBar() {
       return
     }
 
-    setPublishedSlug(requested)
+    setAutoOpenSlug(requested)
     setHasOpenedCommunity(true)
-    setCommunityOpen(true)
 
     const url = new URL(window.location.href)
 
@@ -730,6 +730,7 @@ export function EditorTopBar() {
 
       {hasOpenedCommunity ? (
         <CommunityModal
+          autoOpenSlug={autoOpenSlug}
           focusSlug={publishedSlug}
           onOpenChange={(next) => {
             setCommunityOpen(next)

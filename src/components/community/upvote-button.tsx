@@ -1,29 +1,10 @@
 "use client"
 
+import { TriangleUpIcon } from "@radix-ui/react-icons"
 import { useState } from "react"
 import { Typography } from "@/components/ui/typography"
 import { authClient } from "@/lib/auth/client"
 import { cn } from "@/lib/cn"
-
-function CaretUp() {
-  return (
-    <svg
-      aria-hidden="true"
-      fill="none"
-      height={11}
-      viewBox="0 0 16 16"
-      width={11}
-    >
-      <path
-        d="M8 3.5 13.5 11h-11L8 3.5Z"
-        fill="currentColor"
-        stroke="currentColor"
-        strokeLinejoin="round"
-        strokeWidth={1.2}
-      />
-    </svg>
-  )
-}
 
 export function UpvoteButton({
   count,
@@ -100,7 +81,7 @@ export function UpvoteButton({
       title={signedIn ? undefined : "Sign in to upvote"}
       type="button"
     >
-      <CaretUp />
+      <TriangleUpIcon height={12} width={12} />
       <Typography as="span" variant="monoXs">
         {count}
       </Typography>

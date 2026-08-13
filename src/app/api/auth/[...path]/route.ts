@@ -1,4 +1,10 @@
 import { getAuth, getAuthConfig } from "@/lib/auth/server"
+import {
+  authTrace,
+  isAuthTraceEnabled,
+  neonCookieNames,
+  setCookieNames,
+} from "@/lib/auth/trace"
 
 type Params = { params: Promise<{ path: string[] }> }
 
@@ -21,8 +27,23 @@ function handle(method: Method) {
     }
 
     const handler = getAuth().handler()[method]
+    const response = await handler(request, context)
 
-    return await handler(request, context)
+    if (isAuthTraceEnabled()) {
+      const url = new URL(request.url)
+
+      authTrace("proxy", {
+        cookiesIn: neonCookieNames(request.headers.get("cookie")),
+        host: url.host,
+        location: response.headers.get("location"),
+        method,
+        path: url.pathname,
+        setCookie: setCookieNames(response.headers),
+        status: response.status,
+      })
+    }
+
+    return response
   }
 }
 

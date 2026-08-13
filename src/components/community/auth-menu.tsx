@@ -8,18 +8,10 @@ import { Button } from "@/components/ui/button"
 import { GlassPanel } from "@/components/ui/glass-panel"
 import { Typography } from "@/components/ui/typography"
 import { authClient } from "@/lib/auth/client"
-import {
-  openAuthPopup,
-  type SocialProvider,
-  signInWithPopup,
-} from "@/lib/auth/sign-in-popup"
+import { type SocialProvider, startSignIn } from "@/lib/auth/sign-in"
 import { cn } from "@/lib/cn"
 
-function describeSignInProblem(problem: "blocked" | "failed" | null): string {
-  if (problem === "blocked") {
-    return "Your browser blocked the sign-in window. Allow pop-ups for this site, then try again."
-  }
-
+function describeSignInProblem(problem: "failed" | null): string {
   if (problem === "failed") {
     return "Could not start sign in. Try again."
   }
@@ -51,32 +43,19 @@ function GoogleGlyph() {
 }
 
 export function AuthMenu() {
-  const { data: session, isPending, refetch } = authClient.useSession()
+  const { data: session, isPending } = authClient.useSession()
   const [busy, setBusy] = useState<string | null>(null)
-  const [problem, setProblem] = useState<"blocked" | "failed" | null>(null)
+  const [problem, setProblem] = useState<"failed" | null>(null)
 
-  const signIn = useCallback(
-    async (provider: SocialProvider) => {
-      const popup = openAuthPopup()
+  const signIn = useCallback(async (provider: SocialProvider) => {
+    setBusy(provider)
+    setProblem(null)
 
-      setBusy(provider)
-      setProblem(null)
+    const outcome = await startSignIn(provider)
 
-      try {
-        const outcome = await signInWithPopup(provider, popup)
-
-        if (outcome !== "completed") {
-          setProblem(outcome)
-          return
-        }
-
-        await refetch()
-      } finally {
-        setBusy(null)
-      }
-    },
-    [refetch]
-  )
+    setProblem(outcome)
+    setBusy(null)
+  }, [])
 
   const signOut = useCallback(async () => {
     setBusy("signout")
@@ -160,7 +139,7 @@ export function AuthMenu() {
                       variant="secondary"
                     >
                       <GitHubLogoIcon height={14} width={14} />
-                      {busy === "github" ? "Opening…" : "Continue with GitHub"}
+                      {busy === "github" ? "Redirecting…" : "Continue with GitHub"}
                     </Button>
                     <Button
                       disabled={busy !== null}
@@ -170,7 +149,7 @@ export function AuthMenu() {
                       variant="secondary"
                     >
                       <GoogleGlyph />
-                      {busy === "google" ? "Opening…" : "Continue with Google"}
+                      {busy === "google" ? "Redirecting…" : "Continue with Google"}
                     </Button>
                   </div>
                 </div>

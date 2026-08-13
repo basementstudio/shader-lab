@@ -84,9 +84,12 @@ export async function publishScene(input: {
   turnstileToken?: string | null
 }): Promise<PublishResult> {
   const projectFile = buildLabProjectFile()
-  const assets = useAssetStore.getState().assets
-  const localAssets = assets.filter((asset) => asset.source === "local")
-
+  const referencedIds = new Set(projectFile.assets.map((asset) => asset.id))
+  const localAssets = useAssetStore
+    .getState()
+    .assets.filter(
+      (asset) => asset.source === "local" && referencedIds.has(asset.id)
+    )
 
   const thumbnailBlob = await captureThumbnail(input.thumbnailTime)
   const thumbnailBytes = await thumbnailBlob.arrayBuffer()

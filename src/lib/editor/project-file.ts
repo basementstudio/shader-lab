@@ -65,15 +65,41 @@ function toAssetReference(asset: EditorAsset): PresetAssetReference {
   }
 }
 
+export function collectReferencedAssetIds(input: {
+  audioSource: EditorAudioSnapshot["source"]
+  layers: readonly EditorLayer[]
+}): Set<string> {
+  const referenced = new Set<string>()
+
+  for (const layer of input.layers) {
+    if (layer.assetId) {
+      referenced.add(layer.assetId)
+    }
+  }
+
+  if (input.audioSource?.kind === "asset") {
+    referenced.add(input.audioSource.assetId)
+  }
+
+  return referenced
+}
+
 export function buildLabProjectFile(): LabProjectFile {
   const assets = useAssetStore.getState().assets
   const editorState = useEditorStore.getState()
   const layerState = useLayerStore.getState()
   const timelineState = useTimelineStore.getState()
+  const audio = structuredClone(useAudioStore.getState().getSnapshot())
+  const referenced = collectReferencedAssetIds({
+    audioSource: audio.source,
+    layers: layerState.layers,
+  })
 
   return {
-    assets: assets.map(toAssetReference),
-    audio: structuredClone(useAudioStore.getState().getSnapshot()),
+    assets: assets
+      .filter((asset) => referenced.has(asset.id))
+      .map(toAssetReference),
+    audio,
     composition: structuredClone(editorState.outputSize),
     exportedAt: new Date().toISOString(),
     format: "shader-lab",

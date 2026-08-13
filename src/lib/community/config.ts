@@ -56,19 +56,21 @@ export function getMissingCommunityCapabilities(): CommunityCapability[] {
   return missing
 }
 
-export function getAdminGithubIds(): string[] {
-  return (process.env.COMMUNITY_ADMIN_GITHUB_IDS ?? "")
+export function getAdminEmails(): string[] {
+  return (process.env.COMMUNITY_ADMIN_EMAILS ?? "")
     .split(",")
-    .map((entry) => entry.trim())
+    .map((entry) => entry.trim().toLowerCase())
     .filter((entry) => entry.length > 0)
 }
 
-export function isAdminGithubId(githubId: string | null | undefined): boolean {
-  if (!hasValue(githubId ?? undefined)) {
+export function isAdminEmail(email: string | null | undefined): boolean {
+  const normalized = email?.trim().toLowerCase()
+
+  if (!normalized) {
     return false
   }
 
-  const allowed = getAdminGithubIds()
+  const allowed = getAdminEmails()
 
-  return allowed.length > 0 && allowed.includes(githubId as string)
+  return allowed.length > 0 && allowed.includes(normalized)
 }

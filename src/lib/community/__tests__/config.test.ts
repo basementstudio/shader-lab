@@ -1,15 +1,15 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import {
-  getAdminGithubIds,
+  getAdminEmails,
   getMissingCommunityCapabilities,
-  isAdminGithubId,
+  isAdminEmail,
   isCommunityEnabled,
 } from "@/lib/community/config"
 
 const KEYS = [
   "NEON_AUTH_BASE_URL",
   "CLOUDFLARE_ACCOUNT_ID",
-  "COMMUNITY_ADMIN_GITHUB_IDS",
+  "COMMUNITY_ADMIN_EMAILS",
   "DATABASE_URL",
   "NEON_AUTH_COOKIE_SECRET",
   "R2_ACCESS_KEY_ID",
@@ -128,33 +128,45 @@ describe("getMissingCommunityCapabilities", () => {
 describe("admin allowlist", () => {
   test("parses a comma list and tolerates whitespace", () => {
     clearAll()
-    setEnv("COMMUNITY_ADMIN_GITHUB_IDS", " 123 , 456 ,, 789 ")
+    setEnv("COMMUNITY_ADMIN_EMAILS", " a@b.studio , c@d.studio ,, e@f.studio ")
 
-    expect(getAdminGithubIds()).toEqual(["123", "456", "789"])
+    expect(getAdminEmails()).toEqual([
+      "a@b.studio",
+      "c@d.studio",
+      "e@f.studio",
+    ])
   })
 
   test("nobody is an admin when the allowlist is empty", () => {
     clearAll()
 
-    expect(isAdminGithubId("123")).toBe(false)
+    expect(isAdminEmail("a@b.studio")).toBe(false)
   })
 
-  test("only listed ids are admins", () => {
+  test("only listed emails are admins", () => {
     clearAll()
-    setEnv("COMMUNITY_ADMIN_GITHUB_IDS", "123,456")
+    setEnv("COMMUNITY_ADMIN_EMAILS", "a@b.studio,c@d.studio")
 
-    expect(isAdminGithubId("123")).toBe(true)
-    expect(isAdminGithubId("456")).toBe(true)
-    expect(isAdminGithubId("789")).toBe(false)
+    expect(isAdminEmail("a@b.studio")).toBe(true)
+    expect(isAdminEmail("c@d.studio")).toBe(true)
+    expect(isAdminEmail("nope@b.studio")).toBe(false)
   })
 
-  test("rejects null, undefined and empty ids", () => {
+  test("matching ignores case and surrounding whitespace", () => {
     clearAll()
-    setEnv("COMMUNITY_ADMIN_GITHUB_IDS", "123")
+    setEnv("COMMUNITY_ADMIN_EMAILS", "Admin@Basement.Studio")
 
-    expect(isAdminGithubId(null)).toBe(false)
-    expect(isAdminGithubId(undefined)).toBe(false)
-    expect(isAdminGithubId("")).toBe(false)
-    expect(isAdminGithubId("  ")).toBe(false)
+    expect(isAdminEmail("admin@basement.studio")).toBe(true)
+    expect(isAdminEmail("  ADMIN@BASEMENT.STUDIO  ")).toBe(true)
+  })
+
+  test("rejects null, undefined and empty emails", () => {
+    clearAll()
+    setEnv("COMMUNITY_ADMIN_EMAILS", "a@b.studio")
+
+    expect(isAdminEmail(null)).toBe(false)
+    expect(isAdminEmail(undefined)).toBe(false)
+    expect(isAdminEmail("")).toBe(false)
+    expect(isAdminEmail("  ")).toBe(false)
   })
 })

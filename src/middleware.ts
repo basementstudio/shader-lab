@@ -20,7 +20,7 @@ export default async function middleware(
     return NextResponse.next()
   }
 
-  const response = await getAuth().middleware({ loginUrl: "/auth/callback" })(
+  const response = await getAuth().middleware({ loginUrl: "/community" })(
     request
   )
 
@@ -33,4 +33,8 @@ export default async function middleware(
   return response
 }
 
+// loginUrl must never match a path this matcher covers: the SDK's middleware
+// treats its own login page as already-allowed and returns before it attempts
+// the OAuth token exchange. /auth/callback is in the SDK's default skip list,
+// so route protection cannot apply to it regardless.
 export const config = { matcher: ["/auth/callback"] }

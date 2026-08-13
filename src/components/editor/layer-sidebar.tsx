@@ -56,7 +56,7 @@ function LayerThumbnail({
   asset: EditorAsset | null
   layer: EditorLayer
 }) {
-  const hasPreview = asset?.kind === "image" || asset?.kind === "video"
+  const hasPreview = asset?.kind === "image"
   let PlaceholderIcon = ImageIcon
   if (layer.type === "pattern") {
     PlaceholderIcon = TransparencyGridIcon

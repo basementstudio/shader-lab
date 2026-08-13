@@ -1,9 +1,10 @@
 import { resolveAuthBaseUrl, resolveDatabaseUrl } from "@/lib/community/env"
+import { readEnv, readEnvList } from "@/lib/read-env"
 
 export type CommunityCapability = "auth" | "database" | "media" | "turnstile"
 
-function hasValue(value: string | undefined): boolean {
-  return typeof value === "string" && value.trim().length > 0
+function hasValue(name: string): boolean {
+  return readEnv(name) !== null
 }
 
 export function isDatabaseConfigured(): boolean {
@@ -11,23 +12,20 @@ export function isDatabaseConfigured(): boolean {
 }
 
 export function isAuthConfigured(): boolean {
-  return (
-    resolveAuthBaseUrl() !== null &&
-    hasValue(process.env.NEON_AUTH_COOKIE_SECRET)
-  )
+  return resolveAuthBaseUrl() !== null && hasValue("NEON_AUTH_COOKIE_SECRET")
 }
 
 export function isMediaConfigured(): boolean {
   return (
-    hasValue(process.env.CLOUDFLARE_ACCOUNT_ID) &&
-    hasValue(process.env.R2_BUCKET) &&
-    hasValue(process.env.R2_ACCESS_KEY_ID) &&
-    hasValue(process.env.R2_SECRET_ACCESS_KEY)
+    hasValue("CLOUDFLARE_ACCOUNT_ID") &&
+    hasValue("R2_BUCKET") &&
+    hasValue("R2_ACCESS_KEY_ID") &&
+    hasValue("R2_SECRET_ACCESS_KEY")
   )
 }
 
 export function isTurnstileConfigured(): boolean {
-  return hasValue(process.env.TURNSTILE_SECRET_KEY)
+  return hasValue("TURNSTILE_SECRET_KEY")
 }
 
 export function isCommunityEnabled(): boolean {
@@ -57,10 +55,9 @@ export function getMissingCommunityCapabilities(): CommunityCapability[] {
 }
 
 export function getAdminEmails(): string[] {
-  return (process.env.COMMUNITY_ADMIN_EMAILS ?? "")
-    .split(",")
-    .map((entry) => entry.trim().toLowerCase())
-    .filter((entry) => entry.length > 0)
+  return readEnvList("COMMUNITY_ADMIN_EMAILS").map((entry) =>
+    entry.toLowerCase()
+  )
 }
 
 export function isAdminEmail(email: string | null | undefined): boolean {

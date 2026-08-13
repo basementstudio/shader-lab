@@ -1,3 +1,4 @@
+import { readEnv } from "@/lib/read-env"
 import type { EditorAsset, PresetAssetReference } from "@/types/editor"
 import { ASSET_KINDS } from "@/types/editor"
 
@@ -14,7 +15,7 @@ export function normalizeHost(value: string): string {
     .replace(/:\d+$/, "")
 }
 
-function parseHostList(value: string | undefined): string[] {
+function parseHostList(value: string | null | undefined): string[] {
   if (!value) {
     return []
   }
@@ -26,17 +27,15 @@ function parseHostList(value: string | undefined): string[] {
 }
 
 function isLoopbackHostname(hostname: string): boolean {
-  return (
-    LOOPBACK_HOSTNAMES.has(hostname) || hostname.endsWith(".localhost")
-  )
+  return LOOPBACK_HOSTNAMES.has(hostname) || hostname.endsWith(".localhost")
 }
 
 export function getAllowedAssetHosts(): string[] {
   return [
     ...BUILT_IN_ASSET_HOSTS,
-    ...parseHostList(process.env.NEXT_PUBLIC_CF_IMAGES_HOST),
-    ...parseHostList(process.env.NEXT_PUBLIC_R2_PUBLIC_HOST),
-    ...parseHostList(process.env.NEXT_PUBLIC_COMMUNITY_ASSET_HOSTS),
+    ...parseHostList(readEnv("NEXT_PUBLIC_CF_IMAGES_HOST")),
+    ...parseHostList(readEnv("NEXT_PUBLIC_R2_PUBLIC_HOST")),
+    ...parseHostList(readEnv("NEXT_PUBLIC_COMMUNITY_ASSET_HOSTS")),
   ]
 }
 

@@ -2,6 +2,7 @@ import { and, desc, eq, ilike, isNull, or, sql } from "drizzle-orm"
 import { getDatabase } from "@/lib/db"
 import { profiles, scenes } from "@/lib/db/schema"
 import { normalizeHost } from "@/lib/editor/remote-asset"
+import { readEnv } from "@/lib/read-env"
 import type { LayerType } from "@/types/editor"
 
 export const SCENE_SORTS = ["latest", "popular", "featured"] as const
@@ -36,7 +37,7 @@ export function resolveLabUrl(labKey: string): string {
     return labKey
   }
 
-  const host = normalizeHost(process.env.NEXT_PUBLIC_R2_PUBLIC_HOST ?? "")
+  const host = normalizeHost(readEnv("NEXT_PUBLIC_R2_PUBLIC_HOST") ?? "")
 
   return host ? `https://${host}/${labKey.replace(/^\/+/, "")}` : labKey
 }
@@ -55,8 +56,8 @@ export function resolveThumbnailUrl(
     return thumbnailImageId
   }
 
-  const host = normalizeHost(process.env.NEXT_PUBLIC_CF_IMAGES_HOST ?? "")
-  const accountHash = process.env.NEXT_PUBLIC_CF_IMAGES_ACCOUNT_HASH?.trim()
+  const host = normalizeHost(readEnv("NEXT_PUBLIC_CF_IMAGES_HOST") ?? "")
+  const accountHash = readEnv("NEXT_PUBLIC_CF_IMAGES_ACCOUNT_HASH")
 
   if (!(host && accountHash)) {
     return null

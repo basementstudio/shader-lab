@@ -1,10 +1,12 @@
 import { createNeonAuth } from "@neondatabase/auth/next/server"
+import { isAuthTraceEnabled } from "@/lib/auth/trace"
 import { resolveAuthBaseUrl } from "@/lib/community/env"
 import { readEnv } from "@/lib/read-env"
 
 export interface NeonAuthConfigValues {
   baseUrl: string
   cookies: { secret: string }
+  logLevel?: "debug" | "warn"
 }
 
 export function getAuthConfig(): NeonAuthConfigValues | null {
@@ -15,7 +17,11 @@ export function getAuthConfig(): NeonAuthConfigValues | null {
     return null
   }
 
-  return { baseUrl, cookies: { secret } }
+  return {
+    baseUrl,
+    cookies: { secret },
+    ...(isAuthTraceEnabled() ? { logLevel: "debug" as const } : {}),
+  }
 }
 
 let cached: ReturnType<typeof createNeonAuth> | null = null

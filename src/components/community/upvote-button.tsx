@@ -1,6 +1,6 @@
 "use client"
 
-import { TriangleUpIcon } from "@radix-ui/react-icons"
+import { TriangleDownIcon, TriangleUpIcon } from "@radix-ui/react-icons"
 import { useState } from "react"
 import { Typography } from "@/components/ui/typography"
 import { authClient } from "@/lib/auth/client"
@@ -82,7 +82,11 @@ export function UpvoteButton({
       title={signedIn ? undefined : "Sign in to upvote"}
       type="button"
     >
-      <TriangleUpIcon height={12} width={12} />
+      {upvoted ? (
+        <TriangleDownIcon height={12} width={12} />
+      ) : (
+        <TriangleUpIcon height={12} width={12} />
+      )}
       <Typography as="span" variant="monoXs">
         {count}
       </Typography>

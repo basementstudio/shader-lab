@@ -6,13 +6,14 @@ import {
   MagnifyingGlassIcon,
 } from "@radix-ui/react-icons"
 import { AnimatePresence, motion, useReducedMotion } from "motion/react"
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { createPortal } from "react-dom"
 import { AuthMenu } from "@/components/community/auth-menu"
 import { MyScenesGrid } from "@/components/community/my-scenes-grid"
 import { SceneCard } from "@/components/community/scene-card"
 import { SceneDetail } from "@/components/community/scene-detail"
 import { SceneEmptyState } from "@/components/community/scene-empty-state"
+import { SceneLoadMore } from "@/components/community/scene-load-more"
 import { Button } from "@/components/ui/button"
 import { GlassPanel } from "@/components/ui/glass-panel"
 import { IconButton } from "@/components/ui/icon-button"
@@ -26,6 +27,7 @@ import type {
   CommunitySceneSummary,
   SceneSort,
 } from "@/lib/community/scenes"
+import { useScenePages } from "@/lib/community/use-scene-pages"
 import { acquirePreviewRenderLock } from "@/lib/editor/preview-render-lock"
 import {
   applyLabProjectFile,
@@ -45,40 +47,6 @@ const VIEW_TABS: readonly { label: string; value: "explore" | "mine" }[] = [
   { label: "Explore", value: "explore" },
   { label: "My scenes", value: "mine" },
 ]
-
-const PAGE_SIZE = 24
-
-const MAX_CACHED_PAGES = 12
-
-interface ScenePage {
-  nextCursor?: string | null
-  scenes?: CommunitySceneSummary[]
-}
-
-function pageKey(sort: SceneSort, query: string): string {
-  return `${sort}|${query.trim().toLowerCase()}`
-}
-
-function scenesUrl(input: {
-  cursor?: string | null
-  query: string
-  sort: SceneSort
-}): string {
-  const params = new URLSearchParams({
-    limit: String(PAGE_SIZE),
-    sort: input.sort,
-  })
-
-  if (input.query.trim().length > 0) {
-    params.set("q", input.query.trim())
-  }
-
-  if (input.cursor) {
-    params.set("cursor", input.cursor)
-  }
-
-  return `/api/community/scenes?${params.toString()}`
-}
 
 const TAB_CLASS_NAME =
   "inline-flex min-h-7 cursor-pointer items-center justify-center rounded-[var(--ds-radius-control)] border border-transparent px-[10px] leading-none transition-[background-color,border-color,color] duration-160 ease-[var(--ease-out-cubic)] hover:border-[var(--ds-border-subtle)] hover:bg-[var(--ds-color-surface-subtle)]"
@@ -104,16 +72,12 @@ export function CommunityModal({
   const [sort, setSort] = useState<SceneSort>("popular")
   const [search, setSearch] = useState("")
   const [query, setQuery] = useState("")
-  const [items, setItems] = useState<CommunitySceneSummary[] | null>(null)
-  const [nextCursor, setNextCursor] = useState<string | null>(null)
-  const [loadingMore, setLoadingMore] = useState(false)
-  const pageCache = useRef(
-    new Map<
-      string,
-      { nextCursor: string | null; scenes: CommunitySceneSummary[] }
-    >()
-  )
-  const sentinelRef = useRef<HTMLDivElement | null>(null)
+  const explore = useScenePages({
+    enabled: open && tab === "explore",
+    query,
+    sort,
+  })
+  const items = explore.scenes
   const [selected, setSelected] = useState<CommunitySceneSummary | null>(null)
   const [detail, setDetail] = useState<CommunitySceneDetail | null>(null)
   const [remixing, setRemixing] = useState(false)
@@ -136,118 +100,6 @@ export function CommunityModal({
 
     return () => window.clearTimeout(timeout)
   }, [search])
-
-  useEffect(() => {
-    if (!open) {
-      return
-    }
-
-    const key = pageKey(sort, query)
-    const cached = pageCache.current.get(key)
-
-    if (cached) {
-      setItems(cached.scenes)
-      setNextCursor(cached.nextCursor)
-      setError(null)
-
-      return
-    }
-
-    let cancelled = false
-    setItems(null)
-    setNextCursor(null)
-    setError(null)
-
-    fetch(scenesUrl({ query, sort }))
-      .then((res) => res.json())
-      .then((data: ScenePage) => {
-        if (cancelled) {
-          return
-        }
-
-        const scenes = data.scenes ?? []
-
-        pageCache.current.set(key, {
-          nextCursor: data.nextCursor ?? null,
-          scenes,
-        })
-        setItems(scenes)
-        setNextCursor(data.nextCursor ?? null)
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setError("Could not load scenes.")
-        }
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [open, query, sort])
-
-  const loadMore = useCallback(async () => {
-    if (!nextCursor || loadingMore) {
-      return
-    }
-
-    setLoadingMore(true)
-
-    try {
-      const res = await fetch(scenesUrl({ cursor: nextCursor, query, sort }))
-      const data = (await res.json()) as ScenePage
-
-      setItems((current) => {
-        const seen = new Set((current ?? []).map((entry) => entry.slug))
-        const merged = [
-          ...(current ?? []),
-          ...(data.scenes ?? []).filter((entry) => !seen.has(entry.slug)),
-        ]
-
-        const key = pageKey(sort, query)
-
-        if (pageCache.current.size >= MAX_CACHED_PAGES) {
-          const oldest = pageCache.current.keys().next().value
-
-          if (oldest !== undefined) {
-            pageCache.current.delete(oldest)
-          }
-        }
-
-        pageCache.current.set(key, {
-          nextCursor: data.nextCursor ?? null,
-          scenes: merged,
-        })
-
-        return merged
-      })
-      setNextCursor(data.nextCursor ?? null)
-    } catch {
-      setNextCursor(null)
-    } finally {
-      setLoadingMore(false)
-    }
-  }, [loadingMore, nextCursor, query, sort])
-
-  useEffect(() => {
-    const sentinel = sentinelRef.current
-
-    if (!(open && sentinel && nextCursor) || selected || tab !== "explore") {
-      return
-    }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) {
-          void loadMore()
-        }
-      },
-      { rootMargin: "320px" }
-    )
-
-    observer.observe(sentinel)
-
-    return () => observer.disconnect()
-  }, [loadMore, nextCursor, open, selected, tab])
 
   useEffect(() => {
     if (!session?.user) {
@@ -418,19 +270,12 @@ export function CommunityModal({
       const patch = <T extends CommunitySceneSummary>(entry: T): T =>
         entry.slug === slug ? { ...entry, ...counts } : entry
 
-      for (const [key, page] of pageCache.current) {
-        pageCache.current.set(key, {
-          nextCursor: page.nextCursor,
-          scenes: page.scenes.map(patch),
-        })
-      }
-
-      setItems((current) => (current ? current.map(patch) : current))
+      explore.patch(slug, counts)
       setMine((current) => (current ? current.map(patch) : current))
       setSelected((current) => (current ? patch(current) : current))
       setDetail((current) => (current ? patch(current) : current))
     },
-    []
+    [explore]
   )
 
   const changeUpvote = useCallback(
@@ -451,23 +296,17 @@ export function CommunityModal({
     [applyCounts]
   )
 
-  const forgetScene = useCallback((slug: string) => {
-    for (const [key, page] of pageCache.current) {
-      pageCache.current.set(key, {
-        nextCursor: page.nextCursor,
-        scenes: page.scenes.filter((entry) => entry.slug !== slug),
-      })
-    }
-
-    setMine((current) =>
-      current ? current.filter((entry) => entry.slug !== slug) : current
-    )
-    setItems((current) =>
-      current ? current.filter((entry) => entry.slug !== slug) : current
-    )
-    setSelected(null)
-    setDetail(null)
-  }, [])
+  const forgetScene = useCallback(
+    (slug: string) => {
+      explore.remove(slug)
+      setMine((current) =>
+        current ? current.filter((entry) => entry.slug !== slug) : current
+      )
+      setSelected(null)
+      setDetail(null)
+    },
+    [explore]
+  )
 
   if (!mounted) {
     return null
@@ -759,20 +598,13 @@ export function CommunityModal({
                       ) : null}
 
                       {items && items.length > 0 ? (
-                        <div
-                          className="flex h-10 items-center justify-center"
-                          ref={sentinelRef}
-                        >
-                          {loadingMore ? (
-                            <Typography
-                              as="span"
-                              tone="tertiary"
-                              variant="caption"
-                            >
-                              Loading more…
-                            </Typography>
-                          ) : null}
-                        </div>
+                        <SceneLoadMore
+                          error={explore.error}
+                          hasMore={explore.hasMore}
+                          loadMore={explore.loadMore}
+                          loading={explore.loading}
+                          total={items.length}
+                        />
                       ) : null}
                     </div>
                   ) : null}

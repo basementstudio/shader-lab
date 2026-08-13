@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { PublicSceneCard } from "@/components/community/public-scene-card"
+import { PublicSceneGrid } from "@/components/community/public-scene-grid"
 import { Typography } from "@/components/ui/typography"
 import { APP_BASE_URL } from "@/lib/app"
 import { isCommunityEnabled } from "@/lib/community/config"
@@ -27,7 +27,7 @@ export default async function CommunityPage() {
     notFound()
   }
 
-  const scenes = await getPublicScenes()
+  const page = await getPublicScenes()
 
   return (
     <main className="mx-auto flex w-full max-w-[1180px] flex-col gap-[var(--ds-space-6)] px-4 py-10 sm:px-6">
@@ -48,17 +48,10 @@ export default async function CommunityPage() {
         </Link>
       </header>
 
-      {scenes.length === 0 ? (
-        <Typography as="p" tone="tertiary" variant="caption">
-          No scenes published yet.
-        </Typography>
-      ) : (
-        <div className="grid grid-cols-2 gap-[var(--ds-space-4)] min-[760px]:grid-cols-4">
-          {scenes.map((scene) => (
-            <PublicSceneCard key={scene.slug} scene={scene} />
-          ))}
-        </div>
-      )}
+      <PublicSceneGrid
+        initialNextCursor={page.nextCursor}
+        initialScenes={page.scenes}
+      />
     </main>
   )
 }

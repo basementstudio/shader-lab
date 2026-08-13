@@ -4,6 +4,10 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { Suspense } from "react"
 import { AuthorAvatar } from "@/components/community/author-avatar"
+import {
+  editorSceneHref,
+  OpenInEditor,
+} from "@/components/community/open-in-editor"
 import { RemixCredit } from "@/components/community/remix-credit"
 import { Typography } from "@/components/ui/typography"
 import { APP_BASE_URL } from "@/lib/app"
@@ -102,6 +106,8 @@ async function SceneBody({ params }: PageProps) {
 
   return (
     <main className="mx-auto flex w-full max-w-[1180px] flex-col gap-[var(--ds-space-5)] px-4 py-10 sm:px-6">
+      <OpenInEditor slug={scene.slug} />
+
       <Link
         className="w-fit underline decoration-dotted underline-offset-2"
         href="/community"
@@ -176,7 +182,7 @@ async function SceneBody({ params }: PageProps) {
           <div className="flex flex-wrap items-center gap-[var(--ds-space-3)]">
             <Link
               className="inline-flex h-9 items-center rounded-[var(--ds-radius-control)] bg-white px-4 text-black transition-opacity duration-160 hover:opacity-90"
-              href={`/tools/shader-lab?scene=${scene.slug}`}
+              href={editorSceneHref(scene.slug) as Route}
             >
               <Typography as="span" tone="onLight" variant="label">
                 Remix in Shader Lab

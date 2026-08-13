@@ -1,8 +1,13 @@
 import { buildRenderProjectState } from "@/lib/agent-bridge/screenshot"
-import { buildLabProjectFile } from "@/lib/editor/project-file"
+import { describeUploadLimit } from "@/lib/community/upload-limits"
+import {
+  buildLabProjectFile,
+  buildPublishableProjectFile,
+  type LabProjectFile,
+} from "@/lib/editor/project-file"
 import { useAssetStore } from "@/store/asset-store"
 import { useRemixOriginStore } from "@/store/remix-origin-store"
-import type { PresetAssetReference } from "@/types/editor"
+import type { EditorAsset, PresetAssetReference } from "@/types/editor"
 
 export const THUMBNAIL_MAX_TIME_SECONDS = 10
 export const THUMBNAIL_WIDTH = 1280
@@ -78,19 +83,73 @@ async function upload(target: UploadTarget, bytes: ArrayBuffer): Promise<void> {
   }
 }
 
-export async function publishScene(input: {
-  description: string
-  thumbnailTime: number
-  title: string
-  turnstileToken?: string | null
-}): Promise<PublishResult> {
-  const projectFile = buildLabProjectFile()
+export const EMPTY_SCENE_MESSAGE =
+  "Every layer is hidden, so there is nothing to publish. Show at least one layer first."
+
+export interface PublishPlan {
+  assetCount: number
+  hiddenLayerCount: number
+  problem: string | null
+  totalBytes: number
+}
+
+function inspectScene(): {
+  localAssets: EditorAsset[]
+  plan: PublishPlan
+  projectFile: LabProjectFile
+} {
+  const source = buildLabProjectFile()
+  const projectFile = buildPublishableProjectFile(source)
   const referencedIds = new Set(projectFile.assets.map((asset) => asset.id))
   const localAssets = useAssetStore
     .getState()
     .assets.filter(
       (asset) => asset.source === "local" && referencedIds.has(asset.id)
     )
+
+  let problem: string | null =
+    projectFile.layers.length === 0 ? EMPTY_SCENE_MESSAGE : null
+  let totalBytes = 0
+
+  for (const asset of localAssets) {
+    totalBytes += asset.sizeBytes
+
+    if (!problem) {
+      problem = describeUploadLimit({
+        fileName: asset.fileName,
+        mimeType: asset.mimeType,
+        sizeBytes: asset.sizeBytes,
+      })
+    }
+  }
+
+  return {
+    localAssets,
+    plan: {
+      assetCount: localAssets.length,
+      hiddenLayerCount: source.layers.length - projectFile.layers.length,
+      problem,
+      totalBytes,
+    },
+    projectFile,
+  }
+}
+
+export function describePublishPlan(): PublishPlan {
+  return inspectScene().plan
+}
+
+export async function publishScene(input: {
+  description: string
+  thumbnailTime: number
+  title: string
+  turnstileToken?: string | null
+}): Promise<PublishResult> {
+  const { localAssets, plan, projectFile } = inspectScene()
+
+  if (plan.problem) {
+    throw new Error(plan.problem)
+  }
 
   const thumbnailBlob = await captureThumbnail(input.thumbnailTime)
   const thumbnailBytes = await thumbnailBlob.arrayBuffer()

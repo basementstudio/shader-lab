@@ -7,8 +7,7 @@ import {
   UPLOADABLE_MIME_TYPES,
 } from "@/lib/community/publish"
 import { createUploadUrl } from "@/lib/community/r2"
-
-const MAX_ASSET_BYTES = 100 * 1024 * 1024
+import { describeUploadLimit } from "@/lib/community/upload-limits"
 
 interface RequestedUpload {
   contentLength?: unknown
@@ -101,11 +100,13 @@ export async function POST(request: Request) {
       )
     }
 
-    if (!(contentLength > 0 && contentLength <= MAX_ASSET_BYTES)) {
-      return Response.json(
-        { error: "One of the files is empty or larger than 100 MB." },
-        { status: 400 }
-      )
+    const oversize = describeUploadLimit({
+      mimeType: contentType,
+      sizeBytes: contentLength,
+    })
+
+    if (oversize) {
+      return Response.json({ error: oversize }, { status: 400 })
     }
 
     if (!/^[a-f0-9]{64}$/.test(sha256)) {

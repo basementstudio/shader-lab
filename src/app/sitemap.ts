@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next"
 import { APP_BASE_URL } from "@/lib/app"
 import { isCommunityEnabled } from "@/lib/community/config"
-import { getPublicScenes } from "@/lib/community/public-scenes"
+import { listAllPublishedScenesForSitemap } from "@/lib/community/public-scenes"
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const entries: MetadataRoute.Sitemap = [
@@ -17,7 +17,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     return entries
   }
 
-  const scenes = await getPublicScenes()
+  const scenes = await listAllPublishedScenesForSitemap()
 
   entries.push({
     url: `${APP_BASE_URL}/community`,

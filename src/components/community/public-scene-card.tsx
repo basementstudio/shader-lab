@@ -5,7 +5,13 @@ import { AuthorAvatar } from "@/components/community/author-avatar"
 import { Typography } from "@/components/ui/typography"
 import type { CommunitySceneSummary } from "@/lib/community/scenes"
 
-export function PublicSceneCard({ scene }: { scene: CommunitySceneSummary }) {
+export function PublicSceneCard({
+  priority = false,
+  scene,
+}: {
+  priority?: boolean
+  scene: CommunitySceneSummary
+}) {
   return (
     <Link
       className="group flex flex-col gap-[var(--ds-space-2)] rounded-[10px] focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--ds-border-active)] focus-visible:outline-offset-2"
@@ -17,7 +23,8 @@ export function PublicSceneCard({ scene }: { scene: CommunitySceneSummary }) {
             alt={scene.title}
             className="object-cover"
             fill
-            sizes="(max-width: 900px) 45vw, 320px"
+            priority={priority}
+            sizes="(min-width: 760px) 280px, 45vw"
             src={scene.thumbnailUrl}
           />
         ) : null}

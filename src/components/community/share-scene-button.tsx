@@ -2,8 +2,8 @@
 
 import { CheckIcon, Link2Icon } from "@radix-ui/react-icons"
 import { useCallback, useEffect, useState } from "react"
-import { OPEN_IN_EDITOR_PARAM } from "@/components/community/open-in-editor"
 import { IconButton } from "@/components/ui/icon-button"
+import { sceneSharePath } from "@/lib/community/scene-links"
 
 const LABELS = {
   copied: "Link copied",
@@ -37,7 +37,7 @@ export function sceneShareUrl(slug: string): string {
       ? ""
       : window.location.origin.replace(/\/$/, "")
 
-  return `${origin}/community/${slug}?${OPEN_IN_EDITOR_PARAM}=1`
+  return `${origin}${sceneSharePath(slug)}`
 }
 
 export function ShareSceneButton({ slug }: { slug: string }) {

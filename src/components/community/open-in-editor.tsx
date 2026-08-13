@@ -2,12 +2,10 @@
 
 import { useEffect, useState } from "react"
 import { Typography } from "@/components/ui/typography"
-
-export const OPEN_IN_EDITOR_PARAM = "open"
-
-export function editorSceneHref(slug: string): string {
-  return `/tools/shader-lab?scene=${encodeURIComponent(slug)}`
-}
+import {
+  editorSceneHref,
+  OPEN_IN_EDITOR_PARAM,
+} from "@/lib/community/scene-links"
 
 export function OpenInEditor({ slug }: { slug: string }) {
   const [opening, setOpening] = useState(false)
@@ -28,7 +26,7 @@ export function OpenInEditor({ slug }: { slug: string }) {
   }
 
   return (
-    <div className="fixed inset-0 z-100 flex items-center justify-center bg-[var(--ds-color-surface-base,#050507)]">
+    <div className="fixed inset-0 z-100 flex items-center justify-center bg-[#050507]">
       <Typography align="center" as="p" tone="tertiary" variant="caption">
         Opening in Shader Lab…
       </Typography>

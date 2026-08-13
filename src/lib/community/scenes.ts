@@ -32,9 +32,17 @@ export interface CommunitySceneSummary {
   title: string
 }
 
+export interface SceneLineage {
+  authorAvatarUrl: string | null
+  authorHandle: string
+  authorName: string | null
+  slug: string
+  title: string
+}
+
 export interface CommunitySceneDetail extends CommunitySceneSummary {
   description: string | null
-  forkedFrom: { slug: string; title: string } | null
+  forkedFrom: SceneLineage | null
   labUrl: string
 }
 
@@ -264,13 +272,26 @@ export async function getPublishedScene(
     return null
   }
 
-  let forkedFrom: CommunitySceneDetail["forkedFrom"] = null
+  let forkedFrom: SceneLineage | null = null
 
   if (row.forkedFromId) {
     const parent = await getDatabase()
-      .select({ slug: scenes.slug, title: scenes.title })
+      .select({
+        authorAvatarUrl: profiles.avatarUrl,
+        authorHandle: profiles.handle,
+        authorName: profiles.displayName,
+        slug: scenes.slug,
+        title: scenes.title,
+      })
       .from(scenes)
-      .where(eq(scenes.id, row.forkedFromId))
+      .innerJoin(profiles, eq(profiles.userId, scenes.authorId))
+      .where(
+        and(
+          eq(scenes.id, row.forkedFromId),
+          eq(scenes.status, "published"),
+          isNull(scenes.deletedAt)
+        )
+      )
       .limit(1)
 
     forkedFrom = parent[0] ?? null

@@ -26,6 +26,7 @@
     "lint": "biome lint --max-diagnostics=200",
     "lint:fix": "biome lint --write --unsafe --max-diagnostics=200",
     "release": "cd packages/shader-lab-react && npm publish --access public",
+    "release-mcp": "cd packages/shader-lab-mcp && npm publish --access public",
     "release-canary": "changeset publish --tag canary --no-git-tag",
     "version-canary": "changeset version --snapshot canary",
     "version-packages": "changeset version",

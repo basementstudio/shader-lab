@@ -23,11 +23,37 @@ works).
 
 ## Setup
 
-1. Start the dev server: `bun dev`
-2. Open the editor with the bridge enabled, in a WebGPU browser:
-   `http://localhost:3000/tools/shader-lab?agent=1`
-3. The MCP server is registered in the repo's `.mcp.json` — Claude Code picks
-   it up automatically. To run it manually: `bun run mcp` (from the repo root).
+You do **not** need this repo, and you do not need to run the app. Add the
+server to your MCP client (Claude Code, Cursor, …):
+
+```json
+{
+  "mcpServers": {
+    "shader-lab": {
+      "command": "npx",
+      "args": ["-y", "@basementstudio/shader-lab-mcp"]
+    }
+  }
+}
+```
+
+Then open the editor in a WebGPU browser with `?agent=1` appended — a
+deployment (`https://eng.basement.studio/tools/shader-lab?agent=1`, or any
+`*.vercel.app` preview) or a local dev server
+(`http://localhost:3000/tools/shader-lab?agent=1`). Ask your agent for
+`get_project_state` to confirm the connection.
+
+The server always runs on your own machine and the bridge is loopback-only, so
+a deployed tab connects back to your localhost — the deployment itself is never
+involved.
+
+**One editor tab at a time.** The bridge holds a single connection; opening a
+second tab takes the slot, and the two will trade it back and forth every few
+seconds until you close one.
+
+Working inside this repo instead? `.mcp.json` at the root already registers the
+server via `bun run --cwd packages/shader-lab-mcp start`, so Claude Code picks
+it up with no config.
 
 Environment variables:
 

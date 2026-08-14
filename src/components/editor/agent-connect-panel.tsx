@@ -1,0 +1,221 @@
+"use client"
+
+import { Popover } from "@base-ui/react/popover"
+import { CheckIcon, CopyIcon } from "@radix-ui/react-icons"
+import { useCallback, useEffect, useState } from "react"
+import { GlassPanel } from "@/components/ui/glass-panel"
+import { Typography } from "@/components/ui/typography"
+import { cn } from "@/lib/cn"
+import {
+  type AgentBridgeStatus,
+  useAgentBridgeStore,
+} from "@/store/agent-bridge-store"
+
+const INSTALL_COMMAND =
+  "claude mcp add -s user shader-lab -- npx -y @basementstudio/shader-lab-mcp"
+
+const STATUS_COPY: Record<
+  AgentBridgeStatus,
+  { dot: string; label: string; hint: string }
+> = {
+  connected: {
+    dot: "bg-emerald-400",
+    hint: "Ask it to add a layer or write a shader.",
+    label: "Agent connected",
+  },
+  connecting: {
+    dot: "animate-pulse bg-amber-400",
+    hint: "Run the command below, then start Claude.",
+    label: "Waiting for your agent",
+  },
+  off: {
+    dot: "bg-white/25",
+    hint: "Turn it on to let an agent drive this editor.",
+    label: "Agent control is off",
+  },
+}
+
+function XmcpIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      height={size}
+      viewBox="0 0 26 26"
+      width={size}
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M2.97852 6H3.98065V7H2.97852V6ZM3.98065 23V20H4.98278V19H5.98492V18H7.98918V17H8.99131V16H9.99344V18H11.9977V19H12.9998V20H14.002V21H12.9998V22H11.9977V23H10.9956V22H9.99344V21H7.98918V22H6.98705V24H7.98918V25H5.98492V24H4.98278V23H3.98065ZM3.98065 6V4H4.98278V3H5.98492V2H9.99344V3H11.9977V4H12.9998V6H14.002V7H15.0041V8H16.0062V9H15.0041V10H20.0147V11H19.0126V12H17.0083V14H18.0105V15H19.0126V16H20.0147V18H21.0169V19H22.019V20H20.0147V21H19.0126V22H18.0105V21H17.0083V19H16.0062V17H15.0041V16H14.002V14H11.9977V13H4.98278V12H5.98492V11H6.98705V10H10.9956V9H9.99344V7H8.99131V5H7.98918V4H6.98705V5H4.98278V6H3.98065ZM9.99344 16V15H10.9956V16H9.99344ZM10.9956 15V14H11.9977V15H10.9956ZM14.002 20V19H15.0041V20H14.002ZM14.002 6V5H15.0041V6H14.002ZM15.0041 5V4H16.0062V2H18.0105V3H20.0147V2H22.019V5H21.0169V6H19.0126V7H18.0105V6H17.0083V8H16.0062V5H15.0041ZM22.019 19V18H23.0211V19H22.019ZM22.019 2V1H23.0211V2H22.019Z"
+        fill="currentColor"
+      />
+    </svg>
+  )
+}
+
+function Step({
+  children,
+  index,
+  title,
+}: {
+  children?: React.ReactNode
+  index: number
+  title: string
+}) {
+  return (
+    <div className="flex gap-[var(--ds-space-2)]">
+      <span className="mt-px flex size-4 shrink-0 items-center justify-center rounded-full bg-white/10">
+        <Typography as="span" tone="secondary" variant="monoXs">
+          {index}
+        </Typography>
+      </span>
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+        <Typography as="p" tone="secondary" variant="caption">
+          {title}
+        </Typography>
+        {children}
+      </div>
+    </div>
+  )
+}
+
+export function AgentConnectPanel() {
+  const enabled = useAgentBridgeStore((state) => state.enabled)
+  const status = useAgentBridgeStore((state) => state.status)
+  const setEnabled = useAgentBridgeStore((state) => state.setEnabled)
+  const [copied, setCopied] = useState(false)
+
+  useEffect(() => {
+    if (!copied) {
+      return
+    }
+
+    const timer = setTimeout(() => setCopied(false), 1600)
+
+    return () => clearTimeout(timer)
+  }, [copied])
+
+  const copy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(INSTALL_COMMAND)
+      setCopied(true)
+    } catch {
+      setCopied(false)
+    }
+  }, [])
+
+  const onOpenChange = useCallback(
+    (open: boolean) => {
+      if (open && !enabled) {
+        setEnabled(true)
+      }
+    },
+    [enabled, setEnabled]
+  )
+
+  const copyState = STATUS_COPY[status]
+
+  return (
+    <Popover.Root onOpenChange={onOpenChange}>
+      <span className="relative inline-flex">
+        <Popover.Trigger
+          aria-label="Connect an agent (MCP)"
+          className={cn(
+            "inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-[var(--ds-radius-icon)] text-[var(--ds-color-text-secondary)] transition-[background-color,color] duration-160 ease-[var(--ease-out-cubic)] hover:bg-white/8 hover:text-[var(--ds-color-text-primary)]",
+            enabled && "bg-white/10 text-[var(--ds-color-text-primary)]"
+          )}
+        >
+          <XmcpIcon />
+        </Popover.Trigger>
+        {enabled ? (
+          <span
+            aria-hidden="true"
+            className={cn(
+              "pointer-events-none absolute -top-0.5 -right-0.5 size-2 rounded-full border border-[var(--ds-color-canvas)]",
+              copyState.dot
+            )}
+          />
+        ) : null}
+      </span>
+
+      <Popover.Portal>
+        <Popover.Positioner
+          align="end"
+          className="z-100"
+          side="bottom"
+          sideOffset={16}
+        >
+          <Popover.Popup className="outline-none">
+            <GlassPanel className="w-[336px] p-0" variant="panel">
+              <div className="flex items-center gap-[var(--ds-space-2)] border-b border-[var(--ds-border-divider)] px-3 py-2.5">
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    "size-2 shrink-0 rounded-full",
+                    copyState.dot
+                  )}
+                />
+                <Typography as="span" variant="label">
+                  {copyState.label}
+                </Typography>
+              </div>
+
+              <div className="flex flex-col gap-[var(--ds-space-3)] px-3 py-3">
+                <Typography as="p" tone="tertiary" variant="caption">
+                  {copyState.hint}
+                </Typography>
+
+                <Step index={1} title="Run this once in a terminal">
+                  <button
+                    className="group flex w-full items-start gap-2 rounded-[var(--ds-radius-control)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-subtle)] px-2 py-1.5 text-left transition-colors duration-160 hover:border-[var(--ds-border-hover)]"
+                    onClick={copy}
+                    type="button"
+                  >
+                    <Typography
+                      as="code"
+                      className="min-w-0 flex-1 break-all"
+                      tone="secondary"
+                      variant="monoXs"
+                    >
+                      {INSTALL_COMMAND}
+                    </Typography>
+                    <span className="mt-px shrink-0 text-[var(--ds-color-text-tertiary)] group-hover:text-[var(--ds-color-text-primary)]">
+                      {copied ? (
+                        <CheckIcon height={13} width={13} />
+                      ) : (
+                        <CopyIcon height={13} width={13} />
+                      )}
+                    </span>
+                  </button>
+                </Step>
+
+                <Step index={2} title="Start Claude in any folder">
+                  <Typography as="code" tone="secondary" variant="monoXs">
+                    claude
+                  </Typography>
+                </Step>
+
+                <Step
+                  index={3}
+                  title="Keep this tab open and ask it to change something"
+                />
+
+                {enabled ? (
+                  <button
+                    className="w-fit cursor-pointer text-[var(--ds-color-text-tertiary)] underline decoration-dotted underline-offset-2 transition-colors duration-160 hover:text-[var(--ds-color-text-primary)]"
+                    onClick={() => setEnabled(false)}
+                    type="button"
+                  >
+                    <Typography as="span" tone="tertiary" variant="caption">
+                      Turn off agent control
+                    </Typography>
+                  </button>
+                ) : null}
+              </div>
+            </GlassPanel>
+          </Popover.Popup>
+        </Popover.Positioner>
+      </Popover.Portal>
+    </Popover.Root>
+  )
+}

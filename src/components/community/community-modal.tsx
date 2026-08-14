@@ -28,6 +28,7 @@ import type {
   CommunitySceneSummary,
   SceneSort,
 } from "@/lib/community/scenes"
+import { scenePagePath } from "@/lib/community/scene-links"
 import { useScenePages } from "@/lib/community/use-scene-pages"
 import { acquirePreviewRenderLock } from "@/lib/editor/preview-render-lock"
 import {
@@ -36,6 +37,7 @@ import {
   parseLabProjectFile,
 } from "@/lib/editor/project-file"
 import { useAssetStore } from "@/store/asset-store"
+import { useEditorStore } from "@/store/editor-store"
 import { useRemixOriginStore } from "@/store/remix-origin-store"
 
 const SKELETON_KEYS = ["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8"] as const
@@ -253,7 +255,7 @@ export function CommunityModal({
   }, [])
 
   const remix = useCallback(
-    async (scene: CommunitySceneDetail) => {
+    async (scene: CommunitySceneDetail, options?: { auto?: boolean }) => {
       setRemixing(true)
       setError(null)
 
@@ -265,6 +267,10 @@ export function CommunityModal({
           const granted = await requestShaderConsent(scene.title)
 
           if (!granted) {
+            if (options?.auto) {
+              window.location.replace(scenePagePath(scene.slug))
+            }
+
             return
           }
         }
@@ -308,7 +314,7 @@ export function CommunityModal({
         const data = (await res.json()) as { scene?: CommunitySceneDetail }
 
         if (data.scene) {
-          await remix(data.scene)
+          await remix(data.scene, { auto: true })
           return
         }
       } catch {
@@ -317,7 +323,9 @@ export function CommunityModal({
 
       setError("That scene is no longer available.")
       onOpenChange(true)
-    })()
+    })().finally(() => {
+      useEditorStore.getState().clearPendingScene()
+    })
   }, [autoOpenSlug, onOpenChange, remix])
 
   const ownedSlugs = new Set((mine ?? []).map((entry) => entry.slug))

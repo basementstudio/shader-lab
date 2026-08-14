@@ -27,6 +27,16 @@
     }
   }
 
+  @keyframes loader-bounce {
+    0% {
+      transform: translateX(0%);
+    }
+
+    100% {
+      transform: translateX(163%);
+    }
+  }
+
   *:where(
       :not(
           html,

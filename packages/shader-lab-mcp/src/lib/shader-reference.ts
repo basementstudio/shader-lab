@@ -1,6 +1,8 @@
-import { existsSync } from "node:fs"
-import { readFile } from "node:fs/promises"
-import { dirname, join } from "node:path"
+import {
+  STARTERS,
+  TSL_EXPORT_NAMES,
+  UTIL_ENTRIES,
+} from "~/lib/shader-reference-data"
 
 export const SHADER_CONTRACT = `# Custom shader contract
 
@@ -33,6 +35,7 @@ in a sandbox. The rules:
 interface UtilEntry {
   exportNames: string[]
   modulePath: string
+  source: string
 }
 
 interface UtilSection {
@@ -84,174 +87,18 @@ const UTIL_SECTION_META: Record<
   },
 }
 
-let repoRoot: string | null = null
+function getUtilSections(): Map<UtilSectionName, UtilSection> {
+  const sections = new Map<UtilSectionName, UtilSection>()
 
-function resolveRepoRoot(): string {
-  if (repoRoot) {
-    return repoRoot
-  }
-
-  let dir = process.cwd()
-
-  for (let depth = 0; depth < 6; depth += 1) {
-    if (existsSync(join(dir, "packages", "shader-lab-mcp"))) {
-      repoRoot = dir
-      return dir
-    }
-
-    const parent = dirname(dir)
-
-    if (parent === dir) {
-      break
-    }
-
-    dir = parent
-  }
-
-  throw new Error(
-    "Could not locate the shader-lab repo root. Run the MCP server from inside the repo (e.g. `bun run mcp` at the repo root)."
-  )
-}
-
-function tslShadersRoot(): string {
-  return join(resolveRepoRoot(), "src", "renderer", "shaders", "tsl")
-}
-
-function classifyModulePath(modulePath: string): UtilSectionName {
-  if (modulePath.includes("/noise/")) {
-    return "noise"
-  }
-
-  if (modulePath.includes("/color/") || modulePath.includes("cosine-palette")) {
-    return "color"
-  }
-
-  if (modulePath.includes("/patterns/")) {
-    return "patterns"
-  }
-
-  if (modulePath.includes("/utils/sd-")) {
-    return "sdf"
-  }
-
-  if (modulePath.includes("/utils/complex-")) {
-    return "complex"
-  }
-
-  return "math"
-}
-
-async function readUtilBarrel(): Promise<Map<UtilSectionName, UtilEntry[]>> {
-  const barrelSource = await readFile(
-    join(tslShadersRoot(), "utils", "index.ts"),
-    "utf8"
-  )
-  const sections = new Map<UtilSectionName, UtilEntry[]>()
-  const exportPattern =
-    /export\s*\{([^}]+)\}\s*from\s*"@\/renderer\/shaders\/tsl\/([^"]+)"/g
-
-  for (const match of barrelSource.matchAll(exportPattern)) {
-    const namesGroup = match[1]
-    const modulePath = match[2]
-
-    if (!(namesGroup && modulePath)) {
-      continue
-    }
-
-    const exportNames = namesGroup
-      .split(",")
-      .map((name) => name.trim())
-      .filter((name) => name.length > 0)
-    const section = classifyModulePath(`/${modulePath}`)
-    const entries = sections.get(section) ?? []
-
-    entries.push({ exportNames, modulePath })
-    sections.set(section, entries)
-  }
-
-  return sections
-}
-
-function stripImportLines(source: string): string {
-  return source
-    .split("\n")
-    .filter((line) => !/^\s*import[\s{]/.test(line))
-    .join("\n")
-    .trimStart()
-}
-
-async function readUtilSource(modulePath: string): Promise<string> {
-  const relativePath = modulePath.replace("renderer/shaders/tsl/", "")
-  const source = await readFile(
-    join(tslShadersRoot(), `${relativePath}.ts`),
-    "utf8"
-  )
-
-  return stripImportLines(source)
-}
-
-async function readStarters(): Promise<{ effect: string; source: string }> {
-  const sharedSource = await readFile(
-    join(
-      resolveRepoRoot(),
-      "src",
-      "lib",
-      "editor",
-      "custom-shader",
-      "shared.ts"
-    ),
-    "utf8"
-  )
-  const extract = (constant: string): string => {
-    const pattern = new RegExp(
-      `export const ${constant} = \`([\\s\\S]*?)\`\\n`
-    )
-    const match = sharedSource.match(pattern)
-
-    return match?.[1] ?? "// starter unavailable"
-  }
-
-  return {
-    effect: extract("CUSTOM_EFFECT_STARTER"),
-    source: extract("CUSTOM_SHADER_STARTER"),
-  }
-}
-
-let tslExportNamesPromise: Promise<string[]> | null = null
-
-function getTslExportNames(): Promise<string[]> {
-  if (!tslExportNamesPromise) {
-    tslExportNamesPromise = import("three/tsl").then((module) =>
-      Object.keys(module).sort()
-    )
-  }
-
-  return tslExportNamesPromise
-}
-
-let utilSectionsPromise: Promise<Map<UtilSectionName, UtilSection>> | null =
-  null
-
-function getUtilSections(): Promise<Map<UtilSectionName, UtilSection>> {
-  if (!utilSectionsPromise) {
-    utilSectionsPromise = readUtilBarrel().then((grouped) => {
-      const sections = new Map<UtilSectionName, UtilSection>()
-
-      for (const name of UTIL_SECTION_ORDER) {
-        const entries = grouped.get(name) ?? []
-
-        sections.set(name, {
-          entries,
-          summary: UTIL_SECTION_META[name].summary,
-          title: UTIL_SECTION_META[name].title,
-        })
-      }
-
-      return sections
+  for (const name of UTIL_SECTION_ORDER) {
+    sections.set(name, {
+      entries: UTIL_ENTRIES[name] ?? [],
+      summary: UTIL_SECTION_META[name].summary,
+      title: UTIL_SECTION_META[name].title,
     })
   }
 
-  return utilSectionsPromise
+  return sections
 }
 
 export const SHADER_REFERENCE_SECTIONS = [
@@ -267,11 +114,9 @@ function isUtilSectionName(value: string): value is UtilSectionName {
   return (UTIL_SECTION_ORDER as readonly string[]).includes(value)
 }
 
-async function buildOverview(): Promise<string> {
-  const [tslNames, utilSections] = await Promise.all([
-    getTslExportNames(),
-    getUtilSections(),
-  ])
+function buildOverview(): string {
+  const tslNames = TSL_EXPORT_NAMES
+  const utilSections = getUtilSections()
   const lines: string[] = [SHADER_CONTRACT, "# Available API", ""]
 
   for (const name of UTIL_SECTION_ORDER) {
@@ -304,8 +149,8 @@ async function buildOverview(): Promise<string> {
   return lines.join("\n")
 }
 
-async function buildUtilSection(name: UtilSectionName): Promise<string> {
-  const utilSections = await getUtilSections()
+function buildUtilSection(name: UtilSectionName): string {
+  const utilSections = getUtilSections()
   const section = utilSections.get(name)
 
   if (!section) {
@@ -321,16 +166,20 @@ async function buildUtilSection(name: UtilSectionName): Promise<string> {
   ]
 
   for (const entry of section.entries) {
-    const source = await readUtilSource(entry.modulePath)
-
-    lines.push(`## ${entry.exportNames.join(", ")}`, "```ts", source, "```", "")
+    lines.push(
+      `## ${entry.exportNames.join(", ")}`,
+      "```ts",
+      entry.source,
+      "```",
+      ""
+    )
   }
 
   return lines.join("\n")
 }
 
-async function buildTslCoreSection(): Promise<string> {
-  const tslNames = await getTslExportNames()
+function buildTslCoreSection(): string {
+  const tslNames = TSL_EXPORT_NAMES
 
   return [
     "# three/tsl core exports",
@@ -341,8 +190,8 @@ async function buildTslCoreSection(): Promise<string> {
   ].join("\n")
 }
 
-async function buildExamplesSection(): Promise<string> {
-  const starters = await readStarters()
+function buildExamplesSection(): string {
+  const starters = STARTERS
 
   return [
     "# Worked examples",

@@ -143,36 +143,49 @@ export async function POST(
   })
 
   const labKey = `scenes/${draftId}/scene.lab.json`
-  await putObject({
-    body: raw,
-    contentType: "application/json",
-    key: labKey,
-  })
-
   const db = getDatabase()
   const now = new Date()
   const composition = validated.projectFile.composition
   const forkedFromId = await resolveForkedFromId(payload.forkedFromSlug)
 
-  await db.insert(scenes).values({
-    authorId: profile.userId,
-    compositionHeight: Math.round(composition.height),
-    compositionWidth: Math.round(composition.width),
-    description,
-    durationSeconds: validated.projectFile.timeline.duration,
-    forkedFromId,
-    hasCustomShader: validated.hasCustomShader,
-    id: draftId,
-    labKey,
-    labVersion: validated.projectFile.version,
-    layerTypes: validated.layerTypes,
-    publishedAt: now,
-    slug: buildSceneSlug(title),
-    status: "published",
-    thumbnailImageId: thumbnailUrl,
-    title,
-    updatedAt: now,
-  })
+  const claimed = await db
+    .insert(scenes)
+    .values({
+      authorId: profile.userId,
+      compositionHeight: Math.round(composition.height),
+      compositionWidth: Math.round(composition.width),
+      description,
+      durationSeconds: validated.projectFile.timeline.duration,
+      forkedFromId,
+      hasCustomShader: validated.hasCustomShader,
+      id: draftId,
+      labKey,
+      labVersion: validated.projectFile.version,
+      layerTypes: validated.layerTypes,
+      publishedAt: now,
+      slug: buildSceneSlug(title),
+      status: "published",
+      thumbnailImageId: thumbnailUrl,
+      title,
+      updatedAt: now,
+    })
+    .onConflictDoNothing({ target: scenes.id })
+    .returning({ id: scenes.id })
+
+  if (claimed.length === 0) {
+    return badRequest("Unknown draft.", 404)
+  }
+
+  try {
+    await putObject({
+      body: raw,
+      contentType: "application/json",
+      key: labKey,
+    })
+  } catch (cause) {
+    await db.delete(scenes).where(eq(scenes.id, draftId))
+    throw cause
+  }
 
   const assetRows = validated.projectFile.assets
     .filter((asset) => asset.url)

@@ -14,6 +14,7 @@ import { SceneCard } from "@/components/community/scene-card"
 import { SceneDetail } from "@/components/community/scene-detail"
 import { SceneEmptyState } from "@/components/community/scene-empty-state"
 import { SceneLoadMore } from "@/components/community/scene-load-more"
+import { ShaderConsentDialog } from "@/components/community/shader-consent-dialog"
 import { Button } from "@/components/ui/button"
 import { GlassPanel } from "@/components/ui/glass-panel"
 import { IconButton } from "@/components/ui/icon-button"
@@ -85,6 +86,8 @@ export function CommunityModal({
   const [detail, setDetail] = useState<CommunitySceneDetail | null>(null)
   const [remixing, setRemixing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [consentTitle, setConsentTitle] = useState<string | null>(null)
+  const consentResolver = useRef<((granted: boolean) => void) | null>(null)
   const autoOpened = useRef(false)
 
   useEffect(() => {
@@ -232,6 +235,23 @@ export function CommunityModal({
     void openSceneBySlug(focusSlug)
   }, [focusSlug, open, openSceneBySlug])
 
+  const requestShaderConsent = useCallback(
+    (title: string) =>
+      new Promise<boolean>((resolve) => {
+        consentResolver.current = resolve
+        setConsentTitle(title)
+      }),
+    []
+  )
+
+  const settleShaderConsent = useCallback((granted: boolean) => {
+    const resolve = consentResolver.current
+
+    consentResolver.current = null
+    setConsentTitle(null)
+    resolve?.(granted)
+  }, [])
+
   const remix = useCallback(
     async (scene: CommunitySceneDetail) => {
       setRemixing(true)
@@ -242,12 +262,9 @@ export function CommunityModal({
         const projectFile = parseLabProjectFile(await res.text())
 
         if (hasImportedCustomShaderCode(projectFile)) {
-          const proceed = window.confirm(
-            `"${scene.title}" contains custom shader code that will compile in your browser. Continue?`
-          )
+          const granted = await requestShaderConsent(scene.title)
 
-          if (!proceed) {
-            setRemixing(false)
+          if (!granted) {
             return
           }
         }
@@ -275,7 +292,7 @@ export function CommunityModal({
         setRemixing(false)
       }
     },
-    [onOpenChange]
+    [onOpenChange, requestShaderConsent]
   )
 
   useEffect(() => {
@@ -353,6 +370,7 @@ export function CommunityModal({
   }
 
   return createPortal(
+    <>
     <AnimatePresence initial={false}>
       {open ? (
         <div className="fixed inset-0 z-90" role="presentation">
@@ -655,7 +673,15 @@ export function CommunityModal({
           </div>
         </div>
       ) : null}
-    </AnimatePresence>,
+    </AnimatePresence>
+
+    <ShaderConsentDialog
+      onCancel={() => settleShaderConsent(false)}
+      onConfirm={() => settleShaderConsent(true)}
+      open={consentTitle !== null}
+      sceneTitle={consentTitle ?? ""}
+    />
+    </>,
     document.body
   )
 }

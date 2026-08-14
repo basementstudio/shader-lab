@@ -29,6 +29,8 @@ import { useEditorStore } from "@/store/editor-store"
 import { useLayerStore } from "@/store/layer-store"
 import { useTimelineStore } from "@/store/timeline-store"
 
+const PENDING_SCENE_TIMEOUT_MS = 20_000
+
 export function EditorCanvasViewport() {
   const { canvasRef, isReady, viewportRef } = useEditorRenderer()
   const exportingPreview = useSyncExternalStore(
@@ -41,9 +43,27 @@ export function EditorCanvasViewport() {
     (state) => state.exitImmersiveCanvas
   )
   const panOffset = useEditorStore((state) => state.panOffset)
+  const pendingSceneSlug = useEditorStore((state) => state.pendingSceneSlug)
+  const setPendingScene = useEditorStore((state) => state.setPendingScene)
   const zoom = useEditorStore((state) => state.zoom)
   const sceneConfig = useEditorStore((state) => state.sceneConfig)
   const canvasSize = useEditorStore((state) => state.canvasSize)
+
+  useEffect(() => {
+    const requested = new URLSearchParams(window.location.search).get("scene")
+
+    if (!requested) {
+      return
+    }
+
+    setPendingScene(requested)
+
+    const failsafe = window.setTimeout(() => {
+      useEditorStore.getState().clearPendingScene()
+    }, PENDING_SCENE_TIMEOUT_MS)
+
+    return () => window.clearTimeout(failsafe)
+  }, [setPendingScene])
 
   const compositionOverlay = useMemo(() => {
     if (canvasSize.width === 0 || canvasSize.height === 0) return null
@@ -373,16 +393,16 @@ export function EditorCanvasViewport() {
         ) : null}
       </div>
 
-      {!isReady ? (
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
+      {isReady && !pendingSceneSlug ? null : (
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-[var(--ds-color-surface-canvas,#050507)] p-6">
           <div
             aria-hidden="true"
-            className="relative h-px w-[min(180px,28vw)] overflow-hidden bg-white/12"
+            className="relative h-[3px] w-[min(220px,32vw)] overflow-hidden rounded-full bg-white/12"
           >
-            <div className="absolute inset-y-0 left-0 w-[38%] animate-[loader-sweep_1.15s_cubic-bezier(0.22,1,0.36,1)_infinite] bg-white/72 shadow-[0_0_18px_rgba(255,255,255,0.18)]" />
+            <div className="absolute inset-y-0 left-0 w-[38%] animate-[loader-bounce_0.9s_cubic-bezier(0.65,0,0.35,1)_infinite_alternate] rounded-full bg-white/72 shadow-[0_0_18px_rgba(255,255,255,0.18)]" />
           </div>
         </div>
-      ) : null}
+      )}
 
       {exportingPreview ? (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6">

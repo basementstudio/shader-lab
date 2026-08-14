@@ -35,11 +35,13 @@ export interface EditorStoreState extends EditorStateSnapshot {
   liveRenderer: EditorRenderer | null
   liveCanvas: HTMLCanvasElement | null
   mobilePanel: MobileEditorPanel
+  pendingSceneSlug: string | null
   startupPreviewDismissed: boolean
 }
 
 export interface EditorStoreActions {
   beginInteractiveEdit: () => void
+  clearPendingScene: () => void
   closeTimelinePanel: () => void
   dismissStartupPreview: () => void
   endInteractiveEdit: () => void
@@ -63,6 +65,7 @@ export interface EditorStoreActions {
   setImmersiveCanvas: (immersiveCanvas: boolean) => void
   setOutputSize: (width: number, height: number) => void
   setPan: (x: number, y: number) => void
+  setPendingScene: (slug: string) => void
   setRenderScale: (scale: RenderScale) => void
   setSidebarOpen: (side: "left" | "right", open: boolean) => void
   setTheme: (theme: "dark" | "light") => void
@@ -127,7 +130,18 @@ export const useEditorStore = create<EditorStore>((set) => ({
   webgpuError: null,
   webgpuStatus: "idle",
   zoom: 1,
+  pendingSceneSlug: null,
   startupPreviewDismissed: false,
+
+  clearPendingScene: () => {
+    set((state) =>
+      state.pendingSceneSlug === null ? state : { pendingSceneSlug: null }
+    )
+  },
+
+  setPendingScene: (pendingSceneSlug) => {
+    set({ pendingSceneSlug })
+  },
 
   dismissStartupPreview: () => {
     set((state) =>

@@ -16,21 +16,18 @@ const INSTALL_COMMAND =
 
 const STATUS_COPY: Record<
   AgentBridgeStatus,
-  { dot: string; label: string; hint: string }
+  { dot: string; label: string }
 > = {
   connected: {
     dot: "bg-emerald-400",
-    hint: "Ask it to add a layer or write a shader.",
     label: "Agent connected",
   },
   connecting: {
     dot: "animate-pulse bg-amber-400",
-    hint: "Run the command below, then start Claude.",
     label: "Waiting for your agent",
   },
   off: {
     dot: "bg-white/25",
-    hint: "Turn it on to let an agent drive this editor.",
     label: "Agent control is off",
   },
 }
@@ -79,10 +76,7 @@ function Step({
   )
 }
 
-export function AgentConnectPanel() {
-  const enabled = useAgentBridgeStore((state) => state.enabled)
-  const status = useAgentBridgeStore((state) => state.status)
-  const setEnabled = useAgentBridgeStore((state) => state.setEnabled)
+function CommandBox({ command }: { command: string }) {
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
@@ -97,12 +91,50 @@ export function AgentConnectPanel() {
 
   const copy = useCallback(async () => {
     try {
-      await navigator.clipboard.writeText(INSTALL_COMMAND)
+      await navigator.clipboard.writeText(command)
       setCopied(true)
     } catch {
       setCopied(false)
     }
-  }, [])
+  }, [command])
+
+  return (
+    <button
+      aria-label={copied ? "Copied" : `Copy: ${command}`}
+      className="group flex w-full items-start gap-2 rounded-[var(--ds-radius-control)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-subtle)] py-1.5 pr-1.5 pl-2 text-left transition-colors duration-160 hover:border-[var(--ds-border-hover)]"
+      onClick={copy}
+      type="button"
+    >
+      <Typography
+        as="code"
+        className="min-w-0 flex-1 whitespace-pre-wrap break-normal leading-[1.5]"
+        tone="secondary"
+        variant="monoXs"
+      >
+        {command}
+      </Typography>
+      <span
+        className={cn(
+          "shrink-0 transition-colors duration-160",
+          copied
+            ? "text-emerald-400"
+            : "text-[var(--ds-color-text-tertiary)] group-hover:text-[var(--ds-color-text-primary)]"
+        )}
+      >
+        {copied ? (
+          <CheckIcon height={13} width={13} />
+        ) : (
+          <CopyIcon height={13} width={13} />
+        )}
+      </span>
+    </button>
+  )
+}
+
+export function AgentConnectPanel() {
+  const enabled = useAgentBridgeStore((state) => state.enabled)
+  const status = useAgentBridgeStore((state) => state.status)
+  const setEnabled = useAgentBridgeStore((state) => state.setEnabled)
 
   const onOpenChange = useCallback(
     (open: boolean) => {
@@ -146,7 +178,7 @@ export function AgentConnectPanel() {
           sideOffset={16}
         >
           <Popover.Popup className="outline-none">
-            <GlassPanel className="w-[336px] p-0" variant="panel">
+            <GlassPanel className="w-[352px] p-0" variant="panel">
               <div className="flex items-center gap-[var(--ds-space-2)] border-b border-[var(--ds-border-divider)] px-3 py-2.5">
                 <span
                   aria-hidden="true"
@@ -161,55 +193,41 @@ export function AgentConnectPanel() {
               </div>
 
               <div className="flex flex-col gap-[var(--ds-space-3)] px-3 py-3">
-                <Typography as="p" tone="tertiary" variant="caption">
-                  {copyState.hint}
-                </Typography>
-
-                <Step index={1} title="Run this once in a terminal">
-                  <button
-                    className="group flex w-full items-start gap-2 rounded-[var(--ds-radius-control)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-subtle)] px-2 py-1.5 text-left transition-colors duration-160 hover:border-[var(--ds-border-hover)]"
-                    onClick={copy}
-                    type="button"
-                  >
-                    <Typography
-                      as="code"
-                      className="min-w-0 flex-1 break-all"
-                      tone="secondary"
-                      variant="monoXs"
-                    >
-                      {INSTALL_COMMAND}
-                    </Typography>
-                    <span className="mt-px shrink-0 text-[var(--ds-color-text-tertiary)] group-hover:text-[var(--ds-color-text-primary)]">
-                      {copied ? (
-                        <CheckIcon height={13} width={13} />
-                      ) : (
-                        <CopyIcon height={13} width={13} />
-                      )}
-                    </span>
-                  </button>
-                </Step>
-
-                <Step index={2} title="Start Claude in any folder">
-                  <Typography as="code" tone="secondary" variant="monoXs">
-                    claude
+                {status === "connected" ? (
+                  <Typography as="p" tone="tertiary" variant="caption">
+                    Ask Claude to add a layer, tweak a parameter, or write a
+                    custom shader. Everything it does lands in your undo
+                    history.
                   </Typography>
-                </Step>
+                ) : (
+                  <>
+                    <Step index={1} title="Run this once in a terminal">
+                      <CommandBox command={INSTALL_COMMAND} />
+                    </Step>
 
-                <Step
-                  index={3}
-                  title="Keep this tab open and ask it to change something"
-                />
+                    <Step index={2} title="Start Claude in any folder">
+                      <CommandBox command="claude" />
+                    </Step>
+
+                    <Step
+                      index={3}
+                      title="Keep this tab open, then ask it to change something"
+                    />
+                  </>
+                )}
 
                 {enabled ? (
-                  <button
-                    className="w-fit cursor-pointer text-[var(--ds-color-text-tertiary)] underline decoration-dotted underline-offset-2 transition-colors duration-160 hover:text-[var(--ds-color-text-primary)]"
-                    onClick={() => setEnabled(false)}
-                    type="button"
-                  >
-                    <Typography as="span" tone="tertiary" variant="caption">
-                      Turn off agent control
-                    </Typography>
-                  </button>
+                  <div className="flex justify-end border-t border-[var(--ds-border-divider)] pt-2.5">
+                    <button
+                      className="cursor-pointer text-[var(--ds-color-text-tertiary)] transition-colors duration-160 hover:text-[var(--ds-color-text-primary)]"
+                      onClick={() => setEnabled(false)}
+                      type="button"
+                    >
+                      <Typography as="span" tone="tertiary" variant="caption">
+                        Turn off
+                      </Typography>
+                    </button>
+                  </div>
                 ) : null}
               </div>
             </GlassPanel>

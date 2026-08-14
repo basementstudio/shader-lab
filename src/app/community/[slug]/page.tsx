@@ -74,7 +74,7 @@ export default function CommunityScenePage({
   }
 
   return (
-    <Suspense fallback={<SceneSkeleton />}>
+    <Suspense fallback={<SceneBoot />}>
       <SceneRoute params={params} searchParams={searchParams} />
     </Suspense>
   )
@@ -85,7 +85,15 @@ async function SceneRoute({ params, searchParams }: RouteProps) {
     return <OpenInEditor slug={(await params).slug} />
   }
 
-  return <SceneBody params={params} />
+  return (
+    <Suspense fallback={<SceneSkeleton />}>
+      <SceneBody params={params} />
+    </Suspense>
+  )
+}
+
+function SceneBoot() {
+  return <div aria-hidden="true" className="fixed inset-0 bg-[#050507]" />
 }
 
 function SceneSkeleton() {

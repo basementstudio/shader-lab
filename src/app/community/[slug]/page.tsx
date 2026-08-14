@@ -10,11 +10,18 @@ import { Typography } from "@/components/ui/typography"
 import { APP_BASE_URL } from "@/lib/app"
 import { isCommunityEnabled } from "@/lib/community/config"
 import { lineageLabel } from "@/lib/community/lineage"
-import { editorSceneHref } from "@/lib/community/scene-links"
+import {
+  editorSceneHref,
+  OPEN_IN_EDITOR_PARAM,
+} from "@/lib/community/scene-links"
 import { getPublicScene } from "@/lib/community/public-scenes"
 import { getLayerLabel } from "@/lib/editor/config/layer-catalog"
 
 type PageProps = { params: Promise<{ slug: string }> }
+
+type RouteProps = PageProps & {
+  searchParams: Promise<Record<string, string | string[] | undefined>>
+}
 
 function describe(input: {
   authorName: string
@@ -58,16 +65,27 @@ export async function generateMetadata({
   }
 }
 
-export default function CommunityScenePage({ params }: PageProps) {
+export default function CommunityScenePage({
+  params,
+  searchParams,
+}: RouteProps) {
   if (!isCommunityEnabled()) {
     notFound()
   }
 
   return (
     <Suspense fallback={<SceneSkeleton />}>
-      <SceneBody params={params} />
+      <SceneRoute params={params} searchParams={searchParams} />
     </Suspense>
   )
+}
+
+async function SceneRoute({ params, searchParams }: RouteProps) {
+  if ((await searchParams)[OPEN_IN_EDITOR_PARAM] === "1") {
+    return <OpenInEditor slug={(await params).slug} />
+  }
+
+  return <SceneBody params={params} />
 }
 
 function SceneSkeleton() {
@@ -104,8 +122,6 @@ async function SceneBody({ params }: PageProps) {
 
   return (
     <main className="mx-auto flex w-full max-w-[1180px] flex-col gap-[var(--ds-space-5)] px-4 py-10 sm:px-6">
-      <OpenInEditor slug={scene.slug} />
-
       <Link
         className="w-fit underline decoration-dotted underline-offset-2"
         href="/community"

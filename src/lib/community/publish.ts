@@ -10,6 +10,8 @@ import {
   parseLabProjectFile,
 } from "@/lib/editor/project-file"
 
+export const DRAFT_ID_PATTERN = /^scn_[A-Za-z0-9_-]{16}$/
+
 export const MAX_SCENES_PER_DAY = 20
 export const MAX_TOTAL_BYTES = 500 * 1024 * 1024
 export const MAX_ASSETS_PER_SCENE = 12

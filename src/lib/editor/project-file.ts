@@ -377,15 +377,7 @@ function toParseError(issues: readonly z.core.$ZodIssue[]): Error {
   return new Error("The selected file is not a valid Shader Lab project.")
 }
 
-export function parseLabProjectFile(input: string): LabProjectFile {
-  let parsed: unknown
-
-  try {
-    parsed = JSON.parse(input)
-  } catch {
-    throw new Error("The selected file is not valid JSON.")
-  }
-
+export function parseLabProjectFileValue(parsed: unknown): LabProjectFile {
   if (!(parsed && typeof parsed === "object")) {
     throw new Error("The selected file is not a valid Shader Lab project.")
   }
@@ -397,6 +389,18 @@ export function parseLabProjectFile(input: string): LabProjectFile {
   }
 
   return structuredClone(result.data) as unknown as LabProjectFile
+}
+
+export function parseLabProjectFile(input: string): LabProjectFile {
+  let parsed: unknown
+
+  try {
+    parsed = JSON.parse(input)
+  } catch {
+    throw new Error("The selected file is not valid JSON.")
+  }
+
+  return parseLabProjectFileValue(parsed)
 }
 
 const CUSTOM_SHADER_STARTER_SOURCES = new Set<string>([

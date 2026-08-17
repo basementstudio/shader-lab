@@ -1,4 +1,6 @@
 import { authClient } from "@/lib/auth/client"
+import { flushAutosave } from "@/lib/editor/autosave/bus"
+import { markAutosaveResume } from "@/lib/editor/autosave/resume"
 
 export const AUTH_RETURN_TO_KEY = "shader-lab:auth-return-to"
 
@@ -20,7 +22,9 @@ function rememberReturnTo() {
 export async function startSignIn(
   provider: SocialProvider
 ): Promise<"failed" | null> {
+  await flushAutosave()
   rememberReturnTo()
+  markAutosaveResume()
 
   try {
     const result = await authClient.signIn.social({

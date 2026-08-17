@@ -65,6 +65,23 @@ const RETURNING = {
   userId: profiles.userId,
 }
 
+// A profile written before handles were being claimed has no row here, which
+// would leave its handle unprotected and unable to redirect after a rename.
+async function backfillMissingClaim(
+  profile: CommunityProfile
+): Promise<void> {
+  try {
+    await getDatabase()
+      .insert(handleClaims)
+      .values({ handle: profile.handle, userId: profile.userId })
+      .onConflictDoNothing({ target: handleClaims.handle })
+  } catch (error) {
+    if (!isUniqueViolation(error)) {
+      throw error
+    }
+  }
+}
+
 export async function ensureProfile(
   userId: string,
   seed: ProfileSeed
@@ -73,6 +90,8 @@ export async function ensureProfile(
   const existing = await findProfile(userId)
 
   if (existing) {
+    await backfillMissingClaim(existing)
+
     const displayName = seed.name ?? existing.displayName
     const avatarUrl = seed.avatarUrl ?? existing.avatarUrl
 

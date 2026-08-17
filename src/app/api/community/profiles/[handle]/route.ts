@@ -3,9 +3,6 @@ import { isLookupableHandle } from "@/lib/community/handle"
 import { toProfileView } from "@/lib/community/profiles"
 import { getPublicProfile } from "@/lib/community/public-profiles"
 
-const PROFILE_CACHE =
-  "public, s-maxage=60, stale-while-revalidate=300, max-age=0"
-
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ handle: string }> }
@@ -27,10 +24,7 @@ export async function GET(
       return Response.json({ error: "Profile not found." }, { status: 404 })
     }
 
-    return Response.json(
-      { profile: toProfileView(profile) },
-      { headers: { "Cache-Control": PROFILE_CACHE } }
-    )
+    return Response.json({ profile: toProfileView(profile) })
   } catch {
     return Response.json(
       { error: "Could not load that profile." },

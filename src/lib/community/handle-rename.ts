@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm"
+import { and, desc, eq, isNull, lte, or, sql } from "drizzle-orm"
 import { describeHandleInput } from "@/lib/community/handle"
 import { findProfile, isUniqueViolation } from "@/lib/community/profile"
 import { getDatabase } from "@/lib/db"
@@ -31,38 +31,52 @@ async function readClaims(userId: string): Promise<Date[]> {
   return rows.map((row) => row.claimedAt)
 }
 
-function decideAllowance(
-  claims: Date[],
+export function decideAllowance(input: {
+  claimCount: number
   now: Date
-): { canRenameAt: Date | null; exhausted: boolean } {
-  if (claims.length >= MAX_HANDLE_CLAIMS) {
+  renamedAt: Date | null
+}): { canRenameAt: Date | null; exhausted: boolean } {
+  if (input.claimCount >= MAX_HANDLE_CLAIMS) {
     return { canRenameAt: null, exhausted: true }
   }
 
-  const latest = claims[0]
-
-  if (!latest || claims.length === 1) {
+  if (!input.renamedAt) {
     return { canRenameAt: null, exhausted: false }
   }
 
-  const ready = new Date(latest.getTime() + HANDLE_RENAME_COOLDOWN_MS)
+  const ready = new Date(input.renamedAt.getTime() + HANDLE_RENAME_COOLDOWN_MS)
 
   return {
-    canRenameAt: ready.getTime() > now.getTime() ? ready : null,
+    canRenameAt: ready.getTime() > input.now.getTime() ? ready : null,
     exhausted: false,
   }
+}
+
+async function readAllowanceInputs(
+  userId: string
+): Promise<{ claimCount: number; renamedAt: Date | null }> {
+  const [claims, rows] = await Promise.all([
+    readClaims(userId),
+    getDatabase()
+      .select({ renamedAt: profiles.handleRenamedAt })
+      .from(profiles)
+      .where(eq(profiles.userId, userId))
+      .limit(1),
+  ])
+
+  return { claimCount: claims.length, renamedAt: rows[0]?.renamedAt ?? null }
 }
 
 export async function getRenameStatus(
   userId: string,
   now = new Date()
 ): Promise<RenameStatus> {
-  const claims = await readClaims(userId)
-  const { canRenameAt } = decideAllowance(claims, now)
+  const { claimCount, renamedAt } = await readAllowanceInputs(userId)
+  const { canRenameAt } = decideAllowance({ claimCount, now, renamedAt })
 
   return {
     canRenameAt: canRenameAt?.toISOString() ?? null,
-    renamesUsed: Math.max(0, claims.length - 1),
+    renamesUsed: Math.max(0, claimCount - 1),
   }
 }
 
@@ -90,8 +104,8 @@ export async function renameHandle(input: {
     return { handle, kind: "unchanged" }
   }
 
-  const claims = await readClaims(input.userId)
-  const { canRenameAt, exhausted } = decideAllowance(claims, now)
+  const allowance = await readAllowanceInputs(input.userId)
+  const { canRenameAt, exhausted } = decideAllowance({ ...allowance, now })
 
   if (exhausted) {
     return { kind: "exhausted" }
@@ -114,23 +128,14 @@ export async function renameHandle(input: {
     return { kind: "taken" }
   }
 
+  let renamed = false
+
   try {
-    await db.batch([
-      heldBy
-        ? db
-            .update(handleClaims)
-            .set({ claimedAt: now })
-            .where(eq(handleClaims.handle, handle))
-        : db.insert(handleClaims).values({
-            claimedAt: now,
-            handle,
-            userId: input.userId,
-          }),
-      db
-        .update(profiles)
-        .set({ handle, updatedAt: now })
-        .where(eq(profiles.userId, input.userId)),
-    ])
+    renamed = await claimHandleAtomically({
+      handle,
+      now,
+      userId: input.userId,
+    })
   } catch (error) {
     if (isUniqueViolation(error)) {
       return { kind: "taken" }
@@ -139,5 +144,74 @@ export async function renameHandle(input: {
     throw error
   }
 
+  if (!renamed) {
+    return describeLostRace(await readAllowanceInputs(input.userId), now)
+  }
+
   return { handle, kind: "renamed", previous: profile.handle }
+}
+
+async function claimHandleAtomically(input: {
+  handle: string
+  now: Date
+  userId: string
+}): Promise<boolean> {
+  const cutoff = new Date(input.now.getTime() - HANDLE_RENAME_COOLDOWN_MS)
+  const db = getDatabase()
+
+  // A conditional update of one row is the only thing Postgres serialises for
+  // us here: concurrent writers block on the row and re-evaluate the predicate,
+  // so exactly one can win. Counting claims in a subquery would not, because
+  // each statement reads its own snapshot and two different target handles
+  // would both pass.
+  const won = await db
+    .update(profiles)
+    .set({ handle: input.handle, handleRenamedAt: input.now, updatedAt: input.now })
+    .where(
+      and(
+        eq(profiles.userId, input.userId),
+        or(
+          isNull(profiles.handleRenamedAt),
+          lte(profiles.handleRenamedAt, cutoff)
+        ),
+        sql`(
+          select count(*) from ${handleClaims}
+          where ${handleClaims.userId} = ${input.userId}::uuid
+        ) < ${MAX_HANDLE_CLAIMS}`
+      )
+    )
+    .returning({ handle: profiles.handle })
+
+  if (won.length === 0) {
+    return false
+  }
+
+  await db
+    .insert(handleClaims)
+    .values({ claimedAt: input.now, handle: input.handle, userId: input.userId })
+    .onConflictDoUpdate({
+      set: { claimedAt: input.now },
+      target: handleClaims.handle,
+      setWhere: eq(handleClaims.userId, input.userId),
+    })
+
+  return true
+}
+
+function describeLostRace(
+  allowance: { claimCount: number; renamedAt: Date | null },
+  now: Date
+): RenameOutcome {
+  const { canRenameAt, exhausted } = decideAllowance({ ...allowance, now })
+
+  if (exhausted) {
+    return { kind: "exhausted" }
+  }
+
+  return {
+    kind: "cooldown",
+    retryAfter: (
+      canRenameAt ?? new Date(now.getTime() + HANDLE_RENAME_COOLDOWN_MS)
+    ).toISOString(),
+  }
 }

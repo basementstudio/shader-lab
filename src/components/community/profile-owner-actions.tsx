@@ -1,49 +1,75 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { Typography } from "@/components/ui/typography"
+import { GearIcon } from "@radix-ui/react-icons"
+import { useRouter } from "next/navigation"
+import { useCallback, useEffect, useState } from "react"
+import {
+  type AccountProfile,
+  UserSettingsDialog,
+} from "@/components/community/user-settings-dialog"
+import { Button } from "@/components/ui/button"
 import { authClient } from "@/lib/auth/client"
+import { profilePagePath } from "@/lib/community/scene-links"
+import type { Route } from "next"
 
-export function ProfileOwnerActions({ handle }: { handle: string }) {
+export function useAccountProfile(handle: string) {
   const { data: session } = authClient.useSession()
-  const [isOwner, setIsOwner] = useState(false)
+  const [profile, setProfile] = useState<AccountProfile | null>(null)
 
-  useEffect(() => {
+  const refresh = useCallback(() => {
     if (!session?.user) {
-      setIsOwner(false)
+      setProfile(null)
 
       return
     }
 
-    let cancelled = false
-
     fetch("/api/community/me/profile")
       .then((res) => (res.ok ? res.json() : null))
-      .then((data: { handle?: string } | null) => {
-        if (!cancelled) {
-          setIsOwner(data?.handle === handle)
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setIsOwner(false)
-        }
-      })
+      .then((data: AccountProfile | null) => setProfile(data))
+      .catch(() => setProfile(null))
+  }, [session?.user])
 
-    return () => {
-      cancelled = true
-    }
-  }, [handle, session?.user])
+  useEffect(() => {
+    refresh()
+  }, [refresh])
 
-  if (!isOwner) {
+  return {
+    isOwner: profile?.handle === handle,
+    profile,
+    refresh,
+  }
+}
+
+export function ProfileOwnerActions({ handle }: { handle: string }) {
+  const router = useRouter()
+  const { isOwner, profile } = useAccountProfile(handle)
+  const [open, setOpen] = useState(false)
+
+  if (!(isOwner && profile)) {
     return null
   }
 
   return (
-    <span className="inline-flex w-fit items-center rounded-[var(--ds-radius-control)] border border-[var(--ds-border-subtle)] bg-[var(--ds-color-surface-subtle)] px-2 py-[3px]">
-      <Typography as="span" tone="secondary" variant="monoXs">
-        This is you
-      </Typography>
-    </span>
+    <>
+      <Button
+        className="w-fit"
+        onClick={() => setOpen(true)}
+        size="compact"
+        variant="secondary"
+      >
+        <GearIcon height={13} width={13} />
+        User settings
+      </Button>
+
+      <UserSettingsDialog
+        onOpenChange={setOpen}
+        onRenamed={(next) => {
+          setOpen(false)
+          router.replace(profilePagePath(next) as Route)
+        }}
+        open={open}
+        profile={profile}
+      />
+    </>
   )
 }

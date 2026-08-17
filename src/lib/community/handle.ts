@@ -72,6 +72,41 @@ export function isValidHandle(handle: string): boolean {
   return isLookupableHandle(handle) && !isReservedHandle(handle)
 }
 
+const MAX_RAW_HANDLE_INPUT = 60
+
+export function describeHandleInput(
+  raw: unknown
+): { handle: string } | { reason: string } {
+  if (typeof raw !== "string") {
+    return { reason: "Pick a handle." }
+  }
+
+  const trimmed = raw.trim().replace(/^@+/, "")
+
+  if (trimmed.length === 0) {
+    return { reason: "Pick a handle." }
+  }
+
+  if (trimmed.length > MAX_RAW_HANDLE_INPUT) {
+    return { reason: `Keep it under ${HANDLE_MAX_LENGTH} characters.` }
+  }
+
+  const handle = slugifyHandle(trimmed)
+
+  if (isReservedHandle(handle)) {
+    return { reason: "That handle is reserved." }
+  }
+
+  if (!isLookupableHandle(handle)) {
+    return {
+      reason:
+        "Use 3 to 30 letters, numbers or dashes, starting and ending with a letter or number.",
+    }
+  }
+
+  return { handle }
+}
+
 function emailLocalPart(email: string | null | undefined): string {
   if (!email) {
     return ""

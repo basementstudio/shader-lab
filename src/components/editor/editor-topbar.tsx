@@ -613,7 +613,7 @@ export function EditorTopBar() {
               >
                 <GlobeIcon height={16} width={16} />
               </IconButton>
-              <AuthMenu />
+              <AuthMenu newTab />
             </div>
           </GlassPanel>
         )}

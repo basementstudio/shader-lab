@@ -459,7 +459,7 @@ export function CommunityModal({
                         Sign in to publish
                       </Typography>
                     )}
-                    <AuthMenu />
+                    <AuthMenu onViewProfile={openProfile} />
                     <IconButton
                       aria-label="Close community scenes"
                       className="h-7 w-7"
@@ -605,6 +605,7 @@ export function CommunityModal({
                   {!selected && selectedHandle ? (
                     <ProfilePanel
                       handle={selectedHandle}
+                      onRenamed={setSelectedHandle}
                       onSelect={openScene}
                     />
                   ) : null}

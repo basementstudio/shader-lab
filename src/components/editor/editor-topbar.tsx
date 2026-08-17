@@ -30,7 +30,10 @@ import {
   buildEditorHistorySnapshotFromState,
   getHistorySnapshotSignature,
 } from "@/lib/editor/history"
-import { getRequestedSceneSlug } from "@/lib/editor/requested-scene-slug"
+import {
+  clearRequestedSceneSlug,
+  getRequestedSceneSlug,
+} from "@/lib/editor/requested-scene-slug"
 import { applyZoomAtPoint, getNextZoomStep } from "@/lib/editor/view-transform"
 import {
   registerHistoryShortcuts,
@@ -143,10 +146,7 @@ export function EditorTopBar() {
     setAutoOpenSlug(requested)
     setHasOpenedCommunity(true)
 
-    const url = new URL(window.location.href)
-
-    url.searchParams.delete("scene")
-    window.history.replaceState(null, "", url.toString())
+    clearRequestedSceneSlug()
   }, [])
 
   const handleExportDialogOpenChange = useCallback((open: boolean) => {

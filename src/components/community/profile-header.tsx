@@ -1,3 +1,4 @@
+import type { ReactNode } from "react"
 import { AuthorAvatar } from "@/components/community/author-avatar"
 import { Typography } from "@/components/ui/typography"
 import type { PublicProfileView } from "@/lib/community/profiles"
@@ -13,9 +14,11 @@ function joinedLabel(joinedAt: string): string | null {
 }
 
 export function ProfileHeader({
+  action,
   avatarSize = 56,
   profile,
 }: {
+  action?: ReactNode
   avatarSize?: number
   profile: PublicProfileView
 }) {
@@ -24,22 +27,26 @@ export function ProfileHeader({
 
   return (
     <header className="flex flex-col gap-[var(--ds-space-4)]">
-      <div className="flex min-w-0 items-center gap-[var(--ds-space-3)]">
-        <AuthorAvatar
-          avatarUrl={profile.avatarUrl}
-          name={label}
-          size={avatarSize}
-        />
+      <div className="flex items-center justify-between gap-[var(--ds-space-3)]">
+        <div className="flex min-w-0 items-center gap-[var(--ds-space-3)]">
+          <AuthorAvatar
+            avatarUrl={profile.avatarUrl}
+            name={label}
+            size={avatarSize}
+          />
 
-        <div className="flex min-w-0 flex-col gap-[2px]">
-          <Typography as="h1" variant="heading">
-            {label}
-          </Typography>
-          <Typography as="span" tone="tertiary" variant="monoXs">
-            @{profile.handle}
-            {joined ? ` · publishing since ${joined}` : ""}
-          </Typography>
+          <div className="flex min-w-0 flex-col gap-[2px]">
+            <Typography as="h1" variant="heading">
+              {label}
+            </Typography>
+            <Typography as="span" tone="tertiary" variant="monoXs">
+              @{profile.handle}
+              {joined ? ` · publishing since ${joined}` : ""}
+            </Typography>
+          </div>
         </div>
+
+        {action ? <div className="shrink-0">{action}</div> : null}
       </div>
 
       <dl className="flex flex-wrap gap-[var(--ds-space-4)]">

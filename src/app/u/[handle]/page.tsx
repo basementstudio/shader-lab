@@ -113,8 +113,10 @@ async function ProfileRoute({ params }: PageProps) {
           </Typography>
         </Link>
 
-        <ProfileHeader profile={profile} />
-        <ProfileOwnerActions handle={profile.handle} />
+        <ProfileHeader
+          action={<ProfileOwnerActions handle={profile.handle} />}
+          profile={profile}
+        />
       </div>
 
       <Suspense fallback={<GridSkeleton />}>

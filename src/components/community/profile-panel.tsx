@@ -62,32 +62,35 @@ export function ProfilePanel({
   return (
     <div className="h-full overflow-y-auto p-4">
       {profile ? (
-        <div className="mb-[var(--ds-space-5)] flex flex-col gap-[var(--ds-space-3)]">
-          <ProfileHeader avatarSize={44} profile={profile} />
+        <div className="mb-[var(--ds-space-5)]">
+          <ProfileHeader
+            action={
+              account.isOwner && account.profile ? (
+                <Button
+                  onClick={() => setSettingsOpen(true)}
+                  size="compact"
+                  variant="secondary"
+                >
+                  <GearIcon height={13} width={13} />
+                  User settings
+                </Button>
+              ) : null
+            }
+            avatarSize={44}
+            profile={profile}
+          />
 
-          {account.isOwner && account.profile ? (
-            <>
-              <Button
-                className="w-fit"
-                onClick={() => setSettingsOpen(true)}
-                size="compact"
-                variant="secondary"
-              >
-                <GearIcon height={13} width={13} />
-                User settings
-              </Button>
-
-              <UserSettingsDialog
-                onOpenChange={setSettingsOpen}
-                onRenamed={(next) => {
-                  setSettingsOpen(false)
-                  account.refresh()
-                  onRenamed(next)
-                }}
-                open={settingsOpen}
-                profile={account.profile}
-              />
-            </>
+          {account.profile ? (
+            <UserSettingsDialog
+              onOpenChange={setSettingsOpen}
+              onRenamed={(next) => {
+                setSettingsOpen(false)
+                account.refresh()
+                onRenamed(next)
+              }}
+              open={settingsOpen}
+              profile={account.profile}
+            />
           ) : null}
         </div>
       ) : null}

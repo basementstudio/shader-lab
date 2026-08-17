@@ -52,7 +52,6 @@ export function ProfileOwnerActions({ handle }: { handle: string }) {
   return (
     <>
       <Button
-        className="w-fit"
         onClick={() => setOpen(true)}
         size="compact"
         variant="secondary"

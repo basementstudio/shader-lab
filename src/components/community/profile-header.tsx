@@ -1,6 +1,6 @@
 import { AuthorAvatar } from "@/components/community/author-avatar"
 import { Typography } from "@/components/ui/typography"
-import type { PublicProfile } from "@/lib/community/profiles"
+import type { PublicProfileView } from "@/lib/community/profiles"
 
 function joinedLabel(joinedAt: string): string | null {
   const date = new Date(joinedAt)
@@ -12,7 +12,13 @@ function joinedLabel(joinedAt: string): string | null {
   return date.toLocaleDateString("en-US", { month: "long", year: "numeric" })
 }
 
-export function ProfileHeader({ profile }: { profile: PublicProfile }) {
+export function ProfileHeader({
+  avatarSize = 56,
+  profile,
+}: {
+  avatarSize?: number
+  profile: PublicProfileView
+}) {
   const label = profile.displayName ?? `@${profile.handle}`
   const joined = joinedLabel(profile.joinedAt)
 
@@ -22,7 +28,7 @@ export function ProfileHeader({ profile }: { profile: PublicProfile }) {
         <AuthorAvatar
           avatarUrl={profile.avatarUrl}
           name={label}
-          size={56}
+          size={avatarSize}
         />
 
         <div className="flex min-w-0 flex-col gap-[2px]">

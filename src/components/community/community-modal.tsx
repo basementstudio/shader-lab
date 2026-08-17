@@ -10,6 +10,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { AuthMenu } from "@/components/community/auth-menu"
 import { MyScenesGrid } from "@/components/community/my-scenes-grid"
+import { ProfilePanel } from "@/components/community/profile-panel"
 import { SceneCard } from "@/components/community/scene-card"
 import { SceneDetail } from "@/components/community/scene-detail"
 import { SceneEmptyState } from "@/components/community/scene-empty-state"
@@ -85,6 +86,7 @@ export function CommunityModal({
   })
   const items = explore.scenes
   const [selected, setSelected] = useState<CommunitySceneSummary | null>(null)
+  const [selectedHandle, setSelectedHandle] = useState<string | null>(null)
   const [detail, setDetail] = useState<CommunitySceneDetail | null>(null)
   const [remixing, setRemixing] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -117,6 +119,20 @@ export function CommunityModal({
       setUpvoted(new Set())
     }
   }, [session?.user])
+
+  useEffect(() => {
+    if (!open) {
+      setSelectedHandle(null)
+    }
+  }, [open])
+
+  const backToProfileLabel = selectedHandle ? `@${selectedHandle}` : "All scenes"
+
+  const openProfile = useCallback((handle: string) => {
+    setSelected(null)
+    setDetail(null)
+    setSelectedHandle(handle)
+  }, [])
 
   useEffect(() => {
     if (!(open && session?.user)) {
@@ -457,17 +473,25 @@ export function CommunityModal({
 
                 <div className="flex h-[48px] shrink-0 items-center justify-between gap-[var(--ds-space-3)] overflow-hidden border-b border-[var(--ds-border-divider)] px-4">
                   <div className="flex min-w-0 items-center gap-1.5">
-                    {selected ? (
+                    {selected || selectedHandle ? (
                       <Button
                         onClick={() => {
-                          setSelected(null)
-                          setDetail(null)
+                          if (selected) {
+                            setSelected(null)
+                            setDetail(null)
+
+                            return
+                          }
+
+                          setSelectedHandle(null)
                         }}
                         size="compact"
                         variant="ghost"
                       >
                         <ArrowLeftIcon height={14} width={14} />
-                        All scenes
+                        {selected && selectedHandle
+                          ? backToProfileLabel
+                          : "All scenes"}
                       </Button>
                     ) : (
                       <>
@@ -532,7 +556,7 @@ export function CommunityModal({
                     )}
                   </div>
 
-                  {selected || tab === "mine" ? null : (
+                  {selected || selectedHandle || tab !== "explore" ? null : (
                     <label className="inline-flex h-7 min-w-0 shrink-0 items-center gap-1.5 rounded-[var(--ds-radius-control)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-2 transition-[border-color] duration-160 ease-[var(--ease-out-cubic)] focus-within:border-[var(--ds-border-active)]">
                       <span className="text-[var(--ds-color-text-tertiary)]">
                         <MagnifyingGlassIcon height={13} width={13} />
@@ -566,6 +590,7 @@ export function CommunityModal({
                       detail={detail}
                       isOwn={ownedSlugs.has(selected.slug)}
                       onDeleted={forgetScene}
+                      onOpenAuthor={openProfile}
                       onOpenSlug={openSceneBySlug}
                       onRemix={remix}
                       onUpvoteChange={(next) =>
@@ -577,7 +602,14 @@ export function CommunityModal({
                     />
                   ) : null}
 
-                  {!selected && tab === "mine" ? (
+                  {!selected && selectedHandle ? (
+                    <ProfilePanel
+                      handle={selectedHandle}
+                      onSelect={openScene}
+                    />
+                  ) : null}
+
+                  {!(selected || selectedHandle) && tab === "mine" ? (
                     <div className="h-full overflow-y-auto p-4">
                       {mine === null && !error ? (
                         <div className="grid grid-cols-2 gap-[var(--ds-space-4)] min-[720px]:grid-cols-4">
@@ -623,7 +655,7 @@ export function CommunityModal({
                     </div>
                   ) : null}
 
-                  {!selected && tab === "explore" ? (
+                  {!(selected || selectedHandle) && tab === "explore" ? (
                     <div className="h-full overflow-y-auto p-4">
                       {items === null && !error ? (
                         <div className="grid grid-cols-2 gap-[var(--ds-space-4)] min-[720px]:grid-cols-4">

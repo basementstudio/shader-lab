@@ -1,8 +1,6 @@
 "use client"
 
-import type { Route } from "next"
 import Image from "next/image"
-import Link from "next/link"
 import { AuthorAvatar } from "@/components/community/author-avatar"
 import { DeleteSceneControl } from "@/components/community/delete-scene-control"
 import { RemixCredit } from "@/components/community/remix-credit"
@@ -12,7 +10,6 @@ import { UpvoteButton } from "@/components/community/upvote-button"
 import { Button } from "@/components/ui/button"
 import { Typography } from "@/components/ui/typography"
 import { lineageLabel } from "@/lib/community/lineage"
-import { profilePagePath } from "@/lib/community/scene-links"
 import type {
   CommunitySceneDetail,
   CommunitySceneSummary,
@@ -35,6 +32,7 @@ export function SceneDetail({
   detail,
   isOwn,
   onDeleted,
+  onOpenAuthor,
   onOpenSlug,
   onRemix,
   onUpvoteChange,
@@ -45,6 +43,7 @@ export function SceneDetail({
   detail: CommunitySceneDetail | null
   isOwn: boolean
   onDeleted: (slug: string) => void
+  onOpenAuthor: (handle: string) => void
   onOpenSlug: (slug: string) => void
   onRemix: (scene: CommunitySceneDetail) => void
   onUpvoteChange: (next: { count: number; upvoted: boolean }) => void
@@ -58,11 +57,11 @@ export function SceneDetail({
     <div className="grid h-full grid-cols-1 gap-4 overflow-y-auto p-4 min-[760px]:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] min-[760px]:overflow-hidden">
       <div className="flex min-w-0 flex-col gap-[var(--ds-space-3)]">
         <div className="flex min-w-0 items-center gap-[var(--ds-space-2)]">
-          <Link
-            className="inline-flex min-w-0 items-center gap-[var(--ds-space-2)] rounded-[var(--ds-radius-control)] transition-opacity duration-160 hover:opacity-80"
-            href={profilePagePath(scene.authorHandle) as Route}
-            rel="noopener noreferrer"
-            target="_blank"
+          <button
+            aria-label={`View scenes by @${scene.authorHandle}`}
+            className="inline-flex min-w-0 cursor-pointer items-center gap-[var(--ds-space-2)] rounded-[var(--ds-radius-control)] text-left transition-opacity duration-160 hover:opacity-80 focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--ds-border-active)] focus-visible:outline-offset-2"
+            onClick={() => onOpenAuthor(scene.authorHandle)}
+            type="button"
           >
             <AuthorAvatar
               avatarUrl={scene.authorAvatarUrl}
@@ -81,7 +80,7 @@ export function SceneDetail({
                 {formatPublishedAt(scene.publishedAt)}
               </Typography>
             </div>
-          </Link>
+          </button>
         </div>
 
         <div className="flex flex-col gap-[var(--ds-space-2)]">

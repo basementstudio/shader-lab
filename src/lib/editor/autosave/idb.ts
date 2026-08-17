@@ -1,4 +1,6 @@
 import {
+  ASSET_CREATED_INDEX,
+  ASSET_STORE,
   AUTOSAVE_DB_NAME,
   AUTOSAVE_DB_VERSION,
   AUTOSAVE_SAVED_INDEX,
@@ -19,13 +21,19 @@ function request<T>(source: IDBRequest<T>): Promise<T> {
 }
 
 function upgrade(db: IDBDatabase): void {
-  if (db.objectStoreNames.contains(AUTOSAVE_STORE)) {
-    return
+  if (!db.objectStoreNames.contains(AUTOSAVE_STORE)) {
+    db.createObjectStore(AUTOSAVE_STORE, { keyPath: "sessionId" }).createIndex(
+      AUTOSAVE_SAVED_INDEX,
+      "savedAt"
+    )
   }
 
-  const store = db.createObjectStore(AUTOSAVE_STORE, { keyPath: "sessionId" })
-
-  store.createIndex(AUTOSAVE_SAVED_INDEX, "savedAt")
+  if (!db.objectStoreNames.contains(ASSET_STORE)) {
+    db.createObjectStore(ASSET_STORE, { keyPath: "id" }).createIndex(
+      ASSET_CREATED_INDEX,
+      "createdAt"
+    )
+  }
 }
 
 export function openAutosaveDb(): Promise<IDBDatabase | null> {
@@ -57,6 +65,7 @@ export function openAutosaveDb(): Promise<IDBDatabase | null> {
 }
 
 async function withStore<T>(
+  name: string,
   mode: IDBTransactionMode,
   run: (store: IDBObjectStore) => Promise<T>
 ): Promise<T | null> {
@@ -67,22 +76,22 @@ async function withStore<T>(
   }
 
   try {
-    const transaction = db.transaction(AUTOSAVE_STORE, mode)
+    const transaction = db.transaction(name, mode)
 
-    return await run(transaction.objectStore(AUTOSAVE_STORE))
+    return await run(transaction.objectStore(name))
   } catch {
     return null
   }
 }
 
-export function readAll<T>(): Promise<T[] | null> {
-  return withStore("readonly", (store) =>
+export function readAllFrom<T>(name: string): Promise<T[] | null> {
+  return withStore(name, "readonly", (store) =>
     request(store.getAll() as IDBRequest<T[]>)
   )
 }
 
-export async function writeRecord(record: unknown): Promise<boolean> {
-  const result = await withStore("readwrite", async (store) => {
+export async function putInto(name: string, record: unknown): Promise<boolean> {
+  const result = await withStore(name, "readwrite", async (store) => {
     await request(store.put(record as never))
 
     return true
@@ -91,20 +100,35 @@ export async function writeRecord(record: unknown): Promise<boolean> {
   return result ?? false
 }
 
-export function deleteRecord(sessionId: string): Promise<unknown> {
-  return withStore("readwrite", (store) => request(store.delete(sessionId)))
-}
-
-export function deleteRecords(sessionIds: readonly string[]): Promise<unknown> {
-  if (sessionIds.length === 0) {
+export function deleteKeysFrom(
+  name: string,
+  keys: readonly string[]
+): Promise<unknown> {
+  if (keys.length === 0) {
     return Promise.resolve(null)
   }
 
-  return withStore("readwrite", async (store) => {
-    for (const sessionId of sessionIds) {
-      await request(store.delete(sessionId))
+  return withStore(name, "readwrite", async (store) => {
+    for (const key of keys) {
+      await request(store.delete(key))
     }
 
     return true
   })
+}
+
+export function readAll<T>(): Promise<T[] | null> {
+  return readAllFrom<T>(AUTOSAVE_STORE)
+}
+
+export function writeRecord(record: unknown): Promise<boolean> {
+  return putInto(AUTOSAVE_STORE, record)
+}
+
+export function deleteRecord(sessionId: string): Promise<unknown> {
+  return deleteKeysFrom(AUTOSAVE_STORE, [sessionId])
+}
+
+export function deleteRecords(sessionIds: readonly string[]): Promise<unknown> {
+  return deleteKeysFrom(AUTOSAVE_STORE, sessionIds)
 }

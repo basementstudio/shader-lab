@@ -10,6 +10,13 @@ import {
   AUTOSAVE_MAX_WAIT_MS,
   AUTOSAVE_PILL_MS,
 } from "@/lib/editor/autosave/limits"
+import {
+  collectAssetIdsInUse,
+  forgetStoredAssets,
+  planAssetEviction,
+  readStoredAssets,
+  toEditorAsset,
+} from "@/lib/editor/autosave/assets"
 import { registerAutosaveRequester } from "@/lib/editor/autosave/bus"
 import { buildAutosaveSignature } from "@/lib/editor/autosave/record"
 import { createAutosaveScheduler } from "@/lib/editor/autosave/scheduler"
@@ -17,6 +24,7 @@ import {
   findRestorableAutosave,
   forgetAutosaveRecord,
   forgetOwnAutosaveRecord,
+  listLiveAutosaveRecords,
   saveAutosaveRecord,
 } from "@/lib/editor/autosave/store"
 import {
@@ -43,6 +51,51 @@ import { useLayerStore } from "@/store/layer-store"
 import { useRemixOriginStore } from "@/store/remix-origin-store"
 import { useTimelineStore } from "@/store/timeline-store"
 
+function whenIdle(run: () => void): void {
+  const idle = (
+    window as typeof window & {
+      requestIdleCallback?: (cb: () => void) => number
+    }
+  ).requestIdleCallback
+
+  if (idle) {
+    idle(run)
+
+    return
+  }
+
+  window.setTimeout(run, 0)
+}
+
+async function collectStoredAssetGarbage(): Promise<void> {
+  const [records, live] = await Promise.all([
+    readStoredAssets(),
+    listLiveAutosaveRecords(),
+  ])
+
+  if (!records || records.length === 0) {
+    return
+  }
+
+  const referencedIds = new Set<string>()
+
+  for (const record of live ?? []) {
+    for (const id of collectAssetIdsInUse(record.projectFile)) {
+      referencedIds.add(id)
+    }
+  }
+
+  for (const asset of useAssetStore.getState().assets) {
+    referencedIds.add(asset.id)
+  }
+
+  const plan = planAssetEviction({ records, referencedIds })
+
+  if (plan.evict.length > 0) {
+    await forgetStoredAssets(plan.evict)
+  }
+}
+
 export function AutosaveMount() {
   const reduceMotion = useReducedMotion() ?? false
   const [restored, setRestored] = useState(false)
@@ -65,7 +118,11 @@ export function AutosaveMount() {
     }
 
     signatureRef.current = signature
-    void saveAutosaveRecord({ projectFile, remixOrigin })
+    void saveAutosaveRecord({ projectFile, remixOrigin }).then((written) => {
+      if (written) {
+        whenIdle(collectStoredAssetGarbage)
+      }
+    })
   }, [])
 
   const schedulerRef = useRef<ReturnType<
@@ -119,8 +176,30 @@ export function AutosaveMount() {
         return
       }
 
+      const restoredUrls: string[] = []
+
       try {
+        const wanted = collectAssetIdsInUse(candidate.projectFile)
+        const stored = (await readStoredAssets()) ?? []
+        const usable = stored.filter((record) => wanted.has(record.id))
+
+        if (cancelled) {
+          return
+        }
+
         withAutosaveSuppressed(() => {
+          if (usable.length > 0) {
+            const rehydrated = usable.map((record) => {
+              const url = URL.createObjectURL(record.blob)
+
+              restoredUrls.push(url)
+
+              return toEditorAsset(record, url)
+            })
+
+            useAssetStore.getState().replaceAssets(rehydrated)
+          }
+
           applyLabProjectFile(
             candidate.projectFile,
             useAssetStore.getState().assets
@@ -139,6 +218,10 @@ export function AutosaveMount() {
         restoredFromRef.current = candidate.sessionId
         setRestored(true)
       } catch {
+        for (const url of restoredUrls) {
+          URL.revokeObjectURL(url)
+        }
+
         signatureRef.current = null
       }
 

@@ -1,0 +1,2 @@
+ALTER TABLE "profiles" ADD COLUMN "handle_renamed_at" timestamp with time zone;--> statement-breakpoint
+UPDATE "profiles" p SET "handle_renamed_at" = c."latest" FROM (SELECT "user_id", max("claimed_at") AS "latest", count(*) AS "held" FROM "handle_claims" GROUP BY "user_id") c WHERE c."user_id" = p."user_id" AND c."held" > 1;

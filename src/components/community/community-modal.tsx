@@ -121,9 +121,13 @@ export function CommunityModal({
   }, [session?.user])
 
   useEffect(() => {
-    if (!open) {
-      setSelectedHandle(null)
+    if (open) {
+      return
     }
+
+    setSelectedHandle(null)
+    setSelected(null)
+    setDetail(null)
   }, [open])
 
   const backToProfileLabel = selectedHandle ? `@${selectedHandle}` : "All scenes"

@@ -28,6 +28,7 @@ export const profiles = pgTable("profiles", {
   createdAt,
   displayName: text("display_name"),
   handle: text("handle").notNull().unique(),
+  handleRenamedAt: timestamp("handle_renamed_at", { withTimezone: true }),
   updatedAt,
   userId: uuid("user_id").primaryKey(),
 })

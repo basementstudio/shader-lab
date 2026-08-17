@@ -75,6 +75,50 @@ describe("planAssetEviction", () => {
     expect(plan.keptBytes).toBe(0)
     expect(plan.overBudget).toBe(false)
   })
+
+  test("spares a blob another tab may not have recorded yet", () => {
+    const now = 1_000_000
+
+    expect(
+      planAssetEviction({
+        graceMs: 60_000,
+        now,
+        records: [stored("just-imported", MB, now - 5_000)],
+        referencedIds: new Set(),
+      }).evict
+    ).toEqual([])
+  })
+
+  test("evicts once the grace period has passed", () => {
+    const now = 1_000_000
+
+    expect(
+      planAssetEviction({
+        graceMs: 60_000,
+        now,
+        records: [stored("stale", MB, now - 120_000)],
+        referencedIds: new Set(),
+      }).evict
+    ).toEqual(["stale"])
+  })
+
+  test("grace applies only to unreferenced blobs", () => {
+    const now = 1_000_000
+
+    const plan = planAssetEviction({
+      graceMs: 60_000,
+      now,
+      records: [
+        stored("kept", MB, now - 999_999),
+        stored("fresh-junk", MB, now - 1_000),
+        stored("old-junk", MB, now - 999_999),
+      ],
+      referencedIds: new Set(["kept"]),
+    })
+
+    expect(plan.evict).toEqual(["old-junk"])
+    expect(plan.keptBytes).toBe(MB)
+  })
 })
 
 describe("exceedsAssetCap", () => {

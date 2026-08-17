@@ -11,6 +11,10 @@ export const AUTOSAVE_MAX_ASSET_BYTES = 32 * 1024 * 1024
 export const AUTOSAVE_MAX_TOTAL_BYTES = 256 * 1024 * 1024
 export const AUTOSAVE_QUOTA_HEADROOM = 0.8
 
+// Another tab can have imported a blob and not yet written the record that
+// references it. Collecting inside this window would delete live media.
+export const AUTOSAVE_ASSET_GRACE_MS = 5 * 60 * 1000
+
 export const AUTOSAVE_SCHEMA_VERSION = 1
 
 export const AUTOSAVE_DEBOUNCE_MS = 1200

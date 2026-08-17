@@ -254,6 +254,15 @@ export function AutosaveMount() {
           return
         }
 
+        // Re-checked here rather than only before the read: reading the blobs is
+        // a second gap in which someone can start working.
+        if (editedBeforeReadyRef.current) {
+          readyRef.current = true
+          scheduler.request()
+
+          return
+        }
+
         withAutosaveRestore(() => {
           if (usable.length > 0) {
             const rehydrated = usable.map((record) => {

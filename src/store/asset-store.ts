@@ -1,4 +1,8 @@
 import { create } from "zustand"
+import {
+  forgetStoredAssets,
+  persistAssetBlob,
+} from "@/lib/editor/autosave/assets"
 import { inferFileAssetKind, isAudioFileName } from "@/lib/editor/media-file"
 import type { AssetKind, EditorAsset } from "@/types/editor"
 
@@ -212,6 +216,8 @@ export const useAssetStore = create<AssetStore>((set, get) => ({
       assets: [...state.assets, asset],
     }))
 
+    void persistAssetBlob(asset, file)
+
     return asset
   },
 
@@ -221,6 +227,8 @@ export const useAssetStore = create<AssetStore>((set, get) => ({
     if (asset?.source === "local") {
       URL.revokeObjectURL(asset.url)
     }
+
+    void forgetStoredAssets([id])
 
     set((state) => ({
       assets: state.assets.filter((entry) => entry.id !== id),

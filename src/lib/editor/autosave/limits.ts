@@ -1,8 +1,15 @@
 export const AUTOSAVE_DB_NAME = "shader-lab"
-export const AUTOSAVE_DB_VERSION = 1
+export const AUTOSAVE_DB_VERSION = 2
 
 export const AUTOSAVE_STORE = "autosave"
 export const AUTOSAVE_SAVED_INDEX = "by-saved"
+
+export const ASSET_STORE = "assets"
+export const ASSET_CREATED_INDEX = "by-created"
+
+export const AUTOSAVE_MAX_ASSET_BYTES = 32 * 1024 * 1024
+export const AUTOSAVE_MAX_TOTAL_BYTES = 256 * 1024 * 1024
+export const AUTOSAVE_QUOTA_HEADROOM = 0.8
 
 export const AUTOSAVE_SCHEMA_VERSION = 1
 

@@ -88,3 +88,7 @@ export function forgetAutosaveRecord(id: string): Promise<unknown> {
 export function forgetOwnAutosaveRecord(): Promise<unknown> {
   return deleteRecord(sessionId)
 }
+
+export async function listLiveAutosaveRecords(): Promise<AutosaveRecord[]> {
+  return (await readAll<AutosaveRecord>()) ?? []
+}

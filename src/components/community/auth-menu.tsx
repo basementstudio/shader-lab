@@ -2,13 +2,16 @@
 
 import { Popover } from "@base-ui/react/popover"
 import { GitHubLogoIcon, PersonIcon } from "@radix-ui/react-icons"
+import type { Route } from "next"
 import Image from "next/image"
-import { useCallback, useState } from "react"
+import Link from "next/link"
+import { useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { GlassPanel } from "@/components/ui/glass-panel"
 import { Typography } from "@/components/ui/typography"
 import { authClient } from "@/lib/auth/client"
 import { type SocialProvider, startSignIn } from "@/lib/auth/sign-in"
+import { profilePagePath } from "@/lib/community/scene-links"
 import { cn } from "@/lib/cn"
 
 function describeSignInProblem(problem: "failed" | null): string {
@@ -42,10 +45,44 @@ function GoogleGlyph() {
   )
 }
 
-export function AuthMenu() {
+export function AuthMenu({
+  newTab = false,
+  onViewProfile,
+}: {
+  newTab?: boolean
+  onViewProfile?: (handle: string) => void
+}) {
   const { data: session, isPending } = authClient.useSession()
   const [busy, setBusy] = useState<string | null>(null)
   const [problem, setProblem] = useState<"failed" | null>(null)
+  const [handle, setHandle] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!session?.user) {
+      setHandle(null)
+
+      return
+    }
+
+    let cancelled = false
+
+    fetch("/api/community/me/profile")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { handle?: string } | null) => {
+        if (!cancelled) {
+          setHandle(data?.handle ?? null)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setHandle(null)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [session?.user])
 
   const signIn = useCallback(async (provider: SocialProvider) => {
     setBusy(provider)
@@ -102,20 +139,47 @@ export function AuthMenu() {
             <GlassPanel
               className={cn(
                 "p-[var(--ds-space-2)]",
-                user ? "w-[132px]" : "w-[224px] p-[var(--ds-space-3)]"
+                user ? "w-[168px]" : "w-[224px] p-[var(--ds-space-3)]"
               )}
               variant="panel"
             >
               {user ? (
-                <Button
-                  disabled={busy !== null}
-                  fullWidth
-                  onClick={signOut}
-                  size="compact"
-                  variant="secondary"
-                >
-                  Sign out
-                </Button>
+                <div className="flex flex-col gap-1.5">
+                  {handle && onViewProfile ? (
+                    <Button
+                      fullWidth
+                      onClick={() => onViewProfile(handle)}
+                      size="compact"
+                      variant="secondary"
+                    >
+                      View profile
+                    </Button>
+                  ) : null}
+
+                  {handle && !onViewProfile ? (
+                    <Link
+                      className="inline-flex min-h-7 w-full items-center justify-center rounded-[var(--ds-radius-control)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-2 transition-[background-color,border-color] duration-160 ease-[var(--ease-out-cubic)] hover:border-[var(--ds-border-hover)] hover:bg-white/8"
+                      href={profilePagePath(handle) as Route}
+                      {...(newTab
+                        ? { rel: "noopener noreferrer", target: "_blank" }
+                        : {})}
+                    >
+                      <Typography as="span" variant="label">
+                        View profile
+                      </Typography>
+                    </Link>
+                  ) : null}
+
+                  <Button
+                    disabled={busy !== null}
+                    fullWidth
+                    onClick={signOut}
+                    size="compact"
+                    variant="secondary"
+                  >
+                    Sign out
+                  </Button>
+                </div>
               ) : (
                 <div className="flex flex-col gap-[var(--ds-space-3)]">
                   <div className="flex flex-col gap-[2px]">

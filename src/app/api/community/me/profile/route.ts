@@ -1,6 +1,7 @@
 import { connection } from "next/server"
 import { getOptionalSession } from "@/lib/auth/server"
 import { isCommunityEnabled } from "@/lib/community/config"
+import { getRenameStatus } from "@/lib/community/handle-rename"
 import { ensureProfile } from "@/lib/community/profile"
 
 export async function GET() {
@@ -23,10 +24,14 @@ export async function GET() {
       name: session.user.name,
     })
 
+    const rename = await getRenameStatus(session.user.id)
+
     return Response.json({
       avatarUrl: profile.avatarUrl,
+      canRenameAt: rename.canRenameAt,
       displayName: profile.displayName,
       handle: profile.handle,
+      renamesUsed: rename.renamesUsed,
     })
   } catch {
     return Response.json(

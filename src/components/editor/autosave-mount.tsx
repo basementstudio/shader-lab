@@ -15,6 +15,7 @@ import { buildAutosaveSignature } from "@/lib/editor/autosave/record"
 import { createAutosaveScheduler } from "@/lib/editor/autosave/scheduler"
 import {
   findRestorableAutosave,
+  forgetAutosaveRecord,
   forgetOwnAutosaveRecord,
   saveAutosaveRecord,
 } from "@/lib/editor/autosave/store"
@@ -47,6 +48,8 @@ export function AutosaveMount() {
   const [restored, setRestored] = useState(false)
   const readyRef = useRef(false)
   const signatureRef = useRef<string | null>(null)
+  const restoredFromRef = useRef<string | null>(null)
+  const editedBeforeReadyRef = useRef(false)
 
   const persist = useCallback(() => {
     if (!readyRef.current) {
@@ -107,6 +110,15 @@ export function AutosaveMount() {
         return
       }
 
+      // The editor is usable before this lookup finishes. Anything typed in that
+      // window is real work and outranks the record on disk.
+      if (editedBeforeReadyRef.current) {
+        readyRef.current = true
+        scheduler.request()
+
+        return
+      }
+
       try {
         withAutosaveSuppressed(() => {
           applyLabProjectFile(
@@ -124,6 +136,7 @@ export function AutosaveMount() {
           remixOrigin: candidate.remixOrigin,
         })
 
+        restoredFromRef.current = candidate.sessionId
         setRestored(true)
       } catch {
         signatureRef.current = null
@@ -137,7 +150,7 @@ export function AutosaveMount() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [scheduler])
 
   useEffect(() => {
     if (!restored) {
@@ -156,7 +169,13 @@ export function AutosaveMount() {
   }, [scheduler])
 
   useEffect(() => {
-    const request = () => scheduler.request()
+    const request = () => {
+      if (!(readyRef.current || isAutosaveSuppressed())) {
+        editedBeforeReadyRef.current = true
+      }
+
+      scheduler.request()
+    }
 
     const unsubscribers = [
       useLayerStore.subscribe((state, previous) => {
@@ -234,7 +253,17 @@ export function AutosaveMount() {
     })
 
     signatureRef.current = null
+
+    const restoredFrom = restoredFromRef.current
+
+    restoredFromRef.current = null
+
     void forgetOwnAutosaveRecord()
+
+    // The discarded scene lives under the session that wrote it, not this one.
+    if (restoredFrom) {
+      void forgetAutosaveRecord(restoredFrom)
+    }
   }, [scheduler])
 
   return (

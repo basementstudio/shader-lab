@@ -1,3 +1,9 @@
+import { cacheTag } from "next/cache"
+import {
+  authorTag,
+  COMMUNITY_FEED_TAG,
+  sceneTag,
+} from "@/lib/community/cache-tags"
 import { isCommunityEnabled } from "@/lib/community/config"
 import {
   decodeSceneCursor,
@@ -6,7 +12,7 @@ import {
 import {
   type CommunitySceneDetail,
   type CommunitySceneSummary,
-  getPublishedScene,
+  getPublishedSceneWithAuthor,
   listPublishedScenes,
 } from "@/lib/community/scenes"
 
@@ -17,6 +23,8 @@ export async function getPublicScenes(): Promise<{
   scenes: CommunitySceneSummary[]
 }> {
   "use cache"
+
+  cacheTag(COMMUNITY_FEED_TAG)
 
   if (!isCommunityEnabled()) {
     return { nextCursor: null, scenes: [] }
@@ -45,6 +53,8 @@ export async function listAllPublishedScenesForSitemap(): Promise<
   SitemapScene[]
 > {
   "use cache"
+
+  cacheTag(COMMUNITY_FEED_TAG)
 
   if (!isCommunityEnabled()) {
     return []
@@ -90,12 +100,22 @@ export async function getPublicScene(
 ): Promise<CommunitySceneDetail | null> {
   "use cache"
 
+  cacheTag(sceneTag(slug))
+
   if (!isCommunityEnabled()) {
     return null
   }
 
   try {
-    return await getPublishedScene(slug)
+    const authored = await getPublishedSceneWithAuthor(slug)
+
+    if (!authored) {
+      return null
+    }
+
+    cacheTag(authorTag(authored.authorId))
+
+    return authored.detail
   } catch {
     return null
   }

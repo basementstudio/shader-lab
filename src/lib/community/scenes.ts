@@ -250,12 +250,24 @@ export async function listScenesByAuthor(
   return rows.map((row) => ({ ...toSummary(row), status: row.status }))
 }
 
+export interface AuthoredSceneDetail {
+  authorId: string
+  detail: CommunitySceneDetail
+}
+
 export async function getPublishedScene(
   slug: string
 ): Promise<CommunitySceneDetail | null> {
+  return (await getPublishedSceneWithAuthor(slug))?.detail ?? null
+}
+
+export async function getPublishedSceneWithAuthor(
+  slug: string
+): Promise<AuthoredSceneDetail | null> {
   const rows = await getDatabase()
     .select({
       ...summaryColumns,
+      authorId: scenes.authorId,
       description: scenes.description,
       forkedFromId: scenes.forkedFromId,
       labKey: scenes.labKey,
@@ -303,9 +315,12 @@ export async function getPublishedScene(
   }
 
   return {
-    ...toSummary(row),
-    description: row.description,
-    forkedFrom,
-    labUrl: resolveLabUrl(row.labKey),
+    authorId: row.authorId,
+    detail: {
+      ...toSummary(row),
+      description: row.description,
+      forkedFrom,
+      labUrl: resolveLabUrl(row.labKey),
+    },
   }
 }

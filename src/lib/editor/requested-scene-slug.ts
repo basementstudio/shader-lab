@@ -1,11 +1,22 @@
-let cached: string | null = null
-
 export function getRequestedSceneSlug(): string | null {
-  if (cached !== null || typeof window === "undefined") {
-    return cached
+  if (typeof window === "undefined") {
+    return null
   }
 
-  cached = new URLSearchParams(window.location.search).get("scene")
+  return new URLSearchParams(window.location.search).get("scene")
+}
 
-  return cached
+export function clearRequestedSceneSlug(): void {
+  if (typeof window === "undefined") {
+    return
+  }
+
+  const url = new URL(window.location.href)
+
+  if (!url.searchParams.has("scene")) {
+    return
+  }
+
+  url.searchParams.delete("scene")
+  window.history.replaceState(null, "", url.toString())
 }

@@ -15,6 +15,7 @@ export type RemovalOutcome =
   | { kind: "forbidden" }
   | { kind: "notFound" }
   | {
+      authorId: string
       kind: "removed"
       mode: "deleted" | "takendown"
       purgedObjects: number
@@ -129,6 +130,7 @@ export async function removeScene(input: {
 
   if (alreadyGone) {
     return {
+      authorId: scene.authorId,
       kind: "removed",
       mode: moderator ? "takendown" : "deleted",
       purgedObjects: 0,
@@ -159,7 +161,13 @@ export async function removeScene(input: {
     purgedObjects = -1
   }
 
-  return { kind: "removed", mode, purgedObjects, retainedObjects }
+  return {
+    authorId: scene.authorId,
+    kind: "removed",
+    mode,
+    purgedObjects,
+    retainedObjects,
+  }
 }
 
 export async function reportScene(input: {

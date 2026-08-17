@@ -1,4 +1,11 @@
+import { revalidateTag } from "next/cache"
+import { connection } from "next/server"
 import { getOptionalSession } from "@/lib/auth/server"
+import {
+  authorTag,
+  COMMUNITY_FEED_TAG,
+  sceneTag,
+} from "@/lib/community/cache-tags"
 import { isCommunityEnabled } from "@/lib/community/config"
 import { removeScene } from "@/lib/community/moderation"
 import { getPublishedScene } from "@/lib/community/scenes"
@@ -30,6 +37,8 @@ export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ slug: string }> }
 ) {
+  await connection()
+
   if (!isCommunityEnabled()) {
     return Response.json({ error: "Not available." }, { status: 503 })
   }
@@ -55,6 +64,10 @@ export async function DELETE(
         { status: 403 }
       )
     }
+
+    revalidateTag(COMMUNITY_FEED_TAG, "max")
+    revalidateTag(authorTag(outcome.authorId), "max")
+    revalidateTag(sceneTag(slug), "max")
 
     return Response.json({
       mode: outcome.mode,

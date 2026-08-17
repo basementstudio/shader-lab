@@ -1,6 +1,9 @@
 import { and, eq, isNull } from "drizzle-orm"
 import { nanoid } from "nanoid"
+import { revalidateTag } from "next/cache"
+import { connection } from "next/server"
 import { getOptionalSession } from "@/lib/auth/server"
+import { authorTag, COMMUNITY_FEED_TAG } from "@/lib/community/cache-tags"
 import { isCommunityEnabled, isMediaConfigured } from "@/lib/community/config"
 import { ensureProfile } from "@/lib/community/profile"
 import {
@@ -46,6 +49,8 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  await connection()
+
   if (!(isCommunityEnabled() && isMediaConfigured())) {
     return badRequest("Publishing is not configured on this deployment.", 503)
   }
@@ -214,6 +219,9 @@ export async function POST(
     .from(scenes)
     .where(eq(scenes.id, draftId))
     .limit(1)
+
+  revalidateTag(COMMUNITY_FEED_TAG, "max")
+  revalidateTag(authorTag(profile.userId), "max")
 
   return Response.json({
     scene: { id: draftId, slug: created[0]?.slug ?? null },

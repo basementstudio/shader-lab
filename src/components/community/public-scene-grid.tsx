@@ -3,19 +3,26 @@
 import { PublicSceneCard } from "@/components/community/public-scene-card"
 import { SceneLoadMore } from "@/components/community/scene-load-more"
 import { Typography } from "@/components/ui/typography"
-import type { CommunitySceneSummary } from "@/lib/community/scenes"
+import type { CommunitySceneSummary, SceneSort } from "@/lib/community/scenes"
 import { useScenePages } from "@/lib/community/use-scene-pages"
 
 export function PublicSceneGrid({
+  author,
+  emptyLabel = "No scenes published yet.",
   initialNextCursor,
   initialScenes,
+  sort = "popular",
 }: {
+  author?: string | null
+  emptyLabel?: string
   initialNextCursor: string | null
   initialScenes: CommunitySceneSummary[]
+  sort?: SceneSort
 }) {
   const { error, hasMore, loadMore, loading, scenes } = useScenePages({
+    author: author ?? null,
     initial: { nextCursor: initialNextCursor, scenes: initialScenes },
-    sort: "popular",
+    sort,
   })
 
   const shown = scenes ?? initialScenes
@@ -23,7 +30,7 @@ export function PublicSceneGrid({
   if (shown.length === 0) {
     return (
       <Typography as="p" tone="tertiary" variant="caption">
-        No scenes published yet.
+        {emptyLabel}
       </Typography>
     )
   }

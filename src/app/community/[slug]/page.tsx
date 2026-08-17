@@ -13,6 +13,7 @@ import { lineageLabel } from "@/lib/community/lineage"
 import {
   editorSceneHref,
   OPEN_IN_EDITOR_PARAM,
+  profilePagePath,
 } from "@/lib/community/scene-links"
 import { getPublicScene } from "@/lib/community/public-scenes"
 import { getLayerLabel } from "@/lib/editor/config/layer-catalog"
@@ -142,21 +143,26 @@ async function SceneBody({ params }: PageProps) {
       <div className="grid grid-cols-1 gap-[var(--ds-space-5)] min-[860px]:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
         <div className="flex min-w-0 flex-col gap-[var(--ds-space-4)]">
           <div className="flex min-w-0 items-center gap-[var(--ds-space-2)]">
-            <AuthorAvatar
-              avatarUrl={scene.authorAvatarUrl}
-              name={authorName}
-              size={24}
-            />
-            <div className="flex min-w-0 flex-col">
-              <Typography as="span" variant="label">
-                {authorName}
-              </Typography>
-              {publishedAt ? (
-                <Typography as="span" tone="tertiary" variant="monoXs">
-                  {publishedAt}
+            <Link
+              className="inline-flex min-w-0 items-center gap-[var(--ds-space-2)] rounded-[var(--ds-radius-control)] transition-opacity duration-160 hover:opacity-80"
+              href={profilePagePath(scene.authorHandle) as Route}
+            >
+              <AuthorAvatar
+                avatarUrl={scene.authorAvatarUrl}
+                name={authorName}
+                size={24}
+              />
+              <div className="flex min-w-0 flex-col">
+                <Typography as="span" variant="label">
+                  {authorName}
                 </Typography>
-              ) : null}
-            </div>
+                {publishedAt ? (
+                  <Typography as="span" tone="tertiary" variant="monoXs">
+                    {publishedAt}
+                  </Typography>
+                ) : null}
+              </div>
+            </Link>
           </div>
 
           <div className="flex flex-col gap-[var(--ds-space-2)]">

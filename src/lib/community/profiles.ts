@@ -58,6 +58,20 @@ export async function getProfileByHandle(
   }
 }
 
+export type PublicProfileView = Omit<PublicProfile, "userId">
+
+export function toProfileView(profile: PublicProfile): PublicProfileView {
+  return {
+    avatarUrl: profile.avatarUrl,
+    displayName: profile.displayName,
+    handle: profile.handle,
+    joinedAt: profile.joinedAt,
+    publishedCount: profile.publishedCount,
+    remixCount: profile.remixCount,
+    upvoteCount: profile.upvoteCount,
+  }
+}
+
 export interface SitemapProfile {
   handle: string
   lastPublishedAt: string | null

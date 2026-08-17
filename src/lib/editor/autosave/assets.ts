@@ -1,5 +1,6 @@
 import {
   ASSET_STORE,
+  AUTOSAVE_ASSET_GRACE_MS,
   AUTOSAVE_MAX_ASSET_BYTES,
   AUTOSAVE_MAX_TOTAL_BYTES,
   AUTOSAVE_QUOTA_HEADROOM,
@@ -31,14 +32,21 @@ export interface EvictionPlan {
 }
 
 export function planAssetEviction(input: {
+  graceMs?: number
   maxTotalBytes?: number
+  now?: number
   records: readonly Pick<StoredAsset, "createdAt" | "id" | "sizeBytes">[]
   referencedIds: ReadonlySet<string>
 }): EvictionPlan {
   const maxTotalBytes = input.maxTotalBytes ?? AUTOSAVE_MAX_TOTAL_BYTES
+  const graceMs = input.graceMs ?? AUTOSAVE_ASSET_GRACE_MS
+  const now = input.now ?? Date.now()
 
   const evict = input.records
-    .filter((record) => !input.referencedIds.has(record.id))
+    .filter(
+      (record) =>
+        !input.referencedIds.has(record.id) && now - record.createdAt > graceMs
+    )
     .sort((a, b) => a.createdAt - b.createdAt)
     .map((record) => record.id)
 

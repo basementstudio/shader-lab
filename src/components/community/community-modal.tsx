@@ -31,6 +31,8 @@ import type {
 } from "@/lib/community/scenes"
 import { scenePagePath } from "@/lib/community/scene-links"
 import { useScenePages } from "@/lib/community/use-scene-pages"
+import { requestAutosave } from "@/lib/editor/autosave/bus"
+import { withAutosaveSuppressed } from "@/lib/editor/autosave/suppress"
 import { acquirePreviewRenderLock } from "@/lib/editor/preview-render-lock"
 import {
   applyLabProjectFile,
@@ -295,11 +297,15 @@ export function CommunityModal({
           }
         }
 
-        applyLabProjectFile(projectFile, useAssetStore.getState().assets)
-        useRemixOriginStore.getState().setRemixOrigin({
-          slug: scene.slug,
-          title: scene.title,
+        withAutosaveSuppressed(() => {
+          applyLabProjectFile(projectFile, useAssetStore.getState().assets)
+          useRemixOriginStore.getState().setRemixOrigin({
+            slug: scene.slug,
+            title: scene.title,
+          })
         })
+
+        requestAutosave()
 
         void fetch(`/api/community/scenes/${scene.slug}/remix`, {
           body: JSON.stringify({ anonId: getAnonId() }),

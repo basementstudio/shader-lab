@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, isNull, or, sql } from "drizzle-orm"
+import { and, desc, eq, ilike, isNull, ne, or, sql } from "drizzle-orm"
 import {
   encodeSceneCursor,
   type SceneCursor,
@@ -243,7 +243,16 @@ export async function listScenesByAuthor(
     .select({ ...summaryColumns, status: scenes.status })
     .from(scenes)
     .innerJoin(profiles, eq(profiles.userId, scenes.authorId))
-    .where(and(eq(scenes.authorId, authorId), isNull(scenes.deletedAt)))
+    .where(
+      and(
+        eq(scenes.authorId, authorId),
+        // Drafts belong to the Drafts tab. Excluded by status rather than by
+        // selecting published, so the author still sees processing and takendown
+        // scenes, which is what the status badge is for.
+        ne(scenes.status, "draft"),
+        isNull(scenes.deletedAt)
+      )
+    )
     .orderBy(desc(scenes.publishedAt), desc(scenes.createdAt))
     .limit(Math.min(Math.max(limit, 1), 100))
 

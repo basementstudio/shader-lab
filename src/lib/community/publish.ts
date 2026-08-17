@@ -55,12 +55,41 @@ export interface PublishValidation {
   projectFile: LabProjectFile
 }
 
-export function validateProjectFilePayload(raw: string): PublishValidation {
+function parseScenePayload(raw: string): LabProjectFile {
   if (raw.length > MAX_LAB_BYTES) {
-    throw new Error("This scene is too large to publish.")
+    throw new Error("This scene is too large.")
   }
 
   const projectFile = parseLabProjectFile(raw)
+
+  for (const asset of projectFile.assets) {
+    if (asset.url && !isAllowedAssetOrigin(asset.url)) {
+      throw new Error(`"${asset.fileName}" points at an untrusted host.`)
+    }
+  }
+
+  return projectFile
+}
+
+function describeScene(projectFile: LabProjectFile): PublishValidation {
+  return {
+    hasCustomShader: hasImportedCustomShaderCode(projectFile),
+    layerTypes: [...new Set(projectFile.layers.map((layer) => layer.type))],
+    projectFile,
+  }
+}
+
+export function validateDraftPayload(raw: string): PublishValidation {
+  const projectFile = parseScenePayload(raw)
+
+  return describeScene({
+    ...projectFile,
+    assets: projectFile.assets.filter((asset) => asset.url),
+  })
+}
+
+export function validateProjectFilePayload(raw: string): PublishValidation {
+  const projectFile = parseScenePayload(raw)
 
   if (projectFile.layers.length === 0) {
     throw new Error("A scene needs at least one visible layer.")
@@ -72,19 +101,9 @@ export function validateProjectFilePayload(raw: string): PublishValidation {
         `"${asset.fileName}" was not uploaded, so the scene cannot be published.`
       )
     }
-
-    if (!isAllowedAssetOrigin(asset.url)) {
-      throw new Error(`"${asset.fileName}" points at an untrusted host.`)
-    }
   }
 
-  const layerTypes = [...new Set(projectFile.layers.map((layer) => layer.type))]
-
-  return {
-    hasCustomShader: hasImportedCustomShaderCode(projectFile),
-    layerTypes,
-    projectFile,
-  }
+  return describeScene(projectFile)
 }
 
 export function normalizeTitle(value: unknown): string {
@@ -95,6 +114,16 @@ export function normalizeTitle(value: unknown): string {
   }
 
   return title.slice(0, MAX_TITLE_LENGTH)
+}
+
+export const DEFAULT_DRAFT_TITLE = "Untitled draft"
+
+export function normalizeDraftTitle(value: unknown): string {
+  const title = typeof value === "string" ? value.trim() : ""
+
+  return title.length > 0
+    ? title.slice(0, MAX_TITLE_LENGTH)
+    : DEFAULT_DRAFT_TITLE
 }
 
 export function normalizeDescription(value: unknown): string | null {
@@ -110,58 +139,116 @@ export interface QuotaCheck {
   reason?: string
 }
 
-export async function reserveQuota(
-  userId: string,
-  bytes: number,
-  now = new Date()
-): Promise<QuotaCheck> {
-  const db = getDatabase()
-  const bucket = dayBucket(now)
+export interface QuotaSnapshot {
+  bytesUsed: number
+  dayBucket: string
+  scenesToday: number
+}
 
-  const rows = await db
-    .select()
-    .from(uploadQuota)
-    .where(eq(uploadQuota.userId, userId))
-    .limit(1)
+export function decideQuota(input: {
+  addScene: boolean
+  bucket: string
+  bytes: number
+  current: QuotaSnapshot | null
+}): QuotaCheck {
+  const scenesToday =
+    input.current?.dayBucket === input.bucket ? input.current.scenesToday : 0
 
-  const current = rows[0]
-  const scenesToday = current?.dayBucket === bucket ? current.scenesToday : 0
-  const bytesUsed = current?.bytesUsed ?? 0
-
-  if (scenesToday >= MAX_SCENES_PER_DAY) {
+  if (input.addScene && scenesToday >= MAX_SCENES_PER_DAY) {
     return {
       ok: false,
       reason: `You have published ${MAX_SCENES_PER_DAY} scenes today. Try again tomorrow.`,
     }
   }
 
-  if (bytesUsed + bytes > MAX_TOTAL_BYTES) {
+  if ((input.current?.bytesUsed ?? 0) + input.bytes > MAX_TOTAL_BYTES) {
     return {
       ok: false,
       reason: "You have reached your storage limit for community scenes.",
     }
   }
 
-  if (current) {
-    await db
-      .update(uploadQuota)
-      .set({
-        bytesUsed: bytesUsed + bytes,
-        dayBucket: bucket,
-        scenesToday: scenesToday + 1,
-        updatedAt: now,
-      })
-      .where(eq(uploadQuota.userId, userId))
-  } else {
-    await db.insert(uploadQuota).values({
-      bytesUsed: bytes,
-      dayBucket: bucket,
-      scenesToday: 1,
-      userId,
+  return { ok: true }
+}
+
+async function reserve(input: {
+  addScene: boolean
+  bytes: number
+  now: Date
+  userId: string
+}): Promise<QuotaCheck> {
+  const db = getDatabase()
+  const bucket = dayBucket(input.now)
+
+  const rows = await db
+    .select({
+      bytesUsed: uploadQuota.bytesUsed,
+      dayBucket: uploadQuota.dayBucket,
+      scenesToday: uploadQuota.scenesToday,
     })
+    .from(uploadQuota)
+    .where(eq(uploadQuota.userId, input.userId))
+    .limit(1)
+
+  const decision = decideQuota({
+    addScene: input.addScene,
+    bucket,
+    bytes: input.bytes,
+    current: rows[0] ?? null,
+  })
+
+  if (!decision.ok) {
+    return decision
   }
 
+  const added = input.addScene ? 1 : 0
+
+  // Drafts write here on every save, so the counters move in SQL rather than
+  // being read, added to in JS and written back — two saves in flight would
+  // otherwise agree on the old total and one of them would vanish.
+  await db
+    .insert(uploadQuota)
+    .values({
+      bytesUsed: input.bytes,
+      dayBucket: bucket,
+      scenesToday: added,
+      updatedAt: input.now,
+      userId: input.userId,
+    })
+    .onConflictDoUpdate({
+      set: {
+        bytesUsed: sql`${uploadQuota.bytesUsed} + ${input.bytes}`,
+        dayBucket: bucket,
+        scenesToday: sql`case when ${uploadQuota.dayBucket} = ${bucket} then ${uploadQuota.scenesToday} + ${added} else ${added} end`,
+        updatedAt: input.now,
+      },
+      target: uploadQuota.userId,
+    })
+
   return { ok: true }
+}
+
+export function reserveBytes(
+  userId: string,
+  bytes: number,
+  now = new Date()
+): Promise<QuotaCheck> {
+  return reserve({ addScene: false, bytes, now, userId })
+}
+
+export function reserveSceneSlot(
+  userId: string,
+  now = new Date()
+): Promise<QuotaCheck> {
+  return reserve({ addScene: true, bytes: 0, now, userId })
+}
+
+export function reserveQuota(
+  userId: string,
+  bytes: number,
+  now = new Date()
+): Promise<QuotaCheck> {
+  return reserve({ addScene: true, bytes, now, userId })
 }
 
 export async function countPublishedScenesForAuthor(

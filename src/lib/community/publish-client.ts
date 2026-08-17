@@ -6,7 +6,9 @@ import {
   type LabProjectFile,
 } from "@/lib/editor/project-file"
 import { useAssetStore } from "@/store/asset-store"
+import { useDraftStore } from "@/store/draft-store"
 import { useRemixOriginStore } from "@/store/remix-origin-store"
+import { useTimelineStore } from "@/store/timeline-store"
 import type { EditorAsset, PresetAssetReference } from "@/types/editor"
 
 export const THUMBNAIL_MAX_TIME_SECONDS = 10
@@ -18,11 +20,12 @@ export interface PublishResult {
 }
 
 interface UploadTarget {
+  alreadyStored?: boolean
   contentType: string
   key: string
   publicUrl: string
   sha256: string
-  uploadUrl: string
+  uploadUrl?: string
 }
 
 export function getThumbnailTimeBounds(duration: number): {
@@ -69,6 +72,14 @@ async function readLocalAssetBytes(url: string): Promise<ArrayBuffer> {
 }
 
 async function upload(target: UploadTarget, bytes: ArrayBuffer): Promise<void> {
+  if (target.alreadyStored) {
+    return
+  }
+
+  if (!target.uploadUrl) {
+    throw new Error("Could not prepare one of the media uploads.")
+  }
+
   const response = await fetch(target.uploadUrl, {
     body: bytes,
     headers: {
@@ -141,6 +152,201 @@ function inspectScene(options: { prune: boolean }): {
 
 export function describePublishPlan(): PublishPlan {
   return inspectScene({ prune: true }).plan
+}
+
+export interface SaveDraftResult {
+  id: string
+  savedAt: string | null
+  skipped: string[]
+  title: string
+}
+
+interface StoredUpload {
+  sha256: string
+  url: string
+}
+
+// Reading and hashing a 100 MB video costs the same whether or not anything
+// changed, so what a draft already holds is remembered for the session. Keyed by
+// draft as well as asset, because the url points inside one draft's prefix.
+const storedUploads = new Map<string, StoredUpload>()
+
+function storedKey(draftId: string, assetId: string): string {
+  return `${draftId}:${assetId}`
+}
+
+async function readDraftUploads(input: {
+  draftId: string | null
+  localAssets: EditorAsset[]
+}): Promise<{
+  known: Map<string, StoredUpload>
+  pending: { asset: EditorAsset; bytes: ArrayBuffer; sha256: string }[]
+  skipped: string[]
+}> {
+  const known = new Map<string, StoredUpload>()
+  const pending: { asset: EditorAsset; bytes: ArrayBuffer; sha256: string }[] =
+    []
+  const skipped: string[] = []
+
+  for (const asset of input.localAssets) {
+    const cached = input.draftId
+      ? storedUploads.get(storedKey(input.draftId, asset.id))
+      : undefined
+
+    if (cached) {
+      known.set(asset.id, cached)
+
+      continue
+    }
+
+    // One file being too large for the server must not stop the rest of the
+    // scene from being saved.
+    if (
+      describeUploadLimit({
+        fileName: asset.fileName,
+        mimeType: asset.mimeType,
+        sizeBytes: asset.sizeBytes,
+      })
+    ) {
+      skipped.push(asset.fileName)
+
+      continue
+    }
+
+    const bytes = await readLocalAssetBytes(asset.url)
+
+    pending.push({ asset, bytes, sha256: await sha256Hex(bytes) })
+  }
+
+  return { known, pending, skipped }
+}
+
+export async function saveDraft(input?: {
+  title?: string
+  withThumbnail?: boolean
+}): Promise<SaveDraftResult> {
+  const { localAssets, projectFile } = inspectScene({ prune: false })
+  const activeDraft = useDraftStore.getState().activeDraft
+  const { known, pending, skipped } = await readDraftUploads({
+    draftId: activeDraft?.id ?? null,
+    localAssets,
+  })
+
+  // Captured on the first save so the drafts list has something to show, and
+  // skipped afterwards: it is a full GPU render behind the preview lock, which
+  // would stutter the editor on every keystroke-fast save.
+  const wantsThumbnail = input?.withThumbnail ?? activeDraft === null
+  let thumbnail: { bytes: ArrayBuffer; sha256: string } | null = null
+
+  if (wantsThumbnail) {
+    const { max } = getThumbnailTimeBounds(projectFile.timeline.duration)
+    const blob = await captureThumbnail(
+      Math.min(max, useTimelineStore.getState().currentTime)
+    )
+    const bytes = await blob.arrayBuffer()
+
+    thumbnail = { bytes, sha256: await sha256Hex(bytes) }
+  }
+
+  const response = await fetch("/api/community/drafts", {
+    body: JSON.stringify({
+      draftId: activeDraft?.id ?? null,
+      uploads: [
+        ...(thumbnail
+          ? [
+              {
+                contentLength: thumbnail.bytes.byteLength,
+                contentType: THUMBNAIL_MIME,
+                kind: "thumbnail",
+                sha256: thumbnail.sha256,
+              },
+            ]
+          : []),
+        ...pending.map((entry) => ({
+          contentLength: entry.bytes.byteLength,
+          contentType: entry.asset.mimeType,
+          kind: entry.asset.kind,
+          sha256: entry.sha256,
+        })),
+      ],
+    }),
+    headers: { "content-type": "application/json" },
+    method: "POST",
+  })
+
+  const prepared = (await response.json()) as {
+    draftId?: string
+    error?: string
+    uploads?: UploadTarget[]
+  }
+
+  if (!(response.ok && prepared.draftId && prepared.uploads)) {
+    throw new Error(prepared.error ?? "Could not save this draft.")
+  }
+
+  const draftId = prepared.draftId
+  const [thumbnailTarget, ...assetTargets] = thumbnail
+    ? prepared.uploads
+    : [null, ...prepared.uploads]
+
+  if (thumbnail && thumbnailTarget) {
+    await upload(thumbnailTarget, thumbnail.bytes)
+  }
+
+  for (const [index, entry] of pending.entries()) {
+    const target = assetTargets[index]
+
+    if (!target) {
+      throw new Error("Could not prepare one of the media uploads.")
+    }
+
+    await upload(target, entry.bytes)
+
+    const stored = { sha256: target.sha256, url: target.publicUrl }
+
+    storedUploads.set(storedKey(draftId, entry.asset.id), stored)
+    known.set(entry.asset.id, stored)
+  }
+
+  const savable = {
+    ...projectFile,
+    assets: projectFile.assets.flatMap((reference) => {
+      const stored = known.get(reference.id)
+
+      if (stored) {
+        return [{ ...reference, sha256: stored.sha256, url: stored.url }]
+      }
+
+      return reference.url ? [reference] : []
+    }),
+  }
+
+  const saveResponse = await fetch(`/api/community/drafts/${draftId}`, {
+    body: JSON.stringify({
+      projectFile: JSON.stringify(savable),
+      thumbnailUrl: thumbnailTarget?.publicUrl ?? null,
+      title: input?.title ?? activeDraft?.title ?? null,
+    }),
+    headers: { "content-type": "application/json" },
+    method: "PUT",
+  })
+
+  const saved = (await saveResponse.json()) as {
+    draft?: { id: string; savedAt: string; title: string }
+    error?: string
+  }
+
+  if (!(saveResponse.ok && saved.draft)) {
+    throw new Error(saved.error ?? "Could not save this draft.")
+  }
+
+  useDraftStore.getState().setActiveDraft({
+    id: saved.draft.id,
+    savedAt: saved.draft.savedAt,
+    title: saved.draft.title,
+  })
+
+  return { ...saved.draft, skipped }
 }
 
 export async function publishScene(input: {

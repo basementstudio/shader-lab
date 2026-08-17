@@ -3,6 +3,7 @@
 import { Cross2Icon } from "@radix-ui/react-icons"
 import { AnimatePresence, motion, useReducedMotion } from "motion/react"
 import { useCallback, useEffect, useRef, useState } from "react"
+import { useBottomOffsetAboveTimeline } from "@/components/editor/use-bottom-offset-above-timeline"
 import { Button } from "@/components/ui/button"
 import { GlassPanel } from "@/components/ui/glass-panel"
 import { IconButton } from "@/components/ui/icon-button"
@@ -53,59 +54,11 @@ import {
 import { getRequestedSceneSlug } from "@/lib/editor/requested-scene-slug"
 import { useAssetStore } from "@/store/asset-store"
 import { useAudioStore } from "@/store/audio-store"
+import { useDraftStore } from "@/store/draft-store"
 import { useEditorStore } from "@/store/editor-store"
 import { useLayerStore } from "@/store/layer-store"
 import { useRemixOriginStore } from "@/store/remix-origin-store"
 import { useTimelineStore } from "@/store/timeline-store"
-
-const PILL_GAP_PX = 10
-const PILL_FALLBACK_BOTTOM_PX = 68
-
-function useBottomOffsetAboveTimeline(active: boolean): number {
-  const [offset, setOffset] = useState(PILL_FALLBACK_BOTTOM_PX)
-
-  useEffect(() => {
-    if (!active) {
-      return
-    }
-
-    const shell = document.querySelector("[data-timeline-shell]")
-
-    const measure = () => {
-      if (!shell) {
-        setOffset(PILL_FALLBACK_BOTTOM_PX)
-
-        return
-      }
-
-      const rect = shell.getBoundingClientRect()
-
-      setOffset(
-        Math.max(
-          PILL_GAP_PX,
-          Math.round(window.innerHeight - rect.top + PILL_GAP_PX)
-        )
-      )
-    }
-
-    measure()
-
-    const observer = shell ? new ResizeObserver(measure) : null
-
-    if (shell && observer) {
-      observer.observe(shell)
-    }
-
-    window.addEventListener("resize", measure)
-
-    return () => {
-      observer?.disconnect()
-      window.removeEventListener("resize", measure)
-    }
-  }, [active])
-
-  return offset
-}
 
 function whenIdle(run: () => void): void {
   const idle = (
@@ -169,7 +122,12 @@ export function AutosaveMount() {
 
     const projectFile = buildLabProjectFile()
     const remixOrigin = useRemixOriginStore.getState().origin
-    const signature = buildAutosaveSignature({ projectFile, remixOrigin })
+    const activeDraft = useDraftStore.getState().activeDraft
+    const signature = buildAutosaveSignature({
+      activeDraft,
+      projectFile,
+      remixOrigin,
+    })
 
     if (signature === signatureRef.current) {
       return
@@ -177,13 +135,15 @@ export function AutosaveMount() {
 
     signatureRef.current = signature
 
-    const write = saveAutosaveRecord({ projectFile, remixOrigin }).then(
-      (written) => {
-        if (written) {
-          whenIdle(collectStoredAssetGarbage)
-        }
+    const write = saveAutosaveRecord({
+      activeDraft,
+      projectFile,
+      remixOrigin,
+    }).then((written) => {
+      if (written) {
+        whenIdle(collectStoredAssetGarbage)
       }
-    )
+    })
 
     pendingWriteRef.current = write
 
@@ -284,9 +244,16 @@ export function AutosaveMount() {
           if (candidate.remixOrigin) {
             useRemixOriginStore.getState().setRemixOrigin(candidate.remixOrigin)
           }
+
+          // Without this every save after a refresh would mint a new draft row
+          // and re-upload every asset.
+          if (candidate.activeDraft) {
+            useDraftStore.getState().setActiveDraft(candidate.activeDraft)
+          }
         })
 
         signatureRef.current = buildAutosaveSignature({
+          activeDraft: candidate.activeDraft,
           projectFile: candidate.projectFile,
           remixOrigin: candidate.remixOrigin,
         })
@@ -382,6 +349,11 @@ export function AutosaveMount() {
           request()
         }
       }),
+      useDraftStore.subscribe((state, previous) => {
+        if (state.activeDraft !== previous.activeDraft) {
+          request()
+        }
+      }),
     ]
 
     return () => {
@@ -420,6 +392,7 @@ export function AutosaveMount() {
         useAssetStore.getState().assets
       )
       useRemixOriginStore.getState().clearRemixOrigin()
+      useDraftStore.getState().clearActiveDraft()
     })
 
     signatureRef.current = null

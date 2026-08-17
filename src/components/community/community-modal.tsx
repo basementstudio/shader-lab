@@ -40,6 +40,7 @@ import {
   parseLabProjectFile,
 } from "@/lib/editor/project-file"
 import { useAssetStore } from "@/store/asset-store"
+import { useDraftStore } from "@/store/draft-store"
 import { useEditorStore } from "@/store/editor-store"
 import { useRemixOriginStore } from "@/store/remix-origin-store"
 
@@ -303,6 +304,9 @@ export function CommunityModal({
             slug: scene.slug,
             title: scene.title,
           })
+          // A remix is somebody else's scene, so it must not save over whatever
+          // draft was open a moment ago.
+          useDraftStore.getState().clearActiveDraft()
         })
 
         requestAutosave()

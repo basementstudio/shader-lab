@@ -5,7 +5,14 @@ import {
 } from "@/lib/editor/autosave/limits"
 import type { LabProjectFile } from "@/lib/editor/project-file"
 
+export interface AutosaveDraft {
+  id: string
+  savedAt: string | null
+  title: string
+}
+
 export interface AutosaveRecord {
+  activeDraft?: AutosaveDraft | null
   projectFile: LabProjectFile
   remixOrigin: { slug: string; title: string } | null
   savedAt: number
@@ -14,6 +21,7 @@ export interface AutosaveRecord {
 }
 
 export function buildAutosaveSignature(input: {
+  activeDraft?: AutosaveDraft | null
   projectFile: LabProjectFile
   remixOrigin: { slug: string; title: string } | null
 }): string {
@@ -21,7 +29,11 @@ export function buildAutosaveSignature(input: {
 
   void exportedAt
 
-  return JSON.stringify({ document: rest, remix: input.remixOrigin })
+  return JSON.stringify({
+    document: rest,
+    draft: input.activeDraft ?? null,
+    remix: input.remixOrigin,
+  })
 }
 
 export function chooseAutosaveRecord(input: {

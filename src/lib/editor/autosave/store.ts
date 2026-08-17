@@ -1,6 +1,7 @@
 import { deleteRecord, deleteRecords, readAll } from "@/lib/editor/autosave/idb"
 import { AUTOSAVE_SCHEMA_VERSION } from "@/lib/editor/autosave/limits"
 import {
+  type AutosaveDraft,
   type AutosaveRecord,
   chooseAutosaveRecord,
   planRecordPruning,
@@ -16,11 +17,13 @@ export function autosaveSessionId(): string {
 }
 
 export async function saveAutosaveRecord(input: {
+  activeDraft: AutosaveRecord["activeDraft"]
   projectFile: AutosaveRecord["projectFile"]
   remixOrigin: AutosaveRecord["remixOrigin"]
 }): Promise<boolean> {
   const now = Date.now()
   const written = await writeRecord({
+    activeDraft: input.activeDraft ?? null,
     projectFile: input.projectFile,
     remixOrigin: input.remixOrigin,
     savedAt: now,
@@ -44,6 +47,7 @@ export async function saveAutosaveRecord(input: {
 }
 
 export interface RestorableAutosave {
+  activeDraft: AutosaveDraft | null
   projectFile: AutosaveRecord["projectFile"]
   remixOrigin: AutosaveRecord["remixOrigin"]
   savedAt: number
@@ -69,6 +73,7 @@ export async function findRestorableAutosave(): Promise<RestorableAutosave | nul
 
   try {
     return {
+      activeDraft: candidate.activeDraft ?? null,
       projectFile: parseLabProjectFileValue(candidate.projectFile),
       remixOrigin: candidate.remixOrigin,
       savedAt: candidate.savedAt,

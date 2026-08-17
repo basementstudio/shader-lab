@@ -2,10 +2,14 @@ import { afterEach, describe, expect, test } from "bun:test"
 import {
   buildSceneSlug,
   dayBucket,
+  decideQuota,
   MAX_DESCRIPTION_LENGTH,
+  MAX_SCENES_PER_DAY,
   MAX_TITLE_LENGTH,
+  MAX_TOTAL_BYTES,
   normalizeDescription,
   normalizeTitle,
+  validateDraftPayload,
   validateProjectFilePayload,
 } from "@/lib/community/publish"
 
@@ -15,31 +19,29 @@ afterEach(() => {
   delete process.env[HOSTS_ENV]
 })
 
-function labFile(assets: unknown[] = []) {
+function labFile(assets: unknown[] = [], layerCount = 1) {
   return JSON.stringify({
     assets,
     composition: { height: 800, width: 1200 },
     format: "shader-lab",
-    layers: [
-      {
-        assetId: null,
-        blendMode: "normal",
-        compositeMode: "filter",
-        expanded: true,
-        hue: 0,
-        id: "layer-1",
-        kind: "source",
-        locked: false,
-        maskConfig: { invert: false, mode: "multiply", source: "luminance" },
-        name: "Gradient",
-        opacity: 1,
-        params: {},
-        runtimeError: null,
-        saturation: 1,
-        type: "gradient",
-        visible: true,
-      },
-    ],
+    layers: Array.from({ length: layerCount }, (_unused, index) => ({
+      assetId: null,
+      blendMode: "normal",
+      compositeMode: "filter",
+      expanded: true,
+      hue: 0,
+      id: `layer-${index + 1}`,
+      kind: "source",
+      locked: false,
+      maskConfig: { invert: false, mode: "multiply", source: "luminance" },
+      name: "Gradient",
+      opacity: 1,
+      params: {},
+      runtimeError: null,
+      saturation: 1,
+      type: "gradient",
+      visible: true,
+    })),
     selectedLayerId: null,
     timeline: { duration: 6, loop: true, tracks: [] },
     version: 5,
@@ -164,5 +166,149 @@ describe("validateProjectFilePayload", () => {
     expect(() => validateProjectFilePayload("x".repeat(9 * 1024 * 1024))).toThrow(
       /too large/
     )
+  })
+})
+
+describe("validateDraftPayload", () => {
+  test("accepts a scene with no layers at all", () => {
+    const result = validateDraftPayload(labFile([], 0))
+
+    expect(result.layerTypes).toEqual([])
+    expect(result.projectFile.layers).toEqual([])
+  })
+
+  test("keeps an asset that was uploaded", () => {
+    process.env[HOSTS_ENV] = "pub-abc.r2.dev"
+
+    const result = validateDraftPayload(
+      labFile([
+        {
+          fileName: "photo.png",
+          id: "a1",
+          kind: "image",
+          url: "https://pub-abc.r2.dev/scenes/x/hash.png",
+        },
+      ])
+    )
+
+    expect(result.projectFile.assets.map((asset) => asset.id)).toEqual(["a1"])
+  })
+
+  test("drops an asset that has no url rather than refusing to save", () => {
+    const result = validateDraftPayload(
+      labFile([{ fileName: "photo.png", id: "a1", kind: "image" }])
+    )
+
+    expect(result.projectFile.assets).toEqual([])
+  })
+
+  test("still refuses a url pointing at an untrusted host", () => {
+    expect(() =>
+      validateDraftPayload(
+        labFile([
+          {
+            fileName: "photo.png",
+            id: "a1",
+            kind: "image",
+            url: "https://evil.test/photo.png",
+          },
+        ])
+      )
+    ).toThrow(/untrusted host/)
+  })
+
+  test("still refuses an oversized payload", () => {
+    expect(() => validateDraftPayload("x".repeat(9 * 1024 * 1024))).toThrow(
+      /too large/
+    )
+  })
+
+  test("still refuses something that is not a project file", () => {
+    expect(() => validateDraftPayload("{}")).toThrow()
+  })
+})
+
+describe("decideQuota", () => {
+  const bucket = "2026-08-17"
+
+  test("allows a first write with no row yet", () => {
+    expect(
+      decideQuota({ addScene: true, bucket, bytes: 1024, current: null }).ok
+    ).toBe(true)
+  })
+
+  test("a draft save is not blocked by the daily scene cap", () => {
+    const current = {
+      bytesUsed: 0,
+      dayBucket: bucket,
+      scenesToday: MAX_SCENES_PER_DAY,
+    }
+
+    expect(decideQuota({ addScene: false, bucket, bytes: 1024, current }).ok).toBe(
+      true
+    )
+    expect(decideQuota({ addScene: true, bucket, bytes: 1024, current }).ok).toBe(
+      false
+    )
+  })
+
+  test("the daily scene cap resets when the bucket rolls over", () => {
+    const current = {
+      bytesUsed: 0,
+      dayBucket: "2026-08-16",
+      scenesToday: MAX_SCENES_PER_DAY,
+    }
+
+    expect(decideQuota({ addScene: true, bucket, bytes: 0, current }).ok).toBe(
+      true
+    )
+  })
+
+  test("the byte cap applies to drafts too, and does not reset daily", () => {
+    const current = {
+      bytesUsed: MAX_TOTAL_BYTES,
+      dayBucket: "2026-08-16",
+      scenesToday: 0,
+    }
+
+    const decision = decideQuota({
+      addScene: false,
+      bucket,
+      bytes: 1,
+      current,
+    })
+
+    expect(decision.ok).toBe(false)
+    expect(decision.reason).toMatch(/storage limit/)
+  })
+
+  test("allows a write that lands exactly on the byte cap", () => {
+    expect(
+      decideQuota({
+        addScene: false,
+        bucket,
+        bytes: 1024,
+        current: {
+          bytesUsed: MAX_TOTAL_BYTES - 1024,
+          dayBucket: bucket,
+          scenesToday: 0,
+        },
+      }).ok
+    ).toBe(true)
+  })
+
+  test("reports the scene cap before the byte cap", () => {
+    const decision = decideQuota({
+      addScene: true,
+      bucket,
+      bytes: MAX_TOTAL_BYTES * 2,
+      current: {
+        bytesUsed: MAX_TOTAL_BYTES,
+        dayBucket: bucket,
+        scenesToday: MAX_SCENES_PER_DAY,
+      },
+    })
+
+    expect(decision.reason).toMatch(/scenes today/)
   })
 })

@@ -1,5 +1,6 @@
 import { AgentBridgeMount } from "@/components/editor/agent-bridge-mount"
 import { AutosaveMount } from "@/components/editor/autosave-mount"
+import { DraftSaveMount } from "@/components/editor/draft-save-mount"
 import { EditorCanvasViewport } from "@/components/editor/editor-canvas-viewport"
 import { MobileEditorDock } from "@/components/editor/mobile-editor-dock"
 import { EditorShortcuts } from "@/components/editor/editor-shortcuts"
@@ -16,6 +17,7 @@ export function ShaderLabPage() {
     >
       <AgentBridgeMount />
       <AutosaveMount />
+      <DraftSaveMount />
       <EditorShortcuts />
       <EditorCanvasViewport />
       <EditorTimelineOverlay />

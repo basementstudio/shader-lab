@@ -1,9 +1,11 @@
 "use client"
 
+import { Cross2Icon } from "@radix-ui/react-icons"
 import { AnimatePresence, motion, useReducedMotion } from "motion/react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { GlassPanel } from "@/components/ui/glass-panel"
+import { IconButton } from "@/components/ui/icon-button"
 import { Typography } from "@/components/ui/typography"
 import {
   AUTOSAVE_DEBOUNCE_MS,
@@ -29,6 +31,7 @@ import {
 } from "@/lib/editor/autosave/store"
 import {
   isAutosaveSuppressed,
+  withAutosaveRestore,
   withAutosaveSuppressed,
 } from "@/lib/editor/autosave/suppress"
 import {
@@ -50,6 +53,55 @@ import { useEditorStore } from "@/store/editor-store"
 import { useLayerStore } from "@/store/layer-store"
 import { useRemixOriginStore } from "@/store/remix-origin-store"
 import { useTimelineStore } from "@/store/timeline-store"
+
+const PILL_GAP_PX = 10
+const PILL_FALLBACK_BOTTOM_PX = 68
+
+function useBottomOffsetAboveTimeline(active: boolean): number {
+  const [offset, setOffset] = useState(PILL_FALLBACK_BOTTOM_PX)
+
+  useEffect(() => {
+    if (!active) {
+      return
+    }
+
+    const shell = document.querySelector("[data-timeline-shell]")
+
+    const measure = () => {
+      if (!shell) {
+        setOffset(PILL_FALLBACK_BOTTOM_PX)
+
+        return
+      }
+
+      const rect = shell.getBoundingClientRect()
+
+      setOffset(
+        Math.max(
+          PILL_GAP_PX,
+          Math.round(window.innerHeight - rect.top + PILL_GAP_PX)
+        )
+      )
+    }
+
+    measure()
+
+    const observer = shell ? new ResizeObserver(measure) : null
+
+    if (shell && observer) {
+      observer.observe(shell)
+    }
+
+    window.addEventListener("resize", measure)
+
+    return () => {
+      observer?.disconnect()
+      window.removeEventListener("resize", measure)
+    }
+  }, [active])
+
+  return offset
+}
 
 function whenIdle(run: () => void): void {
   const idle = (
@@ -99,6 +151,7 @@ async function collectStoredAssetGarbage(): Promise<void> {
 export function AutosaveMount() {
   const reduceMotion = useReducedMotion() ?? false
   const [restored, setRestored] = useState(false)
+  const pillBottom = useBottomOffsetAboveTimeline(restored)
   const readyRef = useRef(false)
   const signatureRef = useRef<string | null>(null)
   const restoredFromRef = useRef<string | null>(null)
@@ -187,7 +240,7 @@ export function AutosaveMount() {
           return
         }
 
-        withAutosaveSuppressed(() => {
+        withAutosaveRestore(() => {
           if (usable.length > 0) {
             const rehydrated = usable.map((record) => {
               const url = URL.createObjectURL(record.blob)
@@ -354,9 +407,10 @@ export function AutosaveMount() {
       {restored ? (
         <motion.div
           animate={reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
-          className="pointer-events-none fixed bottom-4 left-1/2 z-95 -translate-x-1/2"
+          className="pointer-events-none fixed left-1/2 z-95 -translate-x-1/2"
           exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
           initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
+          style={{ bottom: pillBottom }}
           transition={
             reduceMotion
               ? { duration: 0.12, ease: "easeOut" }
@@ -364,7 +418,7 @@ export function AutosaveMount() {
           }
         >
           <GlassPanel
-            className="pointer-events-auto flex items-center gap-[var(--ds-space-3)] px-3 py-2"
+            className="pointer-events-auto flex items-center gap-[var(--ds-space-2)] py-1.5 pr-1.5 pl-3"
             variant="panel"
           >
             <Typography as="span" tone="secondary" variant="caption">
@@ -373,6 +427,14 @@ export function AutosaveMount() {
             <Button onClick={startFresh} size="compact" variant="secondary">
               Start fresh
             </Button>
+            <IconButton
+              aria-label="Dismiss restore notice"
+              className="h-7 w-7"
+              onClick={() => setRestored(false)}
+              variant="default"
+            >
+              <Cross2Icon height={16} width={16} />
+            </IconButton>
           </GlassPanel>
         </motion.div>
       ) : null}

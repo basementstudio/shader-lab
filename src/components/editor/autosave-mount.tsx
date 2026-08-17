@@ -19,8 +19,12 @@ import {
   readStoredAssets,
   toEditorAsset,
 } from "@/lib/editor/autosave/assets"
-import { registerAutosaveRequester } from "@/lib/editor/autosave/bus"
+import {
+  registerAutosaveFlusher,
+  registerAutosaveRequester,
+} from "@/lib/editor/autosave/bus"
 import { buildAutosaveSignature } from "@/lib/editor/autosave/record"
+import { consumeAutosaveResume } from "@/lib/editor/autosave/resume"
 import { createAutosaveScheduler } from "@/lib/editor/autosave/scheduler"
 import {
   findRestorableAutosave,
@@ -156,6 +160,7 @@ export function AutosaveMount() {
   const signatureRef = useRef<string | null>(null)
   const restoredFromRef = useRef<string | null>(null)
   const editedBeforeReadyRef = useRef(false)
+  const pendingWriteRef = useRef<Promise<void> | null>(null)
 
   const persist = useCallback(() => {
     if (!readyRef.current) {
@@ -171,11 +176,18 @@ export function AutosaveMount() {
     }
 
     signatureRef.current = signature
-    void saveAutosaveRecord({ projectFile, remixOrigin }).then((written) => {
-      if (written) {
-        whenIdle(collectStoredAssetGarbage)
+
+    const write = saveAutosaveRecord({ projectFile, remixOrigin }).then(
+      (written) => {
+        if (written) {
+          whenIdle(collectStoredAssetGarbage)
+        }
       }
-    })
+    )
+
+    pendingWriteRef.current = write
+
+    void write
   }, [])
 
   const schedulerRef = useRef<ReturnType<
@@ -202,6 +214,8 @@ export function AutosaveMount() {
     let cancelled = false
 
     async function boot() {
+      const resuming = consumeAutosaveResume()
+
       if (getRequestedSceneSlug()) {
         readyRef.current = true
 
@@ -269,7 +283,10 @@ export function AutosaveMount() {
         })
 
         restoredFromRef.current = candidate.sessionId
-        setRestored(true)
+
+        if (!resuming) {
+          setRestored(true)
+        }
       } catch {
         for (const url of restoredUrls) {
           URL.revokeObjectURL(url)
@@ -300,8 +317,16 @@ export function AutosaveMount() {
 
   useEffect(() => {
     registerAutosaveRequester(() => scheduler.request())
+    registerAutosaveFlusher(async () => {
+      scheduler.flush()
 
-    return () => registerAutosaveRequester(null)
+      await pendingWriteRef.current
+    })
+
+    return () => {
+      registerAutosaveRequester(null)
+      registerAutosaveFlusher(null)
+    }
   }, [scheduler])
 
   useEffect(() => {

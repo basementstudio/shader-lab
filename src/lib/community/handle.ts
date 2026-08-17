@@ -3,11 +3,13 @@ export const HANDLE_MAX_LENGTH = 30
 
 const RESERVED_HANDLES = new Set([
   "about",
+  "account",
   "admin",
   "api",
   "auth",
   "community",
   "docs",
+  "drafts",
   "edit",
   "explore",
   "featured",
@@ -20,6 +22,8 @@ const RESERVED_HANDLES = new Set([
   "new",
   "popular",
   "privacy",
+  "profile",
+  "profiles",
   "remix",
   "root",
   "scene",
@@ -33,6 +37,7 @@ const RESERVED_HANDLES = new Set([
   "support",
   "terms",
   "tools",
+  "u",
   "user",
   "users",
 ])
@@ -53,16 +58,18 @@ export function isReservedHandle(handle: string): boolean {
   return RESERVED_HANDLES.has(handle)
 }
 
-export function isValidHandle(handle: string): boolean {
-  if (
-    handle.length < HANDLE_MIN_LENGTH ||
-    handle.length > HANDLE_MAX_LENGTH ||
-    isReservedHandle(handle)
-  ) {
-    return false
-  }
+const HANDLE_SHAPE = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/
 
-  return /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(handle)
+export function isLookupableHandle(handle: string): boolean {
+  return (
+    handle.length >= HANDLE_MIN_LENGTH &&
+    handle.length <= HANDLE_MAX_LENGTH &&
+    HANDLE_SHAPE.test(handle)
+  )
+}
+
+export function isValidHandle(handle: string): boolean {
+  return isLookupableHandle(handle) && !isReservedHandle(handle)
 }
 
 function emailLocalPart(email: string | null | undefined): string {

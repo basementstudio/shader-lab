@@ -3,6 +3,7 @@ import {
   buildHandleCandidates,
   deriveHandleSeed,
   HANDLE_MAX_LENGTH,
+  isLookupableHandle,
   isReservedHandle,
   isValidHandle,
   slugifyHandle,
@@ -64,6 +65,38 @@ describe("isValidHandle", () => {
       expect(isReservedHandle(reserved)).toBe(true)
       expect(isValidHandle(reserved)).toBe(false)
     }
+  })
+
+  test("reserves the words the profile routes need", () => {
+    for (const reserved of ["account", "drafts", "profile", "profiles", "u"]) {
+      expect(isReservedHandle(reserved)).toBe(true)
+      expect(isValidHandle(reserved)).toBe(false)
+    }
+  })
+})
+
+describe("isLookupableHandle", () => {
+  test("agrees with isValidHandle on shape", () => {
+    for (const good of ["tobi-moccagatta", "abc", "a1b2"]) {
+      expect(isLookupableHandle(good)).toBe(true)
+    }
+
+    for (const bad of ["ab", "-abc", "abc-", "AbC", "a b", "a_b", ""]) {
+      expect(isLookupableHandle(bad)).toBe(false)
+    }
+
+    expect(isLookupableHandle("a".repeat(HANDLE_MAX_LENGTH + 1))).toBe(false)
+  })
+
+  test("still resolves a handle that has since become reserved", () => {
+    for (const reserved of ["account", "drafts", "profile", "settings"]) {
+      expect(isValidHandle(reserved)).toBe(false)
+      expect(isLookupableHandle(reserved)).toBe(true)
+    }
+  })
+
+  test("is too short to match the profile route prefix", () => {
+    expect(isLookupableHandle("u")).toBe(false)
   })
 })
 

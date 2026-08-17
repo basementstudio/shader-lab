@@ -32,6 +32,20 @@ export const profiles = pgTable("profiles", {
   userId: uuid("user_id").primaryKey(),
 })
 
+export const handleClaims = pgTable(
+  "handle_claims",
+  {
+    claimedAt: timestamp("claimed_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    handle: text("handle").primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.userId, { onDelete: "cascade" }),
+  },
+  (table) => [index("handle_claims_user_idx").on(table.userId)]
+)
+
 export const sceneStatus = pgEnum("scene_status", [
   "draft",
   "processing",
@@ -84,6 +98,11 @@ export const scenes = pgTable(
     index("scenes_latest_idx").on(table.status, table.publishedAt.desc()),
     index("scenes_popular_idx").on(table.status, table.likeCount.desc()),
     index("scenes_author_idx").on(table.authorId),
+    index("scenes_author_published_idx").on(
+      table.authorId,
+      table.status,
+      table.publishedAt.desc()
+    ),
     index("scenes_featured_idx").on(table.featuredAt.desc()),
     index("scenes_forked_from_idx").on(table.forkedFromId),
     index("scenes_layer_types_idx").using("gin", table.layerTypes),

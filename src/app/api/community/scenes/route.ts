@@ -1,4 +1,5 @@
 import { isCommunityEnabled } from "@/lib/community/config"
+import { isLookupableHandle } from "@/lib/community/handle"
 import { decodeSceneCursor } from "@/lib/community/scene-cursor"
 import {
   DEFAULT_SCENE_SORT,
@@ -25,9 +26,16 @@ export async function GET(request: Request) {
   const limit = Number.parseInt(url.searchParams.get("limit") ?? "", 10)
   const rawCursor = url.searchParams.get("cursor")
 
+  const requestedAuthor = url.searchParams.get("author")?.toLowerCase() ?? ""
+
+  if (requestedAuthor.length > 0 && !isLookupableHandle(requestedAuthor)) {
+    return Response.json({ nextCursor: null, scenes: [] }, { status: 200 })
+  }
+
   try {
     const query = url.searchParams.get("q")?.slice(0, 80) ?? ""
     const page = await listPublishedScenes({
+      ...(requestedAuthor.length > 0 ? { authorHandle: requestedAuthor } : {}),
       cursor: decodeSceneCursor(rawCursor),
       ...(Number.isFinite(limit) ? { limit } : {}),
       ...(query.trim().length > 0 ? { query } : {}),

@@ -58,6 +58,39 @@ export async function getProfileByHandle(
   }
 }
 
+export interface SitemapProfile {
+  handle: string
+  lastPublishedAt: string | null
+}
+
+export async function listProfilesForSitemap(
+  limit = 5000
+): Promise<SitemapProfile[]> {
+  const rows = await getDatabase()
+    .select({
+      handle: profiles.handle,
+      lastPublishedAt: sql<
+        string | null
+      >`max(${scenes.publishedAt})::text`,
+    })
+    .from(profiles)
+    .innerJoin(
+      scenes,
+      and(
+        eq(scenes.authorId, profiles.userId),
+        eq(scenes.status, "published"),
+        isNull(scenes.deletedAt)
+      )
+    )
+    .groupBy(profiles.handle)
+    .limit(limit)
+
+  return rows.map((row) => ({
+    handle: row.handle,
+    lastPublishedAt: row.lastPublishedAt,
+  }))
+}
+
 export async function findCurrentHandleFor(
   handle: string
 ): Promise<string | null> {

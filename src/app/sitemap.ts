@@ -1,7 +1,9 @@
 import type { MetadataRoute } from "next"
 import { APP_BASE_URL } from "@/lib/app"
 import { isCommunityEnabled } from "@/lib/community/config"
+import { listAllProfilesForSitemap } from "@/lib/community/public-profiles"
 import { listAllPublishedScenesForSitemap } from "@/lib/community/public-scenes"
+import { profilePagePath } from "@/lib/community/scene-links"
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const entries: MetadataRoute.Sitemap = [
@@ -34,6 +36,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         : new Date(),
       changeFrequency: "weekly",
       priority: 0.6,
+    })
+  }
+
+  for (const profile of await listAllProfilesForSitemap()) {
+    entries.push({
+      url: `${APP_BASE_URL}${profilePagePath(profile.handle)}`,
+      lastModified: profile.lastPublishedAt
+        ? new Date(profile.lastPublishedAt)
+        : new Date(),
+      changeFrequency: "weekly",
+      priority: 0.4,
     })
   }
 

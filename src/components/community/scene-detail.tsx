@@ -1,6 +1,8 @@
 "use client"
 
+import type { Route } from "next"
 import Image from "next/image"
+import Link from "next/link"
 import { AuthorAvatar } from "@/components/community/author-avatar"
 import { DeleteSceneControl } from "@/components/community/delete-scene-control"
 import { RemixCredit } from "@/components/community/remix-credit"
@@ -10,6 +12,7 @@ import { UpvoteButton } from "@/components/community/upvote-button"
 import { Button } from "@/components/ui/button"
 import { Typography } from "@/components/ui/typography"
 import { lineageLabel } from "@/lib/community/lineage"
+import { profilePagePath } from "@/lib/community/scene-links"
 import type {
   CommunitySceneDetail,
   CommunitySceneSummary,
@@ -55,23 +58,30 @@ export function SceneDetail({
     <div className="grid h-full grid-cols-1 gap-4 overflow-y-auto p-4 min-[760px]:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] min-[760px]:overflow-hidden">
       <div className="flex min-w-0 flex-col gap-[var(--ds-space-3)]">
         <div className="flex min-w-0 items-center gap-[var(--ds-space-2)]">
-          <AuthorAvatar
-            avatarUrl={scene.authorAvatarUrl}
-            name={scene.authorName ?? scene.authorHandle}
-            size={24}
-          />
-          <div className="flex min-w-0 flex-col">
-            <Typography
-              as="span"
-              className="overflow-hidden text-ellipsis whitespace-nowrap"
-              variant="label"
-            >
-              {scene.authorName ?? `@${scene.authorHandle}`}
-            </Typography>
-            <Typography as="span" tone="tertiary" variant="monoXs">
-              {formatPublishedAt(scene.publishedAt)}
-            </Typography>
-          </div>
+          <Link
+            className="inline-flex min-w-0 items-center gap-[var(--ds-space-2)] rounded-[var(--ds-radius-control)] transition-opacity duration-160 hover:opacity-80"
+            href={profilePagePath(scene.authorHandle) as Route}
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            <AuthorAvatar
+              avatarUrl={scene.authorAvatarUrl}
+              name={scene.authorName ?? scene.authorHandle}
+              size={24}
+            />
+            <div className="flex min-w-0 flex-col">
+              <Typography
+                as="span"
+                className="overflow-hidden text-ellipsis whitespace-nowrap"
+                variant="label"
+              >
+                {scene.authorName ?? `@${scene.authorHandle}`}
+              </Typography>
+              <Typography as="span" tone="tertiary" variant="monoXs">
+                {formatPublishedAt(scene.publishedAt)}
+              </Typography>
+            </div>
+          </Link>
         </div>
 
         <div className="flex flex-col gap-[var(--ds-space-2)]">

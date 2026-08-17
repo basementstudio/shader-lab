@@ -8,6 +8,7 @@ import { isCommunityEnabled, isMediaConfigured } from "@/lib/community/config"
 import { ensureProfile } from "@/lib/community/profile"
 import {
   buildSceneSlug,
+  DRAFT_ID_PATTERN,
   MAX_LAB_BYTES,
   normalizeDescription,
   normalizeTitle,
@@ -18,8 +19,6 @@ import { putObject } from "@/lib/community/r2"
 import { verifyTurnstile } from "@/lib/community/turnstile"
 import { getDatabase } from "@/lib/db"
 import { sceneAssets, scenes } from "@/lib/db/schema"
-
-const DRAFT_ID_PATTERN = /^scn_[A-Za-z0-9_-]{16}$/
 
 function badRequest(error: string, status = 400) {
   return Response.json({ error }, { status })

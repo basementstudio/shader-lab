@@ -30,6 +30,7 @@ import {
   buildEditorHistorySnapshotFromState,
   getHistorySnapshotSignature,
 } from "@/lib/editor/history"
+import { getRequestedSceneSlug } from "@/lib/editor/requested-scene-slug"
 import { applyZoomAtPoint, getNextZoomStep } from "@/lib/editor/view-transform"
 import {
   registerHistoryShortcuts,
@@ -133,7 +134,7 @@ export function EditorTopBar() {
   const [hasOpenedCommunity, setHasOpenedCommunity] = useState(false)
 
   useEffect(() => {
-    const requested = new URLSearchParams(window.location.search).get("scene")
+    const requested = getRequestedSceneSlug()
 
     if (!requested) {
       return

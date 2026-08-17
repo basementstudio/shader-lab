@@ -1303,6 +1303,7 @@ export function EditorTimelineOverlay() {
               : { height: shellHeight, opacity: 1, width: shellWidth, y: 0 }
           }
           className="pointer-events-auto max-h-[min(380px,calc(100vh-268px))] origin-bottom"
+          data-timeline-shell=""
           initial={false}
           transition={
             reduceMotion

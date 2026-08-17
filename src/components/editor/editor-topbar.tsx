@@ -30,6 +30,7 @@ import {
   buildEditorHistorySnapshotFromState,
   getHistorySnapshotSignature,
 } from "@/lib/editor/history"
+import { isRestoringAutosave } from "@/lib/editor/autosave/suppress"
 import {
   clearRequestedSceneSlug,
   getRequestedSceneSlug,
@@ -268,7 +269,7 @@ export function EditorTopBar() {
     const unregisterShortcuts = registerHistoryShortcuts(handleUndo, handleRedo)
     const unsubscribeLayers = useLayerStore.subscribe(
       (state, previousState) => {
-        if (applyingHistoryRef.current) {
+        if (applyingHistoryRef.current || isRestoringAutosave()) {
           syncHistorySnapshotRefs()
           return
         }
@@ -302,7 +303,7 @@ export function EditorTopBar() {
 
     const unsubscribeTimeline = useTimelineStore.subscribe(
       (state, previousState) => {
-        if (applyingHistoryRef.current) {
+        if (applyingHistoryRef.current || isRestoringAutosave()) {
           syncHistorySnapshotRefs()
           return
         }
@@ -340,7 +341,7 @@ export function EditorTopBar() {
 
     const unsubscribeAudio = useAudioStore.subscribe(
       (state, previousState) => {
-        if (applyingHistoryRef.current) {
+        if (applyingHistoryRef.current || isRestoringAutosave()) {
           syncHistorySnapshotRefs()
           return
         }

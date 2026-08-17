@@ -166,6 +166,7 @@ export interface SceneListPage {
 }
 
 export async function listPublishedScenes(options?: {
+  authorHandle?: string | null
   cursor?: SceneCursor | null
   limit?: number
   query?: string
@@ -180,6 +181,10 @@ export async function listPublishedScenes(options?: {
 
   if (sort === "featured") {
     filters.push(sql`${scenes.featuredAt} is not null`)
+  }
+
+  if (options?.authorHandle) {
+    filters.push(eq(profiles.handle, options.authorHandle))
   }
 
   if (options?.cursor) {

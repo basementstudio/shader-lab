@@ -18,7 +18,7 @@ type NumberInputProps = Omit<
 }
 
 export const numberInputControlClassName =
-  "min-h-7 w-full appearance-none rounded-[var(--ds-radius-control)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-[8px] font-[var(--ds-font-mono)] text-[12px] leading-4 text-[var(--ds-color-text-primary)] outline-none transition-[background-color,border-color] duration-160 ease-[var(--ease-out-cubic)] focus:border-[var(--ds-border-hover)]"
+  "min-h-7 w-full appearance-none rounded-[var(--ds-radius-control)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-[8px] font-[var(--ds-font-mono)] text-[12px] leading-4 text-[var(--ds-color-text-primary)] outline-none transition-[background-color,border-color] duration-160 ease-[var(--ease-out-cubic)] placeholder:text-[var(--ds-color-text-muted)] focus:border-[var(--ds-border-hover)]"
 
 function defaultParseValue(value: string): number | null {
   const normalized = value.trim().replaceAll(",", ".")

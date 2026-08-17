@@ -18,11 +18,16 @@ interface CachedPage {
   scenes: CommunitySceneSummary[]
 }
 
-export function sceneListKey(sort: SceneSort, query: string): string {
-  return `${sort}|${query.trim().toLowerCase()}`
+export function sceneListKey(
+  sort: SceneSort,
+  query: string,
+  author?: string | null
+): string {
+  return `${author ?? ""}|${sort}|${query.trim().toLowerCase()}`
 }
 
 export function sceneListUrl(input: {
+  author?: string | null
   cursor?: string | null
   limit?: number
   query?: string
@@ -37,6 +42,10 @@ export function sceneListUrl(input: {
 
   if (query.length > 0) {
     params.set("q", query)
+  }
+
+  if (input.author) {
+    params.set("author", input.author)
   }
 
   if (input.cursor) {
@@ -69,6 +78,7 @@ export interface ScenePagesState {
 }
 
 export function useScenePages(input: {
+  author?: string | null
   enabled?: boolean
   initial?: CachedPage | null
   query?: string
@@ -77,7 +87,8 @@ export function useScenePages(input: {
   const enabled = input.enabled ?? true
   const query = input.query ?? ""
   const { sort } = input
-  const key = sceneListKey(sort, query)
+  const author = input.author ?? null
+  const key = sceneListKey(sort, query, author)
 
   const cache = useRef(new Map<string, CachedPage>())
   const inFlight = useRef<string | null>(null)
@@ -135,7 +146,7 @@ export function useScenePages(input: {
     let request = pending.current.get(key)
 
     if (!request) {
-      request = fetchScenePage(sceneListUrl({ query, sort }))
+      request = fetchScenePage(sceneListUrl({ author, query, sort }))
         .then((page) => {
           remember(key, page)
 
@@ -164,7 +175,7 @@ export function useScenePages(input: {
     return () => {
       cancelled = true
     }
-  }, [enabled, key, query, remember, sort])
+  }, [author, enabled, key, query, remember, sort])
 
   const loadMore = useCallback(() => {
     if (!(enabled && nextCursor) || inFlight.current === nextCursor) {
@@ -175,7 +186,9 @@ export function useScenePages(input: {
     setLoading(true)
     setError(false)
 
-    void fetchScenePage(sceneListUrl({ cursor: nextCursor, query, sort }))
+    void fetchScenePage(
+      sceneListUrl({ author, cursor: nextCursor, query, sort })
+    )
       .then((page) => {
         setScenes((current) => {
           const merged = mergeScenePages(current ?? [], page.scenes)
@@ -191,7 +204,7 @@ export function useScenePages(input: {
         inFlight.current = null
         setLoading(false)
       })
-  }, [enabled, key, nextCursor, query, remember, sort])
+  }, [author, enabled, key, nextCursor, query, remember, sort])
 
   const patch = useCallback(
     (slug: string, changes: Partial<CommunitySceneSummary>) => {

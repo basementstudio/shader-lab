@@ -1,9 +1,13 @@
 "use client"
 
+import { GearIcon } from "@radix-ui/react-icons"
 import { useEffect, useState } from "react"
 import { ProfileHeader } from "@/components/community/profile-header"
+import { useAccountProfile } from "@/components/community/profile-owner-actions"
 import { SceneCard } from "@/components/community/scene-card"
 import { SceneLoadMore } from "@/components/community/scene-load-more"
+import { UserSettingsDialog } from "@/components/community/user-settings-dialog"
+import { Button } from "@/components/ui/button"
 import { Typography } from "@/components/ui/typography"
 import type { PublicProfileView } from "@/lib/community/profiles"
 import type { CommunitySceneSummary } from "@/lib/community/scenes"
@@ -13,13 +17,17 @@ const SKELETON_KEYS = ["a", "b", "c", "d"] as const
 
 export function ProfilePanel({
   handle,
+  onRenamed,
   onSelect,
 }: {
   handle: string
+  onRenamed: (handle: string) => void
   onSelect: (scene: CommunitySceneSummary) => void
 }) {
   const [profile, setProfile] = useState<PublicProfileView | null>(null)
   const [failed, setFailed] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const account = useAccountProfile(handle)
   const { error, hasMore, loadMore, loading, scenes } = useScenePages({
     author: handle,
     sort: "latest",
@@ -54,8 +62,33 @@ export function ProfilePanel({
   return (
     <div className="h-full overflow-y-auto p-4">
       {profile ? (
-        <div className="mb-[var(--ds-space-5)]">
+        <div className="mb-[var(--ds-space-5)] flex flex-col gap-[var(--ds-space-3)]">
           <ProfileHeader avatarSize={44} profile={profile} />
+
+          {account.isOwner && account.profile ? (
+            <>
+              <Button
+                className="w-fit"
+                onClick={() => setSettingsOpen(true)}
+                size="compact"
+                variant="secondary"
+              >
+                <GearIcon height={13} width={13} />
+                User settings
+              </Button>
+
+              <UserSettingsDialog
+                onOpenChange={setSettingsOpen}
+                onRenamed={(next) => {
+                  setSettingsOpen(false)
+                  account.refresh()
+                  onRenamed(next)
+                }}
+                open={settingsOpen}
+                profile={account.profile}
+              />
+            </>
+          ) : null}
         </div>
       ) : null}
 

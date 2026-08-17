@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm"
 import { buildHandleCandidates } from "@/lib/community/handle"
 import { getDatabase } from "@/lib/db"
-import { profiles } from "@/lib/db/schema"
+import { handleClaims, profiles } from "@/lib/db/schema"
 
 export interface ProfileSeed {
   avatarUrl?: string | null
@@ -94,15 +94,18 @@ export async function ensureProfile(
 
   for (const handle of buildHandleCandidates(seed)) {
     try {
-      const inserted = await db
-        .insert(profiles)
-        .values({
-          avatarUrl: seed.avatarUrl ?? null,
-          displayName: seed.name ?? null,
-          handle,
-          userId,
-        })
-        .returning(RETURNING)
+      const [inserted] = await db.batch([
+        db
+          .insert(profiles)
+          .values({
+            avatarUrl: seed.avatarUrl ?? null,
+            displayName: seed.name ?? null,
+            handle,
+            userId,
+          })
+          .returning(RETURNING),
+        db.insert(handleClaims).values({ handle, userId }),
+      ])
 
       const row = inserted[0]
 

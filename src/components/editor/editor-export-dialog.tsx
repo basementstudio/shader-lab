@@ -55,6 +55,8 @@ import {
   hasImportedCustomShaderCode,
   parseLabProjectFile,
 } from "@/lib/editor/project-file"
+import { requestAutosave } from "@/lib/editor/autosave/bus"
+import { withAutosaveSuppressed } from "@/lib/editor/autosave/suppress"
 import {
   buildShaderExportConfig,
   validateShaderExportSupport,
@@ -851,10 +853,11 @@ export function EditorExportDialog({
         return
       }
 
-      const result = applyLabProjectFile(
-        projectFile,
-        useAssetStore.getState().assets
+      const result = withAutosaveSuppressed(() =>
+        applyLabProjectFile(projectFile, useAssetStore.getState().assets)
       )
+
+      requestAutosave()
 
       const relinkNotes: string[] = []
 

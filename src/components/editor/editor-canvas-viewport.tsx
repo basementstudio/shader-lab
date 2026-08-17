@@ -23,6 +23,7 @@ import {
   getWheelZoomFactor,
 } from "@/lib/editor/view-transform"
 import { getCompositionFrame } from "@/lib/editor/composition"
+import { getRequestedSceneSlug } from "@/lib/editor/requested-scene-slug"
 import { getSeedableMediaDuration } from "@/lib/editor/timeline-duration"
 import { useAssetStore } from "@/store/asset-store"
 import { useEditorStore } from "@/store/editor-store"
@@ -50,7 +51,7 @@ export function EditorCanvasViewport() {
   const canvasSize = useEditorStore((state) => state.canvasSize)
 
   useEffect(() => {
-    const requested = new URLSearchParams(window.location.search).get("scene")
+    const requested = getRequestedSceneSlug()
 
     if (!requested) {
       return

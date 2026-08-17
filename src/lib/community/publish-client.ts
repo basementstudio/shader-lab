@@ -93,13 +93,15 @@ export interface PublishPlan {
   totalBytes: number
 }
 
-function inspectScene(): {
+function inspectScene(options: { prune: boolean }): {
   localAssets: EditorAsset[]
   plan: PublishPlan
   projectFile: LabProjectFile
 } {
   const source = buildLabProjectFile()
-  const projectFile = buildPublishableProjectFile(source)
+  const projectFile = options.prune
+    ? buildPublishableProjectFile(source)
+    : source
   const referencedIds = new Set(projectFile.assets.map((asset) => asset.id))
   const localAssets = useAssetStore
     .getState()
@@ -108,7 +110,9 @@ function inspectScene(): {
     )
 
   let problem: string | null =
-    projectFile.layers.length === 0 ? EMPTY_SCENE_MESSAGE : null
+    options.prune && projectFile.layers.length === 0
+      ? EMPTY_SCENE_MESSAGE
+      : null
   let totalBytes = 0
 
   for (const asset of localAssets) {
@@ -136,7 +140,7 @@ function inspectScene(): {
 }
 
 export function describePublishPlan(): PublishPlan {
-  return inspectScene().plan
+  return inspectScene({ prune: true }).plan
 }
 
 export async function publishScene(input: {
@@ -145,7 +149,7 @@ export async function publishScene(input: {
   title: string
   turnstileToken?: string | null
 }): Promise<PublishResult> {
-  const { localAssets, plan, projectFile } = inspectScene()
+  const { localAssets, plan, projectFile } = inspectScene({ prune: true })
 
   if (plan.problem) {
     throw new Error(plan.problem)

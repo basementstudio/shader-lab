@@ -166,9 +166,6 @@ interface StoredUpload {
   url: string
 }
 
-// Reading and hashing a 100 MB video costs the same whether or not anything
-// changed, so what a draft already holds is remembered for the session. Keyed by
-// draft as well as asset, because the url points inside one draft's prefix.
 const storedUploads = new Map<string, StoredUpload>()
 
 function storedKey(draftId: string, assetId: string): string {
@@ -199,8 +196,6 @@ async function readDraftUploads(input: {
       continue
     }
 
-    // One file being too large for the server must not stop the rest of the
-    // scene from being saved.
     if (
       describeUploadLimit({
         fileName: asset.fileName,
@@ -232,9 +227,6 @@ export async function saveDraft(input?: {
     localAssets,
   })
 
-  // Captured on the first save so the drafts list has something to show, and
-  // skipped afterwards: it is a full GPU render behind the preview lock, which
-  // would stutter the editor on every keystroke-fast save.
   const wantsThumbnail = input?.withThumbnail ?? activeDraft === null
   let thumbnail: { bytes: ArrayBuffer; sha256: string } | null = null
 

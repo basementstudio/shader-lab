@@ -855,8 +855,6 @@ export function EditorExportDialog({
       }
 
       const result = withAutosaveSuppressed(() => {
-        // An imported file is a different scene, so it must not save over the
-        // draft that was open before.
         useDraftStore.getState().clearActiveDraft()
 
         return applyLabProjectFile(projectFile, useAssetStore.getState().assets)

@@ -304,8 +304,6 @@ export function CommunityModal({
             slug: scene.slug,
             title: scene.title,
           })
-          // A remix is somebody else's scene, so it must not save over whatever
-          // draft was open a moment ago.
           useDraftStore.getState().clearActiveDraft()
         })
 
@@ -339,16 +337,15 @@ export function CommunityModal({
     autoOpened.current = true
 
     void (async () => {
-      try {
-        const res = await fetch(`/api/community/scenes/${autoOpenSlug}`)
-        const data = (await res.json()) as { scene?: CommunitySceneDetail }
+      const scene = await fetch(`/api/community/scenes/${autoOpenSlug}`)
+        .then((res) => res.json() as Promise<{ scene?: CommunitySceneDetail }>)
+        .then((data) => data.scene ?? null)
+        .catch(() => null)
 
-        if (data.scene) {
-          await remix(data.scene, { auto: true })
-          return
-        }
-      } catch {
-        // fall through to the browser below
+      if (scene) {
+        await remix(scene, { auto: true })
+
+        return
       }
 
       setError("That scene is no longer available.")

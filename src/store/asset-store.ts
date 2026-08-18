@@ -212,9 +212,6 @@ export const useAssetStore = create<AssetStore>((set, get) => ({
       }
     }
 
-    // Durable before the asset is handed back, so an autosave can never record a
-    // reference to bytes that are still in flight. A refusal is fine and still
-    // yields a usable asset for this session.
     await persistAssetBlob(asset, file)
 
     set((state) => ({

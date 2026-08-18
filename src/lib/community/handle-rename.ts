@@ -159,11 +159,6 @@ async function claimHandleAtomically(input: {
   const cutoff = new Date(input.now.getTime() - HANDLE_RENAME_COOLDOWN_MS)
   const db = getDatabase()
 
-  // A conditional update of one row is the only thing Postgres serialises for
-  // us here: concurrent writers block on the row and re-evaluate the predicate,
-  // so exactly one can win. Counting claims in a subquery would not, because
-  // each statement reads its own snapshot and two different target handles
-  // would both pass.
   const won = await db
     .update(profiles)
     .set({ handle: input.handle, handleRenamedAt: input.now, updatedAt: input.now })

@@ -246,9 +246,6 @@ export async function listScenesByAuthor(
     .where(
       and(
         eq(scenes.authorId, authorId),
-        // Drafts belong to the Drafts tab. Excluded by status rather than by
-        // selecting published, so the author still sees processing and takendown
-        // scenes, which is what the status badge is for.
         ne(scenes.status, "draft"),
         isNull(scenes.deletedAt)
       )

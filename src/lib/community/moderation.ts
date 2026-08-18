@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull, ne, sql } from "drizzle-orm"
+import { and, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm"
 import { nanoid } from "nanoid"
 import type { CommunitySession } from "@/lib/auth/server"
 import { isAdminEmail } from "@/lib/community/config"
@@ -75,7 +75,7 @@ async function collectDeletableKeys(sceneId: string): Promise<{
         and(
           eq(sceneAssets.url, asset.url),
           ne(sceneAssets.sceneId, sceneId),
-          eq(scenes.status, "published"),
+          inArray(scenes.status, ["draft", "processing", "published"]),
           isNull(scenes.deletedAt)
         )
       )

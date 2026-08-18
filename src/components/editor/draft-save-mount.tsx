@@ -8,6 +8,7 @@ import { GlassPanel } from "@/components/ui/glass-panel"
 import { IconButton } from "@/components/ui/icon-button"
 import { Typography } from "@/components/ui/typography"
 import { authClient } from "@/lib/auth/client"
+import { DEFAULT_DRAFT_TITLE } from "@/lib/community/upload-limits"
 import {
   type DraftSaveRequest,
   registerDraftSaver,
@@ -63,7 +64,13 @@ export function DraftSaveMount() {
                 message: `${saved}. ${result.skipped.join(", ")} ${result.skipped.length === 1 ? "was" : "were"} too large to upload.`,
                 tone: "error",
               }
-            : { message: `${saved} · ${result.title}`, tone: "success" }
+            : {
+                message:
+                  result.title === DEFAULT_DRAFT_TITLE
+                    ? saved
+                    : `${saved} · ${result.title}`,
+                tone: "success",
+              }
         )
       } catch (cause) {
         setNotice({

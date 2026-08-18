@@ -10,7 +10,11 @@ import {
   reserveBytes,
   validateDraftPayload,
 } from "@/lib/community/publish"
-import { putObject } from "@/lib/community/r2"
+import {
+  keyFromPublicUrl,
+  putObject,
+  scenePrefixOf,
+} from "@/lib/community/r2"
 import { getDatabase } from "@/lib/db"
 import { sceneAssets, scenes } from "@/lib/db/schema"
 
@@ -101,31 +105,31 @@ export async function PUT(
     return fail("Unknown draft.", 404)
   }
 
-  // Without this a PUT against a published scene's id would swap its content,
-  // skipping Turnstile and leaving no moderation trail.
   if (existing && existing.status !== "draft") {
     return fail("This scene has already been published.", 409)
   }
 
   const priorAssets = await db
-    .select({ sha256: sceneAssets.sha256 })
+    .select({ assetId: sceneAssets.assetId })
     .from(sceneAssets)
     .where(eq(sceneAssets.sceneId, draftId))
 
-  const charged = new Set(
-    priorAssets.flatMap((row) => (row.sha256 ? [row.sha256] : []))
-  )
+  const charged = new Set(priorAssets.map((row) => row.assetId))
+  const ownPrefix = `scenes/${draftId}`
 
-  // The lab file overwrites one key in place, so it is charged when the draft is
-  // created and not on every save; assets are charged the first time their
-  // content hash appears under this draft.
-  const bytes = validated.projectFile.assets.reduce(
-    (sum, asset) =>
-      asset.sha256 && charged.has(asset.sha256)
-        ? sum
-        : sum + (asset.sizeBytes ?? 0),
-    existing ? 0 : raw.length
-  )
+  const bytes = validated.projectFile.assets.reduce((sum, asset) => {
+    if (charged.has(asset.id)) {
+      return sum
+    }
+
+    const key = keyFromPublicUrl(asset.url ?? "")
+
+    if (!key || scenePrefixOf(key) !== ownPrefix) {
+      return sum
+    }
+
+    return sum + (asset.sizeBytes ?? 0)
+  }, existing ? 0 : raw.length)
 
   if (bytes > 0) {
     const quota = await reserveBytes(profile.userId, bytes)
@@ -142,9 +146,6 @@ export async function PUT(
     typeof payload.thumbnailUrl === "string" ? payload.thumbnailUrl : null
   const title = normalizeDraftTitle(payload.title)
 
-  // Written before the row, so a row can never point at a lab file that is not
-  // there. A stray object with no row is invisible and the next save overwrites
-  // it, which is the cheaper of the two failures.
   await putObject({
     body: raw,
     contentType: "application/json",
@@ -187,8 +188,6 @@ export async function PUT(
     })
     .returning({ id: scenes.id })
 
-  // The read above is for the error message; this is the guard that holds, so a
-  // row that changed hands between the two still cannot be written.
   if (saved.length === 0) {
     return fail("This draft can no longer be saved.", 409)
   }
@@ -209,8 +208,6 @@ export async function PUT(
     width: asset.width ?? null,
   }))
 
-  // Replaced wholesale rather than upserted, so a layer the user deleted stops
-  // holding its media alive.
   await db.delete(sceneAssets).where(eq(sceneAssets.sceneId, draftId))
 
   if (assetRows.length > 0) {

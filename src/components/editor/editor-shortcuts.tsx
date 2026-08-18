@@ -34,8 +34,6 @@ export function EditorShortcuts() {
       !(event.altKey || event.shiftKey) &&
       event.key.toLowerCase() === "s"
     ) {
-      // The browser reads this as "save page", which is never what someone in an
-      // editor meant by it.
       event.preventDefault()
       requestDraftSave()
 

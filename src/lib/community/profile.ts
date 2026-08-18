@@ -65,8 +65,6 @@ const RETURNING = {
   userId: profiles.userId,
 }
 
-// A profile written before handles were being claimed has no row here, which
-// would leave its handle unprotected and unable to redirect after a rename.
 async function backfillMissingClaim(
   profile: CommunityProfile
 ): Promise<void> {

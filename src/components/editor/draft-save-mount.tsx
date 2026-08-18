@@ -36,7 +36,6 @@ export function DraftSaveMount() {
       return
     }
 
-    // Mashing the shortcut must not start a second upload of the same media.
     if (savingRef.current) {
       return
     }

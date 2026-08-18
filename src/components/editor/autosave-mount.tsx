@@ -194,8 +194,6 @@ export function AutosaveMount() {
         return
       }
 
-      // The editor is usable before this lookup finishes. Anything typed in that
-      // window is real work and outranks the record on disk.
       if (editedBeforeReadyRef.current) {
         readyRef.current = true
         scheduler.request()
@@ -214,8 +212,6 @@ export function AutosaveMount() {
           return
         }
 
-        // Re-checked here rather than only before the read: reading the blobs is
-        // a second gap in which someone can start working.
         if (editedBeforeReadyRef.current) {
           readyRef.current = true
           scheduler.request()
@@ -245,8 +241,6 @@ export function AutosaveMount() {
             useRemixOriginStore.getState().setRemixOrigin(candidate.remixOrigin)
           }
 
-          // Without this every save after a refresh would mint a new draft row
-          // and re-upload every asset.
           if (candidate.activeDraft) {
             useDraftStore.getState().setActiveDraft(candidate.activeDraft)
           }
@@ -403,7 +397,6 @@ export function AutosaveMount() {
 
     void forgetOwnAutosaveRecord()
 
-    // The discarded scene lives under the session that wrote it, not this one.
     if (restoredFrom) {
       void forgetAutosaveRecord(restoredFrom)
     }

@@ -33,9 +33,6 @@ type DraftClaim =
   | { draftId: string }
   | { error: string; status: number }
 
-// A caller-supplied id decides where the presigned PUTs land, so it has to be
-// proved to be theirs first: without this an attacker signs an upload into
-// someone else's scene prefix and overwrites a published scene's media.
 async function claimDraftId(input: {
   authorId: string
   requested: unknown
@@ -63,8 +60,6 @@ async function claimDraftId(input: {
     return { draftId: input.requested }
   }
 
-  // 404 rather than 403 for someone else's id, so this cannot be used to ask
-  // whether an id exists.
   if (existing.authorId !== input.authorId) {
     return { error: "Unknown draft.", status: 404 }
   }

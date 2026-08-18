@@ -203,9 +203,6 @@ async function reserve(input: {
 
   const added = input.addScene ? 1 : 0
 
-  // Drafts write here on every save, so the counters move in SQL rather than
-  // being read, added to in JS and written back — two saves in flight would
-  // otherwise agree on the old total and one of them would vanish.
   await db
     .insert(uploadQuota)
     .values({

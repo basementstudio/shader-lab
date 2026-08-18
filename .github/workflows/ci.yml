@@ -32,6 +32,11 @@ jobs:
       - name: Type check MCP package
         run: bun run --cwd packages/shader-lab-mcp typecheck
 
+      - name: Check MCP shader reference snapshot is current
+        run: |
+          bun run --cwd packages/shader-lab-mcp generate
+          git diff --exit-code packages/shader-lab-mcp/src/lib/shader-reference-data.ts
+
       - name: Build package
         run: bun run --cwd packages/shader-lab-react build
 

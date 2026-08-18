@@ -14,6 +14,7 @@ import {
   resolveDatabaseUrl,
   resolvedVarName,
 } from "@/lib/community/env"
+import { isAuthTraceEnabled } from "@/lib/auth/trace"
 
 function present(name: string): boolean {
   return Boolean(process.env[name]?.trim())
@@ -35,6 +36,10 @@ function hostOf(value: string | undefined): string | null {
 
 export async function GET() {
   await connection()
+
+  if (!isAuthTraceEnabled()) {
+    return Response.json({ error: "Not enabled." }, { status: 404 })
+  }
 
   return Response.json({
     capabilities: {

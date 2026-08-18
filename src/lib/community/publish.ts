@@ -3,6 +3,7 @@ import { nanoid } from "nanoid"
 import { getDatabase } from "@/lib/db"
 import { scenes, uploadQuota } from "@/lib/db/schema"
 import { slugifyHandle } from "@/lib/community/handle"
+import { DEFAULT_DRAFT_TITLE } from "@/lib/community/upload-limits"
 import { isAllowedAssetOrigin } from "@/lib/editor/remote-asset"
 import type { LabProjectFile } from "@/lib/editor/project-file"
 import {
@@ -115,8 +116,6 @@ export function normalizeTitle(value: unknown): string {
 
   return title.slice(0, MAX_TITLE_LENGTH)
 }
-
-export const DEFAULT_DRAFT_TITLE = "Untitled draft"
 
 export function normalizeDraftTitle(value: unknown): string {
   const title = typeof value === "string" ? value.trim() : ""

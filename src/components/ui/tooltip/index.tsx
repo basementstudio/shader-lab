@@ -45,7 +45,7 @@ export function HoverTooltip({
       <Tooltip.Portal>
         <Tooltip.Positioner
           align={align}
-          className="z-[80]"
+          className="z-[100]"
           side={side}
           sideOffset={sideOffset}
         >

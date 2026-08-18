@@ -104,6 +104,11 @@ export const scenes = pgTable(
       table.status,
       table.publishedAt.desc()
     ),
+    index("scenes_author_status_updated_idx").on(
+      table.authorId,
+      table.status,
+      table.updatedAt.desc()
+    ),
     index("scenes_featured_idx").on(table.featuredAt.desc()),
     index("scenes_forked_from_idx").on(table.forkedFromId),
     index("scenes_layer_types_idx").using("gin", table.layerTypes),

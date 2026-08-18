@@ -9,6 +9,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { AuthMenu } from "@/components/community/auth-menu"
+import { DraftsGrid } from "@/components/community/drafts-grid"
 import { MyScenesGrid } from "@/components/community/my-scenes-grid"
 import { ProfilePanel } from "@/components/community/profile-panel"
 import { SceneCard } from "@/components/community/scene-card"
@@ -25,6 +26,7 @@ import { cn } from "@/lib/cn"
 import { getAnonId } from "@/lib/community/anon-id"
 import type {
   AuthoredScene,
+  DraftSummary,
   CommunitySceneDetail,
   CommunitySceneSummary,
   SceneSort,
@@ -51,9 +53,13 @@ const SORT_TABS: readonly { label: string; value: SceneSort }[] = [
   { label: "Latest", value: "latest" },
 ]
 
-const VIEW_TABS: readonly { label: string; value: "explore" | "mine" }[] = [
+const VIEW_TABS: readonly {
+  label: string
+  value: "drafts" | "explore" | "mine"
+}[] = [
   { label: "Explore", value: "explore" },
   { label: "My scenes", value: "mine" },
+  { label: "Drafts", value: "drafts" },
 ]
 
 const TAB_CLASS_NAME =
@@ -75,9 +81,12 @@ export function CommunityModal({
   const reduceMotion = useReducedMotion() ?? false
   const { data: session } = authClient.useSession()
   const [mounted, setMounted] = useState(false)
-  const [tab, setTab] = useState<"explore" | "mine">("explore")
+  const [tab, setTab] = useState<"drafts" | "explore" | "mine">("explore")
   const [mine, setMine] = useState<AuthoredScene[] | null>(null)
   const [mineFailed, setMineFailed] = useState(false)
+  const [drafts, setDrafts] = useState<DraftSummary[] | null>(null)
+  const [draftsFailed, setDraftsFailed] = useState(false)
+  const [busyDraftId, setBusyDraftId] = useState<string | null>(null)
   const [upvoted, setUpvoted] = useState<Set<string>>(new Set())
   const [sort, setSort] = useState<SceneSort>("popular")
   const [search, setSearch] = useState("")
@@ -119,6 +128,7 @@ export function CommunityModal({
     if (!session?.user) {
       setTab("explore")
       setMine(null)
+      setDrafts(null)
       setUpvoted(new Set())
     }
   }, [session?.user])
@@ -189,6 +199,27 @@ export function CommunityModal({
       cancelled = true
     }
   }, [open, session?.user])
+
+  const loadDrafts = useCallback(() => {
+    setDrafts(null)
+    setDraftsFailed(false)
+
+    return fetch("/api/community/me/drafts")
+      .then((res) => res.json() as Promise<{ drafts?: DraftSummary[] }>)
+      .then((data) => setDrafts(data.drafts ?? []))
+      .catch(() => {
+        setDrafts([])
+        setDraftsFailed(true)
+      })
+  }, [])
+
+  useEffect(() => {
+    if (!(open && session?.user && tab === "drafts")) {
+      return
+    }
+
+    void loadDrafts()
+  }, [loadDrafts, open, session?.user, tab])
 
   useEffect(() => {
     if (!open) {
@@ -276,6 +307,75 @@ export function CommunityModal({
     setConsentTitle(null)
     resolve?.(granted)
   }, [])
+
+  const openDraft = useCallback(
+    async (draft: DraftSummary) => {
+      setBusyDraftId(draft.id)
+      setError(null)
+
+      try {
+        const res = await fetch(draft.labUrl)
+
+        if (!res.ok) {
+          throw new Error("Could not load that draft.")
+        }
+
+        const projectFile = parseLabProjectFile(await res.text())
+
+        withAutosaveSuppressed(() => {
+          applyLabProjectFile(projectFile, useAssetStore.getState().assets)
+          useRemixOriginStore.getState().clearRemixOrigin()
+          useDraftStore.getState().setActiveDraft({
+            id: draft.id,
+            savedAt: draft.updatedAt,
+            title: draft.title,
+          })
+        })
+
+        requestAutosave()
+        onOpenChange(false)
+      } catch (cause) {
+        setError(
+          cause instanceof Error ? cause.message : "Could not load that draft."
+        )
+      } finally {
+        setBusyDraftId(null)
+      }
+    },
+    [onOpenChange]
+  )
+
+  const deleteDraft = useCallback(
+    async (draft: DraftSummary) => {
+      setBusyDraftId(draft.id)
+      setError(null)
+
+      try {
+        const res = await fetch(`/api/community/scenes/${draft.id}`, {
+          method: "DELETE",
+        })
+
+        if (!res.ok) {
+          throw new Error("Could not delete that draft.")
+        }
+
+        if (useDraftStore.getState().activeDraft?.id === draft.id) {
+          useDraftStore.getState().clearActiveDraft()
+        }
+
+        setDrafts((current) =>
+          (current ?? []).filter((entry) => entry.id !== draft.id)
+        )
+      } catch (cause) {
+        setError(
+          cause instanceof Error ? cause.message : "Could not delete that draft."
+        )
+      } finally {
+        setBusyDraftId(null)
+      }
+    },
+    []
+  )
 
   const remix = useCallback(
     async (scene: CommunitySceneDetail, options?: { auto?: boolean }) => {
@@ -663,6 +763,48 @@ export function CommunityModal({
 
                       {mine && mine.length > 0 ? (
                         <MyScenesGrid onSelect={openScene} scenes={mine} />
+                      ) : null}
+                    </div>
+                  ) : null}
+
+                  {!(selected || selectedHandle) && tab === "drafts" ? (
+                    <div className="h-full overflow-y-auto p-4">
+                      {drafts === null && !error ? (
+                        <div className="grid grid-cols-2 gap-[var(--ds-space-4)] min-[720px]:grid-cols-4">
+                          {SKELETON_KEYS.slice(0, 4).map((key) => (
+                            <div
+                              className="flex animate-pulse flex-col gap-[var(--ds-space-2)]"
+                              key={key}
+                            >
+                              <div className="aspect-[16/10] w-full rounded-[8px] border border-[var(--ds-border-subtle)] bg-[var(--ds-color-surface-subtle)]" />
+                              <div className="h-[10px] w-3/5 rounded-[3px] bg-[var(--ds-color-surface-subtle)]" />
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+
+                      {drafts?.length === 0 ? (
+                        <div className="flex h-full flex-col items-center justify-center gap-[var(--ds-space-3)]">
+                          <Typography
+                            align="center"
+                            as="p"
+                            tone="tertiary"
+                            variant="caption"
+                          >
+                            {draftsFailed
+                              ? "Could not load your drafts."
+                              : "No drafts yet. Press \u2318S in the editor to save one."}
+                          </Typography>
+                        </div>
+                      ) : null}
+
+                      {drafts && drafts.length > 0 ? (
+                        <DraftsGrid
+                          busyId={busyDraftId}
+                          drafts={drafts}
+                          onDelete={deleteDraft}
+                          onOpen={openDraft}
+                        />
                       ) : null}
                     </div>
                   ) : null}

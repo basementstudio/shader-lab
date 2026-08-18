@@ -256,6 +256,58 @@ export async function listScenesByAuthor(
   return rows.map((row) => ({ ...toSummary(row), status: row.status }))
 }
 
+export interface DraftSummary {
+  compositionHeight: number
+  compositionWidth: number
+  durationSeconds: number
+  id: string
+  labUrl: string
+  layerTypes: LayerType[]
+  thumbnailUrl: string | null
+  title: string
+  updatedAt: string
+}
+
+export async function listDraftsByAuthor(
+  authorId: string,
+  limit = 60
+): Promise<DraftSummary[]> {
+  const rows = await getDatabase()
+    .select({
+      compositionHeight: scenes.compositionHeight,
+      compositionWidth: scenes.compositionWidth,
+      durationSeconds: scenes.durationSeconds,
+      id: scenes.id,
+      labKey: scenes.labKey,
+      layerTypes: scenes.layerTypes,
+      thumbnailImageId: scenes.thumbnailImageId,
+      title: scenes.title,
+      updatedAt: scenes.updatedAt,
+    })
+    .from(scenes)
+    .where(
+      and(
+        eq(scenes.authorId, authorId),
+        eq(scenes.status, "draft"),
+        isNull(scenes.deletedAt)
+      )
+    )
+    .orderBy(desc(scenes.updatedAt))
+    .limit(Math.min(Math.max(limit, 1), 100))
+
+  return rows.map((row) => ({
+    compositionHeight: row.compositionHeight,
+    compositionWidth: row.compositionWidth,
+    durationSeconds: row.durationSeconds,
+    id: row.id,
+    labUrl: resolveLabUrl(row.labKey),
+    layerTypes: row.layerTypes as LayerType[],
+    thumbnailUrl: resolveThumbnailUrl(row.thumbnailImageId),
+    title: row.title,
+    updatedAt: row.updatedAt.toISOString(),
+  }))
+}
+
 export interface AuthoredSceneDetail {
   authorId: string
   detail: CommunitySceneDetail

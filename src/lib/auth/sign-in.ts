@@ -1,4 +1,3 @@
-import { authClient } from "@/lib/auth/client"
 import { flushAutosave } from "@/lib/editor/autosave/bus"
 import { markAutosaveResume } from "@/lib/editor/autosave/resume"
 
@@ -19,21 +18,46 @@ function rememberReturnTo() {
   }
 }
 
+async function resolveAuthorizeUrl(
+  provider: SocialProvider
+): Promise<string | null> {
+  try {
+    const res = await fetch("/api/auth/sign-in/social", {
+      body: JSON.stringify({
+        callbackURL: AUTH_CALLBACK_PATH,
+        disableRedirect: true,
+        provider,
+      }),
+      headers: { "Content-Type": "application/json" },
+      method: "POST",
+    })
+
+    if (!res.ok) {
+      return null
+    }
+
+    const data = (await res.json()) as { url?: unknown }
+
+    return typeof data.url === "string" && data.url.length > 0 ? data.url : null
+  } catch {
+    return null
+  }
+}
+
 export async function startSignIn(
   provider: SocialProvider
 ): Promise<"failed" | null> {
+  const url = await resolveAuthorizeUrl(provider)
+
+  if (!url) {
+    return "failed"
+  }
+
   await flushAutosave()
   rememberReturnTo()
   markAutosaveResume()
 
-  try {
-    const result = await authClient.signIn.social({
-      callbackURL: AUTH_CALLBACK_PATH,
-      provider,
-    })
+  window.location.href = url
 
-    return result?.error ? "failed" : null
-  } catch {
-    return "failed"
-  }
+  return null
 }

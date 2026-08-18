@@ -16,6 +16,7 @@ import {
   scenePrefixOf,
 } from "@/lib/community/r2"
 import { MAX_DRAFTS_PER_AUTHOR } from "@/lib/community/upload-limits"
+import { resolveForkedFromId } from "@/lib/community/scenes"
 import { getDatabase } from "@/lib/db"
 import { sceneAssets, scenes } from "@/lib/db/schema"
 
@@ -49,6 +50,7 @@ export async function PUT(
   }
 
   let payload: {
+    forkedFromSlug?: unknown
     projectFile?: unknown
     thumbnailUrl?: unknown
     title?: unknown
@@ -166,6 +168,7 @@ export async function PUT(
   const thumbnailUrl =
     typeof payload.thumbnailUrl === "string" ? payload.thumbnailUrl : null
   const title = normalizeDraftTitle(payload.title)
+  const forkedFromId = await resolveForkedFromId(payload.forkedFromSlug)
 
   await putObject({
     body: raw,
@@ -180,6 +183,7 @@ export async function PUT(
       compositionHeight: Math.round(composition.height),
       compositionWidth: Math.round(composition.width),
       durationSeconds: validated.projectFile.timeline.duration,
+      forkedFromId,
       hasCustomShader: validated.hasCustomShader,
       id: draftId,
       labKey,
@@ -198,6 +202,7 @@ export async function PUT(
         durationSeconds: validated.projectFile.timeline.duration,
         hasCustomShader: validated.hasCustomShader,
         labKey,
+        ...(forkedFromId ? { forkedFromId } : {}),
         labVersion: validated.projectFile.version,
         layerTypes: validated.layerTypes,
         title,

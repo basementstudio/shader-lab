@@ -331,6 +331,7 @@ async function runDraftSave(input: {
 
   const saveResponse = await fetch(`/api/community/drafts/${draftId}`, {
     body: JSON.stringify({
+      forkedFromSlug: useRemixOriginStore.getState().origin?.slug ?? null,
       projectFile: JSON.stringify(savable),
       thumbnailUrl: thumbnailTarget?.publicUrl ?? null,
       title: input.title ?? activeDraft?.title ?? null,

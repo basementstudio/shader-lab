@@ -17,32 +17,13 @@ import {
   validateProjectFilePayload,
 } from "@/lib/community/publish"
 import { putObject } from "@/lib/community/r2"
+import { resolveForkedFromId } from "@/lib/community/scenes"
 import { verifyTurnstile } from "@/lib/community/turnstile"
 import { getDatabase } from "@/lib/db"
 import { sceneAssets, scenes } from "@/lib/db/schema"
 
 function badRequest(error: string, status = 400) {
   return Response.json({ error }, { status })
-}
-
-async function resolveForkedFromId(slug: unknown): Promise<string | null> {
-  if (typeof slug !== "string" || slug.length === 0 || slug.length > 120) {
-    return null
-  }
-
-  const rows = await getDatabase()
-    .select({ id: scenes.id })
-    .from(scenes)
-    .where(
-      and(
-        eq(scenes.slug, slug),
-        eq(scenes.status, "published"),
-        isNull(scenes.deletedAt)
-      )
-    )
-    .limit(1)
-
-  return rows[0]?.id ?? null
 }
 
 export async function POST(
@@ -145,6 +126,7 @@ export async function POST(
     .select({
       authorId: scenes.authorId,
       deletedAt: scenes.deletedAt,
+      forkedFromId: scenes.forkedFromId,
       labKey: scenes.labKey,
       publishedAt: scenes.publishedAt,
       slug: scenes.slug,
@@ -177,7 +159,10 @@ export async function POST(
     return badRequest(quota.reason ?? "Quota exceeded.", 429)
   }
 
-  const forkedFromId = await resolveForkedFromId(payload.forkedFromSlug)
+  const forkedFromId =
+    (await resolveForkedFromId(payload.forkedFromSlug)) ??
+    prior?.forkedFromId ??
+    null
   const slug = buildSceneSlug(title)
 
   const shared = {

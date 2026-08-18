@@ -6,7 +6,7 @@ import {
   type LabProjectFile,
 } from "@/lib/editor/project-file"
 import { useAssetStore } from "@/store/asset-store"
-import { useDraftStore } from "@/store/draft-store"
+import { type ActiveDraft, useDraftStore } from "@/store/draft-store"
 import { useRemixOriginStore } from "@/store/remix-origin-store"
 import { useTimelineStore } from "@/store/timeline-store"
 import type { EditorAsset, PresetAssetReference } from "@/types/editor"
@@ -155,6 +155,7 @@ export function describePublishPlan(): PublishPlan {
 }
 
 export interface SaveDraftResult {
+  created: boolean
   id: string
   savedAt: string | null
   skipped: string[]
@@ -216,29 +217,40 @@ async function readDraftUploads(input: {
   return { known, pending, skipped }
 }
 
-export async function saveDraft(input?: {
-  title?: string
-  withThumbnail?: boolean
-}): Promise<SaveDraftResult> {
-  const { localAssets, projectFile } = inspectScene({ prune: false })
-  const activeDraft = useDraftStore.getState().activeDraft
-  const { known, pending, skipped } = await readDraftUploads({
-    draftId: activeDraft?.id ?? null,
-    localAssets,
-  })
-
-  const wantsThumbnail = input?.withThumbnail ?? activeDraft === null
-  let thumbnail: { bytes: ArrayBuffer; sha256: string } | null = null
-
-  if (wantsThumbnail) {
-    const { max } = getThumbnailTimeBounds(projectFile.timeline.duration)
+async function captureDraftThumbnail(
+  duration: number
+): Promise<{ bytes: ArrayBuffer; sha256: string } | null> {
+  try {
+    const { max } = getThumbnailTimeBounds(duration)
     const blob = await captureThumbnail(
       Math.min(max, useTimelineStore.getState().currentTime)
     )
     const bytes = await blob.arrayBuffer()
 
-    thumbnail = { bytes, sha256: await sha256Hex(bytes) }
+    return { bytes, sha256: await sha256Hex(bytes) }
+  } catch {
+    return null
   }
+}
+
+class DraftGoneError extends Error {}
+
+async function runDraftSave(input: {
+  activeDraft: ActiveDraft | null
+  title?: string
+  withThumbnail?: boolean
+}): Promise<SaveDraftResult> {
+  const { localAssets, projectFile } = inspectScene({ prune: false })
+  const activeDraft = input.activeDraft
+  const { known, pending, skipped } = await readDraftUploads({
+    draftId: activeDraft?.id ?? null,
+    localAssets,
+  })
+
+  const thumbnail =
+    (input.withThumbnail ?? true)
+      ? await captureDraftThumbnail(projectFile.timeline.duration)
+      : null
 
   const response = await fetch("/api/community/drafts", {
     body: JSON.stringify({
@@ -273,6 +285,10 @@ export async function saveDraft(input?: {
   }
 
   if (!(response.ok && prepared.draftId && prepared.uploads)) {
+    if (activeDraft && (response.status === 404 || response.status === 409)) {
+      throw new DraftGoneError()
+    }
+
     throw new Error(prepared.error ?? "Could not save this draft.")
   }
 
@@ -317,7 +333,7 @@ export async function saveDraft(input?: {
     body: JSON.stringify({
       projectFile: JSON.stringify(savable),
       thumbnailUrl: thumbnailTarget?.publicUrl ?? null,
-      title: input?.title ?? activeDraft?.title ?? null,
+      title: input.title ?? activeDraft?.title ?? null,
     }),
     headers: { "content-type": "application/json" },
     method: "PUT",
@@ -329,6 +345,13 @@ export async function saveDraft(input?: {
   }
 
   if (!(saveResponse.ok && saved.draft)) {
+    if (
+      activeDraft &&
+      (saveResponse.status === 404 || saveResponse.status === 409)
+    ) {
+      throw new DraftGoneError()
+    }
+
     throw new Error(saved.error ?? "Could not save this draft.")
   }
 
@@ -338,7 +361,29 @@ export async function saveDraft(input?: {
     title: saved.draft.title,
   })
 
-  return { ...saved.draft, skipped }
+  return { ...saved.draft, created: activeDraft === null, skipped }
+}
+
+export async function saveDraft(input?: {
+  asNewDraft?: boolean
+  title?: string
+  withThumbnail?: boolean
+}): Promise<SaveDraftResult> {
+  const activeDraft = input?.asNewDraft
+    ? null
+    : useDraftStore.getState().activeDraft
+
+  try {
+    return await runDraftSave({ ...input, activeDraft })
+  } catch (cause) {
+    if (!(cause instanceof DraftGoneError)) {
+      throw cause
+    }
+
+    useDraftStore.getState().clearActiveDraft()
+
+    return await runDraftSave({ ...input, activeDraft: null })
+  }
 }
 
 export async function publishScene(input: {

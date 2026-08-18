@@ -130,14 +130,18 @@ export function CommunityModal({
     return () => window.clearTimeout(timeout)
   }, [search])
 
+  const userId = session?.user?.id ?? null
+
   useEffect(() => {
-    if (!session?.user) {
-      setTab("explore")
-      setMine(null)
-      setDrafts(null)
-      setUpvoted(new Set())
+    if (userId) {
+      return
     }
-  }, [session?.user])
+
+    setTab("explore")
+    setMine(null)
+    setDrafts(null)
+    setUpvoted(new Set())
+  }, [userId])
 
   useEffect(() => {
     if (open) {
@@ -158,7 +162,7 @@ export function CommunityModal({
   }, [])
 
   useEffect(() => {
-    if (!(open && session?.user)) {
+    if (!(open && userId)) {
       return
     }
 
@@ -176,15 +180,15 @@ export function CommunityModal({
     return () => {
       cancelled = true
     }
-  }, [open, session?.user])
+  }, [open, userId])
 
   useEffect(() => {
-    if (!(open && session?.user)) {
+    if (!(open && userId)) {
       return
     }
 
     let cancelled = false
-    setMine(null)
+
     setMineFailed(false)
 
     fetch("/api/community/me/scenes")
@@ -204,10 +208,9 @@ export function CommunityModal({
     return () => {
       cancelled = true
     }
-  }, [open, session?.user])
+  }, [open, userId])
 
   const loadDrafts = useCallback(() => {
-    setDrafts(null)
     setDraftsFailed(false)
 
     return fetch("/api/community/me/drafts")
@@ -220,12 +223,12 @@ export function CommunityModal({
   }, [])
 
   useEffect(() => {
-    if (!(open && session?.user && tab === "drafts")) {
+    if (!(open && userId && tab === "drafts")) {
       return
     }
 
     void loadDrafts()
-  }, [loadDrafts, open, session?.user, tab])
+  }, [loadDrafts, open, tab, userId])
 
   useEffect(() => {
     if (!open) {

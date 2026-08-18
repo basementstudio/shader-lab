@@ -170,6 +170,20 @@ export function decideQuota(input: {
   return { ok: true }
 }
 
+async function readQuota(userId: string): Promise<QuotaSnapshot | null> {
+  const rows = await getDatabase()
+    .select({
+      bytesUsed: uploadQuota.bytesUsed,
+      dayBucket: uploadQuota.dayBucket,
+      scenesToday: uploadQuota.scenesToday,
+    })
+    .from(uploadQuota)
+    .where(eq(uploadQuota.userId, userId))
+    .limit(1)
+
+  return rows[0] ?? null
+}
+
 async function reserve(input: {
   addScene: boolean
   bytes: number
@@ -178,31 +192,24 @@ async function reserve(input: {
 }): Promise<QuotaCheck> {
   const db = getDatabase()
   const bucket = dayBucket(input.now)
-
-  const rows = await db
-    .select({
-      bytesUsed: uploadQuota.bytesUsed,
-      dayBucket: uploadQuota.dayBucket,
-      scenesToday: uploadQuota.scenesToday,
-    })
-    .from(uploadQuota)
-    .where(eq(uploadQuota.userId, input.userId))
-    .limit(1)
+  const added = input.addScene ? 1 : 0
 
   const decision = decideQuota({
     addScene: input.addScene,
     bucket,
     bytes: input.bytes,
-    current: rows[0] ?? null,
+    current: await readQuota(input.userId),
   })
 
   if (!decision.ok) {
     return decision
   }
 
-  const added = input.addScene ? 1 : 0
-
-  await db
+  // The caps live in the write, not in the read above. Two saves racing near a
+  // limit both pass a snapshot check, so the predicate has to be re-evaluated by
+  // the row lock that serialises them; the read only exists to name which cap
+  // was hit.
+  const won = await db
     .insert(uploadQuota)
     .values({
       bytesUsed: input.bytes,
@@ -218,10 +225,61 @@ async function reserve(input: {
         scenesToday: sql`case when ${uploadQuota.dayBucket} = ${bucket} then ${uploadQuota.scenesToday} + ${added} else ${added} end`,
         updatedAt: input.now,
       },
+      setWhere: sql`${uploadQuota.bytesUsed} + ${input.bytes} <= ${MAX_TOTAL_BYTES} and (case when ${uploadQuota.dayBucket} = ${bucket} then ${uploadQuota.scenesToday} else 0 end) + ${added} <= ${MAX_SCENES_PER_DAY}`,
       target: uploadQuota.userId,
     })
+    .returning({ userId: uploadQuota.userId })
 
-  return { ok: true }
+  if (won.length > 0) {
+    return { ok: true }
+  }
+
+  const lost = decideQuota({
+    addScene: input.addScene,
+    bucket,
+    bytes: input.bytes,
+    current: await readQuota(input.userId),
+  })
+
+  return lost.ok
+    ? { ok: false, reason: "Could not reserve storage. Please retry." }
+    : lost
+}
+
+async function release(input: {
+  bytes: number
+  now: Date
+  scenes: number
+  userId: string
+}): Promise<void> {
+  if (input.bytes <= 0 && input.scenes <= 0) {
+    return
+  }
+
+  const bucket = dayBucket(input.now)
+
+  await getDatabase()
+    .update(uploadQuota)
+    .set({
+      bytesUsed: sql`greatest(0, ${uploadQuota.bytesUsed} - ${input.bytes})`,
+      scenesToday: sql`case when ${uploadQuota.dayBucket} = ${bucket} then greatest(0, ${uploadQuota.scenesToday} - ${input.scenes}) else ${uploadQuota.scenesToday} end`,
+      updatedAt: input.now,
+    })
+    .where(eq(uploadQuota.userId, input.userId))
+}
+
+// A save that never reached storage must not keep spending the allowance.
+export function releaseQuota(
+  userId: string,
+  input: { bytes?: number; scenes?: number },
+  now = new Date()
+): Promise<void> {
+  return release({
+    bytes: input.bytes ?? 0,
+    now,
+    scenes: input.scenes ?? 0,
+    userId,
+  })
 }
 
 export function reserveBytes(

@@ -12,6 +12,7 @@ import {
   MAX_LAB_BYTES,
   normalizeDescription,
   normalizeTitle,
+  releaseQuota,
   reserveQuota,
   reserveSceneSlot,
   validateProjectFilePayload,
@@ -159,6 +160,10 @@ export async function POST(
     return badRequest(quota.reason ?? "Quota exceeded.", 429)
   }
 
+  // Promoting only spent a scene slot; a first publish also spent the bytes.
+  const refund = () =>
+    releaseQuota(userId, prior ? { scenes: 1 } : { bytes: totalBytes, scenes: 1 })
+
   const forkedFromId =
     (await resolveForkedFromId(payload.forkedFromSlug)) ??
     prior?.forkedFromId ??
@@ -198,6 +203,8 @@ export async function POST(
       .returning({ id: scenes.id })
 
     if (promoted.length === 0) {
+      await refund()
+
       return badRequest("This draft can no longer be published.", 409)
     }
   } else {
@@ -208,6 +215,8 @@ export async function POST(
       .returning({ id: scenes.id })
 
     if (claimed.length === 0) {
+      await refund()
+
       return badRequest("Unknown draft.", 404)
     }
   }
@@ -233,6 +242,8 @@ export async function POST(
     } else {
       await db.delete(scenes).where(eq(scenes.id, draftId))
     }
+
+    await refund()
 
     throw cause
   }

@@ -2,6 +2,7 @@
 
 import { TrashIcon } from "@radix-ui/react-icons"
 import Image from "next/image"
+import { Button } from "@/components/ui/button"
 import { IconButton } from "@/components/ui/icon-button"
 import { Typography } from "@/components/ui/typography"
 import type { DraftSummary } from "@/lib/community/scenes"
@@ -43,11 +44,13 @@ export function DraftCard({
   draft,
   onDelete,
   onOpen,
+  onPublish,
 }: {
   busy: boolean
   draft: DraftSummary
   onDelete: (draft: DraftSummary) => void
   onOpen: (draft: DraftSummary) => void
+  onPublish: (draft: DraftSummary) => void
 }) {
   return (
     <div className="group relative flex flex-col gap-[var(--ds-space-2)]">
@@ -99,6 +102,25 @@ export function DraftCard({
           </Typography>
         </div>
       </button>
+
+      <div className="flex items-center gap-[var(--ds-space-2)] px-[2px]">
+        <Button
+          disabled={busy}
+          onClick={() => onPublish(draft)}
+          size="compact"
+          variant="primary"
+        >
+          Publish
+        </Button>
+        <Button
+          disabled={busy}
+          onClick={() => onOpen(draft)}
+          size="compact"
+          variant="secondary"
+        >
+          Open
+        </Button>
+      </div>
 
       <IconButton
         aria-label={`Delete ${draft.title}`}

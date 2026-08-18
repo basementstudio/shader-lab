@@ -8,11 +8,13 @@ export function DraftsGrid({
   drafts,
   onDelete,
   onOpen,
+  onPublish,
 }: {
   busyId: string | null
   drafts: DraftSummary[]
   onDelete: (draft: DraftSummary) => void
   onOpen: (draft: DraftSummary) => void
+  onPublish: (draft: DraftSummary) => void
 }) {
   return (
     <div className="grid grid-cols-2 gap-[var(--ds-space-4)] min-[720px]:grid-cols-4">
@@ -23,6 +25,7 @@ export function DraftsGrid({
           key={draft.id}
           onDelete={onDelete}
           onOpen={onOpen}
+          onPublish={onPublish}
         />
       ))}
     </div>

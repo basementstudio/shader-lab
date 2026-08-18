@@ -78,6 +78,22 @@ export function PublishDialog({
     return acquirePreviewRenderLock()
   }, [open])
 
+  useEffect(() => {
+    if (!open) {
+      return
+    }
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onOpenChange(false)
+      }
+    }
+
+    window.addEventListener("keydown", onKeyDown)
+
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [onOpenChange, open])
+
   useEffect(
     () => () => {
       if (previewUrlRef.current) {

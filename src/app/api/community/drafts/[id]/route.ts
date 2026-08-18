@@ -1,22 +1,19 @@
-import { and, eq, isNull, sql } from "drizzle-orm"
+import { eq, sql } from "drizzle-orm"
 import { nanoid } from "nanoid"
 import { getOptionalSession } from "@/lib/auth/server"
 import { isCommunityEnabled, isMediaConfigured } from "@/lib/community/config"
 import { ensureProfile } from "@/lib/community/profile"
 import {
+  describeDraftLimit,
   DRAFT_ID_PATTERN,
   MAX_LAB_BYTES,
   normalizeDraftTitle,
+  normalizeThumbnailUrl,
   releaseQuota,
   reserveBytes,
   validateDraftPayload,
 } from "@/lib/community/publish"
-import {
-  keyFromPublicUrl,
-  putObject,
-  scenePrefixOf,
-} from "@/lib/community/r2"
-import { MAX_DRAFTS_PER_AUTHOR } from "@/lib/community/upload-limits"
+import { putObject } from "@/lib/community/r2"
 import { resolveForkedFromId } from "@/lib/community/scenes"
 import { getDatabase } from "@/lib/db"
 import { sceneAssets, scenes } from "@/lib/db/schema"
@@ -75,9 +72,11 @@ export async function PUT(
   }
 
   let validated: ReturnType<typeof validateDraftPayload>
+  let thumbnailUrl: string | null
 
   try {
     validated = validateDraftPayload(raw)
+    thumbnailUrl = normalizeThumbnailUrl(payload.thumbnailUrl)
   } catch (cause) {
     return fail(
       cause instanceof Error ? cause.message : "This scene is not valid.",
@@ -114,46 +113,14 @@ export async function PUT(
   }
 
   if (!existing) {
-    const held = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(scenes)
-      .where(
-        and(
-          eq(scenes.authorId, profile.userId),
-          eq(scenes.status, "draft"),
-          isNull(scenes.deletedAt)
-        )
-      )
+    const limit = await describeDraftLimit(profile.userId)
 
-    if ((held[0]?.count ?? 0) >= MAX_DRAFTS_PER_AUTHOR) {
-      return fail(
-        `You already have ${MAX_DRAFTS_PER_AUTHOR} drafts. Delete or publish one to save another.`,
-        409
-      )
+    if (limit) {
+      return fail(limit, 409)
     }
   }
 
-  const priorAssets = await db
-    .select({ assetId: sceneAssets.assetId })
-    .from(sceneAssets)
-    .where(eq(sceneAssets.sceneId, draftId))
-
-  const charged = new Set(priorAssets.map((row) => row.assetId))
-  const ownPrefix = `scenes/${draftId}`
-
-  const bytes = validated.projectFile.assets.reduce((sum, asset) => {
-    if (charged.has(asset.id)) {
-      return sum
-    }
-
-    const key = keyFromPublicUrl(asset.url ?? "")
-
-    if (!key || scenePrefixOf(key) !== ownPrefix) {
-      return sum
-    }
-
-    return sum + (asset.sizeBytes ?? 0)
-  }, existing ? 0 : raw.length)
+  const bytes = existing ? 0 : raw.length
 
   if (bytes > 0) {
     const quota = await reserveBytes(profile.userId, bytes)
@@ -169,8 +136,6 @@ export async function PUT(
   const composition = validated.projectFile.composition
   const now = new Date()
   const labKey = draftLabKey(draftId)
-  const thumbnailUrl =
-    typeof payload.thumbnailUrl === "string" ? payload.thumbnailUrl : null
   const title = normalizeDraftTitle(payload.title)
   const forkedFromId = await resolveForkedFromId(payload.forkedFromSlug)
 

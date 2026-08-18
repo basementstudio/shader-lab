@@ -25,7 +25,6 @@ import { HoverTooltip } from "@/components/ui/tooltip"
 import { Typography } from "@/components/ui/typography"
 import { authClient } from "@/lib/auth/client"
 import { cn } from "@/lib/cn"
-import { getAnonId } from "@/lib/community/anon-id"
 import type {
   AuthoredScene,
   DraftSummary,
@@ -431,6 +430,11 @@ export function CommunityModal({
 
       try {
         const res = await fetch(scene.labUrl)
+
+        if (!res.ok) {
+          throw new Error("Could not load that scene.")
+        }
+
         const projectFile = parseLabProjectFile(await res.text())
 
         if (hasImportedCustomShaderCode(projectFile)) {
@@ -457,8 +461,6 @@ export function CommunityModal({
         requestAutosave()
 
         void fetch(`/api/community/scenes/${scene.slug}/remix`, {
-          body: JSON.stringify({ anonId: getAnonId() }),
-          headers: { "Content-Type": "application/json" },
           method: "POST",
         }).catch(() => undefined)
 
@@ -469,6 +471,10 @@ export function CommunityModal({
         setError(
           cause instanceof Error ? cause.message : "Could not load that scene."
         )
+
+        if (options?.auto) {
+          onOpenChange(true)
+        }
       } finally {
         setRemixing(false)
       }

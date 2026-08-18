@@ -1,11 +1,18 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { isModerator } from "@/lib/community/moderation"
+import { eq } from "drizzle-orm"
+import { QueryBuilder } from "drizzle-orm/pg-core"
+import {
+  isModerator,
+  retainedByAnotherSceneCondition,
+  selectDeletableAssetKeys,
+} from "@/lib/community/moderation"
 import {
   deleteSceneObjects,
   keyFromPublicUrl,
   scenePrefixOf,
 } from "@/lib/community/r2"
 import { isReportReason, REPORT_REASONS } from "@/lib/community/report-reasons"
+import { sceneAssets, scenes } from "@/lib/db/schema"
 
 const saved = new Map<string, string | undefined>()
 
@@ -130,6 +137,76 @@ describe("scenePrefixOf", () => {
   test("returns nothing for a key it cannot attribute", () => {
     expect(scenePrefixOf("file.mp4")).toBeNull()
     expect(scenePrefixOf("other/scn_abc/file.mp4")).toBeNull()
+  })
+})
+
+describe("retainedByAnotherSceneCondition", () => {
+  function compile(urls: readonly string[]) {
+    return new QueryBuilder()
+      .select({ url: sceneAssets.url })
+      .from(sceneAssets)
+      .innerJoin(scenes, eq(scenes.id, sceneAssets.sceneId))
+      .where(retainedByAnotherSceneCondition({ sceneId: "scn_own", urls }))
+      .toSQL()
+  }
+
+  test("only a published scene can keep another scene's object alive", () => {
+    const query = compile(["https://pub-example.r2.dev/scenes/scn_a/file.mp4"])
+
+    expect(query.params).toContain("published")
+    expect(query.params).not.toContain("draft")
+    expect(query.params).not.toContain("processing")
+  })
+
+  test("a deleted or taken down scene retains nothing", () => {
+    const query = compile(["https://pub-example.r2.dev/scenes/scn_a/file.mp4"])
+
+    expect(query.sql).toContain('"deleted_at" is null')
+    expect(query.params).not.toContain("takendown")
+  })
+})
+
+describe("selectDeletableAssetKeys", () => {
+  const ownPrefix = "scenes/scn_own"
+  const url = "https://pub-example.r2.dev/scenes/scn_own/file.mp4"
+
+  test("a draft referencing the object cannot veto its deletion", () => {
+    configureR2()
+
+    expect(
+      selectDeletableAssetKeys({
+        assetUrls: [url],
+        ownPrefix,
+        retainedUrls: new Set(),
+      })
+    ).toEqual({ deletable: ["scenes/scn_own/file.mp4"], retained: 0 })
+  })
+
+  test("a published remix still keeps the object", () => {
+    configureR2()
+
+    expect(
+      selectDeletableAssetKeys({
+        assetUrls: [url],
+        ownPrefix,
+        retainedUrls: new Set([url]),
+      })
+    ).toEqual({ deletable: [], retained: 1 })
+  })
+
+  test("another author's object is never touched", () => {
+    configureR2()
+
+    expect(
+      selectDeletableAssetKeys({
+        assetUrls: [
+          "https://pub-example.r2.dev/scenes/scn_other/file.mp4",
+          "https://evil.example.com/scenes/scn_own/file.mp4",
+        ],
+        ownPrefix,
+        retainedUrls: new Set(),
+      })
+    ).toEqual({ deletable: [], retained: 0 })
   })
 })
 

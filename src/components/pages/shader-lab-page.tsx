@@ -9,7 +9,11 @@ import { EditorTopBar } from "@/components/editor/editor-topbar"
 import { LayerSidebar } from "@/components/editor/layer-sidebar"
 import { PropertiesSidebar } from "@/components/editor/properties-sidebar"
 
-export function ShaderLabPage() {
+export function ShaderLabPage({
+  communityEnabled,
+}: {
+  communityEnabled: boolean
+}) {
   return (
     <main
       id="main-content"
@@ -21,7 +25,7 @@ export function ShaderLabPage() {
       <EditorShortcuts />
       <EditorCanvasViewport />
       <EditorTimelineOverlay />
-      <EditorTopBar />
+      <EditorTopBar communityEnabled={communityEnabled} />
       <LayerSidebar />
       <PropertiesSidebar />
       <MobileEditorDock />

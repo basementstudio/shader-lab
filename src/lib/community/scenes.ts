@@ -135,7 +135,9 @@ function toSummary(row: {
   }
 }
 
-function buildOrderBy(sort: SceneSort) {
+const MATCHES_NO_ROWS = sql`false`
+
+export function buildOrderBy(sort: SceneSort) {
   if (sort === "popular") {
     return [desc(scenes.likeCount), desc(scenes.publishedAt), desc(scenes.id)]
   }
@@ -147,11 +149,21 @@ function buildOrderBy(sort: SceneSort) {
   return [desc(scenes.publishedAt), desc(scenes.id)]
 }
 
-function buildKeysetFilter(sort: SceneSort, cursor: SceneCursor) {
+export function buildKeysetFilter(sort: SceneSort, cursor: SceneCursor) {
   const publishedAt = new Date(cursor.publishedAt)
 
   if (sort === "popular") {
     return sql`(${scenes.likeCount}, ${scenes.publishedAt}, ${scenes.id}) < (${cursor.likeCount}::int, ${publishedAt}::timestamptz, ${cursor.id}::text)`
+  }
+
+  if (sort === "featured") {
+    if (!cursor.featuredAt) {
+      return MATCHES_NO_ROWS
+    }
+
+    const featuredAt = new Date(cursor.featuredAt)
+
+    return sql`(${scenes.featuredAt}, ${scenes.publishedAt}, ${scenes.id}) < (${featuredAt}::timestamptz, ${publishedAt}::timestamptz, ${cursor.id}::text)`
   }
 
   return sql`(${scenes.publishedAt}, ${scenes.id}) < (${publishedAt}::timestamptz, ${cursor.id}::text)`
@@ -208,7 +220,11 @@ export async function listPublishedScenes(options?: {
   const where = and(...filters)
 
   const rows = await getDatabase()
-    .select({ ...summaryColumns, publishedAtRaw: scenes.publishedAt })
+    .select({
+      ...summaryColumns,
+      featuredAtRaw: scenes.featuredAt,
+      publishedAtRaw: scenes.publishedAt,
+    })
     .from(scenes)
     .innerJoin(profiles, eq(profiles.userId, scenes.authorId))
     .where(where)
@@ -223,6 +239,7 @@ export async function listPublishedScenes(options?: {
     nextCursor:
       hasMore && last?.publishedAtRaw
         ? encodeSceneCursor({
+            featuredAt: last.featuredAtRaw?.toISOString() ?? null,
             id: last.id,
             likeCount: last.likeCount,
             publishedAt: last.publishedAtRaw.toISOString(),

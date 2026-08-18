@@ -1,27 +1,54 @@
+import { createHmac } from "node:crypto"
 import { and, eq, isNull, sql } from "drizzle-orm"
 import { nanoid } from "nanoid"
 import { getDatabase } from "@/lib/db"
 import { likes, remixes, scenes } from "@/lib/db/schema"
+import { readEnv } from "@/lib/read-env"
 
-const ANON_ACTOR = /^[A-Za-z0-9_-]{8,40}$/
+const PLATFORM_CLIENT_IP_HEADERS = [
+  "x-vercel-forwarded-for",
+  "x-real-ip",
+  "x-forwarded-for",
+] as const
+
+const UNKNOWN_CLIENT_IP = "no-client-ip"
 
 export function dayBucketFor(date: Date): string {
   return date.toISOString().slice(0, 10)
 }
 
+export function readPlatformClientIp(headers: Headers): string | null {
+  for (const name of PLATFORM_CLIENT_IP_HEADERS) {
+    const nearestClient = headers
+      .get(name)
+      ?.split(",")
+      .map((entry) => entry.trim())
+      .find((entry) => entry.length > 0)
+
+    if (nearestClient) {
+      return nearestClient
+    }
+  }
+
+  return null
+}
+
 export function resolveActorKey(input: {
-  anonId: unknown
+  clientIp: string | null
   userId: string | null
-}): string | null {
+  when: Date
+}): string {
   if (input.userId) {
     return `user:${input.userId}`
   }
 
-  if (typeof input.anonId === "string" && ANON_ACTOR.test(input.anonId)) {
-    return `anon:${input.anonId}`
-  }
+  const digest = createHmac("sha256", readEnv("NEON_AUTH_COOKIE_SECRET") ?? "")
+    .update(
+      `remix-actor|${dayBucketFor(input.when)}|${input.clientIp ?? UNKNOWN_CLIENT_IP}`
+    )
+    .digest("base64url")
 
-  return null
+  return `anon:${digest}`
 }
 
 async function findLiveScene(slug: string): Promise<{ id: string } | null> {
@@ -82,6 +109,20 @@ export async function recordRemix(input: {
   return { counted: true, remixCount: updated[0]?.remixCount ?? 0 }
 }
 
+export function likeCountFromRows(sceneId: string) {
+  return sql`(select count(*) from ${likes} where ${likes.sceneId} = ${sceneId})`
+}
+
+async function settleLikeCount(sceneId: string): Promise<number> {
+  const updated = await getDatabase()
+    .update(scenes)
+    .set({ likeCount: likeCountFromRows(sceneId) })
+    .where(eq(scenes.id, sceneId))
+    .returning({ likeCount: scenes.likeCount })
+
+  return updated[0]?.likeCount ?? 0
+}
+
 export async function toggleLike(input: {
   slug: string
   userId: string
@@ -100,37 +141,14 @@ export async function toggleLike(input: {
     .returning({ sceneId: likes.sceneId })
 
   if (inserted.length > 0) {
-    const updated = await db
-      .update(scenes)
-      .set({ likeCount: sql`${scenes.likeCount} + 1` })
-      .where(eq(scenes.id, scene.id))
-      .returning({ likeCount: scenes.likeCount })
-
-    return { likeCount: updated[0]?.likeCount ?? 0, liked: true }
+    return { likeCount: await settleLikeCount(scene.id), liked: true }
   }
 
-  const removed = await db
+  await db
     .delete(likes)
     .where(and(eq(likes.sceneId, scene.id), eq(likes.userId, input.userId)))
-    .returning({ sceneId: likes.sceneId })
 
-  if (removed.length === 0) {
-    const current = await db
-      .select({ likeCount: scenes.likeCount })
-      .from(scenes)
-      .where(eq(scenes.id, scene.id))
-      .limit(1)
-
-    return { likeCount: current[0]?.likeCount ?? 0, liked: false }
-  }
-
-  const updated = await db
-    .update(scenes)
-    .set({ likeCount: sql`greatest(${scenes.likeCount} - 1, 0)` })
-    .where(eq(scenes.id, scene.id))
-    .returning({ likeCount: scenes.likeCount })
-
-  return { likeCount: updated[0]?.likeCount ?? 0, liked: false }
+  return { likeCount: await settleLikeCount(scene.id), liked: false }
 }
 
 export async function listLikedSlugs(userId: string): Promise<string[]> {

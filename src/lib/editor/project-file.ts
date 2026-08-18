@@ -277,7 +277,7 @@ const assetReferenceSchema = z.looseObject({
   kind: z.string(),
   mimeType: z.string().optional(),
   sha256: z.string().optional(),
-  sizeBytes: z.number().optional(),
+  sizeBytes: z.number().int().nonnegative().optional(),
   url: z.string().optional(),
   width: z.number().nullable().optional(),
 })

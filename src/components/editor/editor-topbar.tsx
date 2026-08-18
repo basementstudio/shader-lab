@@ -96,7 +96,11 @@ function GitHubStarLink({ mobile = false }: { mobile?: boolean }) {
   )
 }
 
-export function EditorTopBar() {
+export function EditorTopBar({
+  communityEnabled,
+}: {
+  communityEnabled: boolean
+}) {
   const immersiveCanvas = useEditorStore((state) => state.immersiveCanvas)
   const mobilePanel = useEditorStore((state) => state.mobilePanel)
   const rightSidebarVisible = useEditorStore((state) => state.sidebars.right)
@@ -138,6 +142,10 @@ export function EditorTopBar() {
   const [hasOpenedCommunity, setHasOpenedCommunity] = useState(false)
 
   useEffect(() => {
+    if (!communityEnabled) {
+      return
+    }
+
     const requested = getRequestedSceneSlug()
 
     if (!requested) {
@@ -148,7 +156,7 @@ export function EditorTopBar() {
     setHasOpenedCommunity(true)
 
     clearRequestedSceneSlug()
-  }, [])
+  }, [communityEnabled])
 
   const handleExportDialogOpenChange = useCallback((open: boolean) => {
     if (open) {
@@ -602,20 +610,24 @@ export function EditorTopBar() {
                 <DownloadIcon height={16} width={16} />
               </IconButton>
               <GitHubStarLink />
-              <IconButton
-                aria-label="Community scenes"
-                className="h-7 w-7"
-                onClick={() => {
-                  setHasOpenedCommunity(true)
-                  setCommunityOpen(true)
-                }}
-                tooltip="Community scenes"
-                tooltipSide="bottom"
-                variant="outline"
-              >
-                <GlobeIcon height={16} width={16} />
-              </IconButton>
-              <AuthMenu newTab />
+              {communityEnabled ? (
+                <>
+                  <IconButton
+                    aria-label="Community scenes"
+                    className="h-7 w-7"
+                    onClick={() => {
+                      setHasOpenedCommunity(true)
+                      setCommunityOpen(true)
+                    }}
+                    tooltip="Community scenes"
+                    tooltipSide="bottom"
+                    variant="outline"
+                  >
+                    <GlobeIcon height={16} width={16} />
+                  </IconButton>
+                  <AuthMenu newTab />
+                </>
+              ) : null}
             </div>
           </GlassPanel>
         )}

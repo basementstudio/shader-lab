@@ -8,9 +8,12 @@ import { isCommunityEnabled, isMediaConfigured } from "@/lib/community/config"
 import { ensureProfile } from "@/lib/community/profile"
 import {
   buildSceneSlug,
+  collectAllowedScenePrefixes,
   DRAFT_ID_PATTERN,
+  findAssetOutsideScenePrefixes,
   MAX_LAB_BYTES,
   normalizeDescription,
+  normalizeThumbnailUrl,
   normalizeTitle,
   releaseQuota,
   reserveQuota,
@@ -105,8 +108,15 @@ export async function POST(
     )
   }
 
-  const thumbnailUrl =
-    typeof payload.thumbnailUrl === "string" ? payload.thumbnailUrl : null
+  let thumbnailUrl: string | null
+
+  try {
+    thumbnailUrl = normalizeThumbnailUrl(payload.thumbnailUrl)
+  } catch (cause) {
+    return badRequest(
+      cause instanceof Error ? cause.message : "That thumbnail is not valid."
+    )
+  }
 
   if (!thumbnailUrl) {
     return badRequest("A thumbnail is required.")
@@ -147,14 +157,25 @@ export async function POST(
     return badRequest("This scene has already been published.", 409)
   }
 
-  const totalBytes = validated.projectFile.assets.reduce(
-    (sum, asset) => sum + (asset.sizeBytes ?? 0),
-    raw.length
+  const forkedFromId =
+    (await resolveForkedFromId(payload.forkedFromSlug)) ??
+    prior?.forkedFromId ??
+    null
+
+  const foreignAsset = findAssetOutsideScenePrefixes(
+    validated.projectFile,
+    await collectAllowedScenePrefixes({ forkedFromId, sceneId: draftId })
   )
+
+  if (foreignAsset) {
+    return badRequest(`"${foreignAsset}" belongs to another scene.`)
+  }
+
+  const sceneBytes = raw.length
 
   const quota = prior
     ? await reserveSceneSlot(userId)
-    : await reserveQuota(userId, totalBytes)
+    : await reserveQuota(userId, sceneBytes)
 
   if (!quota.ok) {
     return badRequest(quota.reason ?? "Quota exceeded.", 429)
@@ -162,12 +183,8 @@ export async function POST(
 
   // Promoting only spent a scene slot; a first publish also spent the bytes.
   const refund = () =>
-    releaseQuota(userId, prior ? { scenes: 1 } : { bytes: totalBytes, scenes: 1 })
+    releaseQuota(userId, prior ? { scenes: 1 } : { bytes: sceneBytes, scenes: 1 })
 
-  const forkedFromId =
-    (await resolveForkedFromId(payload.forkedFromSlug)) ??
-    prior?.forkedFromId ??
-    null
   const slug = buildSceneSlug(title)
 
   const shared = {

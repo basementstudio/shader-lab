@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test } from "bun:test"
 import { createLayer } from "@/lib/editor/layers"
 import {
+  describeCameraFailure,
   describeMediaLoadFailure,
   setLayerMediaError,
 } from "@/renderer/layer-media-error"
@@ -98,5 +99,97 @@ describe("setLayerMediaError", () => {
 
     expect(runtimeErrorOf(a.id)).toBeNull()
     expect(runtimeErrorOf(b.id)).toBe("Couldn't load clip.mp4")
+  })
+})
+
+function cameraFailure(name: string): Error {
+  const error = new Error("getUserMedia rejected")
+
+  error.name = name
+
+  return error
+}
+
+describe("describeCameraFailure", () => {
+  test("reads the DOMException getUserMedia actually rejects with", () => {
+    expect(
+      describeCameraFailure(new DOMException("denied", "NotAllowedError"))
+    ).toBe("Camera permission denied")
+    expect(
+      describeCameraFailure(new DOMException("no device", "NotFoundError"))
+    ).toBe("No camera found")
+  })
+
+  test("a refused permission says so, instead of blaming the media", () => {
+    expect(describeCameraFailure(cameraFailure("NotAllowedError"))).toBe(
+      "Camera permission denied"
+    )
+    expect(describeCameraFailure(cameraFailure("SecurityError"))).toBe(
+      "Camera permission denied"
+    )
+  })
+
+  test("a missing device reads differently from a refusal", () => {
+    expect(describeCameraFailure(cameraFailure("NotFoundError"))).toBe(
+      "No camera found"
+    )
+    expect(describeCameraFailure(cameraFailure("OverconstrainedError"))).toBe(
+      "No camera found"
+    )
+  })
+
+  test("an unrecognised rejection still names the camera", () => {
+    expect(describeCameraFailure(cameraFailure("NotReadableError"))).toBe(
+      "Couldn't start the camera"
+    )
+    expect(describeCameraFailure(new Error("boom"))).toBe(
+      "Couldn't start the camera"
+    )
+    expect(describeCameraFailure(undefined)).toBe("Couldn't start the camera")
+    expect(describeCameraFailure("NotAllowedError")).toBe(
+      "Couldn't start the camera"
+    )
+  })
+
+  test("says something better than the generic media message", () => {
+    expect(describeCameraFailure(cameraFailure("NotAllowedError"))).not.toBe(
+      describeMediaLoadFailure(undefined)
+    )
+  })
+})
+
+describe("a camera layer that keeps failing", () => {
+  test("reports once and then stops rewriting state, so the sidebar settles", () => {
+    const layer = createLayer("live", 0)
+
+    useLayerStore.getState().replaceState([layer], layer.id)
+
+    const denial = cameraFailure("NotAllowedError")
+
+    setLayerMediaError(layer.id, describeCameraFailure(denial))
+
+    const afterFirstReport = useLayerStore.getState().layers
+
+    expect(runtimeErrorOf(layer.id)).toBe("Camera permission denied")
+
+    for (let retry = 0; retry < 5; retry += 1) {
+      setLayerMediaError(layer.id, describeCameraFailure(denial))
+    }
+
+    expect(useLayerStore.getState().layers).toBe(afterFirstReport)
+  })
+
+  test("clears the message once the camera finally starts", () => {
+    const layer = createLayer("live", 0)
+
+    useLayerStore.getState().replaceState([layer], layer.id)
+
+    setLayerMediaError(
+      layer.id,
+      describeCameraFailure(cameraFailure("NotAllowedError"))
+    )
+    setLayerMediaError(layer.id, null)
+
+    expect(runtimeErrorOf(layer.id)).toBeNull()
   })
 })

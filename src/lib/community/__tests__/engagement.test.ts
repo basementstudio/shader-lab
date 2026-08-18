@@ -1,5 +1,17 @@
 import { describe, expect, test } from "bun:test"
-import { dayBucketFor, resolveActorKey } from "@/lib/community/engagement"
+import { PgDialect } from "drizzle-orm/pg-core"
+import {
+  dayBucketFor,
+  likeCountFromRows,
+  readPlatformClientIp,
+  resolveActorKey,
+} from "@/lib/community/engagement"
+
+const WHEN = new Date("2026-08-13T12:00:00Z")
+
+function anonKeyFor(clientIp: string | null, when = WHEN): string {
+  return resolveActorKey({ clientIp, userId: null, when })
+}
 
 describe("dayBucketFor", () => {
   test("buckets by UTC calendar day", () => {
@@ -12,50 +24,124 @@ describe("dayBucketFor", () => {
   })
 })
 
-describe("resolveActorKey", () => {
-  test("a signed-in user is keyed by user id", () => {
-    expect(resolveActorKey({ anonId: null, userId: "abc" })).toBe("user:abc")
+describe("readPlatformClientIp", () => {
+  test("prefers the header the platform namespaces to itself", () => {
+    const headers = new Headers({
+      "x-forwarded-for": "9.9.9.9",
+      "x-real-ip": "8.8.8.8",
+      "x-vercel-forwarded-for": "203.0.113.7",
+    })
+
+    expect(readPlatformClientIp(headers)).toBe("203.0.113.7")
   })
 
-  test("the session wins over anything the client claims", () => {
-    expect(resolveActorKey({ anonId: "aaaaaaaaaaaa", userId: "abc" })).toBe(
+  test("falls back through the remaining platform headers", () => {
+    expect(readPlatformClientIp(new Headers({ "x-real-ip": "8.8.8.8" }))).toBe(
+      "8.8.8.8"
+    )
+    expect(
+      readPlatformClientIp(new Headers({ "x-forwarded-for": "9.9.9.9" }))
+    ).toBe("9.9.9.9")
+  })
+
+  test("takes the client end of a forwarded chain", () => {
+    const headers = new Headers({
+      "x-forwarded-for": "203.0.113.7, 70.41.3.18, 150.172.238.178",
+    })
+
+    expect(readPlatformClientIp(headers)).toBe("203.0.113.7")
+  })
+
+  test("ignores headers no proxy in front of this app sets", () => {
+    const headers = new Headers({
+      "cf-connecting-ip": "203.0.113.7",
+      "client-ip": "203.0.113.7",
+      "true-client-ip": "203.0.113.7",
+    })
+
+    expect(readPlatformClientIp(headers)).toBeNull()
+  })
+
+  test("treats an empty or blank header as absent", () => {
+    expect(readPlatformClientIp(new Headers())).toBeNull()
+    expect(
+      readPlatformClientIp(new Headers({ "x-forwarded-for": " , 9.9.9.9" }))
+    ).toBe("9.9.9.9")
+  })
+})
+
+describe("resolveActorKey", () => {
+  test("a signed-in user is keyed by user id", () => {
+    expect(resolveActorKey({ clientIp: null, userId: "abc", when: WHEN })).toBe(
       "user:abc"
     )
   })
 
-  test("a well-formed anonymous id is namespaced apart from users", () => {
-    expect(resolveActorKey({ anonId: "abcdefgh1234", userId: null })).toBe(
-      "anon:abcdefgh1234"
+  test("the session wins over the request ip", () => {
+    expect(
+      resolveActorKey({ clientIp: "203.0.113.7", userId: "abc", when: WHEN })
+    ).toBe("user:abc")
+  })
+
+  test("an anonymous actor is namespaced apart from users", () => {
+    expect(anonKeyFor("203.0.113.7")).toMatch(/^anon:/)
+  })
+
+  test("the same ip on the same day dedups to one actor", () => {
+    expect(anonKeyFor("203.0.113.7")).toBe(anonKeyFor("203.0.113.7"))
+  })
+
+  test("a different ip is a different actor", () => {
+    expect(anonKeyFor("203.0.113.7")).not.toBe(anonKeyFor("203.0.113.8"))
+  })
+
+  test("the same ip on the next day is a fresh actor", () => {
+    expect(anonKeyFor("203.0.113.7")).not.toBe(
+      anonKeyFor("203.0.113.7", new Date("2026-08-14T12:00:00Z"))
     )
   })
 
-  test("a uuid from crypto.randomUUID is accepted", () => {
-    expect(
-      resolveActorKey({
-        anonId: "3f2504e0-4f89-11d3-9a0c-0305e82c3301",
-        userId: null,
-      })
-    ).toBe("anon:3f2504e0-4f89-11d3-9a0c-0305e82c3301")
+  test("never stores the raw ip", () => {
+    expect(anonKeyFor("203.0.113.7")).not.toContain("203.0.113.7")
   })
 
-  test("rejects anonymous ids that are too short or too long", () => {
-    expect(resolveActorKey({ anonId: "short", userId: null })).toBeNull()
-    expect(resolveActorKey({ anonId: "a".repeat(41), userId: null })).toBeNull()
+  test("a missing ip still yields a usable actor, so anonymous remixing works", () => {
+    expect(anonKeyFor(null)).toMatch(/^anon:/)
+    expect(anonKeyFor(null)).toBe(anonKeyFor(null))
+    expect(anonKeyFor(null)).not.toBe(anonKeyFor("203.0.113.7"))
   })
 
-  test("rejects anything that is not a plain token", () => {
-    for (const anonId of [
-      "has spaces",
-      "has:colon",
-      "has/slash",
-      "user:pretend",
-      "",
-      null,
-      undefined,
-      42,
-      { id: "x" },
-    ]) {
-      expect(resolveActorKey({ anonId, userId: null })).toBeNull()
+  test("nothing in the request body can steer the anonymous key", () => {
+    const claimingAnonId = {
+      anonId: "aaaaaaaaaaaa",
+      clientIp: "203.0.113.7",
+      userId: null,
+      when: WHEN,
     }
+    const claimingAnotherAnonId = { ...claimingAnonId, anonId: "bbbbbbbbbbbb" }
+
+    expect(resolveActorKey(claimingAnonId)).toBe(anonKeyFor("203.0.113.7"))
+    expect(resolveActorKey(claimingAnotherAnonId)).toBe(
+      resolveActorKey(claimingAnonId)
+    )
+  })
+})
+
+describe("likeCountFromRows", () => {
+  test("counts the like rows instead of adjusting the stored total", () => {
+    const { params, sql } = new PgDialect().sqlToQuery(
+      likeCountFromRows("scn_abc")
+    )
+
+    expect(sql).toContain("select count(*)")
+    expect(sql).toContain('"likes"."scene_id"')
+    expect(params).toEqual(["scn_abc"])
+  })
+
+  test("never leans on the previous value, so a drifted count self-heals", () => {
+    const { sql } = new PgDialect().sqlToQuery(likeCountFromRows("scn_abc"))
+
+    expect(sql).not.toContain("like_count")
+    expect(sql).not.toContain("greatest")
   })
 })

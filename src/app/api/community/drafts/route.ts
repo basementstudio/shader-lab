@@ -6,19 +6,14 @@ import { ensureProfile } from "@/lib/community/profile"
 import {
   DRAFT_ID_PATTERN,
   MAX_ASSETS_PER_SCENE,
-  UPLOADABLE_MIME_TYPES,
+  planUploads,
+  releaseQuota,
+  type RequestedUpload,
+  reserveBytes,
 } from "@/lib/community/publish"
 import { createUploadUrl } from "@/lib/community/r2"
-import { describeUploadLimit } from "@/lib/community/upload-limits"
 import { getDatabase } from "@/lib/db"
 import { sceneAssets, scenes } from "@/lib/db/schema"
-
-interface RequestedUpload {
-  contentLength?: unknown
-  contentType?: unknown
-  kind?: unknown
-  sha256?: unknown
-}
 
 interface UploadTarget {
   alreadyStored?: boolean
@@ -91,23 +86,6 @@ async function readStoredShas(
   )
 }
 
-function extensionFor(contentType: string): string {
-  const map: Record<string, string> = {
-    "audio/mpeg": "mp3",
-    "audio/wav": "wav",
-    "image/jpeg": "jpg",
-    "image/png": "png",
-    "image/svg+xml": "svg",
-    "image/webp": "webp",
-    "model/gltf-binary": "glb",
-    "video/mp4": "mp4",
-    "video/quicktime": "mov",
-    "video/webm": "webm",
-  }
-
-  return map[contentType] ?? "bin"
-}
-
 export async function POST(request: Request) {
   if (!isCommunityEnabled()) {
     return Response.json({ error: "Not available." }, { status: 503 })
@@ -168,62 +146,57 @@ export async function POST(request: Request) {
       typeof upload.sha256 === "string" ? [upload.sha256] : []
     )
   )
+  const plan = planUploads({ draftId, requested, storedUrls: stored })
+
+  if ("error" in plan) {
+    return Response.json({ error: plan.error }, { status: 400 })
+  }
+
+  if (plan.signedBytes > 0) {
+    const quota = await reserveBytes(profile.userId, plan.signedBytes)
+
+    if (!quota.ok) {
+      return Response.json(
+        { error: quota.reason ?? "Quota exceeded." },
+        { status: 413 }
+      )
+    }
+  }
+
   const targets: UploadTarget[] = []
 
-  for (const upload of requested) {
-    const contentType =
-      typeof upload.contentType === "string" ? upload.contentType : ""
-    const contentLength =
-      typeof upload.contentLength === "number" ? upload.contentLength : -1
-    const sha256 = typeof upload.sha256 === "string" ? upload.sha256 : ""
+  try {
+    for (const upload of plan.uploads) {
+      if (upload.storedUrl) {
+        targets.push({
+          alreadyStored: true,
+          contentType: upload.contentType,
+          key: upload.key,
+          publicUrl: upload.storedUrl,
+          sha256: upload.sha256,
+        })
 
-    if (!UPLOADABLE_MIME_TYPES.has(contentType)) {
-      return Response.json(
-        { error: `Unsupported file type "${contentType || "unknown"}".` },
-        { status: 400 }
-      )
-    }
+        continue
+      }
 
-    const oversize = describeUploadLimit({
-      mimeType: contentType,
-      sizeBytes: contentLength,
-    })
-
-    if (oversize) {
-      return Response.json({ error: oversize }, { status: 400 })
-    }
-
-    if (!/^[a-f0-9]{64}$/.test(sha256)) {
-      return Response.json(
-        { error: "Each upload needs a sha256 content hash." },
-        { status: 400 }
-      )
-    }
-
-    const key = `scenes/${draftId}/${sha256}.${extensionFor(contentType)}`
-    const alreadyStored = stored.get(sha256)
-
-    if (alreadyStored) {
-      targets.push({
-        alreadyStored: true,
-        contentType,
-        key,
-        publicUrl: alreadyStored,
-        sha256,
+      const signed = await createUploadUrl({
+        contentLength: upload.contentLength,
+        contentType: upload.contentType,
+        key: upload.key,
       })
 
-      continue
+      targets.push({
+        contentType: upload.contentType,
+        key: upload.key,
+        publicUrl: signed.publicUrl,
+        sha256: upload.sha256,
+        uploadUrl: signed.uploadUrl,
+      })
     }
+  } catch (cause) {
+    await releaseQuota(profile.userId, { bytes: plan.signedBytes })
 
-    const signed = await createUploadUrl({ contentLength, contentType, key })
-
-    targets.push({
-      contentType,
-      key,
-      publicUrl: signed.publicUrl,
-      sha256,
-      uploadUrl: signed.uploadUrl,
-    })
+    throw cause
   }
 
   return Response.json({

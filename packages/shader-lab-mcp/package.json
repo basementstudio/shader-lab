@@ -21,7 +21,7 @@
     "generate": "bun run scripts/generate-reference-data.ts",
     "build": "bun run generate && xmcp build 1>&2",
     "dev": "xmcp dev",
-    "start": "xmcp build 1>&2 && node dist/stdio.js",
+    "start": "bun run build && node dist/stdio.js",
     "prepublishOnly": "bun run build",
     "typecheck": "tsc --noEmit"
   },

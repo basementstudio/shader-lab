@@ -1,9 +1,14 @@
-import { and, eq, sql } from "drizzle-orm"
-import { nanoid } from "nanoid"
+import { and, eq, isNull, sql } from "drizzle-orm"
+import { customAlphabet } from "nanoid"
 import { getDatabase } from "@/lib/db"
 import { scenes, uploadQuota } from "@/lib/db/schema"
 import { slugifyHandle } from "@/lib/community/handle"
-import { DEFAULT_DRAFT_TITLE } from "@/lib/community/upload-limits"
+import { keyFromPublicUrl, scenePrefixOf } from "@/lib/community/r2"
+import {
+  DEFAULT_DRAFT_TITLE,
+  describeUploadLimit,
+  MAX_DRAFTS_PER_AUTHOR,
+} from "@/lib/community/upload-limits"
 import { isAllowedAssetOrigin } from "@/lib/editor/remote-asset"
 import type { LabProjectFile } from "@/lib/editor/project-file"
 import {
@@ -19,6 +24,7 @@ export const MAX_ASSETS_PER_SCENE = 12
 export const MAX_LAB_BYTES = 8 * 1024 * 1024
 export const MAX_TITLE_LENGTH = 80
 export const MAX_DESCRIPTION_LENGTH = 500
+export const MAX_FORK_LINEAGE_HOPS = 10
 
 export const UPLOADABLE_MIME_TYPES = new Set([
   "audio/aac",
@@ -40,10 +46,97 @@ export const UPLOADABLE_MIME_TYPES = new Set([
   "video/webm",
 ])
 
+const UPLOAD_EXTENSIONS: Record<string, string> = {
+  "audio/mpeg": "mp3",
+  "audio/wav": "wav",
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/svg+xml": "svg",
+  "image/webp": "webp",
+  "model/gltf-binary": "glb",
+  "video/mp4": "mp4",
+  "video/quicktime": "mov",
+  "video/webm": "webm",
+}
+
+export interface RequestedUpload {
+  contentLength?: unknown
+  contentType?: unknown
+  kind?: unknown
+  sha256?: unknown
+}
+
+export interface PlannedUpload {
+  contentLength: number
+  contentType: string
+  key: string
+  sha256: string
+  storedUrl: string | null
+}
+
+export type UploadPlan =
+  | { error: string }
+  | { signedBytes: number; uploads: PlannedUpload[] }
+
+export function scenePrefixFor(sceneId: string): string {
+  return `scenes/${sceneId}`
+}
+
+export function planUploads(input: {
+  draftId: string
+  requested: readonly RequestedUpload[]
+  storedUrls: ReadonlyMap<string, string>
+}): UploadPlan {
+  const uploads: PlannedUpload[] = []
+  const chargedKeys = new Set<string>()
+  let signedBytes = 0
+
+  for (const upload of input.requested) {
+    const contentType =
+      typeof upload.contentType === "string" ? upload.contentType : ""
+    const contentLength = Number.isSafeInteger(upload.contentLength)
+      ? (upload.contentLength as number)
+      : -1
+    const sha256 = typeof upload.sha256 === "string" ? upload.sha256 : ""
+
+    if (!UPLOADABLE_MIME_TYPES.has(contentType)) {
+      return { error: `Unsupported file type "${contentType || "unknown"}".` }
+    }
+
+    const oversize = describeUploadLimit({
+      mimeType: contentType,
+      sizeBytes: contentLength,
+    })
+
+    if (oversize) {
+      return { error: oversize }
+    }
+
+    if (!/^[a-f0-9]{64}$/.test(sha256)) {
+      return { error: "Each upload needs a sha256 content hash." }
+    }
+
+    const extension = UPLOAD_EXTENSIONS[contentType] ?? "bin"
+    const key = `${scenePrefixFor(input.draftId)}/${sha256}.${extension}`
+    const storedUrl = input.storedUrls.get(sha256) ?? null
+
+    if (!(storedUrl || chargedKeys.has(key))) {
+      chargedKeys.add(key)
+      signedBytes += contentLength
+    }
+
+    uploads.push({ contentLength, contentType, key, sha256, storedUrl })
+  }
+
+  return { signedBytes, uploads }
+}
+
+const sceneSlugSuffix = customAlphabet("0123456789abcdefghijklmnopqrstuvwxyz", 6)
+
 export function buildSceneSlug(title: string): string {
   const base = slugifyHandle(title).slice(0, 48).replace(/-+$/g, "")
 
-  return `${base.length >= 2 ? base : "scene"}-${nanoid(6).toLowerCase()}`
+  return `${base.length >= 2 ? base : "scene"}-${sceneSlugSuffix()}`
 }
 
 export function dayBucket(now: Date): string {
@@ -125,6 +218,70 @@ export function normalizeDraftTitle(value: unknown): string {
     : DEFAULT_DRAFT_TITLE
 }
 
+export function normalizeThumbnailUrl(value: unknown): string | null {
+  const url = typeof value === "string" ? value.trim() : ""
+
+  if (url.length === 0) {
+    return null
+  }
+
+  if (!isAllowedAssetOrigin(url)) {
+    throw new Error("That thumbnail points at an untrusted host.")
+  }
+
+  return url
+}
+
+export function findAssetOutsideScenePrefixes(
+  projectFile: LabProjectFile,
+  allowedPrefixes: ReadonlySet<string>
+): string | null {
+  for (const asset of projectFile.assets) {
+    const key = keyFromPublicUrl(asset.url ?? "")
+
+    if (!key) {
+      continue
+    }
+
+    const prefix = scenePrefixOf(key)
+
+    if (!(prefix && allowedPrefixes.has(prefix))) {
+      return asset.fileName
+    }
+  }
+
+  return null
+}
+
+export async function collectAllowedScenePrefixes(input: {
+  forkedFromId: string | null
+  sceneId: string
+}): Promise<Set<string>> {
+  const db = getDatabase()
+  const prefixes = new Set([scenePrefixFor(input.sceneId)])
+  let ancestorId = input.forkedFromId
+
+  for (let hop = 0; ancestorId && hop < MAX_FORK_LINEAGE_HOPS; hop += 1) {
+    const prefix = scenePrefixFor(ancestorId)
+
+    if (prefixes.has(prefix)) {
+      break
+    }
+
+    prefixes.add(prefix)
+
+    const rows = await db
+      .select({ forkedFromId: scenes.forkedFromId })
+      .from(scenes)
+      .where(eq(scenes.id, ancestorId))
+      .limit(1)
+
+    ancestorId = rows[0]?.forkedFromId ?? null
+  }
+
+  return prefixes
+}
+
 export function normalizeDescription(value: unknown): string | null {
   const description = typeof value === "string" ? value.trim() : ""
 
@@ -184,12 +341,22 @@ async function readQuota(userId: string): Promise<QuotaSnapshot | null> {
   return rows[0] ?? null
 }
 
+function chargeableAmount(value: number): number | null {
+  return Number.isSafeInteger(value) && value >= 0 ? value : null
+}
+
 async function reserve(input: {
   addScene: boolean
   bytes: number
   now: Date
   userId: string
 }): Promise<QuotaCheck> {
+  const bytes = chargeableAmount(input.bytes)
+
+  if (bytes === null) {
+    return { ok: false, reason: "That upload size is not valid." }
+  }
+
   const db = getDatabase()
   const bucket = dayBucket(input.now)
   const added = input.addScene ? 1 : 0
@@ -197,7 +364,7 @@ async function reserve(input: {
   const decision = decideQuota({
     addScene: input.addScene,
     bucket,
-    bytes: input.bytes,
+    bytes,
     current: await readQuota(input.userId),
   })
 
@@ -212,7 +379,7 @@ async function reserve(input: {
   const won = await db
     .insert(uploadQuota)
     .values({
-      bytesUsed: input.bytes,
+      bytesUsed: bytes,
       dayBucket: bucket,
       scenesToday: added,
       updatedAt: input.now,
@@ -220,12 +387,12 @@ async function reserve(input: {
     })
     .onConflictDoUpdate({
       set: {
-        bytesUsed: sql`${uploadQuota.bytesUsed} + ${input.bytes}`,
+        bytesUsed: sql`${uploadQuota.bytesUsed} + ${bytes}`,
         dayBucket: bucket,
         scenesToday: sql`case when ${uploadQuota.dayBucket} = ${bucket} then ${uploadQuota.scenesToday} + ${added} else ${added} end`,
         updatedAt: input.now,
       },
-      setWhere: sql`${uploadQuota.bytesUsed} + ${input.bytes} <= ${MAX_TOTAL_BYTES} and (case when ${uploadQuota.dayBucket} = ${bucket} then ${uploadQuota.scenesToday} else 0 end) + ${added} <= ${MAX_SCENES_PER_DAY}`,
+      setWhere: sql`${uploadQuota.bytesUsed} + ${bytes} <= ${MAX_TOTAL_BYTES} and (case when ${uploadQuota.dayBucket} = ${bucket} then ${uploadQuota.scenesToday} else 0 end) + ${added} <= ${MAX_SCENES_PER_DAY}`,
       target: uploadQuota.userId,
     })
     .returning({ userId: uploadQuota.userId })
@@ -237,7 +404,7 @@ async function reserve(input: {
   const lost = decideQuota({
     addScene: input.addScene,
     bucket,
-    bytes: input.bytes,
+    bytes,
     current: await readQuota(input.userId),
   })
 
@@ -252,7 +419,10 @@ async function release(input: {
   scenes: number
   userId: string
 }): Promise<void> {
-  if (input.bytes <= 0 && input.scenes <= 0) {
+  const bytes = chargeableAmount(input.bytes) ?? 0
+  const sceneCount = chargeableAmount(input.scenes) ?? 0
+
+  if (bytes <= 0 && sceneCount <= 0) {
     return
   }
 
@@ -261,8 +431,8 @@ async function release(input: {
   await getDatabase()
     .update(uploadQuota)
     .set({
-      bytesUsed: sql`greatest(0, ${uploadQuota.bytesUsed} - ${input.bytes})`,
-      scenesToday: sql`case when ${uploadQuota.dayBucket} = ${bucket} then greatest(0, ${uploadQuota.scenesToday} - ${input.scenes}) else ${uploadQuota.scenesToday} end`,
+      bytesUsed: sql`greatest(0, ${uploadQuota.bytesUsed} - ${bytes})`,
+      scenesToday: sql`case when ${uploadQuota.dayBucket} = ${bucket} then greatest(0, ${uploadQuota.scenesToday} - ${sceneCount}) else ${uploadQuota.scenesToday} end`,
       updatedAt: input.now,
     })
     .where(eq(uploadQuota.userId, input.userId))
@@ -303,6 +473,33 @@ export function reserveQuota(
   now = new Date()
 ): Promise<QuotaCheck> {
   return reserve({ addScene: true, bytes, now, userId })
+}
+
+export async function countHeldDraftsForAuthor(
+  userId: string
+): Promise<number> {
+  const rows = await getDatabase()
+    .select({ count: sql<number>`count(*)::int` })
+    .from(scenes)
+    .where(
+      and(
+        eq(scenes.authorId, userId),
+        eq(scenes.status, "draft"),
+        isNull(scenes.deletedAt)
+      )
+    )
+
+  return rows[0]?.count ?? 0
+}
+
+export async function describeDraftLimit(
+  userId: string
+): Promise<string | null> {
+  const held = await countHeldDraftsForAuthor(userId)
+
+  return held >= MAX_DRAFTS_PER_AUTHOR
+    ? `You already have ${MAX_DRAFTS_PER_AUTHOR} drafts. Delete or publish one to save another.`
+    : null
 }
 
 export async function countPublishedScenesForAuthor(

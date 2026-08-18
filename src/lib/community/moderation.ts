@@ -22,6 +22,64 @@ export type RemovalOutcome =
       retainedObjects: number
     }
 
+const RETAINING_SCENE_STATUS = "published" as const
+
+export function retainedByAnotherSceneCondition(input: {
+  sceneId: string
+  urls: readonly string[]
+}) {
+  return and(
+    inArray(sceneAssets.url, input.urls),
+    ne(sceneAssets.sceneId, input.sceneId),
+    eq(scenes.status, RETAINING_SCENE_STATUS),
+    isNull(scenes.deletedAt)
+  )
+}
+
+async function readUrlsRetainedByAnotherScene(input: {
+  sceneId: string
+  urls: readonly string[]
+}): Promise<Set<string>> {
+  if (input.urls.length === 0) {
+    return new Set()
+  }
+
+  const rows = await getDatabase()
+    .select({ url: sceneAssets.url })
+    .from(sceneAssets)
+    .innerJoin(scenes, eq(scenes.id, sceneAssets.sceneId))
+    .where(retainedByAnotherSceneCondition(input))
+
+  return new Set(rows.map((row) => row.url))
+}
+
+export function selectDeletableAssetKeys(input: {
+  assetUrls: readonly string[]
+  ownPrefix: string
+  retainedUrls: ReadonlySet<string>
+}): { deletable: string[]; retained: number } {
+  const deletable: string[] = []
+  let retained = 0
+
+  for (const url of input.assetUrls) {
+    const key = keyFromPublicUrl(url)
+
+    if (!key || scenePrefixOf(key) !== input.ownPrefix) {
+      continue
+    }
+
+    if (input.retainedUrls.has(url)) {
+      retained += 1
+
+      continue
+    }
+
+    deletable.push(key)
+  }
+
+  return { deletable, retained }
+}
+
 async function collectDeletableKeys(sceneId: string): Promise<{
   deletable: string[]
   retained: number
@@ -41,7 +99,6 @@ async function collectDeletableKeys(sceneId: string): Promise<{
 
   const ownPrefix = `scenes/${sceneId}`
   const deletable: string[] = []
-  let retained = 0
 
   if (scene?.labKey && scenePrefixOf(scene.labKey) === ownPrefix) {
     deletable.push(scene.labKey)
@@ -66,36 +123,21 @@ async function collectDeletableKeys(sceneId: string): Promise<{
     .from(sceneAssets)
     .where(eq(sceneAssets.sceneId, sceneId))
 
-  for (const asset of assets) {
-    const key = keyFromPublicUrl(asset.url)
+  const assetUrls = assets.map((asset) => asset.url)
 
-    if (!key || scenePrefixOf(key) !== ownPrefix) {
-      continue
-    }
+  const owned = selectDeletableAssetKeys({
+    assetUrls,
+    ownPrefix,
+    retainedUrls: await readUrlsRetainedByAnotherScene({
+      sceneId,
+      urls: assetUrls,
+    }),
+  })
 
-    const usedElsewhere = await db
-      .select({ sceneId: sceneAssets.sceneId })
-      .from(sceneAssets)
-      .innerJoin(scenes, eq(scenes.id, sceneAssets.sceneId))
-      .where(
-        and(
-          eq(sceneAssets.url, asset.url),
-          ne(sceneAssets.sceneId, sceneId),
-          inArray(scenes.status, ["draft", "processing", "published"]),
-          isNull(scenes.deletedAt)
-        )
-      )
-      .limit(1)
-
-    if (usedElsewhere.length > 0) {
-      retained += 1
-      continue
-    }
-
-    deletable.push(key)
+  return {
+    deletable: [...deletable, ...owned.deletable],
+    retained: owned.retained,
   }
-
-  return { deletable, retained }
 }
 
 export function isModerator(session: CommunitySession | null): boolean {

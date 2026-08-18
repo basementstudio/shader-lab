@@ -1,5 +1,15 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { resolveLabUrl, resolveThumbnailUrl } from "@/lib/community/scenes"
+import type { SQL } from "drizzle-orm"
+import { PgDialect } from "drizzle-orm/pg-core"
+import type { SceneCursor } from "@/lib/community/scene-cursor"
+import {
+  buildKeysetFilter,
+  buildOrderBy,
+  resolveLabUrl,
+  resolveThumbnailUrl,
+  SCENE_SORTS,
+  type SceneSort,
+} from "@/lib/community/scenes"
 
 const saved = new Map<string, string | undefined>()
 
@@ -100,5 +110,85 @@ describe("resolveThumbnailUrl", () => {
     setEnv("NEXT_PUBLIC_CF_IMAGES_HOST", undefined)
 
     expect(resolveThumbnailUrl("abc123")).toBeNull()
+  })
+})
+
+const dialect = new PgDialect()
+
+const cursor: SceneCursor = {
+  featuredAt: "2026-08-10T09:00:00.000Z",
+  id: "scn_abc123",
+  likeCount: 7,
+  publishedAt: "2026-01-01T00:00:00.000Z",
+}
+
+function sceneColumnsIn(query: SQL): string[] {
+  return [
+    ...dialect.sqlToQuery(query).sql.matchAll(/"scenes"\."(\w+)"/g),
+  ].map((match) => match[1] as string)
+}
+
+function orderByColumns(sort: SceneSort): string[] {
+  return buildOrderBy(sort).flatMap(sceneColumnsIn)
+}
+
+describe("scene keyset pagination", () => {
+  for (const sort of SCENE_SORTS) {
+    test(`${sort} paginates on the same tuple it orders by`, () => {
+      expect(sceneColumnsIn(buildKeysetFilter(sort, cursor))).toEqual(
+        orderByColumns(sort)
+      )
+    })
+
+    test(`${sort} orders descending, which is what its < keyset assumes`, () => {
+      for (const entry of buildOrderBy(sort)) {
+        expect(dialect.sqlToQuery(entry).sql).toMatch(/ desc$/)
+      }
+
+      expect(dialect.sqlToQuery(buildKeysetFilter(sort, cursor)).sql).toContain(
+        ") < ("
+      )
+    })
+  }
+
+  test("featured keys off featured_at, so a later-featured older scene is reachable", () => {
+    expect(orderByColumns("featured")).toEqual([
+      "featured_at",
+      "published_at",
+      "id",
+    ])
+    expect(dialect.sqlToQuery(buildKeysetFilter("featured", cursor))).toEqual({
+      params: [
+        new Date(cursor.featuredAt as string),
+        new Date(cursor.publishedAt),
+        cursor.id,
+      ],
+      sql: '("scenes"."featured_at", "scenes"."published_at", "scenes"."id") < ($1::timestamptz, $2::timestamptz, $3::text)',
+      typings: ["none", "none", "none"],
+    })
+  })
+
+  test("a featured cursor without a featured timestamp cannot page, so it matches nothing", () => {
+    const stripped: SceneCursor = { ...cursor, featuredAt: null }
+
+    expect(dialect.sqlToQuery(buildKeysetFilter("featured", stripped)).sql).toBe(
+      "false"
+    )
+  })
+
+  test("popular still binds the like count as an int", () => {
+    const { params, sql } = dialect.sqlToQuery(
+      buildKeysetFilter("popular", cursor)
+    )
+
+    expect(sql).toContain("($1::int,")
+    expect(params[0]).toBe(cursor.likeCount)
+  })
+
+  test("latest ignores the columns only the other sorts key on", () => {
+    expect(orderByColumns("latest")).toEqual(["published_at", "id"])
+    expect(sceneColumnsIn(buildKeysetFilter("latest", cursor))).not.toContain(
+      "featured_at"
+    )
   })
 })

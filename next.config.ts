@@ -1,23 +1,44 @@
 import withBundleAnalyzer from "@next/bundle-analyzer"
 import type { NextConfig } from "next"
+import { readEnvList } from "@/lib/read-env"
 
 const shaderLabRuntimeEntry = "./packages/shader-lab-react/dist/src/index.js"
 
-function hostnameOf(value: string | undefined): string | null {
-  const bare = (value ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/^[a-z][a-z0-9+.-]*:\/\//, "")
-    .replace(/\/.*$/, "")
-    .replace(/:\d+$/, "")
+const BUILT_IN_ASSET_HOSTS = ["cloudflarestream.com", "videodelivery.net"]
 
-  return bare.length > 0 ? bare : null
+const ASSET_HOST_VARS = [
+  "NEXT_PUBLIC_CF_IMAGES_HOST",
+  "NEXT_PUBLIC_R2_PUBLIC_HOST",
+  "NEXT_PUBLIC_COMMUNITY_ASSET_HOSTS",
+]
+
+type AssetImagePattern = {
+  hostname: string
+  protocol: "https"
 }
 
-const communityImageHosts = [
-  hostnameOf(process.env.NEXT_PUBLIC_R2_PUBLIC_HOST),
-  hostnameOf(process.env.NEXT_PUBLIC_CF_IMAGES_HOST),
-].filter((host): host is string => host !== null)
+export function allowedAssetImageHosts(): string[] {
+  const hosts = [
+    ...BUILT_IN_ASSET_HOSTS,
+    ...ASSET_HOST_VARS.flatMap((name) => readEnvList(name)),
+  ].map((entry) =>
+    entry
+      .toLowerCase()
+      .replace(/^[a-z][a-z0-9+.-]*:\/\//, "")
+      .replace(/\/.*$/, "")
+      .replace(/:\d+$/, "")
+  )
+
+  return [...new Set(hosts.filter((host) => host.length > 0))]
+}
+
+export function allowedAssetImagePatterns(): AssetImagePattern[] {
+  return allowedAssetImageHosts().flatMap((host) =>
+    [host, `**.${host}`].map(
+      (hostname) => ({ hostname, protocol: "https" }) as const
+    )
+  )
+}
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -97,9 +118,7 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       { hostname: "avatars.githubusercontent.com", protocol: "https" },
       { hostname: "lh3.googleusercontent.com", protocol: "https" },
-      ...communityImageHosts.map(
-        (hostname) => ({ hostname, protocol: "https" }) as const
-      ),
+      ...allowedAssetImagePatterns(),
     ],
     minimumCacheTTL: 60 * 60 * 24 * 30, // 30 days
     qualities: [90],

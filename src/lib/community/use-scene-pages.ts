@@ -67,6 +67,49 @@ async function fetchScenePage(url: string): Promise<CachedPage> {
   return { nextCursor: data.nextCursor ?? null, scenes: data.scenes ?? [] }
 }
 
+export interface ScenePageAppendRequest {
+  fetchPage: () => Promise<CachedPage>
+  isStale: () => boolean
+  key: string
+  remember: (key: string, page: CachedPage) => void
+  setError: (error: boolean) => void
+  setNextCursor: (cursor: string | null) => void
+  setScenes: (
+    update: (current: CommunitySceneSummary[] | null) => CommunitySceneSummary[]
+  ) => void
+  settle: () => void
+}
+
+export async function appendNextScenePage(
+  request: ScenePageAppendRequest
+): Promise<void> {
+  try {
+    const page = await request.fetchPage()
+
+    if (request.isStale()) {
+      return
+    }
+
+    request.setScenes((current) => {
+      const merged = mergeScenePages(current ?? [], page.scenes)
+
+      request.remember(request.key, {
+        nextCursor: page.nextCursor,
+        scenes: merged,
+      })
+
+      return merged
+    })
+    request.setNextCursor(page.nextCursor)
+  } catch {
+    if (!request.isStale()) {
+      request.setError(true)
+    }
+  } finally {
+    request.settle()
+  }
+}
+
 export interface ScenePagesState {
   error: boolean
   hasMore: boolean
@@ -93,6 +136,7 @@ export function useScenePages(input: {
   const cache = useRef(new Map<string, CachedPage>())
   const inFlight = useRef<string | null>(null)
   const pending = useRef(new Map<string, Promise<CachedPage>>())
+  const visibleKey = useRef(key)
 
   if (input.initial && !cache.current.has(key)) {
     cache.current.set(key, input.initial)
@@ -121,6 +165,10 @@ export function useScenePages(input: {
 
     cache.current.set(cacheKey, page)
   }, [])
+
+  useEffect(() => {
+    visibleKey.current = key
+  }, [key])
 
   useEffect(() => {
     if (!enabled) {
@@ -178,32 +226,40 @@ export function useScenePages(input: {
   }, [author, enabled, key, query, remember, sort])
 
   const loadMore = useCallback(() => {
-    if (!(enabled && nextCursor) || inFlight.current === nextCursor) {
+    if (!(enabled && nextCursor)) {
       return
     }
 
-    inFlight.current = nextCursor
+    const token = `${key}|${nextCursor}`
+
+    if (inFlight.current === token) {
+      return
+    }
+
+    inFlight.current = token
     setLoading(true)
     setError(false)
 
-    void fetchScenePage(
-      sceneListUrl({ author, cursor: nextCursor, query, sort })
-    )
-      .then((page) => {
-        setScenes((current) => {
-          const merged = mergeScenePages(current ?? [], page.scenes)
+    void appendNextScenePage({
+      fetchPage: () =>
+        fetchScenePage(
+          sceneListUrl({ author, cursor: nextCursor, query, sort })
+        ),
+      isStale: () => visibleKey.current !== key,
+      key,
+      remember,
+      setError,
+      setNextCursor,
+      setScenes,
+      settle: () => {
+        if (inFlight.current !== token) {
+          return
+        }
 
-          remember(key, { nextCursor: page.nextCursor, scenes: merged })
-
-          return merged
-        })
-        setNextCursor(page.nextCursor)
-      })
-      .catch(() => setError(true))
-      .finally(() => {
         inFlight.current = null
         setLoading(false)
-      })
+      },
+    })
   }, [author, enabled, key, nextCursor, query, remember, sort])
 
   const patch = useCallback(

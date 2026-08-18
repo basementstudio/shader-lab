@@ -7,6 +7,7 @@ import { CustomShaderPass } from "@/renderer/custom-shader-pass"
 import { FluidPass } from "@/renderer/fluid-pass"
 import { GradientPass } from "@/renderer/gradient-pass"
 import {
+  describeCameraFailure,
   describeMediaLoadFailure,
   setLayerMediaError,
 } from "@/renderer/layer-media-error"
@@ -496,9 +497,11 @@ export class PipelineManager {
         void pass
           .startCamera(facingMode)
           .then(() => {
+            setLayerMediaError(pass.layerId, null)
             this.markDirty()
           })
-          .catch(() => {
+          .catch((cause: unknown) => {
+            setLayerMediaError(pass.layerId, describeCameraFailure(cause))
             this.markDirty()
           })
       }

@@ -7,6 +7,7 @@ import {
   APP_NAME,
   APP_TITLE_TEMPLATE,
 } from "@/lib/app";
+import { isCommunityEnabled } from "@/lib/community/config";
 
 const shaderLabPath = "/tools/shader-lab";
 
@@ -56,5 +57,5 @@ export const metadata: Metadata = {
 };
 
 export default function ShaderLabRoute() {
-  return <ShaderLabPage />;
+  return <ShaderLabPage communityEnabled={isCommunityEnabled()} />;
 }

@@ -1,4 +1,5 @@
 export const MAX_ASSET_BYTES = 100 * 1024 * 1024
+export const MAX_DRAFTS_PER_AUTHOR = 8
 export const MAX_IMAGE_BYTES = 4 * 1024 * 1024
 
 export function isImageMimeType(mimeType: string): boolean {

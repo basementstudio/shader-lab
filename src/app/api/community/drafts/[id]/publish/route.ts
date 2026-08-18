@@ -13,6 +13,7 @@ import {
   normalizeDescription,
   normalizeTitle,
   reserveQuota,
+  reserveSceneSlot,
   validateProjectFilePayload,
 } from "@/lib/community/publish"
 import { putObject } from "@/lib/community/r2"
@@ -129,17 +130,6 @@ export async function POST(
     return badRequest("A thumbnail is required.")
   }
 
-  const totalBytes = validated.projectFile.assets.reduce(
-    (sum, asset) => sum + (asset.sizeBytes ?? 0),
-    raw.length
-  )
-
-  const quota = await reserveQuota(userId, totalBytes)
-
-  if (!quota.ok) {
-    return badRequest(quota.reason ?? "Quota exceeded.", 429)
-  }
-
   const profile = await ensureProfile(userId, {
     avatarUrl: session?.user.image ?? null,
     email: session?.user.email ?? null,
@@ -150,34 +140,91 @@ export async function POST(
   const db = getDatabase()
   const now = new Date()
   const composition = validated.projectFile.composition
-  const forkedFromId = await resolveForkedFromId(payload.forkedFromSlug)
 
-  const claimed = await db
-    .insert(scenes)
-    .values({
-      authorId: profile.userId,
-      compositionHeight: Math.round(composition.height),
-      compositionWidth: Math.round(composition.width),
-      description,
-      durationSeconds: validated.projectFile.timeline.duration,
-      forkedFromId,
-      hasCustomShader: validated.hasCustomShader,
-      id: draftId,
-      labKey,
-      labVersion: validated.projectFile.version,
-      layerTypes: validated.layerTypes,
-      publishedAt: now,
-      slug: buildSceneSlug(title),
-      status: "published",
-      thumbnailImageId: thumbnailUrl,
-      title,
-      updatedAt: now,
+  const priorRows = await db
+    .select({
+      authorId: scenes.authorId,
+      deletedAt: scenes.deletedAt,
+      labKey: scenes.labKey,
+      publishedAt: scenes.publishedAt,
+      slug: scenes.slug,
+      status: scenes.status,
     })
-    .onConflictDoNothing({ target: scenes.id })
-    .returning({ id: scenes.id })
+    .from(scenes)
+    .where(eq(scenes.id, draftId))
+    .limit(1)
 
-  if (claimed.length === 0) {
+  const prior = priorRows[0]
+
+  if (prior && (prior.authorId !== profile.userId || prior.deletedAt)) {
     return badRequest("Unknown draft.", 404)
+  }
+
+  if (prior && prior.status !== "draft") {
+    return badRequest("This scene has already been published.", 409)
+  }
+
+  const totalBytes = validated.projectFile.assets.reduce(
+    (sum, asset) => sum + (asset.sizeBytes ?? 0),
+    raw.length
+  )
+
+  const quota = prior
+    ? await reserveSceneSlot(userId)
+    : await reserveQuota(userId, totalBytes)
+
+  if (!quota.ok) {
+    return badRequest(quota.reason ?? "Quota exceeded.", 429)
+  }
+
+  const forkedFromId = await resolveForkedFromId(payload.forkedFromSlug)
+  const slug = buildSceneSlug(title)
+
+  const shared = {
+    compositionHeight: Math.round(composition.height),
+    compositionWidth: Math.round(composition.width),
+    description,
+    durationSeconds: validated.projectFile.timeline.duration,
+    forkedFromId,
+    hasCustomShader: validated.hasCustomShader,
+    labKey,
+    labVersion: validated.projectFile.version,
+    layerTypes: validated.layerTypes,
+    publishedAt: now,
+    slug,
+    status: "published" as const,
+    thumbnailImageId: thumbnailUrl,
+    title,
+    updatedAt: now,
+  }
+
+  if (prior) {
+    const promoted = await db
+      .update(scenes)
+      .set(shared)
+      .where(
+        and(
+          eq(scenes.id, draftId),
+          eq(scenes.authorId, profile.userId),
+          eq(scenes.status, "draft"),
+          isNull(scenes.deletedAt)
+        )
+      )
+      .returning({ id: scenes.id })
+
+    if (promoted.length === 0) {
+      return badRequest("This draft can no longer be published.", 409)
+    }
+  } else {
+    const claimed = await db
+      .insert(scenes)
+      .values({ ...shared, authorId: profile.userId, id: draftId })
+      .onConflictDoNothing({ target: scenes.id })
+      .returning({ id: scenes.id })
+
+    if (claimed.length === 0) {
+      return badRequest("Unknown draft.", 404)
+    }
   }
 
   try {
@@ -187,7 +234,21 @@ export async function POST(
       key: labKey,
     })
   } catch (cause) {
-    await db.delete(scenes).where(eq(scenes.id, draftId))
+    if (prior) {
+      await db
+        .update(scenes)
+        .set({
+          labKey: prior.labKey,
+          publishedAt: prior.publishedAt,
+          slug: prior.slug,
+          status: "draft",
+          updatedAt: new Date(),
+        })
+        .where(eq(scenes.id, draftId))
+    } else {
+      await db.delete(scenes).where(eq(scenes.id, draftId))
+    }
+
     throw cause
   }
 
@@ -209,21 +270,17 @@ export async function POST(
       width: asset.width ?? null,
     }))
 
+  await db.delete(sceneAssets).where(eq(sceneAssets.sceneId, draftId))
+
   if (assetRows.length > 0) {
     await db.insert(sceneAssets).values(assetRows)
   }
-
-  const created = await db
-    .select({ slug: scenes.slug })
-    .from(scenes)
-    .where(eq(scenes.id, draftId))
-    .limit(1)
 
   revalidateTag(COMMUNITY_FEED_TAG, "max")
   revalidateTag(authorTag(profile.userId), "max")
 
   return Response.json({
-    scene: { id: draftId, slug: created[0]?.slug ?? null },
+    scene: { id: draftId, slug },
     turnstileSkipped: turnstile.skipped,
   })
 }

@@ -32,6 +32,7 @@ import type {
   SceneSort,
 } from "@/lib/community/scenes"
 import { scenePagePath } from "@/lib/community/scene-links"
+import { MAX_DRAFTS_PER_AUTHOR } from "@/lib/community/upload-limits"
 import { useScenePages } from "@/lib/community/use-scene-pages"
 import { requestAutosave } from "@/lib/editor/autosave/bus"
 import { withAutosaveSuppressed } from "@/lib/editor/autosave/suppress"
@@ -344,6 +345,35 @@ export function CommunityModal({
     },
     [onOpenChange]
   )
+
+  const publishDraft = useCallback(
+    async (draft: DraftSummary) => {
+      await openDraft(draft)
+
+      if (useDraftStore.getState().activeDraft?.id === draft.id) {
+        onRequestPublish()
+      }
+    },
+    [onRequestPublish, openDraft]
+  )
+
+  const saveAsNewDraft = useCallback(async () => {
+    setBusyDraftId("new")
+    setError(null)
+
+    try {
+      const { saveDraft } = await import("@/lib/community/publish-client")
+
+      await saveDraft({ asNewDraft: true })
+      await loadDrafts()
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "Could not save a new draft."
+      )
+    } finally {
+      setBusyDraftId(null)
+    }
+  }, [loadDrafts])
 
   const deleteDraft = useCallback(
     async (draft: DraftSummary) => {
@@ -793,8 +823,37 @@ export function CommunityModal({
                           >
                             {draftsFailed
                               ? "Could not load your drafts."
-                              : "No drafts yet. Press \u2318S in the editor to save one."}
+                              : "No drafts yet. Save the scene you are working on to keep it here."}
                           </Typography>
+                          {draftsFailed ? null : (
+                            <Button
+                              disabled={busyDraftId !== null}
+                              onClick={() => void saveAsNewDraft()}
+                              size="compact"
+                              variant="primary"
+                            >
+                              Save current scene
+                            </Button>
+                          )}
+                        </div>
+                      ) : null}
+
+                      {drafts && drafts.length > 0 ? (
+                        <div className="mb-[var(--ds-space-4)] flex items-center justify-between gap-[var(--ds-space-3)]">
+                          <Typography as="span" tone="tertiary" variant="caption">
+                            {drafts.length} of {MAX_DRAFTS_PER_AUTHOR} slots used
+                          </Typography>
+                          <Button
+                            disabled={
+                              busyDraftId !== null ||
+                              drafts.length >= MAX_DRAFTS_PER_AUTHOR
+                            }
+                            onClick={() => void saveAsNewDraft()}
+                            size="compact"
+                            variant="secondary"
+                          >
+                            Save current scene as new draft
+                          </Button>
                         </div>
                       ) : null}
 
@@ -804,6 +863,7 @@ export function CommunityModal({
                           drafts={drafts}
                           onDelete={deleteDraft}
                           onOpen={openDraft}
+                          onPublish={publishDraft}
                         />
                       ) : null}
                     </div>

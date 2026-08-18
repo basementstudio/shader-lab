@@ -414,8 +414,11 @@ export async function publishScene(input: {
     })
   )
 
+  const activeDraft = useDraftStore.getState().activeDraft
+
   const draftResponse = await fetch("/api/community/drafts", {
     body: JSON.stringify({
+      draftId: activeDraft?.id ?? null,
       uploads: [
         {
           contentLength: thumbnailBytes.byteLength,
@@ -511,6 +514,7 @@ export async function publishScene(input: {
   }
 
   useRemixOriginStore.getState().clearRemixOrigin()
+  useDraftStore.getState().clearActiveDraft()
 
   return { slug: published.scene.slug }
 }

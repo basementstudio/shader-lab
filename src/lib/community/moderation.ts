@@ -47,6 +47,12 @@ async function collectDeletableKeys(sceneId: string): Promise<{
     deletable.push(scene.labKey)
   }
 
+  const draftKey = `${ownPrefix}/draft.lab.json`
+
+  if (scene && !deletable.includes(draftKey)) {
+    deletable.push(draftKey)
+  }
+
   const thumbnailKey = scene?.thumbnailImageId
     ? keyFromPublicUrl(scene.thumbnailImageId)
     : null

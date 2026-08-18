@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm"
+import { and, eq, isNull, sql } from "drizzle-orm"
 import { nanoid } from "nanoid"
 import { getOptionalSession } from "@/lib/auth/server"
 import { isCommunityEnabled, isMediaConfigured } from "@/lib/community/config"
@@ -15,6 +15,7 @@ import {
   putObject,
   scenePrefixOf,
 } from "@/lib/community/r2"
+import { MAX_DRAFTS_PER_AUTHOR } from "@/lib/community/upload-limits"
 import { getDatabase } from "@/lib/db"
 import { sceneAssets, scenes } from "@/lib/db/schema"
 
@@ -107,6 +108,26 @@ export async function PUT(
 
   if (existing && existing.status !== "draft") {
     return fail("This scene has already been published.", 409)
+  }
+
+  if (!existing) {
+    const held = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(scenes)
+      .where(
+        and(
+          eq(scenes.authorId, profile.userId),
+          eq(scenes.status, "draft"),
+          isNull(scenes.deletedAt)
+        )
+      )
+
+    if ((held[0]?.count ?? 0) >= MAX_DRAFTS_PER_AUTHOR) {
+      return fail(
+        `You already have ${MAX_DRAFTS_PER_AUTHOR} drafts. Delete or publish one to save another.`,
+        409
+      )
+    }
   }
 
   const priorAssets = await db

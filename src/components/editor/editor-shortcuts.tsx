@@ -31,11 +31,11 @@ export function EditorShortcuts() {
 
     if (
       (event.metaKey || event.ctrlKey) &&
-      !(event.altKey || event.shiftKey) &&
+      !event.altKey &&
       event.key.toLowerCase() === "s"
     ) {
       event.preventDefault()
-      requestDraftSave()
+      requestDraftSave({ asNewDraft: event.shiftKey })
 
       return
     }

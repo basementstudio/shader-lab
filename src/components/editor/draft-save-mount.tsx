@@ -8,7 +8,10 @@ import { GlassPanel } from "@/components/ui/glass-panel"
 import { IconButton } from "@/components/ui/icon-button"
 import { Typography } from "@/components/ui/typography"
 import { authClient } from "@/lib/auth/client"
-import { registerDraftSaver } from "@/lib/editor/draft-save-bus"
+import {
+  type DraftSaveRequest,
+  registerDraftSaver,
+} from "@/lib/editor/draft-save-bus"
 
 const SAVED_PILL_MS = 2500
 const MESSAGE_PILL_MS = 6000
@@ -26,48 +29,59 @@ export function DraftSaveMount() {
   const savingRef = useRef(false)
   const signedIn = Boolean(session?.user)
 
-  const save = useCallback(async () => {
-    if (!signedIn) {
+  const save = useCallback(
+    async (request: DraftSaveRequest) => {
+      if (!signedIn) {
+        setNotice({
+          message: "Sign in to save this draft to your account.",
+          tone: "notice",
+        })
+
+        return
+      }
+
+      if (savingRef.current) {
+        return
+      }
+
+      savingRef.current = true
       setNotice({
-        message: "Sign in to save this draft to your account.",
-        tone: "notice",
+        message: request.asNewDraft ? "Saving a new draft…" : "Saving draft…",
+        tone: "progress",
       })
 
-      return
-    }
+      try {
+        const { saveDraft } = await import("@/lib/community/publish-client")
+        const result = await saveDraft({
+          asNewDraft: Boolean(request.asNewDraft),
+        })
+        const saved = result.created ? "New draft saved" : "Draft saved"
 
-    if (savingRef.current) {
-      return
-    }
-
-    savingRef.current = true
-    setNotice({ message: "Saving draft…", tone: "progress" })
-
-    try {
-      const { saveDraft } = await import("@/lib/community/publish-client")
-      const result = await saveDraft()
-
-      setNotice(
-        result.skipped.length > 0
-          ? {
-              message: `Draft saved. ${result.skipped.join(", ")} ${result.skipped.length === 1 ? "was" : "were"} too large to upload.`,
-              tone: "error",
-            }
-          : { message: "Draft saved", tone: "success" }
-      )
-    } catch (cause) {
-      setNotice({
-        message:
-          cause instanceof Error ? cause.message : "Could not save this draft.",
-        tone: "error",
-      })
-    } finally {
-      savingRef.current = false
-    }
-  }, [signedIn])
+        setNotice(
+          result.skipped.length > 0
+            ? {
+                message: `${saved}. ${result.skipped.join(", ")} ${result.skipped.length === 1 ? "was" : "were"} too large to upload.`,
+                tone: "error",
+              }
+            : { message: `${saved} · ${result.title}`, tone: "success" }
+        )
+      } catch (cause) {
+        setNotice({
+          message:
+            cause instanceof Error
+              ? cause.message
+              : "Could not save this draft.",
+          tone: "error",
+        })
+      } finally {
+        savingRef.current = false
+      }
+    },
+    [signedIn]
+  )
 
   useEffect(() => {
-    registerDraftSaver(() => void save())
+    registerDraftSaver((request) => void save(request))
 
     return () => registerDraftSaver(null)
   }, [save])

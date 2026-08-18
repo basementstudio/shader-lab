@@ -3,6 +3,7 @@
 import {
   ArrowLeftIcon,
   Cross2Icon,
+  InfoCircledIcon,
   MagnifyingGlassIcon,
 } from "@radix-ui/react-icons"
 import { AnimatePresence, motion, useReducedMotion } from "motion/react"
@@ -20,6 +21,7 @@ import { ShaderConsentDialog } from "@/components/community/shader-consent-dialo
 import { Button } from "@/components/ui/button"
 import { GlassPanel } from "@/components/ui/glass-panel"
 import { IconButton } from "@/components/ui/icon-button"
+import { HoverTooltip } from "@/components/ui/tooltip"
 import { Typography } from "@/components/ui/typography"
 import { authClient } from "@/lib/auth/client"
 import { cn } from "@/lib/cn"
@@ -48,6 +50,9 @@ import { useEditorStore } from "@/store/editor-store"
 import { useRemixOriginStore } from "@/store/remix-origin-store"
 
 const SKELETON_KEYS = ["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8"] as const
+
+const DRAFT_SAVE_HINT =
+  "\u2318S updates the draft you have open. \u2318\u21e7S saves the current scene as a new one. Opening a draft makes it the one \u2318S writes to."
 
 const SORT_TABS: readonly { label: string; value: SceneSort }[] = [
   { label: "Popular", value: "popular" },
@@ -325,7 +330,16 @@ export function CommunityModal({
 
         withAutosaveSuppressed(() => {
           applyLabProjectFile(projectFile, useAssetStore.getState().assets)
-          useRemixOriginStore.getState().clearRemixOrigin()
+
+          if (draft.forkedFrom) {
+            useRemixOriginStore.getState().setRemixOrigin({
+              slug: draft.forkedFrom.slug,
+              title: draft.forkedFrom.title,
+            })
+          } else {
+            useRemixOriginStore.getState().clearRemixOrigin()
+          }
+
           useDraftStore.getState().setActiveDraft({
             id: draft.id,
             savedAt: draft.updatedAt,
@@ -826,23 +840,50 @@ export function CommunityModal({
                               : "No drafts yet. Save the scene you are working on to keep it here."}
                           </Typography>
                           {draftsFailed ? null : (
-                            <Button
-                              disabled={busyDraftId !== null}
-                              onClick={() => void saveAsNewDraft()}
-                              size="compact"
-                              variant="primary"
-                            >
-                              Save current scene
-                            </Button>
+                            <>
+                              <Button
+                                disabled={busyDraftId !== null}
+                                onClick={() => void saveAsNewDraft()}
+                                size="compact"
+                                variant="primary"
+                              >
+                                Save current scene
+                              </Button>
+                              <Typography
+                                align="center"
+                                as="p"
+                                className="max-w-[320px]"
+                                tone="muted"
+                                variant="monoXs"
+                              >
+                                {DRAFT_SAVE_HINT}
+                              </Typography>
+                            </>
                           )}
                         </div>
                       ) : null}
 
                       {drafts && drafts.length > 0 ? (
                         <div className="mb-[var(--ds-space-4)] flex items-center justify-between gap-[var(--ds-space-3)]">
-                          <Typography as="span" tone="tertiary" variant="caption">
-                            {drafts.length} of {MAX_DRAFTS_PER_AUTHOR} slots used
-                          </Typography>
+                          <span className="inline-flex items-center gap-1.5">
+                            <Typography
+                              as="span"
+                              tone="tertiary"
+                              variant="caption"
+                            >
+                              {drafts.length} of {MAX_DRAFTS_PER_AUTHOR} slots
+                              used
+                            </Typography>
+                            <HoverTooltip content={DRAFT_SAVE_HINT} side="bottom">
+                              <button
+                                aria-label="How saving drafts works"
+                                className="inline-flex cursor-help items-center bg-transparent p-0 text-[var(--ds-color-text-muted)] transition-colors duration-160 hover:text-[var(--ds-color-text-secondary)]"
+                                type="button"
+                              >
+                                <InfoCircledIcon height={13} width={13} />
+                              </button>
+                            </HoverTooltip>
+                          </span>
                           <Button
                             disabled={
                               busyDraftId !== null ||

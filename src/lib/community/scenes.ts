@@ -1,4 +1,5 @@
 import { and, desc, eq, ilike, isNull, ne, or, sql } from "drizzle-orm"
+import { alias } from "drizzle-orm/pg-core"
 import {
   encodeSceneCursor,
   type SceneCursor,
@@ -256,10 +257,33 @@ export async function listScenesByAuthor(
   return rows.map((row) => ({ ...toSummary(row), status: row.status }))
 }
 
+export async function resolveForkedFromId(
+  slug: unknown
+): Promise<string | null> {
+  if (typeof slug !== "string" || slug.length === 0 || slug.length > 120) {
+    return null
+  }
+
+  const rows = await getDatabase()
+    .select({ id: scenes.id })
+    .from(scenes)
+    .where(
+      and(
+        eq(scenes.slug, slug),
+        eq(scenes.status, "published"),
+        isNull(scenes.deletedAt)
+      )
+    )
+    .limit(1)
+
+  return rows[0]?.id ?? null
+}
+
 export interface DraftSummary {
   compositionHeight: number
   compositionWidth: number
   durationSeconds: number
+  forkedFrom: SceneLineage | null
   id: string
   labUrl: string
   layerTypes: LayerType[]
@@ -272,6 +296,9 @@ export async function listDraftsByAuthor(
   authorId: string,
   limit = 60
 ): Promise<DraftSummary[]> {
+  const parent = alias(scenes, "parent")
+  const parentAuthor = alias(profiles, "parent_author")
+
   const rows = await getDatabase()
     .select({
       compositionHeight: scenes.compositionHeight,
@@ -280,11 +307,25 @@ export async function listDraftsByAuthor(
       id: scenes.id,
       labKey: scenes.labKey,
       layerTypes: scenes.layerTypes,
+      parentAuthorAvatarUrl: parentAuthor.avatarUrl,
+      parentAuthorHandle: parentAuthor.handle,
+      parentAuthorName: parentAuthor.displayName,
+      parentSlug: parent.slug,
+      parentTitle: parent.title,
       thumbnailImageId: scenes.thumbnailImageId,
       title: scenes.title,
       updatedAt: scenes.updatedAt,
     })
     .from(scenes)
+    .leftJoin(
+      parent,
+      and(
+        eq(parent.id, scenes.forkedFromId),
+        eq(parent.status, "published"),
+        isNull(parent.deletedAt)
+      )
+    )
+    .leftJoin(parentAuthor, eq(parentAuthor.userId, parent.authorId))
     .where(
       and(
         eq(scenes.authorId, authorId),
@@ -299,6 +340,16 @@ export async function listDraftsByAuthor(
     compositionHeight: row.compositionHeight,
     compositionWidth: row.compositionWidth,
     durationSeconds: row.durationSeconds,
+    forkedFrom:
+      row.parentSlug && row.parentAuthorHandle
+        ? {
+            authorAvatarUrl: row.parentAuthorAvatarUrl,
+            authorHandle: row.parentAuthorHandle,
+            authorName: row.parentAuthorName,
+            slug: row.parentSlug,
+            title: row.parentTitle ?? "",
+          }
+        : null,
     id: row.id,
     labUrl: resolveLabUrl(row.labKey),
     layerTypes: row.layerTypes as LayerType[],

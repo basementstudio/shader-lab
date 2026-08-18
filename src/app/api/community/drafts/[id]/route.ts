@@ -7,6 +7,7 @@ import {
   DRAFT_ID_PATTERN,
   MAX_LAB_BYTES,
   normalizeDraftTitle,
+  releaseQuota,
   reserveBytes,
   validateDraftPayload,
 } from "@/lib/community/publish"
@@ -162,6 +163,9 @@ export async function PUT(
     }
   }
 
+  const refund = () =>
+    bytes > 0 ? releaseQuota(profile.userId, { bytes }) : Promise.resolve()
+
   const composition = validated.projectFile.composition
   const now = new Date()
   const labKey = draftLabKey(draftId)
@@ -170,11 +174,17 @@ export async function PUT(
   const title = normalizeDraftTitle(payload.title)
   const forkedFromId = await resolveForkedFromId(payload.forkedFromSlug)
 
-  await putObject({
-    body: raw,
-    contentType: "application/json",
-    key: labKey,
-  })
+  try {
+    await putObject({
+      body: raw,
+      contentType: "application/json",
+      key: labKey,
+    })
+  } catch (cause) {
+    await refund()
+
+    throw cause
+  }
 
   const saved = await db
     .insert(scenes)
@@ -215,6 +225,8 @@ export async function PUT(
     .returning({ id: scenes.id })
 
   if (saved.length === 0) {
+    await refund()
+
     return fail("This draft can no longer be saved.", 409)
   }
 

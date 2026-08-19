@@ -23,7 +23,6 @@ import { IconButton } from "@/components/ui/icon-button"
 import { HoverTooltip } from "@/components/ui/tooltip"
 import { Typography } from "@/components/ui/typography"
 import { playUISound } from "@/lib/audio/shader-lab-sounds"
-import { cn } from "@/lib/cn"
 import {
   applyEditorHistorySnapshot,
   buildEditorHistorySnapshot,
@@ -449,16 +448,17 @@ export function EditorTopBar({
             className="flex min-h-11 w-auto items-center justify-between gap-[var(--ds-space-4)] px-[10px] py-2"
             variant="panel"
           >
-            <div className="inline-flex items-center gap-1.5">
-              <IconButton
-                aria-label="Drag"
-                className="h-7 w-7 cursor-grab text-[var(--ds-color-text-muted)] active:cursor-grabbing"
-                tooltipSide="bottom"
-                variant="ghost"
-                {...dragHandleProps}
-              >
-                <DragHandleDots2Icon height={14} width={14} />
-              </IconButton>
+            <IconButton
+              aria-label="Drag"
+              className="h-7 w-7 cursor-grab text-[var(--ds-color-text-muted)] active:cursor-grabbing"
+              tooltipSide="bottom"
+              variant="ghost"
+              {...dragHandleProps}
+            >
+              <DragHandleDots2Icon height={14} width={14} />
+            </IconButton>
+
+            <div className="inline-flex items-center gap-1 rounded-[var(--ds-radius-control)] border border-[var(--ds-border-divider)] px-1 py-1">
               <IconButton
                 aria-label="Undo"
                 className="h-7 w-7 disabled:opacity-45"
@@ -482,9 +482,12 @@ export function EditorTopBar({
               >
                 <ResetIcon className="scale-x-[-1]" height={18} width={18} />
               </IconButton>
-            </div>
 
-            <div className="inline-flex items-center gap-1.5">
+              <span
+                aria-hidden="true"
+                className="mx-0.5 block h-4 w-px rounded-full bg-[var(--ds-border-divider)]"
+              />
+
               <IconButton
                 aria-label="Zoom out"
                 className="h-7 w-7 disabled:opacity-45"
@@ -523,10 +526,9 @@ export function EditorTopBar({
               >
                 <ZoomInIcon height={18} width={18} />
               </IconButton>
-              <span
-                aria-hidden="true"
-                className="block h-5 w-px rounded-full bg-[var(--ds-border-divider)]"
-              />
+            </div>
+
+            <div className="inline-flex items-center gap-1.5">
               <AnimatePresence initial={false}>
                 {hasMovedFloatingPanels ? (
                   <motion.div
@@ -567,10 +569,8 @@ export function EditorTopBar({
                       ? "Layer properties"
                       : "Scene settings"
                   }
-                  className={cn(
-                    "h-7 w-7",
-                    sidebarView === "scene" && "bg-white/10"
-                  )}
+                  className="h-7 w-7"
+                  selected={sidebarView === "scene"}
                   onClick={() => {
                     toggleSidebarView()
                     playUISound("action.panelSwitch")
@@ -583,14 +583,13 @@ export function EditorTopBar({
               ) : null}
               <AgentConnectPanel />
               <IconButton
-                aria-label={soundEnabled ? "Mute interface sounds" : "Unmute interface sounds"}
-                aria-pressed={!soundEnabled}
-                className={cn("h-7 w-7", !soundEnabled && "bg-white/10")}
+                aria-label="Interface sounds"
+                className="h-7 w-7"
                 onClick={() => toggleSoundEnabled()}
+                selected={soundEnabled}
                 tooltip={soundEnabled ? "Mute sounds" : "Unmute sounds"}
                 tooltipSide="bottom"
                 uiSound="none"
-                variant={!soundEnabled ? "active" : "default"}
               >
                 {soundEnabled ? (
                   <SpeakerLoudIcon height={16} width={16} />
@@ -621,7 +620,6 @@ export function EditorTopBar({
                     }}
                     tooltip="Community scenes"
                     tooltipSide="bottom"
-                    variant="outline"
                   >
                     <GlobeIcon height={16} width={16} />
                   </IconButton>
@@ -709,13 +707,12 @@ export function EditorTopBar({
                 <DownloadIcon height={16} width={16} />
               </IconButton>
               <IconButton
-                aria-label={soundEnabled ? "Mute interface sounds" : "Unmute interface sounds"}
-                aria-pressed={!soundEnabled}
-                className={cn("h-7 w-7", !soundEnabled && "bg-white/10")}
+                aria-label="Interface sounds"
+                className="h-7 w-7"
                 onClick={() => toggleSoundEnabled()}
+                selected={soundEnabled}
                 tooltip={soundEnabled ? "Mute sounds" : "Unmute sounds"}
                 uiSound="none"
-                variant={!soundEnabled ? "active" : "default"}
               >
                 {soundEnabled ? (
                   <SpeakerLoudIcon height={16} width={16} />

@@ -1712,7 +1712,7 @@ function ProjectTabContent({
             event.preventDefault()
             onImportBrowse()
           }}
-          variant="active"
+          selected
         >
           <FileIcon height={20} width={20} />
         </IconButton>

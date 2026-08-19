@@ -390,14 +390,12 @@ function TimelineTransport({
           <StopIcon height={14} width={14} />
         </IconButton>
         <IconButton
-          aria-label={loop ? "Disable loop" : "Enable loop"}
-          className={cn(
-            "h-7 w-7",
-            loop && "bg-white/12 text-[var(--ds-color-text-primary)]"
-          )}
+          aria-label="Loop playback"
+          className="h-7 w-7"
           onClick={onToggleLoop}
+          selected={loop}
+          tooltip={loop ? "Disable loop" : "Enable loop"}
           uiSound={loop ? "action.loopOff" : "action.loopOn"}
-          variant={loop ? "active" : "default"}
         >
           <LoopIcon height={14} width={14} />
         </IconButton>
@@ -410,14 +408,12 @@ function TimelineTransport({
 
       <div className="inline-flex items-center gap-1">
         <IconButton
-          aria-label={autoKey ? "Disable auto-key" : "Enable auto-key"}
-          className={cn(
-            "h-7 w-auto gap-1.5 px-[10px]",
-            autoKey && "bg-white/12 text-[var(--ds-color-text-primary)]"
-          )}
+          aria-label="Auto-key"
+          className="h-7 w-auto gap-1.5 px-[10px]"
           onClick={onToggleAutoKey}
+          selected={autoKey}
+          tooltip={autoKey ? "Disable auto-key" : "Enable auto-key"}
           uiSound={autoKey ? "action.autoKeyOff" : "action.autoKeyOn"}
-          variant={autoKey ? "active" : "default"}
         >
           {autoKey ? (
             <DotFilledIcon height={10} width={10} />

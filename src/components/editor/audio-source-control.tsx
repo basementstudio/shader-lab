@@ -460,11 +460,11 @@ export function AudioSourceControl({
         aria-label={monitorEnabled ? "Mute audio" : "Unmute audio"}
         className={cn(
           "h-7 w-7",
-          monitorEnabled && "bg-white/12 text-[var(--ds-color-text-primary)]"
+
         )}
         disabled={status !== "ready"}
         onClick={onToggleMonitor}
-        variant={monitorEnabled ? "active" : "default"}
+        selected={monitorEnabled}
       >
         {monitorEnabled ? (
           <SpeakerLoudIcon height={13} width={13} />

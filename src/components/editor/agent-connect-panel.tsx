@@ -4,6 +4,7 @@ import { Popover } from "@base-ui/react/popover"
 import { CheckIcon, CopyIcon } from "@radix-ui/react-icons"
 import { useCallback, useEffect, useState } from "react"
 import { GlassPanel } from "@/components/ui/glass-panel"
+import { IconButton } from "@/components/ui/icon-button"
 import { Typography } from "@/components/ui/typography"
 import { cn } from "@/lib/cn"
 import {
@@ -151,14 +152,17 @@ export function AgentConnectPanel() {
     <Popover.Root onOpenChange={onOpenChange}>
       <span className="relative inline-flex">
         <Popover.Trigger
-          aria-label="Connect an agent (MCP)"
-          className={cn(
-            "inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-[var(--ds-radius-icon)] text-[var(--ds-color-text-secondary)] transition-[background-color,color] duration-160 ease-[var(--ease-out-cubic)] hover:bg-white/8 hover:text-[var(--ds-color-text-primary)]",
-            enabled && "bg-white/10 text-[var(--ds-color-text-primary)]"
-          )}
-        >
-          <XmcpIcon />
-        </Popover.Trigger>
+          render={
+            <IconButton
+              aria-label="Connect an agent (MCP)"
+              selected={enabled}
+              tooltip="Connect an agent (MCP)"
+              tooltipSide="bottom"
+            >
+              <XmcpIcon />
+            </IconButton>
+          }
+        />
         {enabled ? (
           <span
             aria-hidden="true"

@@ -1,4 +1,5 @@
 import withBundleAnalyzer from "@next/bundle-analyzer"
+import { withSentryConfig } from "@sentry/nextjs"
 import type { NextConfig } from "next"
 
 const shaderLabRuntimeEntry = "./packages/shader-lab-react/dist/src/index.js"
@@ -139,4 +140,11 @@ const NextApp = () => {
   return plugins.reduce((config, plugin) => plugin(config), nextConfig)
 }
 
-export default NextApp
+export default withSentryConfig(NextApp, {
+  org: "basement-studio",
+  project: "shader-lab",
+  // Source maps upload only when SENTRY_AUTH_TOKEN is present in the build env.
+  widenClientFileUpload: true,
+  tunnelRoute: "/monitoring",
+  silent: !process.env.CI,
+})

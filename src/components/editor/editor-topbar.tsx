@@ -445,7 +445,7 @@ export function EditorTopBar({
       >
         {({ dragHandleProps }) => (
           <GlassPanel
-            className="flex min-h-11 w-auto items-center justify-between gap-[var(--ds-space-4)] px-[10px] py-2"
+            className="flex min-h-10 w-auto items-center justify-between gap-[var(--ds-space-4)] px-[10px] py-1"
             variant="panel"
           >
             <IconButton

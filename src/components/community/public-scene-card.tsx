@@ -8,9 +8,11 @@ import type { CommunitySceneSummary } from "@/lib/community/scenes"
 export function PublicSceneCard({
   priority = false,
   scene,
+  showAuthor = true,
 }: {
   priority?: boolean
   scene: CommunitySceneSummary
+  showAuthor?: boolean
 }) {
   return (
     <div className="group flex min-w-0 flex-col gap-[5px]">
@@ -25,7 +27,7 @@ export function PublicSceneCard({
               className="object-cover"
               fill
               priority={priority}
-              sizes="(min-width: 760px) 280px, 45vw"
+              sizes="(min-width: 1000px) 380px, (min-width: 640px) 50vw, 100vw"
               src={scene.thumbnailUrl}
             />
           ) : null}
@@ -40,12 +42,14 @@ export function PublicSceneCard({
         </Typography>
       </Link>
 
-      <AuthorLink
-        avatarUrl={scene.authorAvatarUrl}
-        className="px-[2px]"
-        handle={scene.authorHandle}
-        name={scene.authorName}
-      />
+      {showAuthor ? (
+        <AuthorLink
+          avatarUrl={scene.authorAvatarUrl}
+          className="px-[2px]"
+          handle={scene.authorHandle}
+          name={scene.authorName}
+        />
+      ) : null}
     </div>
   )
 }

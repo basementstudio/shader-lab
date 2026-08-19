@@ -137,6 +137,7 @@ async function ProfileScenes({
       emptyLabel={`${label} has not published a scene yet.`}
       initialNextCursor={page.nextCursor}
       initialScenes={page.scenes}
+      showAuthor={false}
       sort="latest"
     />
   )

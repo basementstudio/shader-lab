@@ -12,12 +12,14 @@ export function PublicSceneGrid({
   emptyLabel = "No scenes published yet.",
   initialNextCursor,
   initialScenes,
+  showAuthor = true,
   sort = "popular",
 }: {
   author?: string | null
   emptyLabel?: string
   initialNextCursor: string | null
   initialScenes: CommunitySceneSummary[]
+  showAuthor?: boolean
   sort?: SceneSort
 }) {
   const { error, hasMore, loadMore, loading, scenes } = useScenePages({
@@ -30,7 +32,7 @@ export function PublicSceneGrid({
 
   if (shown.length === 0) {
     return (
-      <Typography as="p" tone="tertiary" variant="caption">
+      <Typography as="p" tone="secondary" variant="body">
         {emptyLabel}
       </Typography>
     )
@@ -42,8 +44,9 @@ export function PublicSceneGrid({
         {shown.map((scene, index) => (
           <PublicSceneCard
             key={scene.slug}
-            priority={index < 4}
+            priority={index < 3}
             scene={scene}
+            showAuthor={showAuthor}
           />
         ))}
       </div>

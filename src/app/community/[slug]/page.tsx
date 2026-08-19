@@ -147,7 +147,7 @@ async function SceneBody({ params }: PageProps) {
           All scenes
         </ButtonLink>
 
-        <figure className="relative m-0 aspect-[16/10] w-full overflow-hidden rounded-[12px] border border-[var(--ds-border-subtle)] bg-[var(--ds-color-surface-subtle)]">
+        <figure className="relative m-0 aspect-[16/10] w-full overflow-hidden rounded-[12px] border border-[var(--ds-border-subtle)] bg-[var(--ds-color-surface-subtle)] min-[860px]:aspect-auto min-[860px]:h-[clamp(320px,calc(100svh-380px),700px)]">
           {scene.thumbnailUrl ? (
             <Image
               alt={scene.title}
@@ -201,17 +201,18 @@ async function SceneBody({ params }: PageProps) {
               </span>
             </Link>
 
-            {scene.forkedFrom ? (
-              <Link
-                aria-label={lineageLabel(scene.forkedFrom)}
-                className="rounded-[var(--ds-radius-control)] transition-opacity duration-160 hover:opacity-80"
-                href={`/community/${scene.forkedFrom.slug}` as Route}
-                title={scene.forkedFrom.title}
-              >
-                <RemixCredit lineage={scene.forkedFrom} />
-              </Link>
-            ) : null}
           </div>
+
+          {scene.forkedFrom ? (
+            <Link
+              aria-label={lineageLabel(scene.forkedFrom)}
+              className="w-fit rounded-[var(--ds-radius-control)] transition-opacity duration-160 hover:opacity-80"
+              href={`/community/${scene.forkedFrom.slug}` as Route}
+              title={scene.forkedFrom.title}
+            >
+              <RemixCredit lineage={scene.forkedFrom} />
+            </Link>
+          ) : null}
 
           <div className="flex flex-wrap gap-1.5">
             {scene.layerTypes.map((type) => (
@@ -297,7 +298,11 @@ async function MoreByAuthor({
 
       <div className={SCENE_GRID_CLASS_NAME}>
         {scenes.map((scene) => (
-          <PublicSceneCard key={scene.slug} scene={scene} />
+          <PublicSceneCard
+            key={scene.slug}
+            scene={scene}
+            showAuthor={false}
+          />
         ))}
       </div>
     </section>

@@ -2,6 +2,7 @@ import {
   asteriskCensorStrategy,
   DataSet,
   englishDataset,
+  type EnglishProfaneWord,
   englishRecommendedTransformers,
   pattern,
   RegExpMatcher,
@@ -28,7 +29,9 @@ function getCensor(): TextCensor {
   return censor
 }
 
-const SEVERE_DATASET_WORDS = new Set([
+const SEVERE_DATASET_WORDS: ReadonlySet<EnglishProfaneWord> = new Set<
+  EnglishProfaneWord
+>([
   "abeed",
   "abo",
   "africoon",
@@ -71,17 +74,16 @@ const SEVERE_HOUSE_PATTERNS = [
 
 function getSevereMatcher(): RegExpMatcher {
   if (!severeMatcher) {
-    const dataset = new DataSet<{ originalWord: string }>()
+    const dataset = new DataSet<{ originalWord: EnglishProfaneWord }>()
       .addAll(englishDataset)
-      .removePhrasesIf(
-        (phrase) =>
-          !SEVERE_DATASET_WORDS.has(phrase.metadata?.originalWord ?? "")
-      )
+      .removePhrasesIf((phrase) => {
+        const word = phrase.metadata?.originalWord
+
+        return !(word && SEVERE_DATASET_WORDS.has(word))
+      })
 
     for (const raw of SEVERE_HOUSE_PATTERNS) {
-      dataset.addPhrase((phrase) =>
-        phrase.setMetadata({ originalWord: "house" }).addPattern(raw)
-      )
+      dataset.addPhrase((phrase) => phrase.addPattern(raw))
     }
 
     severeMatcher = new RegExpMatcher({

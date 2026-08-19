@@ -535,6 +535,26 @@ export function EditorTopBar({
                 className="mx-0.5 block h-4 w-px rounded-full bg-[var(--ds-border-divider)]"
               />
 
+              {rightSidebarVisible ? (
+                <IconButton
+                  aria-label={
+                    sidebarView === "scene"
+                      ? "Layer properties"
+                      : "Scene settings"
+                  }
+                  className="h-7 w-7"
+                  selected={sidebarView === "scene"}
+                  onClick={() => {
+                    toggleSidebarView()
+                    playUISound("action.panelSwitch")
+                  }}
+                  uiSound="none"
+                  variant="default"
+                >
+                  <GearIcon height={16} width={16} />
+                </IconButton>
+              ) : null}
+
               <IconButton
                 aria-label="Interface sounds"
                 className="h-7 w-7"
@@ -586,26 +606,6 @@ export function EditorTopBar({
                   </motion.div>
                 ) : null}
               </AnimatePresence>
-              {rightSidebarVisible ? (
-                <IconButton
-                  aria-label={
-                    sidebarView === "scene"
-                      ? "Layer properties"
-                      : "Scene settings"
-                  }
-                  className="h-7 w-7"
-                  selected={sidebarView === "scene"}
-                  onClick={() => {
-                    toggleSidebarView()
-                    playUISound("action.panelSwitch")
-                  }}
-                  uiSound="none"
-                  variant="default"
-                >
-                  <GearIcon height={16} width={16} />
-                </IconButton>
-              ) : null}
-              <AgentConnectPanel />
               <IconButton
                 aria-label="Export"
                 className="h-7 w-7 disabled:opacity-45"
@@ -618,6 +618,7 @@ export function EditorTopBar({
                 <DownloadIcon height={16} width={16} />
               </IconButton>
               <GitHubStarLink />
+              <AgentConnectPanel />
               {communityEnabled ? (
                 <>
                   <span className="relative inline-flex">

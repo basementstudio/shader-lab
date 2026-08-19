@@ -1,9 +1,8 @@
 "use client"
 
-import { TrashIcon } from "@radix-ui/react-icons"
+import { ArrowTopRightIcon } from "@radix-ui/react-icons"
 import Image from "next/image"
-import { Button } from "@/components/ui/button"
-import { IconButton } from "@/components/ui/icon-button"
+import { Menu, MenuItem, MenuSeparator } from "@/components/ui/menu"
 import { Typography } from "@/components/ui/typography"
 import { DEFAULT_DRAFT_TITLE } from "@/lib/community/upload-limits"
 import type { DraftSummary } from "@/lib/community/scenes"
@@ -56,35 +55,43 @@ export function DraftCard({
   return (
     <div className="group relative flex flex-col gap-[var(--ds-space-2)]">
       <button
-        className="flex w-full cursor-pointer flex-col gap-[var(--ds-space-2)] rounded-[10px] text-left focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--ds-border-active)] focus-visible:outline-offset-2 disabled:cursor-wait"
+        aria-label={`Open ${draft.title}`}
+        className="relative aspect-[16/10] w-full cursor-pointer overflow-hidden rounded-[8px] bg-[var(--ds-color-surface-subtle)] outline-1 outline-[var(--ds-border-panel)] outline-offset-2 outline-dashed transition-[outline-color] duration-160 ease-[var(--ease-out-cubic)] disabled:cursor-wait group-hover:outline-[var(--ds-border-panel-strong)] focus-visible:outline-[var(--ds-border-active)] focus-visible:outline-solid"
         disabled={busy}
         onClick={() => onOpen(draft)}
         type="button"
       >
-        <div className="relative aspect-[16/10] w-full overflow-hidden rounded-[8px] bg-[var(--ds-color-surface-subtle)] outline-1 outline-[var(--ds-border-panel)] outline-offset-2 outline-dashed transition-[outline-color] duration-160 ease-[var(--ease-out-cubic)] group-hover:outline-[var(--ds-border-panel-strong)]">
-          {draft.thumbnailUrl ? (
-            <Image
-              alt={draft.title}
-              className="object-cover"
-              fill
-              sizes="(max-width: 900px) 45vw, 260px"
-              src={draft.thumbnailUrl}
-            />
-          ) : (
-            <span className="absolute inset-0 flex items-center justify-center px-3">
-              <Typography
-                align="center"
-                as="span"
-                tone="tertiary"
-                variant="monoXs"
-              >
-                {describeDraftContents(draft)}
-              </Typography>
-            </span>
-          )}
-        </div>
+        {draft.thumbnailUrl ? (
+          <Image
+            alt=""
+            className="object-cover"
+            fill
+            sizes="(max-width: 900px) 45vw, 260px"
+            src={draft.thumbnailUrl}
+          />
+        ) : (
+          <span className="absolute inset-0 flex items-center justify-center px-3">
+            <Typography
+              align="center"
+              as="span"
+              tone="tertiary"
+              variant="monoXs"
+            >
+              {describeDraftContents(draft)}
+            </Typography>
+          </span>
+        )}
 
-        <div className="flex min-w-0 flex-col gap-[var(--ds-space-1)] px-[2px]">
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute top-1.5 right-1.5 inline-flex size-7 items-center justify-center rounded-[var(--ds-radius-icon)] bg-[var(--ds-color-surface-overlay)] text-[var(--ds-color-text-primary)] opacity-0 shadow-[inset_0_0_0_1px_var(--ds-border-panel)] backdrop-blur-[8px] transition-opacity duration-160 ease-[var(--ease-out-cubic)] group-hover:opacity-100"
+        >
+          <ArrowTopRightIcon height={14} width={14} />
+        </span>
+      </button>
+
+      <div className="flex items-center gap-[var(--ds-space-2)]">
+        <div className="flex min-w-0 flex-1 flex-col gap-[var(--ds-space-1)]">
           {draft.title === DEFAULT_DRAFT_TITLE ? null : (
             <Typography
               as="span"
@@ -98,36 +105,14 @@ export function DraftCard({
             {describeSavedAt(draft.updatedAt)}
           </Typography>
         </div>
-      </button>
 
-      <div className="flex items-center gap-[var(--ds-space-2)] px-[2px]">
-        <Button
-          className="flex-1"
-          disabled={busy}
-          onClick={() => onOpen(draft)}
-          variant="secondary"
-        >
-          Open
-        </Button>
-        <Button
-          className="flex-1"
-          disabled={busy}
-          onClick={() => onPublish(draft)}
-          variant="secondary"
-        >
-          Publish
-        </Button>
+        <Menu disabled={busy} label={`Actions for ${draft.title}`}>
+          <MenuItem onClick={() => onOpen(draft)}>Open</MenuItem>
+          <MenuItem onClick={() => onPublish(draft)}>Publish</MenuItem>
+          <MenuSeparator />
+          <MenuItem onClick={() => onDelete(draft)}>Delete</MenuItem>
+        </Menu>
       </div>
-
-      <IconButton
-        aria-label={`Delete ${draft.title}`}
-        className="absolute top-1.5 right-1.5 h-7 w-7 opacity-0 transition-opacity duration-160 focus-visible:opacity-100 group-hover:opacity-100"
-        disabled={busy}
-        onClick={() => onDelete(draft)}
-        variant="overlay"
-      >
-        <TrashIcon height={14} width={14} />
-      </IconButton>
     </div>
   )
 }

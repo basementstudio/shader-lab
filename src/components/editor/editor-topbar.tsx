@@ -458,7 +458,7 @@ export function EditorTopBar({
               <DragHandleDots2Icon height={14} width={14} />
             </IconButton>
 
-            <div className="inline-flex items-center gap-0.5 rounded-[var(--ds-radius-control)] border border-white/8 bg-black/25 px-[3px]">
+            <div className="inline-flex items-center gap-0.5 rounded-[calc(var(--ds-radius-icon)+1px)] border border-white/8 bg-black/25">
               <IconButton
                 aria-label="Undo"
                 className="h-7 w-7 disabled:opacity-45"

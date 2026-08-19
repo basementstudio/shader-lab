@@ -1,7 +1,7 @@
 "use client"
 
+import { EmptyState } from "@/components/community/empty-state"
 import { Button } from "@/components/ui/button"
-import { Typography } from "@/components/ui/typography"
 
 function EmptyGlyph() {
   return (
@@ -43,27 +43,23 @@ export function SceneEmptyState({
   const searching = query.trim().length > 0
 
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-[var(--ds-space-3)] px-6 py-10 text-center">
-      <span className="text-[var(--ds-color-text-disabled)]">
-        <EmptyGlyph />
-      </span>
-
-      <div className="flex max-w-[380px] flex-col gap-[var(--ds-space-1)]">
-        <Typography align="center" as="p" variant="label">
-          {searching ? "No scenes match that search" : "No scenes published yet"}
-        </Typography>
-        <Typography align="center" as="p" tone="tertiary" variant="caption">
-          {searching
-            ? "Try a different title, or an author's name or handle."
-            : "Published scenes show up here. Build something in the editor and publish it to be the first."}
-        </Typography>
-      </div>
-
-      {searching ? (
-        <Button onClick={onClearSearch} size="compact" variant="secondary">
-          Clear search
-        </Button>
-      ) : null}
-    </div>
+    <EmptyState
+      action={
+        searching ? (
+          <Button onClick={onClearSearch} size="compact" variant="secondary">
+            Clear search
+          </Button>
+        ) : null
+      }
+      description={
+        searching
+          ? "Try a different title, or an author's name or handle."
+          : "Published scenes show up here. Build something in the editor and publish it to be the first."
+      }
+      glyph={<EmptyGlyph />}
+      title={
+        searching ? "No scenes match that search" : "No scenes published yet"
+      }
+    />
   )
 }

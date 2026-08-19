@@ -11,6 +11,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { AuthMenu } from "@/components/community/auth-menu"
 import { DraftsGrid } from "@/components/community/drafts-grid"
+import { EmptyState } from "@/components/community/empty-state"
 import { MyScenesGrid } from "@/components/community/my-scenes-grid"
 import { ProfilePanel } from "@/components/community/profile-panel"
 import { SceneCard } from "@/components/community/scene-card"
@@ -70,6 +71,108 @@ const VIEW_TABS: readonly {
 
 const TAB_CLASS_NAME =
   "inline-flex min-h-7 cursor-pointer items-center justify-center rounded-[var(--ds-radius-control)] border border-transparent px-[10px] leading-none transition-[background-color,border-color,color] duration-160 ease-[var(--ease-out-cubic)] hover:border-[var(--ds-border-subtle)] hover:bg-[var(--ds-color-surface-subtle)]"
+
+function PublishedGlyph() {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      height={28}
+      viewBox="0 0 32 32"
+      width={28}
+    >
+      <rect
+        height={19}
+        rx={2.5}
+        stroke="currentColor"
+        strokeWidth={1.5}
+        width={25}
+        x={3.5}
+        y={6.5}
+      />
+      <path
+        d="M16 20v-8m0 0-3.5 3.5M16 12l3.5 3.5"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={1.5}
+      />
+    </svg>
+  )
+}
+
+function LikesGlyph() {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      height={28}
+      viewBox="0 0 32 32"
+      width={28}
+    >
+      <path
+        d="M16 25.5S5.5 19.4 5.5 13.2A5.7 5.7 0 0 1 16 10a5.7 5.7 0 0 1 10.5 3.2c0 6.2-10.5 12.3-10.5 12.3Z"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={1.5}
+      />
+    </svg>
+  )
+}
+
+function DraftsGlyph() {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      height={28}
+      viewBox="0 0 32 32"
+      width={28}
+    >
+      <path
+        d="M10 7.5h12.5a3 3 0 0 1 3 3V23"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth={1.5}
+      />
+      <rect
+        height={17}
+        rx={2.5}
+        stroke="currentColor"
+        strokeWidth={1.5}
+        width={19}
+        x={4.5}
+        y={11.5}
+      />
+      <path
+        d="M8.5 17.5h9M8.5 22h5.5"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth={1.5}
+      />
+    </svg>
+  )
+}
+
+function DraftSaveHint({ label }: { label?: string }) {
+  return (
+    <HoverTooltip content={DRAFT_SAVE_HINT} side="bottom">
+      <button
+        aria-label="How saving drafts works"
+        className="inline-flex cursor-help items-center gap-1.5 bg-transparent p-0 text-[var(--ds-color-text-muted)] transition-colors duration-160 hover:text-[var(--ds-color-text-secondary)]"
+        type="button"
+      >
+        <InfoCircledIcon height={13} width={13} />
+        {label ? (
+          <Typography as="span" tone="inherit" variant="caption">
+            {label}
+          </Typography>
+        ) : null}
+      </button>
+    </HoverTooltip>
+  )
+}
 
 export function CommunityModal({
   autoOpenSlug,
@@ -719,10 +822,12 @@ export function CommunityModal({
                                 </Typography>
                               </button>
                             ))}
-                            <span
-                              aria-hidden="true"
-                              className="mx-1 h-4 w-px shrink-0 bg-[var(--ds-border-divider)]"
-                            />
+                            {tab === "explore" ? (
+                              <span
+                                aria-hidden="true"
+                                className="mx-1 h-4 w-px shrink-0 bg-[var(--ds-border-divider)]"
+                              />
+                            ) : null}
                           </>
                         ) : null}
 
@@ -827,27 +932,30 @@ export function CommunityModal({
                       ) : null}
 
                       {mine?.length === 0 ? (
-                        <div className="flex h-full flex-col items-center justify-center gap-[var(--ds-space-3)]">
-                          <Typography
-                            align="center"
-                            as="p"
-                            tone="tertiary"
-                            variant="caption"
-                          >
-                            {mineFailed
-                              ? "Could not load your scenes."
-                              : "You have not published a scene yet."}
-                          </Typography>
-                          {mineFailed ? null : (
-                            <Button
-                              onClick={onRequestPublish}
-                              size="compact"
-                              variant="primary"
-                            >
-                              Publish your scene
-                            </Button>
-                          )}
-                        </div>
+                        <EmptyState
+                          action={
+                            mineFailed ? null : (
+                              <Button
+                                onClick={onRequestPublish}
+                                size="compact"
+                                variant="secondary"
+                              >
+                                Publish your scene
+                              </Button>
+                            )
+                          }
+                          description={
+                            mineFailed
+                              ? "Something went wrong reading your scenes. Try reopening this tab."
+                              : "Anything you publish shows up here, with its likes and remixes."
+                          }
+                          glyph={<PublishedGlyph />}
+                          title={
+                            mineFailed
+                              ? "Could not load your scenes"
+                              : "Nothing published yet"
+                          }
+                        />
                       ) : null}
 
                       {mine && mine.length > 0 ? (
@@ -873,18 +981,19 @@ export function CommunityModal({
                       ) : null}
 
                       {likedScenes?.length === 0 ? (
-                        <div className="flex h-full flex-col items-center justify-center gap-[var(--ds-space-3)]">
-                          <Typography
-                            align="center"
-                            as="p"
-                            tone="secondary"
-                            variant="body"
-                          >
-                            {likedScenesFailed
-                              ? "Could not load the scenes you liked."
-                              : "Nothing liked yet. Tap the heart on a scene to keep it here."}
-                          </Typography>
-                        </div>
+                        <EmptyState
+                          description={
+                            likedScenesFailed
+                              ? "Something went wrong reading your likes. Try reopening this tab."
+                              : "Hit the heart on any scene and it will be waiting here."
+                          }
+                          glyph={<LikesGlyph />}
+                          title={
+                            likedScenesFailed
+                              ? "Could not load your likes"
+                              : "Nothing liked yet"
+                          }
+                        />
                       ) : null}
 
                       {likedScenes && likedScenes.length > 0 ? (
@@ -918,39 +1027,36 @@ export function CommunityModal({
                       ) : null}
 
                       {drafts?.length === 0 ? (
-                        <div className="flex h-full flex-col items-center justify-center gap-[var(--ds-space-3)]">
-                          <Typography
-                            align="center"
-                            as="p"
-                            tone="tertiary"
-                            variant="caption"
-                          >
-                            {draftsFailed
-                              ? "Could not load your drafts."
-                              : "No drafts yet. Save the scene you are working on to keep it here."}
-                          </Typography>
-                          {draftsFailed ? null : (
-                            <>
+                        <EmptyState
+                          action={
+                            draftsFailed ? null : (
                               <Button
                                 disabled={busyDraftId !== null}
                                 onClick={() => void saveAsNewDraft()}
                                 size="compact"
-                                variant="primary"
+                                variant="secondary"
                               >
                                 Save current scene
                               </Button>
-                              <Typography
-                                align="center"
-                                as="p"
-                                className="max-w-[320px]"
-                                tone="muted"
-                                variant="monoXs"
-                              >
-                                {DRAFT_SAVE_HINT}
-                              </Typography>
-                            </>
-                          )}
-                        </div>
+                            )
+                          }
+                          description={
+                            draftsFailed
+                              ? "Something went wrong reading your drafts. Try reopening this tab."
+                              : `Save a scene here to pick it back up later, on any device. You get ${MAX_DRAFTS_PER_AUTHOR} slots.`
+                          }
+                          glyph={<DraftsGlyph />}
+                          hint={
+                            draftsFailed ? null : (
+                              <DraftSaveHint label="How saving works" />
+                            )
+                          }
+                          title={
+                            draftsFailed
+                              ? "Could not load your drafts"
+                              : "No drafts yet"
+                          }
+                        />
                       ) : null}
 
                       {drafts && drafts.length > 0 ? (
@@ -964,15 +1070,7 @@ export function CommunityModal({
                               {drafts.length} of {MAX_DRAFTS_PER_AUTHOR} slots
                               used
                             </Typography>
-                            <HoverTooltip content={DRAFT_SAVE_HINT} side="bottom">
-                              <button
-                                aria-label="How saving drafts works"
-                                className="inline-flex cursor-help items-center bg-transparent p-0 text-[var(--ds-color-text-muted)] transition-colors duration-160 hover:text-[var(--ds-color-text-secondary)]"
-                                type="button"
-                              >
-                                <InfoCircledIcon height={13} width={13} />
-                              </button>
-                            </HoverTooltip>
+                            <DraftSaveHint />
                           </span>
                           <Button
                             disabled={

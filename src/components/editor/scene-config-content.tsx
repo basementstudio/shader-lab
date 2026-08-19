@@ -12,7 +12,11 @@ import { Toggle } from "@/components/ui/toggle"
 import { Typography } from "@/components/ui/typography"
 import { playUISound } from "@/lib/audio/shader-lab-sounds"
 import { useEditorStore } from "@/store/editor-store"
-import type { CompositionAspect, SceneConfig } from "@/types/editor"
+import type {
+  CompositionAspect,
+  RenderScale,
+  SceneConfig,
+} from "@/types/editor"
 import { COMPOSITION_ASPECTS, DEFAULT_SCENE_CONFIG } from "@/types/editor"
 
 const ASPECT_LABELS: Partial<Record<string, string>> = {
@@ -24,6 +28,12 @@ const aspectOptions = COMPOSITION_ASPECTS.map((aspect) => ({
   label: ASPECT_LABELS[aspect] ?? aspect,
   value: aspect,
 }))
+
+const renderScaleOptions = [
+  { label: "Quality", value: "1" },
+  { label: "Balanced", value: "0.75" },
+  { label: "Performance", value: "0.5" },
+]
 
 const inputClassName =
   "h-7 w-14 rounded-[var(--ds-radius-control)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-2 text-center font-[var(--ds-font-mono)] text-[11px] leading-4 text-[var(--ds-color-text-primary)] outline-none focus:border-[var(--ds-border-active)]"
@@ -71,6 +81,8 @@ function Row({
 export function SceneConfigContent() {
   const sceneConfig = useEditorStore((state) => state.sceneConfig)
   const updateSceneConfig = useEditorStore((state) => state.updateSceneConfig)
+  const renderScale = useEditorStore((state) => state.renderScale)
+  const setRenderScale = useEditorStore((state) => state.setRenderScale)
 
   const handleUpdate = useCallback(
     <K extends keyof SceneConfig>(key: K, value: SceneConfig[K]) => {
@@ -132,6 +144,15 @@ export function SceneConfigContent() {
             />
           </div>
         )}
+        <Row label="Preview">
+          <Select
+            onValueChange={(value) =>
+              setRenderScale(Number(value) as RenderScale)
+            }
+            options={renderScaleOptions}
+            value={String(renderScale)}
+          />
+        </Row>
       </Section>
 
       {/* Background */}

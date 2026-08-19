@@ -1,6 +1,4 @@
-import { bloom } from "three/examples/jsm/tsl/display/BloomNode.js"
 import {
-  clamp,
   float,
   max,
   smoothstep,
@@ -9,8 +7,9 @@ import {
   vec3,
   vec4,
 } from "three/tsl"
-import type { LayerParameterValues } from "../types/editor"
+import { BloomCompositor } from "./dual-filter-bloom"
 import { PassNode } from "./pass-node"
+import type { LayerParameterValues } from "../types/editor"
 
 type Node = TSLNode
 
@@ -19,7 +18,6 @@ function clamp01(value: number): number {
 }
 
 export class BloomPass extends PassNode {
-  private bloomNode: ReturnType<typeof bloom> | null = null
   private readonly bloomIntensityUniform: Node
   private readonly bloomRadiusUniform: Node
   private readonly bloomSoftnessUniform: Node
@@ -71,18 +69,20 @@ export class BloomPass extends PassNode {
     this.bloomKneeUniform.value = nextBloomKnee
     this.highlightDriveUniform.value = nextHighlightDrive
 
-    if (this.bloomNode) {
-      this.bloomNode.strength.value = nextBloomIntensity
-      this.bloomNode.radius.value = this.normalizeBloomRadius(nextBloomRadius)
-      this.bloomNode.threshold.value = nextBloomThreshold
-      this.bloomNode.smoothWidth.value =
-        this.normalizeBloomSoftness(nextBloomSoftness)
-    }
+    this.applyBloomSettings()
   }
 
   override dispose(): void {
-    this.disposeBloomNode()
     super.dispose()
+  }
+
+  private applyBloomSettings(): void {
+    this.bloomCompositor?.applySettings({
+      intensity: this.bloomIntensityUniform.value as number,
+      radius: this.bloomRadiusUniform.value as number,
+      softness: this.bloomSoftnessUniform.value as number,
+      threshold: this.bloomThresholdUniform.value as number,
+    })
   }
 
   protected override buildEffectNode(): Node {
@@ -98,8 +98,6 @@ export class BloomPass extends PassNode {
       return vec4(this.inputNode.rgb, float(1))
     }
 
-    this.disposeBloomNode()
-    this.bloomNode = null
 
     const baseColor = vec3(this.inputNode.r, this.inputNode.g, this.inputNode.b)
     const luma = float(this.inputNode.r)
@@ -110,70 +108,18 @@ export class BloomPass extends PassNode {
     const highlightMask = smoothstep(
       this.bloomThresholdUniform.sub(knee),
       this.bloomThresholdUniform.add(knee),
-      luma
+      luma,
     )
     const extractedHighlights = baseColor
       .mul(highlightMask)
       .mul(this.highlightDriveUniform)
 
-    this.bloomNode = bloom(
-      vec4(extractedHighlights, float(1)),
-      this.bloomIntensityUniform.value as number,
-      this.normalizeBloomRadius(this.bloomRadiusUniform.value as number),
-      this.bloomThresholdUniform.value as number
-    )
-    this.bloomNode.smoothWidth.value = this.normalizeBloomSoftness(
-      this.bloomSoftnessUniform.value as number
-    )
-
-    return vec4(
-      clamp(
-        baseColor.add(this.getBloomTextureNode().rgb),
-        vec3(float(0), float(0), float(0)),
-        vec3(float(1), float(1), float(1))
-      ),
-      float(1)
-    )
-  }
-
-  private normalizeBloomRadius(value: number): number {
-    return clamp01(value / 24)
-  }
-
-  private normalizeBloomSoftness(value: number): number {
-    return Math.max(0.001, value * 0.25)
-  }
-
-  private disposeBloomNode(): void {
-    ;(this.bloomNode as { dispose?: () => void } | null)?.dispose?.()
-  }
-
-  private getBloomTextureNode(): Node {
-    const bloomNode = this.bloomNode as
-      | ({
-          getTexture?: () => Node
-          getTextureNode?: () => Node
-        } & object)
-      | null
-
-    if (!bloomNode) {
-      throw new Error("Bloom node is not initialized")
+    if (!this.bloomCompositor) {
+      this.bloomCompositor = new BloomCompositor()
     }
 
-    if (
-      "getTextureNode" in bloomNode &&
-      typeof bloomNode.getTextureNode === "function"
-    ) {
-      return bloomNode.getTextureNode()
-    }
-
-    if (
-      "getTexture" in bloomNode &&
-      typeof bloomNode.getTexture === "function"
-    ) {
-      return bloomNode.getTexture()
-    }
-
-    throw new Error("Bloom node does not expose a texture getter")
+    this.applyBloomSettings()
+    return this.bloomCompositor.build(extractedHighlights, baseColor)
   }
+
 }

@@ -1,5 +1,84 @@
 # @basementstudio/shader-lab
 
+## 2.1.0
+
+### Minor Changes
+
+- cb2e508: Replace three.js `BloomNode` with a shared Jimenez-style bloom, and cut the CRT
+  layer's GPU cost by ~3.3x.
+
+  **Bloom.** All six bloom-using passes (crt, bloom, pattern, ink, halftone,
+  particle-grid) each instantiated their own `BloomNode`, which renders a fixed
+  5-mip chain of large separable Gaussians (11 to 43 taps) every frame regardless
+  of `bloomRadius` — the radius only reweighted the mips, it never reduced cost.
+  They now share a single `DualFilterBloom`: the Call of Duty: Advanced Warfare
+  progressive downsample/upsample (13-tap downsample, 9-tap tent upsample,
+  additive accumulation). `bloomRadius` now controls how many mip levels actually
+  render, so a small radius is genuinely cheaper.
+
+  Measured on an M-series GPU at 1512x949 with DPR 2, CRT layer with bloom on:
+  p50 frame time 24.9ms -> 17.6ms, which is the vsync floor (bloom's marginal cost
+  8.2ms -> 0.9ms). The glow is also no longer subject to three's `nodeFrame`
+  frame-id race, which could silently omit it from exported frames.
+
+  The bloom result is normalised by active level count and clamped, because CRT
+  feeds its output back through the persistence buffer (~0.091 per frame) and an
+  unbounded additive chain makes that loop diverge to white. `bloomIntensity` is
+  also capped at 2 (was 8) on all six layers: above that the wash itself saturates
+  at high radius. The cap is enforced in the compositor as well as the slider,
+  because the layer store writes params through without clamping, so saved
+  projects, MCP writes and audio modulation would otherwise bypass it. The ink
+  layer's default drops from 6.19 to 2 for the same reason.
+
+  **CRT.** The pass was rendering its full fragment program twice per frame — once
+  to the pipeline target and once more to the temporal-history target. History is
+  now filled with a GPU texture copy. The shader graph is also specialized per
+  `crtMode` at build time instead of evaluating all three mask models and blending
+  by a 1.0/0.0 weight, which removes 32 of 48 source texture fetches in slot-mask
+  and aperture-grille modes and drops the phosphor mask from 27 rounded-phosphor
+  evaluations to 9. `crtMode` is now structural and no longer keyframeable.
+
+  CRT layer cost 12.50ms -> 3.76ms. Slot-mask output is pixel-identical; the other
+  two modes differ by at most 1/255 on under 0.04% of pixels, from floating-point
+  reassociation in the platform shader compiler.
+
+  Also adds an opt-in preview render scale (Quality / Balanced / Performance) that
+  scales the live viewport only — exports always render at full quality.
+
+## 2.0.0
+
+### Major Changes
+
+- 992154e: ASCII layer rebuilt (v3), renderer-wide HiDPI fix, and no-blink shader rebuilds.
+
+  **Renderer-wide fix**
+
+  Post-processing ran at CSS-pixel resolution while the canvas was sized in device pixels, so on HiDPI displays the whole effect chain rendered at half resolution and was nearest-upscaled. Render targets are now sized in device pixels. The headless renderer only applies this when it owns the renderer, so host-provided renderers keep producing textures at the requested size.
+
+  **No-blink shader rebuilds (all layers)**
+
+  Structural parameter changes used to swap `colorNode` on live materials, and the pipeline manager dropped recompiling passes from the render chain — any rebuild made the layer vanish until the new pipelines compiled. Passes now precompile replacement materials on standby buffers and swap atomically; only never-compiled passes are excluded from the chain.
+
+  **ASCII layer, rebuilt from the ground up**
+
+  Crisp runtime-SDF glyphs (grid-packed atlas, shared baseline, analytic edge, adjustable `boldness`), grid-resolution glyph selection (a supersampled analysis pass plus an optional layout pass feed a small full-resolution composite), and a control surface reduced to 14 parameters:
+
+  - `columns` — one grid-size control, measured against the composition so the editor and an export of any size produce the same lattice.
+  - `breakGrid` (off/2x/4x/8x/16x) + `breakThreshold` — flat regions merge into larger cells. Merging and glyph placement derive from one quantized lattice, so blocks are coherent and glyphs never bleed across block boundaries.
+  - `fontFamily` (all bundled families) + `fontWeight`, with per-font weight snapping. Charsets are auto-sorted by measured ink coverage; glyphs the chosen font cannot draw are filtered out, and rasterization falls back through a CJK-capable system family so the `katakana`, `boxes`, and `shades` charsets work with any font.
+  - `charset` presets + `customChars` (128 chars).
+  - `colorMode` (source / monochrome + `monoColor`), `bgOpacity` per-cell background in source mode.
+  - `signalBlackPoint` / `signalWhitePoint` / `invert` — the only signal shaping.
+  - `rowWarp` — slides whole cells along their row by brightness; glyphs stay crisp and may overlap, never shear.
+
+  Color mode and invert compile branchlessly, so source mode selects exactly the same glyphs as monochrome. Generated shaders avoid chained vector swizzles, working around a Tint compiler regression in current Chrome Canary that killed pipeline creation. Retired atlas textures now outlive their bind groups, fixing a render-loop crash (`mipLevelCount` of undefined) when a font finished loading after boot.
+
+  **Fonts in the package**
+
+  The package now ships Geist Sans, Geist Mono, and BSMNT Grotesque with an importable stylesheet — `import "@basementstudio/shader-lab/fonts.css"` — that declares the `@font-face` rules and sets the CSS variables the font resolver reads. The commercially licensed families remain available in the hosted app only; hosts can enable them (or any font) by loading the font themselves and setting the matching CSS variable. See the Fonts section of the package README.
+
+  **Removed** (breaking): `cellUnit`/`cellSize` (use `columns`), `glyphSource` structure/contour matching, `flowWarp`/`warpMode`, `glyphRotation`, `glyphScale`/`glyphScaleSource`/`glyphScaleMin`, `toneMapping`, `glyphSignalMode`/`colorSignalMode`, `signalGamma`, `presenceThreshold`/`presenceSoftness`, `shimmerAmount`/`shimmerSpeed`, `advection`/`motionScramble`/`scrambleDecay`, `directionBias`, `cellAspect` (now always follows the font), `renderMode` (always smooth), green-terminal color mode (use monochrome with a green tint), and the 32x break level. Unknown parameters in saved configs are ignored and fall back to defaults.
+
 ## 1.5.0
 
 ### Minor Changes

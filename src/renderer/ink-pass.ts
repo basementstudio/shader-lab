@@ -1,5 +1,4 @@
 import * as THREE from "three/webgpu"
-import { bloom } from "three/examples/jsm/tsl/display/BloomNode.js"
 import {
   clamp,
   float,
@@ -17,6 +16,7 @@ import {
   vec3,
   vec4,
 } from "three/tsl"
+import { BloomCompositor } from "@/renderer/dual-filter-bloom"
 import { PassNode } from "@/renderer/pass-node"
 import { loadImageTexture } from "@/renderer/media-texture"
 import { grainTexturePattern } from "@/renderer/shaders/tsl/patterns/grain-texture-pattern"
@@ -84,7 +84,6 @@ export class InkPass extends PassNode {
   private noiseSampleNodes: Node[] = []
 
   private bloomEnabled = false
-  private bloomNode: ReturnType<typeof bloom> | null = null
   private readonly bloomIntensityUniform: Node
   private readonly bloomRadiusUniform: Node
   private readonly bloomSoftnessUniform: Node
@@ -348,11 +347,8 @@ export class InkPass extends PassNode {
     if (nextBloomEnabled !== this.bloomEnabled) {
       this.bloomEnabled = nextBloomEnabled
       this.rebuildEffectNode()
-    } else if (this.bloomNode) {
-      this.bloomNode.strength.value = nextBloomIntensity
-      this.bloomNode.radius.value = this.normalizeBloomRadius(nextBloomRadius)
-      this.bloomNode.threshold.value = nextBloomThreshold
-      this.bloomNode.smoothWidth.value = this.normalizeBloomSoftness(nextBloomSoftness)
+    } else {
+      this.applyBloomSettings()
     }
 
     this.isAnimated = (this.smokeSpeedUniform.value as number) > 0
@@ -372,7 +368,6 @@ export class InkPass extends PassNode {
   }
 
   override dispose(): void {
-    this.disposeBloomNode()
     this.noiseTexture?.dispose()
     this.readTarget?.dispose()
     this.writeTarget?.dispose()
@@ -385,13 +380,20 @@ export class InkPass extends PassNode {
     super.dispose()
   }
 
+  private applyBloomSettings(): void {
+    this.bloomCompositor?.applySettings({
+      intensity: this.bloomIntensityUniform.value as number,
+      radius: this.bloomRadiusUniform.value as number,
+      softness: this.bloomSoftnessUniform.value as number,
+      threshold: this.bloomThresholdUniform.value as number,
+    })
+  }
+
   protected override buildEffectNode(): Node {
     if (!this.finalInputNode) {
       return vec4(float(0), float(0), float(0), float(1))
     }
 
-    this.disposeBloomNode()
-    this.bloomNode = null
 
     const baseColor = vec3(this.finalInputNode.r, this.finalInputNode.g, this.finalInputNode.b)
 
@@ -399,24 +401,12 @@ export class InkPass extends PassNode {
       return vec4(baseColor, float(1))
     }
 
-    this.bloomNode = bloom(
-      vec4(baseColor, float(1)),
-      this.bloomIntensityUniform.value as number,
-      this.normalizeBloomRadius(this.bloomRadiusUniform.value as number),
-      this.bloomThresholdUniform.value as number,
-    )
-    this.bloomNode.smoothWidth.value = this.normalizeBloomSoftness(
-      this.bloomSoftnessUniform.value as number,
-    )
+    if (!this.bloomCompositor) {
+      this.bloomCompositor = new BloomCompositor()
+    }
 
-    return vec4(
-      clamp(
-        baseColor.add(this.getBloomTextureNode().rgb),
-        vec3(float(0), float(0), float(0)),
-        vec3(float(1), float(1), float(1)),
-      ),
-      float(1),
-    )
+    this.applyBloomSettings()
+    return this.bloomCompositor.build(baseColor)
   }
 
   private buildBlurNode(): Node {
@@ -668,38 +658,4 @@ export class InkPass extends PassNode {
     ;(target.value as THREE.Vector3).set(r, g, b)
   }
 
-  private normalizeBloomRadius(value: number): number {
-    return clamp01(value / 24)
-  }
-
-  private normalizeBloomSoftness(value: number): number {
-    return Math.max(0.001, value * 0.25)
-  }
-
-  private disposeBloomNode(): void {
-    ;(this.bloomNode as { dispose?: () => void } | null)?.dispose?.()
-  }
-
-  private getBloomTextureNode(): Node {
-    const bloomNode = this.bloomNode as
-      | ({
-          getTexture?: () => Node
-          getTextureNode?: () => Node
-        } & object)
-      | null
-
-    if (!bloomNode) {
-      throw new Error("Bloom node is not initialized")
-    }
-
-    if ("getTextureNode" in bloomNode && typeof bloomNode.getTextureNode === "function") {
-      return bloomNode.getTextureNode()
-    }
-
-    if ("getTexture" in bloomNode && typeof bloomNode.getTexture === "function") {
-      return bloomNode.getTexture()
-    }
-
-    throw new Error("Bloom node does not expose a texture getter")
-  }
 }

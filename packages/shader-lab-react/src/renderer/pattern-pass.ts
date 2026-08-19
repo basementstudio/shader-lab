@@ -1,5 +1,4 @@
 import * as THREE from "three/webgpu"
-import { bloom } from "three/examples/jsm/tsl/display/BloomNode.js"
 import {
   clamp,
   float,
@@ -19,6 +18,7 @@ import {
   buildPatternAtlas,
   type PatternPreset,
 } from "./pattern-atlas"
+import { BloomCompositor } from "./dual-filter-bloom"
 import { createPipelinePlaceholder, PassNode } from "./pass-node"
 import type { LayerParameterValues } from "../types/editor"
 
@@ -66,7 +66,6 @@ export class PatternPass extends PassNode {
   private atlasTexture: THREE.CanvasTexture | null = null
   private atlasTextureNodes: Node[] = []
   private bloomEnabled = false
-  private bloomNode: ReturnType<typeof bloom> | null = null
   private readonly bloomIntensityUniform: Node
   private readonly bloomRadiusUniform: Node
   private readonly bloomSoftnessUniform: Node
@@ -220,12 +219,7 @@ export class PatternPass extends PassNode {
       this.rebuildEffectNode()
     }
 
-    if (this.bloomNode) {
-      this.bloomNode.strength.value = nextBloomIntensity
-      this.bloomNode.radius.value = this.normalizeBloomRadius(nextBloomRadius)
-      this.bloomNode.threshold.value = nextBloomThreshold
-      this.bloomNode.smoothWidth.value = this.normalizeBloomSoftness(nextBloomSoftness)
-    }
+    this.applyBloomSettings()
 
     if (needsAtlasRebuild) {
       this.rebuildAtlas()
@@ -242,10 +236,18 @@ export class PatternPass extends PassNode {
   }
 
   override dispose(): void {
-    this.disposeBloomNode()
     this.placeholder.dispose()
     this.atlasTexture?.dispose()
     super.dispose()
+  }
+
+  private applyBloomSettings(): void {
+    this.bloomCompositor?.applySettings({
+      intensity: this.bloomIntensityUniform.value as number,
+      radius: this.bloomRadiusUniform.value as number,
+      softness: this.bloomSoftnessUniform.value as number,
+      threshold: this.bloomThresholdUniform.value as number,
+    })
   }
 
   protected override buildEffectNode(): Node {
@@ -253,8 +255,6 @@ export class PatternPass extends PassNode {
       return this.inputNode
     }
 
-    this.disposeBloomNode()
-    this.bloomNode = null
     this.sourceTextureNodes = []
     this.atlasTextureNodes = []
 
@@ -425,24 +425,12 @@ export class PatternPass extends PassNode {
       return baseSample
     }
 
-    this.bloomNode = bloom(
-      vec4(baseSample.rgb, float(1)),
-      this.bloomIntensityUniform.value as number,
-      this.normalizeBloomRadius(this.bloomRadiusUniform.value as number),
-      this.bloomThresholdUniform.value as number,
-    )
-    this.bloomNode.smoothWidth.value = this.normalizeBloomSoftness(
-      this.bloomSoftnessUniform.value as number,
-    )
+    if (!this.bloomCompositor) {
+      this.bloomCompositor = new BloomCompositor()
+    }
 
-    return vec4(
-      clamp(
-        baseSample.rgb.add(this.getBloomTextureNode().rgb),
-        vec3(float(0), float(0), float(0)),
-        vec3(float(1), float(1), float(1)),
-      ),
-      float(1),
-    )
+    this.applyBloomSettings()
+    return this.bloomCompositor.build(baseSample.rgb)
   }
 
   private getColorModeValue(colorMode: PatternColorMode): number {
@@ -496,43 +484,8 @@ export class PatternPass extends PassNode {
     return value === "candles" || value === "shapes" ? value : "bars"
   }
 
-  private normalizeBloomRadius(value: number): number {
-    return clamp01(value / 24)
-  }
-
-  private normalizeBloomSoftness(value: number): number {
-    return Math.max(0.001, value * 0.25)
-  }
-
-  private disposeBloomNode(): void {
-    ;(this.bloomNode as { dispose?: () => void } | null)?.dispose?.()
-  }
-
-  private getBloomTextureNode(): Node {
-    const bloomNode = this.bloomNode as
-      | ({
-          getTexture?: () => Node
-          getTextureNode?: () => Node
-        } & object)
-      | null
-
-    if (!bloomNode) {
-      throw new Error("Bloom node is not initialized")
-    }
-
-    if ("getTextureNode" in bloomNode && typeof bloomNode.getTextureNode === "function") {
-      return bloomNode.getTextureNode()
-    }
-
-    if ("getTexture" in bloomNode && typeof bloomNode.getTexture === "function") {
-      return bloomNode.getTexture()
-    }
-
-    throw new Error("Bloom node does not expose a texture getter")
-  }
-
   private trackAtlasTextureNode(uvNode: Node): Node {
-    const atlasTextureNode = tslTexture(this.atlasTexture ?? new THREE.Texture(), uvNode)
+    const atlasTextureNode = tslTexture(this.atlasTexture ?? createPipelinePlaceholder(), uvNode)
     this.atlasTextureNodes.push(atlasTextureNode)
     return atlasTextureNode
   }

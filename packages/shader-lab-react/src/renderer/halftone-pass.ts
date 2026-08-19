@@ -1,4 +1,3 @@
-import { bloom } from "three/examples/jsm/tsl/display/BloomNode.js"
 import {
   abs,
   clamp,
@@ -8,7 +7,6 @@ import {
   max,
   min,
   mix,
-  screenSize,
   select,
   sin,
   smoothstep,
@@ -21,6 +19,7 @@ import {
   vec4,
 } from "three/tsl"
 import * as THREE from "three/webgpu"
+import { BloomCompositor } from "./dual-filter-bloom"
 import { createPipelinePlaceholder, PassNode } from "./pass-node"
 import { grainTexturePattern } from "./shaders/tsl/patterns/grain-texture-pattern"
 import type { LayerParameterValues } from "../types/editor"
@@ -50,7 +49,6 @@ function hexToRgb(hex: string): [number, number, number] {
 
 export class HalftonePass extends PassNode {
   private bloomEnabled = false
-  private bloomNode: ReturnType<typeof bloom> | null = null
   private colorMode: HalftoneColorMode = "cmyk"
   private cmykBlendMode: CmykBlendMode = "subtractive"
 
@@ -93,6 +91,8 @@ export class HalftonePass extends PassNode {
   private readonly paperGrainUniform: Node
   private readonly gcrUniform: Node
   private readonly registrationUniform: Node
+  private readonly logicalWidthUniform: Node
+  private readonly logicalHeightUniform: Node
 
   private readonly inkCyanUniform: Node
   private readonly inkMagentaUniform: Node
@@ -164,6 +164,8 @@ export class HalftonePass extends PassNode {
     this.paperGrainUniform = uniform(0.15)
     this.gcrUniform = uniform(0.5)
     this.registrationUniform = uniform(0)
+    this.logicalWidthUniform = uniform(1)
+    this.logicalHeightUniform = uniform(1)
 
     const [cyanR, cyanG, cyanB] = hexToRgb("#00AEEF")
     this.inkCyanUniform = uniform(new THREE.Vector3(cyanR, cyanG, cyanB))
@@ -191,6 +193,11 @@ export class HalftonePass extends PassNode {
       node.value = inputTexture
     }
     super.render(renderer, inputTexture, outputTarget, time, delta)
+  }
+
+  override updateLogicalSize(width: number, height: number): void {
+    this.logicalWidthUniform.value = Math.max(1, width)
+    this.logicalHeightUniform.value = Math.max(1, height)
   }
 
   override updateParams(params: LayerParameterValues): void {
@@ -364,32 +371,36 @@ export class HalftonePass extends PassNode {
       return
     }
 
-    if (this.bloomNode) {
-      this.bloomNode.strength.value = nextBloomIntensity
-      this.bloomNode.radius.value = this.normalizeBloomRadius(nextBloomRadius)
-      this.bloomNode.threshold.value = nextBloomThreshold
-      this.bloomNode.smoothWidth.value =
-        this.normalizeBloomSoftness(nextBloomSoftness)
-    }
+    this.applyBloomSettings()
   }
 
   override dispose(): void {
-    this.disposeBloomNode()
     super.dispose()
+  }
+
+  private applyBloomSettings(): void {
+    this.bloomCompositor?.applySettings({
+      intensity: this.bloomIntensityUniform.value as number,
+      radius: this.bloomRadiusUniform.value as number,
+      softness: this.bloomSoftnessUniform.value as number,
+      threshold: this.bloomThresholdUniform.value as number,
+    })
   }
 
   protected override buildEffectNode(): Node {
     if (!this.spacingUniform) return this.inputNode
 
-    this.disposeBloomNode()
-    this.bloomNode = null
     this.sampleNodes = []
 
     const renderTargetUv = vec2(uv().x, float(1).sub(uv().y))
-    const pixCoord = renderTargetUv.mul(screenSize)
+    const logicalScreenSize = vec2(
+      this.logicalWidthUniform,
+      this.logicalHeightUniform
+    )
+    const pixCoord = renderTargetUv.mul(logicalScreenSize)
 
     if (this.colorMode === "cmyk") {
-      return this.buildCmykNode(pixCoord, renderTargetUv)
+      return this.buildCmykNode(pixCoord, renderTargetUv, logicalScreenSize)
     }
 
     return this.buildSingleChannelNode(pixCoord, renderTargetUv)
@@ -521,28 +532,19 @@ export class HalftonePass extends PassNode {
       return vec4(baseColor, float(1))
     }
 
-    const bloomInput = vec4(emissiveColor, float(1))
-    this.bloomNode = bloom(
-      bloomInput,
-      this.bloomIntensityUniform.value as number,
-      this.normalizeBloomRadius(this.bloomRadiusUniform.value as number),
-      this.bloomThresholdUniform.value as number
-    )
-    this.bloomNode.smoothWidth.value = this.normalizeBloomSoftness(
-      this.bloomSoftnessUniform.value as number
-    )
+    if (!this.bloomCompositor) {
+      this.bloomCompositor = new BloomCompositor()
+    }
 
-    return vec4(
-      clamp(
-        baseColor.add(this.getBloomTextureNode().rgb),
-        vec3(float(0), float(0), float(0)),
-        vec3(float(1), float(1), float(1))
-      ),
-      float(1)
-    )
+    this.applyBloomSettings()
+    return this.bloomCompositor.build(emissiveColor, baseColor)
   }
 
-  private buildCmykNode(pixCoord: Node, renderTargetUv: Node): Node {
+  private buildCmykNode(
+    pixCoord: Node,
+    renderTargetUv: Node,
+    logicalScreenSize: Node
+  ): Node {
     const gcrAmount = this.gcrUniform
 
     const extractCyan = (sample: Node) => {
@@ -617,7 +619,7 @@ export class HalftonePass extends PassNode {
       extractKey
     )
 
-    const grain = grainTexturePattern(renderTargetUv.mul(screenSize))
+    const grain = grainTexturePattern(renderTargetUv.mul(logicalScreenSize))
     const grainOffset = grain.sub(0.5).mul(this.paperGrainUniform)
     const paperR = clamp(
       float(this.paperRedUniform).add(grainOffset),
@@ -773,7 +775,9 @@ export class HalftonePass extends PassNode {
 
         const cellSX = cosA.mul(cellRX).sub(sinA.mul(cellRY))
         const cellSY = sinA.mul(cellRX).add(cosA.mul(cellRY))
-        const cellUV = vec2(cellSX, cellSY).div(screenSize)
+        const cellUV = vec2(cellSX, cellSY).div(
+          vec2(this.logicalWidthUniform, this.logicalHeightUniform)
+        )
 
         const sNode = tslTexture(createPipelinePlaceholder(), cellUV)
         this.sampleNodes.push(sNode)
@@ -867,46 +871,6 @@ export class HalftonePass extends PassNode {
     }
   }
 
-  private normalizeBloomRadius(value: number): number {
-    return clamp01(value / 24)
-  }
-
-  private normalizeBloomSoftness(value: number): number {
-    return Math.max(0.001, value * 0.25)
-  }
-
-  private disposeBloomNode(): void {
-    ;(this.bloomNode as { dispose?: () => void } | null)?.dispose?.()
-  }
-
-  private getBloomTextureNode(): Node {
-    const bloomNode = this.bloomNode as
-      | ({
-          getTexture?: () => Node
-          getTextureNode?: () => Node
-        } & object)
-      | null
-
-    if (!bloomNode) {
-      throw new Error("Bloom node is not initialized")
-    }
-
-    if (
-      "getTextureNode" in bloomNode &&
-      typeof bloomNode.getTextureNode === "function"
-    ) {
-      return bloomNode.getTextureNode()
-    }
-
-    if (
-      "getTexture" in bloomNode &&
-      typeof bloomNode.getTexture === "function"
-    ) {
-      return bloomNode.getTexture()
-    }
-
-    throw new Error("Bloom node does not expose a texture getter")
-  }
 }
 
 function parseColorMode(value: unknown): HalftoneColorMode {

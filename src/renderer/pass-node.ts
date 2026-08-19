@@ -14,6 +14,7 @@ import {
   vec4,
 } from "three/tsl"
 import { buildBlendNode } from "@/renderer/blend-modes"
+import type { BloomCompositor } from "@/renderer/dual-filter-bloom"
 import type {
   LayerCompositeMode,
   LayerParameterValues,
@@ -36,11 +37,12 @@ export class PassNode {
   protected readonly hueUniform: Node
   protected readonly saturationUniform: Node
   protected lastRenderer: THREE.WebGPURenderer | null = null
+  protected bloomCompositor: BloomCompositor | null = null
 
   private readonly opacityUniform: Node
   private readonly compositeGeometry: THREE.PlaneGeometry
   private readonly compositeMesh: THREE.Mesh
-  private lastOutputTarget: THREE.WebGLRenderTarget | null = null
+  protected lastOutputTarget: THREE.WebGLRenderTarget | null = null
   private effectSwapGeneration = 0
   private blendMode = "normal"
   private compositeMode: LayerCompositeMode = "filter"
@@ -81,8 +83,21 @@ export class PassNode {
     this.lastOutputTarget = outputTarget
     this.inputNode.value = inputTexture
     this.beforeRender(time, delta)
+    this.renderBloomCompositor(renderer, outputTarget)
     renderer.setRenderTarget(outputTarget)
     renderer.render(this.scene, this.camera)
+  }
+
+  protected renderBloomCompositor(
+    renderer: THREE.WebGPURenderer,
+    outputTarget: THREE.WebGLRenderTarget
+  ): void {
+    if (!this.bloomCompositor) {
+      return
+    }
+
+    this.bloomCompositor.setSize(outputTarget.width, outputTarget.height)
+    this.bloomCompositor.render(renderer)
   }
 
   updateOpacity(opacity: number): void {
@@ -169,6 +184,8 @@ export class PassNode {
 
   dispose(): void {
     this.effectSwapGeneration += 1
+    this.bloomCompositor?.dispose()
+    this.bloomCompositor = null
     this.scene.clear()
     this.material.dispose()
     this.compositeGeometry.dispose()

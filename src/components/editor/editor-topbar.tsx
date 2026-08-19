@@ -14,13 +14,13 @@ import {
 } from "@radix-ui/react-icons"
 import { AnimatePresence, motion } from "motion/react"
 import dynamic from "next/dynamic"
-import Link from "next/link"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { AgentConnectPanel } from "@/components/editor/agent-connect-panel"
 import { FloatingDesktopPanel } from "@/components/editor/floating-desktop-panel"
 import { Button } from "@/components/ui/button"
 import { GlassPanel } from "@/components/ui/glass-panel"
 import { IconButton } from "@/components/ui/icon-button"
+import { IconButtonLink } from "@/components/ui/icon-button/link"
 import { HoverTooltip } from "@/components/ui/tooltip"
 import { Typography } from "@/components/ui/typography"
 import { playUISound } from "@/lib/audio/shader-lab-sounds"
@@ -80,19 +80,15 @@ const GITHUB_REPO_URL = "https://github.com/basementstudio/shader-lab"
 function GitHubStarLink({ mobile = false }: { mobile?: boolean }) {
   return (
     <HoverTooltip content="GitHub" side={mobile ? "top" : "bottom"}>
-      <Link
+      <IconButtonLink
         aria-label="Open Shader Lab on GitHub"
-        className={
-          mobile
-            ? "inline-flex size-8 items-center justify-center rounded-[var(--ds-radius-control)] bg-[var(--ds-color-surface-subtle)] text-[var(--ds-color-text-tertiary)] transition-[background-color,color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:bg-white/8 hover:text-[var(--ds-color-text-primary)] active:scale-[0.98]"
-            : "inline-flex h-7 w-7 items-center justify-center rounded-[var(--ds-radius-icon)] bg-[var(--ds-color-surface-subtle)] text-[var(--ds-color-text-tertiary)] transition-[background-color,color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:bg-white/8 hover:text-[var(--ds-color-text-primary)] active:scale-[0.98]"
-        }
+        className={mobile ? "size-8" : "h-7 w-7"}
         href={GITHUB_REPO_URL}
         rel="noreferrer"
         target="_blank"
       >
         <GitHubLogoIcon height={14} width={14} />
-      </Link>
+      </IconButtonLink>
     </HoverTooltip>
   )
 }
@@ -462,7 +458,7 @@ export function EditorTopBar({
               <DragHandleDots2Icon height={14} width={14} />
             </IconButton>
 
-            <div className="inline-flex items-center gap-0.5 rounded-[var(--ds-radius-control)] bg-black/25 p-[3px]">
+            <div className="inline-flex items-center gap-0.5 rounded-[var(--ds-radius-control)] border border-white/8 bg-black/25 px-[3px]">
               <IconButton
                 aria-label="Undo"
                 className="h-7 w-7 disabled:opacity-45"

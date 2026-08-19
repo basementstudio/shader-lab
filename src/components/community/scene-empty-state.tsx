@@ -46,7 +46,7 @@ export function SceneEmptyState({
     <EmptyState
       action={
         searching ? (
-          <Button onClick={onClearSearch} size="compact" variant="secondary">
+          <Button onClick={onClearSearch} variant="secondary">
             Clear search
           </Button>
         ) : null

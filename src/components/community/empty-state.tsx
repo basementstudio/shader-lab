@@ -14,7 +14,7 @@ export function EmptyState({
 }: {
   action?: ReactNode
   className?: string
-  description: string
+  description?: string
   glyph: ReactNode
   hint?: ReactNode
   title: string
@@ -22,23 +22,31 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "flex min-h-[380px] flex-col items-center justify-center gap-[var(--ds-space-3)] px-6 py-10 text-center",
+        "flex min-h-[460px] flex-col items-center justify-center gap-[var(--ds-space-5)] px-6 py-16 text-center",
         className
       )}
     >
-      <span className="text-[var(--ds-color-text-disabled)]">{glyph}</span>
+      <span className="text-[var(--ds-color-text-tertiary)] [&_svg]:size-10">
+        {glyph}
+      </span>
 
-      <div className="flex max-w-[380px] flex-col gap-[var(--ds-space-1)]">
-        <Typography align="center" as="p" variant="label">
+      <div className="flex max-w-[440px] flex-col gap-[var(--ds-space-2)]">
+        <Typography align="center" as="p" variant="heading">
           {title}
         </Typography>
-        <Typography align="center" as="p" tone="tertiary" variant="caption">
-          {description}
-        </Typography>
+        {description ? (
+          <Typography align="center" as="p" tone="tertiary" variant="body">
+            {description}
+          </Typography>
+        ) : null}
       </div>
 
-      {action}
-      {hint}
+      {action || hint ? (
+        <div className="flex flex-col items-center gap-[var(--ds-space-4)]">
+          {action}
+          {hint}
+        </div>
+      ) : null}
     </div>
   )
 }

@@ -155,20 +155,15 @@ function DraftsGlyph() {
   )
 }
 
-function DraftSaveHint({ label }: { label?: string }) {
+function DraftSaveHint() {
   return (
     <HoverTooltip content={DRAFT_SAVE_HINT} side="bottom">
       <button
         aria-label="How saving drafts works"
-        className="inline-flex cursor-help items-center gap-1.5 bg-transparent p-0 text-[var(--ds-color-text-muted)] transition-colors duration-160 hover:text-[var(--ds-color-text-secondary)]"
+        className="inline-flex cursor-help items-center bg-transparent p-0 text-[var(--ds-color-text-muted)] transition-colors duration-160 hover:text-[var(--ds-color-text-secondary)]"
         type="button"
       >
         <InfoCircledIcon height={13} width={13} />
-        {label ? (
-          <Typography as="span" tone="inherit" variant="caption">
-            {label}
-          </Typography>
-        ) : null}
       </button>
     </HoverTooltip>
   )
@@ -937,7 +932,6 @@ export function CommunityModal({
                             mineFailed ? null : (
                               <Button
                                 onClick={onRequestPublish}
-                                size="compact"
                                 variant="secondary"
                               >
                                 Publish your scene
@@ -1026,52 +1020,23 @@ export function CommunityModal({
                         </div>
                       ) : null}
 
-                      {drafts?.length === 0 ? (
-                        <EmptyState
-                          action={
-                            draftsFailed ? null : (
-                              <Button
-                                disabled={busyDraftId !== null}
-                                onClick={() => void saveAsNewDraft()}
-                                size="compact"
-                                variant="secondary"
-                              >
-                                Save current scene
-                              </Button>
-                            )
-                          }
-                          description={
-                            draftsFailed
-                              ? "Something went wrong reading your drafts. Try reopening this tab."
-                              : `Save a scene here to pick it back up later, on any device. You get ${MAX_DRAFTS_PER_AUTHOR} slots.`
-                          }
-                          glyph={<DraftsGlyph />}
-                          hint={
-                            draftsFailed ? null : (
-                              <DraftSaveHint label="How saving works" />
-                            )
-                          }
-                          title={
-                            draftsFailed
-                              ? "Could not load your drafts"
-                              : "No drafts yet"
-                          }
-                        />
-                      ) : null}
-
-                      {drafts && drafts.length > 0 ? (
+                      {drafts && !draftsFailed ? (
                         <div className="mb-[var(--ds-space-4)] flex items-center justify-between gap-[var(--ds-space-3)]">
-                          <span className="inline-flex items-center gap-1.5">
-                            <Typography
-                              as="span"
-                              tone="tertiary"
-                              variant="caption"
-                            >
-                              {drafts.length} of {MAX_DRAFTS_PER_AUTHOR} slots
-                              used
-                            </Typography>
-                            <DraftSaveHint />
-                          </span>
+                          {drafts.length > 0 ? (
+                            <span className="inline-flex items-center gap-1.5">
+                              <Typography
+                                as="span"
+                                tone="tertiary"
+                                variant="caption"
+                              >
+                                {drafts.length} of {MAX_DRAFTS_PER_AUTHOR} slots
+                                used
+                              </Typography>
+                              <DraftSaveHint />
+                            </span>
+                          ) : (
+                            <span />
+                          )}
                           <Button
                             disabled={
                               busyDraftId !== null ||
@@ -1084,6 +1049,17 @@ export function CommunityModal({
                             Save current scene as new draft
                           </Button>
                         </div>
+                      ) : null}
+
+                      {drafts?.length === 0 ? (
+                        <EmptyState
+                          glyph={<DraftsGlyph />}
+                          title={
+                            draftsFailed
+                              ? "Could not load your drafts"
+                              : "No drafts yet"
+                          }
+                        />
                       ) : null}
 
                       {drafts && drafts.length > 0 ? (

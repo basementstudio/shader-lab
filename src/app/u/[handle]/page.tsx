@@ -4,6 +4,7 @@ import { Suspense } from "react"
 import { ProfileHeader } from "@/components/community/profile-header"
 import { ProfileOwnerActions } from "@/components/community/profile-owner-actions"
 import { PublicSceneGrid } from "@/components/community/public-scene-grid"
+import { SCENE_GRID_CLASS_NAME } from "@/components/community/scene-grid"
 import { ButtonLink } from "@/components/ui/button/link"
 import { APP_BASE_URL } from "@/lib/app"
 import { isCommunityEnabled } from "@/lib/community/config"
@@ -169,7 +170,7 @@ const SKELETON_CARDS = [
 
 function GridSkeleton() {
   return (
-    <div className="grid grid-cols-2 gap-[var(--ds-space-4)] min-[760px]:grid-cols-4">
+    <div className={SCENE_GRID_CLASS_NAME}>
       {SKELETON_CARDS.map((id) => (
         <div className="flex animate-pulse flex-col gap-[5px]" key={id}>
           <div className="aspect-[16/10] w-full rounded-[8px] border border-[var(--ds-border-subtle)] bg-[var(--ds-color-surface-subtle)]" />

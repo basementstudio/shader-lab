@@ -7,10 +7,13 @@ import { APP_BASE_URL } from "@/lib/app"
 import { isCommunityEnabled } from "@/lib/community/config"
 import { getPublicScenes } from "@/lib/community/public-scenes"
 
-const TITLE = "Shaders made by the community"
+const TITLE = "Made by the community"
+
+const TAGLINE =
+  "Every scene runs in your browser. Open one, change anything, make it yours."
 
 const DESCRIPTION =
-  "Every scene here was built in Shader Lab and runs in real time. Open one, remix it, make it yours."
+  "Scenes made with Shader Lab by the community. Open any one of them and remix it in your browser."
 
 export const metadata: Metadata = {
   alternates: { canonical: "/community" },
@@ -32,13 +35,22 @@ export default async function CommunityPage() {
   const page = await getPublicScenes()
 
   return (
-    <main className="mx-auto flex w-full max-w-[1180px] flex-col gap-[var(--ds-space-6)] px-4 py-10 sm:px-6">
-      <header className="flex max-w-[680px] flex-col items-start gap-[var(--ds-space-4)] pt-[var(--ds-space-4)]">
-        <Typography as="h1" variant="display">
+    <main className="mx-auto flex w-full max-w-[1180px] flex-col gap-[var(--ds-space-16)] px-4 py-10 sm:px-6">
+      <header className="flex flex-col items-start gap-[var(--ds-space-5)] pt-[var(--ds-space-4)]">
+        <Typography
+          as="h1"
+          className="max-w-[640px] text-balance"
+          variant="display"
+        >
           {TITLE}
         </Typography>
-        <Typography as="p" tone="secondary" variant="title">
-          {DESCRIPTION}
+        <Typography
+          as="p"
+          className="max-w-[400px] text-pretty"
+          tone="secondary"
+          variant="title"
+        >
+          {TAGLINE}
         </Typography>
         <ButtonLink href="/tools/shader-lab" variant="primary">
           Open the editor

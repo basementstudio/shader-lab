@@ -1,6 +1,7 @@
 "use client"
 
 import { PublicSceneCard } from "@/components/community/public-scene-card"
+import { SCENE_GRID_CLASS_NAME } from "@/components/community/scene-grid"
 import { SceneLoadMore } from "@/components/community/scene-load-more"
 import { Typography } from "@/components/ui/typography"
 import type { CommunitySceneSummary, SceneSort } from "@/lib/community/scenes"
@@ -37,7 +38,7 @@ export function PublicSceneGrid({
 
   return (
     <>
-      <div className="grid grid-cols-2 gap-[var(--ds-space-5)] min-[760px]:grid-cols-3">
+      <div className={SCENE_GRID_CLASS_NAME}>
         {shown.map((scene, index) => (
           <PublicSceneCard
             key={scene.slug}

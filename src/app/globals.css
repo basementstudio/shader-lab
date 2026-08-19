@@ -115,6 +115,8 @@
     --ds-space-5: 20px;
     --ds-space-6: 24px;
     --ds-space-8: 32px;
+    --ds-space-10: 40px;
+    --ds-space-16: 64px;
     --ds-blur-glass: blur(24px);
     --ds-shadow-panel-dark: 0 8px 32px rgb(0 0 0 / 0.4);
     --ds-shadow-pill-dark: 0 4px 20px rgb(0 0 0 / 0.35);

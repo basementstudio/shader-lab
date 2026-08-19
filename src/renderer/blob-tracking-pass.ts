@@ -2,21 +2,21 @@ import {
   abs,
   clamp,
   dot,
+  attribute,
   float,
-  Fn,
+  floor,
   fract,
   length,
-  Loop,
   max,
   min,
   mix,
+  positionLocal,
   smoothstep,
   sqrt,
   step,
   type TSLNode,
   texture as tslTexture,
   uniform,
-  uniformArray,
   uv,
   vec2,
   vec3,
@@ -335,14 +335,9 @@ export class BlobTrackingPass extends PassNode {
     { length: MAX_BLOBS },
     () => new THREE.Vector4(0, 0, 0, 0)
   )
-  private readonly blobTableNode: Node = uniformArray(this.blobEntries, "vec4")
   private readonly blobMetaEntries: THREE.Vector4[] = Array.from(
     { length: MAX_BLOBS },
     () => new THREE.Vector4(0, 0, 0, 0)
-  )
-  private readonly blobMetaNode: Node = uniformArray(
-    this.blobMetaEntries,
-    "vec4"
   )
   private readonly blobCountUniform: Node = uniform(0, "int")
 
@@ -350,19 +345,11 @@ export class BlobTrackingPass extends PassNode {
     { length: MAX_CONNECTOR_SEGMENTS },
     () => new THREE.Vector4(0, 0, 0, 0)
   )
-  private readonly segmentArrayNode: Node = uniformArray(
-    this.segmentEntries,
-    "vec4"
-  )
   private readonly segmentCountUniform: Node = uniform(0, "int")
 
   private readonly arrowEntries: THREE.Vector4[] = Array.from(
     { length: MAX_ARROW_SEGMENTS },
     () => new THREE.Vector4(0, 0, 0, 0)
-  )
-  private readonly arrowArrayNode: Node = uniformArray(
-    this.arrowEntries,
-    "vec4"
   )
   private readonly arrowCountUniform: Node = uniform(0, "int")
 
@@ -388,6 +375,22 @@ export class BlobTrackingPass extends PassNode {
   private maskOutput = false
 
   private decorations: DecorationConfig = { ...DEFAULT_DECORATIONS }
+  private decorationScene: THREE.Scene | null = null
+  private decorationRt: THREE.WebGLRenderTarget | null = null
+  private readonly decorationMeshes: THREE.Mesh[] = []
+  private readonly decorationAttributes: THREE.InstancedBufferAttribute[] = []
+  private shapeMesh: THREE.Mesh | null = null
+  private labelMesh: THREE.Mesh | null = null
+  private connectorMesh: THREE.Mesh | null = null
+  private arrowMesh: THREE.Mesh | null = null
+  private decorationSampleNode: Node | null = null
+  private trailDecorationNode: Node | null = null
+  private readonly decorationPlaceholder = new THREE.Texture()
+  private readonly blobRectData = new Float32Array(MAX_BLOBS * 4)
+  private readonly blobMetaData = new Float32Array(MAX_BLOBS * 4)
+  private readonly segmentData = new Float32Array(MAX_CONNECTOR_SEGMENTS * 4)
+  private readonly arrowData = new Float32Array(MAX_ARROW_SEGMENTS * 4)
+
   private motionScene: THREE.Scene | null = null
   private motionMaterial: THREE.MeshBasicNodeMaterial | null = null
   private motionRtA: THREE.WebGLRenderTarget | null = null
@@ -430,6 +433,7 @@ export class BlobTrackingPass extends PassNode {
     this.applyDecorationUniforms()
     this.createAnalysisResources()
     this.createLumaChainResources()
+    this.createDecorationResources()
     this.createMotionMaskResources()
     this.createTrailResources()
     this.rebuildEffectNode()
@@ -478,6 +482,7 @@ export class BlobTrackingPass extends PassNode {
       this.syncTrackerOutputs()
     }
 
+    this.renderDecorations(renderer)
     this.renderTrail(renderer)
 
     super.render(renderer, inputTexture, outputTarget, time, delta)
@@ -606,8 +611,8 @@ params.outputMode === "motion"
     if (shapeChanged || maskChanged || structureChanged) {
       this.rebuildEffectNode()
     }
-    if (shapeChanged) {
-      this.rebuildTrailNode()
+    if (shapeChanged || structureChanged) {
+      this.rebuildDecorationMeshes()
     }
 
     this.updateInnerEffect(params)
@@ -618,6 +623,7 @@ params.outputMode === "motion"
     this.deviceHeight = Math.max(1, height)
     this.innerRt?.setSize(this.deviceWidth, this.deviceHeight)
     this.resizeLumaChain()
+    this.resizeDecorationTarget()
     this.resizeMotionTargets()
     this.resizeTrailTargets()
     this.hasHistoryUniform.value = 0
@@ -649,6 +655,10 @@ params.outputMode === "motion"
       material.dispose()
     }
     this.analysisScene?.clear()
+    this.disposeDecorationMeshes()
+    this.decorationRt?.dispose()
+    this.decorationScene?.clear()
+    this.decorationPlaceholder.dispose()
     this.motionRtA?.dispose()
     this.motionRtB?.dispose()
     this.motionMaterial?.dispose()
@@ -669,7 +679,9 @@ params.outputMode === "motion"
   }
 
   protected override buildEffectNode(): Node {
-    if (!(this.blobTableNode && this.shapeScaleUniform)) {
+    // PassNode's constructor builds the node graph before this subclass's field
+    // initializers have run, so bail out until our own resources exist.
+    if (!(this.decorationPlaceholder && this.motionPlaceholder)) {
       return this.inputNode
     }
 
@@ -701,7 +713,9 @@ params.outputMode === "motion"
       return vec4(vec3(motionMask, motionMask, motionMask), float(1))
     }
 
-    const shapeMask = this.buildShapeMaskNode(screenUv)
+    const decorationSample = tslTexture(this.decorationPlaceholder, screenUv)
+    this.decorationSampleNode = decorationSample
+    const shapeMask = float(decorationSample.r)
     const mask = mix(shapeMask, float(1).sub(shapeMask), this.invertUniform)
 
     if (this.maskOutput) {
@@ -721,7 +735,7 @@ params.outputMode === "motion"
     const trailSample = tslTexture(this.trailPlaceholder, screenUv)
     this.trailSampleNode = trailSample
     const trail = float(trailSample.r).mul(this.trailStrengthUniform)
-    const decoration = max(this.buildDecorationNode(screenUv), trail)
+    const decoration = max(float(decorationSample.g), trail)
 
     // Emit the effect plus a real alpha rather than pre-mixing with the input:
     // PassNode's blend already does `mix(base, effect, opacity * alpha)`, so an
@@ -761,13 +775,6 @@ params.outputMode === "motion"
     return length(max(vec2(dx, dy), vec2(0, 0))).add(
       min(max(dx, dy), float(0))
     )
-  }
-
-  private blobHalfExtents(entry: Node): { halfH: Node; halfW: Node } {
-    return {
-      halfH: float(entry.w).mul(this.shapeScaleUniform),
-      halfW: float(entry.z).mul(this.shapeScaleUniform),
-    }
   }
 
   private createLumaChainResources(): void {
@@ -862,189 +869,366 @@ params.outputMode === "motion"
     return source
   }
 
-  private buildShapeMaskNode(screenUv: Node): Node {
-    const blobTable = this.blobTableNode
-    const blobMeta = this.blobMetaNode
-    const blobCount = this.blobCountUniform
-    const aspect = this.aspectUniform
-    const edgeSoft = this.edgeSoftUniform
-
-    const maskFn = Fn(() => {
-      const coverage = float(0).toVar()
-
-      Loop(blobCount, ({ i }) => {
-        const entry = blobTable.element(i)
-        const presence = float(blobMeta.element(i).x)
-        const { halfW, halfH } = this.blobHalfExtents(entry)
-        const px = abs(float(screenUv.x).sub(float(entry.x))).mul(aspect)
-        const py = abs(float(screenUv.y).sub(float(entry.y)))
-
-        const sdf = this.shapeDistance(px, py, halfW, halfH)
-
-        const contribution = float(1)
-          .sub(smoothstep(float(0).sub(edgeSoft), edgeSoft, sdf))
-          .mul(presence)
-
-        coverage.assign(max(coverage, contribution))
-      })
-
-      return coverage
-    })
-
-    return maskFn() as Node
+  private strokeBandNode(distance: Node): Node {
+    const edge = this.edgeSoftUniform
+    return float(1).sub(
+      smoothstep(
+        float(0).sub(edge),
+        edge,
+        abs(distance).sub(this.strokeHalfUniform)
+      )
+    )
   }
 
-  private buildDecorationNode(screenUv: Node): Node {
-    const aspect = this.aspectUniform
-    const halfStroke = this.strokeHalfUniform
-    const edge = this.edgeSoftUniform
-    const markerRadius = this.markerRadiusUniform
-    const decorations = this.decorations
-
-    const point = vec2(float(screenUv.x).mul(aspect), float(screenUv.y))
-
-    const strokeBand = (distance: Node): Node =>
-      float(1).sub(
-        smoothstep(
-          float(0).sub(edge),
-          edge,
-          abs(distance).sub(halfStroke)
-        )
+  /**
+   * Quads own their attributes: sharing `fullscreenGeometry`'s would mean
+   * `disposeDecorationMeshes` tears down buffers the analysis and trail passes
+   * still need. Layout matches PlaneGeometry(2, 2): uv.y = (y + 1) / 2.
+   */
+  private createInstancedQuad(
+    attributes: Record<string, THREE.InstancedBufferAttribute>
+  ): THREE.InstancedBufferGeometry {
+    const geometry = new THREE.InstancedBufferGeometry()
+    geometry.setAttribute(
+      "position",
+      new THREE.BufferAttribute(
+        new Float32Array([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0]),
+        3
       )
+    )
+    geometry.setAttribute(
+      "uv",
+      new THREE.BufferAttribute(new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]), 2)
+    )
+    geometry.setIndex(
+      new THREE.BufferAttribute(new Uint16Array([0, 1, 2, 0, 2, 3]), 1)
+    )
+    for (const [name, attributeBuffer] of Object.entries(attributes)) {
+      geometry.setAttribute(name, attributeBuffer)
+    }
+    geometry.instanceCount = 0
+    return geometry
+  }
 
-    const segmentDistance = (entry: Node): { along: Node; distance: Node } => {
-      const from = vec2(float(entry.x).mul(aspect), float(entry.y))
-      const to = vec2(float(entry.z).mul(aspect), float(entry.w))
-      const span = to.sub(from)
-      const lengthSq = max(dot(span, span), float(1e-8))
-      const travel = clamp(dot(point.sub(from), span).div(lengthSq), 0, 1)
-      const closest = from.add(span.mul(travel))
-      return {
-        along: travel.mul(sqrt(lengthSq)),
-        distance: length(point.sub(closest)),
+  private createDecorationMaterial(): THREE.MeshBasicNodeMaterial {
+    const material = new THREE.MeshBasicNodeMaterial()
+    // Coverage unions with a max blend, matching the `max()` chain the previous
+    // full-screen loops used, so overlapping primitives never double up.
+    material.blending = THREE.CustomBlending
+    material.blendEquation = THREE.MaxEquation
+    material.blendSrc = THREE.OneFactor
+    material.blendDst = THREE.OneFactor
+    material.blendEquationAlpha = THREE.MaxEquation
+    material.blendSrcAlpha = THREE.OneFactor
+    material.blendDstAlpha = THREE.OneFactor
+    material.transparent = true
+    material.depthTest = false
+    material.depthWrite = false
+    // quadPositionNode inverts Y to match the screenUv convention, which
+    // reverses triangle winding; without this every quad is back-facing and
+    // silently culled.
+    material.side = THREE.DoubleSide
+    return material
+  }
+
+  /** Local quad corner -> clip space, for a quad centred in point space. */
+  private quadPositionNode(center: Node, half: Node): Node {
+    const screenX = float(center.x)
+      .add(positionLocal.x.mul(float(half.x)))
+      .div(this.aspectUniform)
+    const screenY = float(center.y).add(positionLocal.y.mul(float(half.y)))
+    return vec3(screenX.mul(2).sub(1), float(1).sub(screenY.mul(2)), float(0))
+  }
+
+  /** Recovers point-space position in the fragment stage. */
+  private quadPointNode(center: Node, half: Node): Node {
+    return vec2(
+      float(center.x).add(uv().x.mul(2).sub(1).mul(float(half.x))),
+      float(center.y).add(uv().y.mul(2).sub(1).mul(float(half.y)))
+    )
+  }
+
+  private addDecorationMesh(
+    material: THREE.MeshBasicNodeMaterial,
+    attributes: Record<string, THREE.InstancedBufferAttribute>
+  ): THREE.Mesh {
+    const mesh = new THREE.Mesh(this.createInstancedQuad(attributes), material)
+    mesh.frustumCulled = false
+    mesh.visible = false
+    this.decorationScene?.add(mesh)
+    this.decorationMeshes.push(mesh)
+    return mesh
+  }
+
+  private createBlobAttributes(): {
+    meta: THREE.InstancedBufferAttribute
+    rect: THREE.InstancedBufferAttribute
+  } {
+    const rect = new THREE.InstancedBufferAttribute(this.blobRectData, 4)
+    const meta = new THREE.InstancedBufferAttribute(this.blobMetaData, 4)
+    rect.setUsage(THREE.DynamicDrawUsage)
+    meta.setUsage(THREE.DynamicDrawUsage)
+    this.decorationAttributes.push(rect, meta)
+    return { meta, rect }
+  }
+
+  private buildShapeMesh(): void {
+    const material = this.createDecorationMaterial()
+    const { meta, rect } = this.createBlobAttributes()
+
+    const iRect = attribute("iRect", "vec4")
+    const presence = float(attribute("iMeta", "vec4").x)
+    const halfW = float(iRect.z).mul(this.shapeScaleUniform)
+    const halfH = float(iRect.w).mul(this.shapeScaleUniform)
+    const center = vec2(float(iRect.x).mul(this.aspectUniform), float(iRect.y))
+    const pad = this.strokeHalfUniform
+      .add(this.edgeSoftUniform.mul(3))
+      .add(this.markerRadiusUniform.mul(1.6))
+    const half = vec2(halfW.add(pad), halfH.add(pad))
+
+    material.positionNode = this.quadPositionNode(center, half) as Node
+
+    const offsetX = abs(uv().x.mul(2).sub(1)).mul(float(half.x))
+    const offsetY = abs(uv().y.mul(2).sub(1)).mul(float(half.y))
+    const sdf = this.shapeDistance(offsetX, offsetY, halfW, halfH)
+    const edge = this.edgeSoftUniform
+
+    const fill = float(1)
+      .sub(smoothstep(float(0).sub(edge), edge, sdf))
+      .mul(presence)
+    const outline = this.strokeBandNode(sdf).mul(presence)
+
+    let stroke: Node = this.decorations.showOutline ? outline : float(0)
+    if (this.decorations.centerShape !== "none") {
+      const markerRadius = this.markerRadiusUniform
+      const halfStroke = this.strokeHalfUniform
+      let markerSdf: Node
+      if (this.decorations.centerShape === "cross") {
+        const arm = markerRadius.mul(float(1.6))
+        markerSdf = min(
+          max(offsetX.sub(arm), offsetY.sub(halfStroke)),
+          max(offsetX.sub(halfStroke), offsetY.sub(arm))
+        )
+      } else {
+        markerSdf = length(vec2(offsetX, offsetY)).sub(markerRadius)
       }
+      stroke = max(
+        stroke,
+        float(1)
+          .sub(smoothstep(float(0).sub(edge), edge, markerSdf))
+          .mul(presence)
+      )
     }
 
-    const decorationFn = Fn(() => {
-      const coverage = float(0).toVar()
-
-      if (decorations.showOutline) {
-        Loop(this.blobCountUniform, ({ i }) => {
-          const entry = this.blobTableNode.element(i)
-          const presence = float(this.blobMetaNode.element(i).x)
-          const offsetX = abs(float(point.x).sub(float(entry.x).mul(aspect)))
-          const offsetY = abs(float(point.y).sub(float(entry.y)))
-          const { halfW, halfH } = this.blobHalfExtents(entry)
-
-          const sdf = this.shapeDistance(offsetX, offsetY, halfW, halfH)
-
-          coverage.assign(max(coverage, strokeBand(sdf).mul(presence)))
-        })
-      }
-
-      if (decorations.centerShape !== "none") {
-        Loop(this.blobCountUniform, ({ i }) => {
-          const entry = this.blobTableNode.element(i)
-          const presence = float(this.blobMetaNode.element(i).x)
-          const offsetX = abs(float(point.x).sub(float(entry.x).mul(aspect)))
-          const offsetY = abs(float(point.y).sub(float(entry.y)))
-
-          let markerSdf: Node
-          if (decorations.centerShape === "cross") {
-            const arm = markerRadius.mul(float(1.6))
-            const horizontal = max(offsetX.sub(arm), offsetY.sub(halfStroke))
-            const vertical = max(offsetX.sub(halfStroke), offsetY.sub(arm))
-            markerSdf = min(horizontal, vertical)
-          } else {
-            markerSdf = length(vec2(offsetX, offsetY)).sub(markerRadius)
-          }
-
-          const marker = float(1).sub(
-            smoothstep(float(0).sub(edge), edge, markerSdf)
-          )
-
-          coverage.assign(max(coverage, marker.mul(presence)))
-        })
-      }
-
-      if (decorations.connectLines) {
-        Loop(this.segmentCountUniform, ({ i }) => {
-          const { along, distance } = segmentDistance(
-            this.segmentArrayNode.element(i)
-          )
-          let mask = strokeBand(distance)
-          if (decorations.connectorDashed) {
-            mask = mask.mul(
-              step(fract(along.div(float(DASH_PERIOD))), float(DASH_DUTY))
-            )
-          }
-          coverage.assign(max(coverage, mask.mul(float(CONNECTOR_ALPHA))))
-        })
-
-        if (decorations.connectorArrows) {
-          Loop(this.arrowCountUniform, ({ i }) => {
-            const { distance } = segmentDistance(this.arrowArrayNode.element(i))
-            coverage.assign(
-              max(coverage, strokeBand(distance).mul(float(CONNECTOR_ALPHA)))
-            )
-          })
-        }
-      }
-
-      if (decorations.showLabels && this.labelAtlas) {
-        const cell = this.labelCellUniform
-        const atlas = this.labelAtlas
-        const indexTexture = this.labelIndexTexture
-
-        Loop(this.blobCountUniform, ({ i }) => {
-          const entry = this.blobTableNode.element(i)
-          const presence = float(this.blobMetaNode.element(i).x)
-          const { halfW, halfH } = this.blobHalfExtents(entry)
-          const originX = float(entry.x).mul(aspect).sub(halfW)
-          const originY = float(entry.y)
-            .add(halfH)
-            .add(halfStroke)
-            .add(float(cell.y).mul(float(0.35)))
-
-          const localX = float(point.x).sub(originX)
-          const localY = float(point.y).sub(originY)
-          const column = localX.div(float(cell.x)).floor()
-
-          const inside = localY
-            .greaterThanEqual(float(0))
-            .and(localY.lessThan(float(cell.y)))
-            .and(column.greaterThanEqual(float(0)))
-            .and(column.lessThan(float(MAX_LABEL_CHARS)))
-
-          const glyph = float(
-            tslTexture(indexTexture)
-              .load(vec2(column, float(i)))
-              .r
-          )
-
-          const cellUvX = fract(localX.div(float(cell.x)))
-          const cellUvY = localY.div(float(cell.y))
-          const atlasUv = vec2(
-            glyph.add(cellUvX).div(float(LABEL_CHARS.length)),
-            cellUvY
-          )
-          const ink = float(
-            tslTexture(atlas, atlasUv).level(float(0)).r
-          )
-
-          const visible = float(inside).mul(
-            step(float(0), glyph)
-          )
-          coverage.assign(
-            max(coverage, ink.mul(visible).mul(presence))
-          )
-        })
-      }
-
-      return coverage
+    // B carries the bare outline: it is what the trail ribbon accumulates.
+    material.colorNode = vec4(fill, stroke, outline, float(1)) as Node
+    this.shapeMesh = this.addDecorationMesh(material, {
+      iMeta: meta,
+      iRect: rect,
     })
+  }
 
-    return decorationFn() as Node
+  private buildLabelMesh(): void {
+    if (!(this.decorations.showLabels && this.labelAtlas)) {
+      return
+    }
+
+    const material = this.createDecorationMaterial()
+    const { meta, rect } = this.createBlobAttributes()
+
+    const iRect = attribute("iRect", "vec4")
+    const iMeta = attribute("iMeta", "vec4")
+    const presence = float(iMeta.x)
+    const row = float(iMeta.y)
+    const cell = this.labelCellUniform
+    const labelW = float(cell.x).mul(float(MAX_LABEL_CHARS))
+    const labelH = float(cell.y)
+    const halfW = float(iRect.z).mul(this.shapeScaleUniform)
+    const halfH = float(iRect.w).mul(this.shapeScaleUniform)
+    const originX = float(iRect.x).mul(this.aspectUniform).sub(halfW)
+    const originY = float(iRect.y)
+      .add(halfH)
+      .add(this.strokeHalfUniform)
+      .add(labelH.mul(float(0.35)))
+    const center = vec2(
+      originX.add(labelW.mul(float(0.5))),
+      originY.add(labelH.mul(float(0.5)))
+    )
+    const half = vec2(labelW.mul(float(0.5)), labelH.mul(float(0.5)))
+
+    material.positionNode = this.quadPositionNode(center, half) as Node
+
+    const column = floor(uv().x.mul(float(MAX_LABEL_CHARS)))
+    const cellUvX = fract(uv().x.mul(float(MAX_LABEL_CHARS)))
+    const glyph = float(
+      tslTexture(this.labelIndexTexture).load(vec2(column, row)).r
+    )
+    const atlasUv = vec2(
+      glyph.add(cellUvX).div(float(LABEL_CHARS.length)),
+      uv().y
+    )
+    const ink = float(tslTexture(this.labelAtlas, atlasUv).level(float(0)).r)
+
+    material.colorNode = vec4(
+      float(0),
+      ink.mul(step(float(0), glyph)).mul(presence),
+      float(0),
+      float(1)
+    ) as Node
+    this.labelMesh = this.addDecorationMesh(material, {
+      iMeta: meta,
+      iRect: rect,
+    })
+  }
+
+  private buildSegmentMesh(data: Float32Array, dashed: boolean): THREE.Mesh {
+    const material = this.createDecorationMaterial()
+    const segmentBuffer = new THREE.InstancedBufferAttribute(data, 4)
+    segmentBuffer.setUsage(THREE.DynamicDrawUsage)
+    this.decorationAttributes.push(segmentBuffer)
+
+    const iSeg = attribute("iSeg", "vec4")
+    const aspect = this.aspectUniform
+    const from = vec2(float(iSeg.x).mul(aspect), float(iSeg.y))
+    const to = vec2(float(iSeg.z).mul(aspect), float(iSeg.w))
+    const pad = this.strokeHalfUniform.add(this.edgeSoftUniform.mul(3))
+    const center = vec2(
+      float(from.x).add(float(to.x)).mul(float(0.5)),
+      float(from.y).add(float(to.y)).mul(float(0.5))
+    )
+    const half = vec2(
+      abs(float(to.x).sub(float(from.x))).mul(float(0.5)).add(pad),
+      abs(float(to.y).sub(float(from.y))).mul(float(0.5)).add(pad)
+    )
+
+    material.positionNode = this.quadPositionNode(center, half) as Node
+
+    const point = this.quadPointNode(center, half)
+    const span = to.sub(from)
+    const lengthSq = max(dot(span, span), float(1e-8))
+    const travel = clamp(dot(point.sub(from), span).div(lengthSq), 0, 1)
+    const closest = from.add(span.mul(travel))
+    let coverage = this.strokeBandNode(length(point.sub(closest)))
+
+    if (dashed) {
+      const along = travel.mul(sqrt(lengthSq))
+      coverage = coverage.mul(
+        step(fract(along.div(float(DASH_PERIOD))), float(DASH_DUTY))
+      )
+    }
+
+    material.colorNode = vec4(
+      float(0),
+      coverage.mul(float(CONNECTOR_ALPHA)),
+      float(0),
+      float(1)
+    ) as Node
+    return this.addDecorationMesh(material, { iSeg: segmentBuffer })
+  }
+
+  private createDecorationResources(): void {
+    this.decorationScene = new THREE.Scene()
+    this.decorationRt = new THREE.WebGLRenderTarget(1, 1, LUMA_RT_OPTIONS)
+    this.rebuildDecorationMeshes()
+    this.resizeDecorationTarget()
+  }
+
+  private disposeDecorationMeshes(): void {
+    for (const mesh of this.decorationMeshes) {
+      this.decorationScene?.remove(mesh)
+      mesh.geometry.dispose()
+      ;(mesh.material as THREE.Material).dispose()
+    }
+    this.decorationMeshes.length = 0
+    this.decorationAttributes.length = 0
+    this.shapeMesh = null
+    this.labelMesh = null
+    this.connectorMesh = null
+    this.arrowMesh = null
+  }
+
+  private rebuildDecorationMeshes(): void {
+    if (!this.decorationScene) {
+      return
+    }
+    this.disposeDecorationMeshes()
+
+    this.buildShapeMesh()
+    this.buildLabelMesh()
+    if (this.decorations.connectLines) {
+      this.connectorMesh = this.buildSegmentMesh(
+        this.segmentData,
+        this.decorations.connectorDashed
+      )
+      if (this.decorations.connectorArrows) {
+        this.arrowMesh = this.buildSegmentMesh(this.arrowData, false)
+      }
+    }
+  }
+
+  private resizeDecorationTarget(): void {
+    this.decorationRt?.setSize(this.deviceWidth, this.deviceHeight)
+  }
+
+  private renderDecorations(renderer: THREE.WebGPURenderer): void {
+    if (!(this.decorationScene && this.decorationRt && this.analysisCamera)) {
+      return
+    }
+
+    for (let index = 0; index < MAX_BLOBS; index += 1) {
+      const entry = this.blobEntries[index]
+      const offset = index * 4
+      if (entry) {
+        this.blobRectData[offset] = entry.x
+        this.blobRectData[offset + 1] = entry.y
+        this.blobRectData[offset + 2] = entry.z
+        this.blobRectData[offset + 3] = entry.w
+      }
+      this.blobMetaData[offset] = this.blobMetaEntries[index]?.x ?? 0
+      this.blobMetaData[offset + 1] = index
+    }
+    const copySegments = (
+      source: THREE.Vector4[],
+      target: Float32Array
+    ): void => {
+      for (let index = 0; index < source.length; index += 1) {
+        const entry = source[index]
+        const offset = index * 4
+        if (!entry) continue
+        target[offset] = entry.x
+        target[offset + 1] = entry.y
+        target[offset + 2] = entry.z
+        target[offset + 3] = entry.w
+      }
+    }
+    copySegments(this.segmentEntries, this.segmentData)
+    copySegments(this.arrowEntries, this.arrowData)
+    for (const attributeBuffer of this.decorationAttributes) {
+      attributeBuffer.needsUpdate = true
+    }
+
+    const applyCount = (mesh: THREE.Mesh | null, count: number): void => {
+      if (!mesh) return
+      ;(mesh.geometry as THREE.InstancedBufferGeometry).instanceCount = count
+      mesh.visible = count > 0
+    }
+
+    const blobCount = this.blobCountUniform.value as number
+    applyCount(this.shapeMesh, blobCount)
+    applyCount(this.labelMesh, blobCount)
+    applyCount(this.connectorMesh, this.segmentCountUniform.value as number)
+    applyCount(this.arrowMesh, this.arrowCountUniform.value as number)
+
+    renderer.setRenderTarget(this.decorationRt)
+    renderer.clear()
+    renderer.render(this.decorationScene, this.analysisCamera)
+
+    if (this.decorationSampleNode) {
+      this.decorationSampleNode.value = this.decorationRt.texture
+    }
+    if (this.trailDecorationNode) {
+      this.trailDecorationNode.value = this.decorationRt.texture
+    }
   }
 
   /**
@@ -1490,34 +1674,11 @@ params.outputMode === "motion"
     this.trailMaterial.needsUpdate = true
   }
 
-  /** The blob outline, which is what the trail ribbon is made of. */
+  /** The blob outline the decoration pass wrote to B is the ribbon source. */
   private buildTrailSourceNode(screenUv: Node): Node {
-    const trailFn = Fn(() => {
-      const coverage = float(0).toVar()
-
-      Loop(this.blobCountUniform, ({ i }) => {
-        const entry = this.blobTableNode.element(i)
-        const presence = float(this.blobMetaNode.element(i).x)
-        const { halfW, halfH } = this.blobHalfExtents(entry)
-        const px = abs(float(screenUv.x).sub(float(entry.x))).mul(
-          this.aspectUniform
-        )
-        const py = abs(float(screenUv.y).sub(float(entry.y)))
-        const sdf = this.shapeDistance(px, py, halfW, halfH)
-        const band = float(1).sub(
-          smoothstep(
-            float(0).sub(this.edgeSoftUniform),
-            this.edgeSoftUniform,
-            abs(sdf).sub(this.strokeHalfUniform)
-          )
-        )
-        coverage.assign(max(coverage, band.mul(presence)))
-      })
-
-      return coverage
-    })
-
-    return trailFn() as Node
+    const sample = tslTexture(this.decorationPlaceholder, screenUv)
+    this.trailDecorationNode = sample
+    return float(sample.b)
   }
 
   private resizeTrailTargets(): void {

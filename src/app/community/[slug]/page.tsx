@@ -237,8 +237,9 @@ async function SceneBody({ params }: PageProps) {
           </div>
         </div>
 
-        <div className="flex shrink-0 flex-col items-start gap-[var(--ds-space-3)] min-[860px]:items-end">
+        <div className="flex shrink-0 flex-col gap-[var(--ds-space-3)] min-[860px]:items-end">
           <ButtonLink
+            className="w-full min-[860px]:w-auto"
             href={editorSceneHref(scene.slug) as Route}
             variant="primary"
           >

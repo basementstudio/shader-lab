@@ -61,7 +61,7 @@ export function DraftCard({
         onClick={() => onOpen(draft)}
         type="button"
       >
-        <div className="relative aspect-[16/10] w-full overflow-hidden rounded-[8px] bg-[var(--ds-color-surface-subtle)] outline-1 outline-[var(--ds-border-divider)] outline-offset-2 outline-dashed transition-[outline-color] duration-160 ease-[var(--ease-out-cubic)] group-hover:outline-[var(--ds-border-hover)]">
+        <div className="relative aspect-[16/10] w-full overflow-hidden rounded-[8px] bg-[var(--ds-color-surface-subtle)] outline-1 outline-[var(--ds-border-panel)] outline-offset-2 outline-dashed transition-[outline-color] duration-160 ease-[var(--ease-out-cubic)] group-hover:outline-[var(--ds-border-panel-strong)]">
           {draft.thumbnailUrl ? (
             <Image
               alt={draft.title}

@@ -508,24 +508,23 @@ export function EditorTopBar({
               >
                 <ZoomOutIcon height={18} width={18} />
               </IconButton>
-              <HoverTooltip
-                content="Reset view"
-                disabled={!hasResettableView}
-                side="bottom"
+              <IconButton
+                aria-label="Reset view"
+                className="min-w-16 max-[899px]:min-w-14"
+                labelled
+                onClick={() => {
+                  resetView()
+                  playUISound("action.reset")
+                }}
+                tooltipDisabled={!hasResettableView}
+                tooltipSide="bottom"
+                uiSound="none"
+                variant="outline"
               >
-                <button
-                  className="inline-flex h-7 min-w-16 cursor-pointer items-center justify-center rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-[10px] transition-[background-color,border-color,color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:bg-white/8 hover:border-[var(--ds-border-hover)] active:scale-[0.98] max-[899px]:min-w-14"
-                  onClick={() => {
-                    resetView()
-                    playUISound("action.reset")
-                  }}
-                  type="button"
-                >
-                  <Typography as="span" tone="secondary" variant="monoSm">
-                    {Math.round(zoom * 100)}%
-                  </Typography>
-                </button>
-              </HoverTooltip>
+                <Typography as="span" tone="inherit" variant="monoSm">
+                  {Math.round(zoom * 100)}%
+                </Typography>
+              </IconButton>
               <IconButton
                 aria-label="Zoom in"
                 className="h-7 w-7 disabled:opacity-45"
@@ -588,24 +587,22 @@ export function EditorTopBar({
                       ease: [0.32, 0.72, 0, 1],
                     }}
                   >
-                    <HoverTooltip content="Reset layout" side="bottom">
-                      <button
-                        className="inline-flex h-7 cursor-pointer items-center justify-center whitespace-nowrap rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-[10px] transition-[background-color,border-color,color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:bg-white/8 hover:border-[var(--ds-border-hover)] active:scale-[0.98]"
-                        onClick={() => {
-                          resetFloatingPanels()
-                          playUISound("action.reset")
-                        }}
-                        type="button"
-                      >
-                        <Typography
-                          as="span"
-                          tone="secondary"
-                          variant="caption"
-                        >
-                          Reset layout
-                        </Typography>
-                      </button>
-                    </HoverTooltip>
+                    <IconButton
+                      aria-label="Reset layout"
+                      className="whitespace-nowrap"
+                      labelled
+                      onClick={() => {
+                        resetFloatingPanels()
+                        playUISound("action.reset")
+                      }}
+                      tooltipSide="bottom"
+                      uiSound="none"
+                      variant="outline"
+                    >
+                      <Typography as="span" tone="inherit" variant="caption">
+                        Reset layout
+                      </Typography>
+                    </IconButton>
                   </motion.div>
                 ) : null}
               </AnimatePresence>
@@ -693,20 +690,22 @@ export function EditorTopBar({
               >
                 <ZoomOutIcon height={18} width={18} />
               </IconButton>
-              <HoverTooltip content="Reset view" disabled={!hasResettableView}>
-                <button
-                  className="inline-flex h-7 min-w-16 cursor-pointer items-center justify-center rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-[10px] transition-[background-color,border-color,color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:bg-white/8 hover:border-[var(--ds-border-hover)] active:scale-[0.98]"
-                  onClick={() => {
-                    resetView()
-                    playUISound("action.reset")
-                  }}
-                  type="button"
-                >
-                  <Typography as="span" tone="secondary" variant="monoSm">
-                    {Math.round(zoom * 100)}%
-                  </Typography>
-                </button>
-              </HoverTooltip>
+              <IconButton
+                aria-label="Reset view"
+                className="min-w-16"
+                labelled
+                onClick={() => {
+                  resetView()
+                  playUISound("action.reset")
+                }}
+                tooltipDisabled={!hasResettableView}
+                uiSound="none"
+                variant="outline"
+              >
+                <Typography as="span" tone="inherit" variant="monoSm">
+                  {Math.round(zoom * 100)}%
+                </Typography>
+              </IconButton>
               <IconButton
                 aria-label="Zoom in"
                 className="h-7 w-7 disabled:opacity-45"

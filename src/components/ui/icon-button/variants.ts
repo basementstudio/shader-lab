@@ -19,6 +19,9 @@ export const iconButtonVariants = cva(
       selected: {
         true: "bg-white/12 text-[var(--ds-color-text-primary)] hover:bg-white/16 hover:text-[var(--ds-color-text-primary)]",
       },
+      labelled: {
+        true: "w-auto gap-1.5 px-[10px]",
+      },
     },
     defaultVariants: {
       variant: "default",

@@ -15,6 +15,7 @@ type CommonIconButtonProps = {
   ref?: Ref<HTMLButtonElement>
   tooltip?: ReactNode
   tooltipAlign?: "center" | "start" | "end"
+  tooltipDisabled?: boolean
   tooltipSide?: "top" | "right" | "bottom" | "left"
   uiSound?: UISoundId | "none"
 } & IconButtonVariantProps
@@ -25,11 +26,13 @@ type IconButtonProps = CommonIconButtonProps &
 export function IconButton({
   children,
   className,
+  labelled,
   ref,
   selected,
   title,
   tooltip,
   tooltipAlign,
+  tooltipDisabled,
   tooltipSide,
   uiSound = "generic.press",
   variant,
@@ -43,7 +46,10 @@ export function IconButton({
   const button = (
     <button
       aria-pressed={props["aria-pressed"] ?? selected ?? undefined}
-      className={cn(iconButtonVariants({ selected, variant }), className)}
+      className={cn(
+        iconButtonVariants({ labelled, selected, variant }),
+        className
+      )}
       type="button"
       {...props}
       onClick={(event) => {
@@ -65,7 +71,7 @@ export function IconButton({
     <HoverTooltip
       align={tooltipAlign}
       content={tooltipContent}
-      disabled={props.disabled}
+      disabled={tooltipDisabled ?? props.disabled}
       side={tooltipSide}
     >
       {button}

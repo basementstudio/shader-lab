@@ -16,7 +16,7 @@ export function Menu({
   label,
   side = "bottom",
   triggerClassName,
-  triggerVariant = "default",
+  triggerVariant = "ghost",
 }: {
   align?: "center" | "start" | "end"
   children: ReactNode

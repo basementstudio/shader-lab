@@ -25,7 +25,23 @@ export interface Blob {
   history: BlobPoint[]
   id: number
   presence: number
+  /** Per-step centre motion in normalised units, smoothed across frames. */
+  vx: number
+  vy: number
 }
+
+/**
+ * Analysis-grid channel layout, written by the GPU analysis pass:
+ * R = instantaneous frame difference, G = luma, B = decayed motion energy
+ * (`max(previousEnergy * persistence - floor, motion)`).
+ *
+ * Detection thresholds the energy channel so a blob holds its lock while its
+ * subject pauses; the static-scene heuristic reads the instantaneous channel so
+ * a paused subject still lets the luminance fallback take over.
+ */
+export const MOTION_CHANNEL = 0
+export const LUMA_CHANNEL = 1
+export const MOTION_ENERGY_CHANNEL = 2
 
 export const STATIC_STEPS_BEFORE_FALLBACK = 30
 export const MOTION_ENERGY_EPSILON = 0.01
@@ -33,6 +49,13 @@ export const TRACK_GRACE_FRAMES = 10
 export const HISTORY_LENGTH = 16
 export const MAX_MATCH_DISTANCE = 0.25
 export const FADE_IN_FRAMES = 4
+/** How fast the per-track velocity estimate follows the observed step. */
+export const VELOCITY_BLEND = 0.35
+/**
+ * Readback is asynchronous, so a detection describes where a subject was one or
+ * two frames ago. Extrapolating by the estimated velocity cancels that lag.
+ */
+export const VELOCITY_LOOKAHEAD = 1.5
 
 type Detection = {
   area: number
@@ -60,6 +83,8 @@ type Track = {
   history: BlobPoint[]
   id: number
   missedFrames: number
+  vx: number
+  vy: number
 }
 
 function clamp01(value: number): number {
@@ -178,7 +203,7 @@ export class BlobTracker {
     const cellCount = gridWidth * gridHeight
     let motionSum = 0
     for (let index = 0; index < cellCount; index += 1) {
-      motionSum += (grid[index * 4] ?? 0) / 255
+      motionSum += (grid[index * 4 + MOTION_CHANNEL] ?? 0) / 255
     }
     const meanMotion = cellCount > 0 ? motionSum / cellCount : 0
 
@@ -205,9 +230,12 @@ export class BlobTracker {
     const cellCount = gridWidth * gridHeight
     this.ensureBuffers(cellCount)
 
-    const channelOffset = mode === "motion" ? 0 : 1
+    const channelOffset =
+      mode === "motion" ? MOTION_ENERGY_CHANNEL : LUMA_CHANNEL
+    // `sensitivity` reads high-is-more-sensitive, so it inverts into a cutoff.
     const threshold =
-      (mode === "motion" ? config.motionThreshold : config.sensitivity) * 255
+      (mode === "motion" ? config.motionThreshold : 1 - config.sensitivity) *
+      255
     const binary = this.binary
 
     for (let index = 0; index < cellCount; index += 1) {
@@ -329,6 +357,8 @@ export class BlobTracker {
       history: [{ x: detection.cx, y: detection.cy }],
       id: index,
       presence: 1,
+      vx: 0,
+      vy: 0,
     }))
   }
 
@@ -348,8 +378,14 @@ export class BlobTracker {
         if (matchedTrackIds.has(track.id)) {
           continue
         }
-        const dx = track.cx - detection.cx
-        const dy = track.cy - detection.cy
+        // Compare against where the track is heading, not where it was: two
+        // subjects crossing have near-identical positions but opposite
+        // velocities, which is what previously swapped their ids.
+        const steps = 1 + track.missedFrames
+        const predictedX = track.cx + track.vx * steps
+        const predictedY = track.cy + track.vy * steps
+        const dx = predictedX - detection.cx
+        const dy = predictedY - detection.cy
         const distance = dx * dx + dy * dy
         const reach = MAX_MATCH_DISTANCE * (1 + track.missedFrames)
         if (distance > reach * reach) {
@@ -363,8 +399,12 @@ export class BlobTracker {
 
       if (bestTrack) {
         matchedTrackIds.add(bestTrack.id)
+        const previousX = bestTrack.cx
+        const previousY = bestTrack.cy
         bestTrack.cx += (detection.cx - bestTrack.cx) * blend
         bestTrack.cy += (detection.cy - bestTrack.cy) * blend
+        bestTrack.vx += (bestTrack.cx - previousX - bestTrack.vx) * VELOCITY_BLEND
+        bestTrack.vy += (bestTrack.cy - previousY - bestTrack.vy) * VELOCITY_BLEND
         bestTrack.halfWidth +=
           (detection.halfWidth - bestTrack.halfWidth) * blend
         bestTrack.halfHeight +=
@@ -389,6 +429,8 @@ export class BlobTracker {
           history: [{ x: detection.cx, y: detection.cy }],
           id: this.nextId,
           missedFrames: 0,
+          vx: 0,
+          vy: 0,
         })
         matchedTrackIds.add(this.nextId)
         this.nextId += 1
@@ -403,6 +445,8 @@ export class BlobTracker {
       }
       track.missedFrames += 1
       track.active = false
+      track.vx *= 1 - VELOCITY_BLEND
+      track.vy *= 1 - VELOCITY_BLEND
       if (track.missedFrames <= TRACK_GRACE_FRAMES) {
         survivors.push(track)
       }
@@ -419,6 +463,8 @@ export class BlobTracker {
       history: track.history.slice(),
       id: track.id,
       presence: trackPresence(track),
+      vx: track.vx,
+      vy: track.vy,
     }))
   }
 }

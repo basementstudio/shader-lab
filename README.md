@@ -38,7 +38,9 @@ bun add @basementstudio/shader-lab three
 
 Supported effect layers include ASCII, blob tracking, CRT, directional blur, dithering, halftone, ink, particle grid, pattern, pixelation, pixel sorting, posterize, slice, edge detect, displacement map, and chromatic aberration.
 
-The blob-tracking layer detects moving (or bright) regions of the content below and frames them with CCTV-style shapes, labels, connecting lines, and trails. One inner effect can render inside the detected shapes via `params.innerEffectType` (any pass-backed effect type) and `params.innerEffectParams` (a JSON string of that effect's parameter overrides; see the `ShaderLabBlobInnerEffect` type). Set `params.outputMode` to `"mask"` to emit white-on-black fills for use with `compositeMode: "mask"`.
+The blob-tracking layer detects moving (or bright) regions of the content below and frames them with CCTV-style shapes, labels, connecting lines, and trails. One inner effect can render inside the detected regions via `params.innerEffectType` (any pass-backed effect type) and `params.innerEffectParams` (a JSON string of that effect's parameter overrides; see the `ShaderLabBlobInnerEffect` type).
+
+`params.outputMode` selects what the layer emits: `"decorated"` draws the shapes and decorations; `"mask"` emits white-on-black blob fills for use with `compositeMode: "mask"`; `"motion"` emits a full-detail motion mask, or — when an inner effect is set — that effect carried by the mask's alpha, so it appears only where the frame is moving and is transparent elsewhere. Motion detection is tuned by `params.motionThreshold` (blob detection) and `params.motionMaskThreshold` / `params.motionPersistence` (the mask's threshold and trail decay). Note that `params.sensitivity` reads high-is-more-sensitive; project files below version 5 are migrated automatically.
 
 ## API Overview
 

@@ -61,7 +61,7 @@ export function DraftCard({
         onClick={() => onOpen(draft)}
         type="button"
       >
-        <div className="relative aspect-[16/10] w-full overflow-hidden rounded-[8px] bg-[var(--ds-color-surface-subtle)] outline-1 outline-[var(--ds-border-subtle)] outline-offset-2 outline-dashed transition-[outline-color] duration-160 ease-[var(--ease-out-cubic)] group-hover:outline-[var(--ds-border-hover)]">
+        <div className="relative aspect-[16/10] w-full overflow-hidden rounded-[8px] bg-[var(--ds-color-surface-subtle)] outline-1 outline-[var(--ds-border-divider)] outline-offset-2 outline-dashed transition-[outline-color] duration-160 ease-[var(--ease-out-cubic)] group-hover:outline-[var(--ds-border-hover)]">
           {draft.thumbnailUrl ? (
             <Image
               alt={draft.title}
@@ -84,17 +84,17 @@ export function DraftCard({
           )}
         </div>
 
-        <div className="flex min-w-0 flex-col gap-[5px] px-[2px]">
+        <div className="flex min-w-0 flex-col gap-[var(--ds-space-1)] px-[2px]">
           {draft.title === DEFAULT_DRAFT_TITLE ? null : (
             <Typography
               as="span"
               className="overflow-hidden text-ellipsis whitespace-nowrap transition-colors duration-160 group-hover:text-white"
-              variant="label"
+              variant="title"
             >
               {draft.title}
             </Typography>
           )}
-          <Typography as="span" tone="tertiary" variant="caption">
+          <Typography as="span" tone="tertiary" variant="body">
             {describeSavedAt(draft.updatedAt)}
           </Typography>
         </div>
@@ -102,20 +102,20 @@ export function DraftCard({
 
       <div className="flex items-center gap-[var(--ds-space-2)] px-[2px]">
         <Button
-          disabled={busy}
-          onClick={() => onPublish(draft)}
-          size="compact"
-          variant="primary"
-        >
-          Publish
-        </Button>
-        <Button
+          className="flex-1"
           disabled={busy}
           onClick={() => onOpen(draft)}
-          size="compact"
           variant="secondary"
         >
           Open
+        </Button>
+        <Button
+          className="flex-1"
+          disabled={busy}
+          onClick={() => onPublish(draft)}
+          variant="secondary"
+        >
+          Publish
         </Button>
       </div>
 
@@ -124,7 +124,7 @@ export function DraftCard({
         className="absolute top-1.5 right-1.5 h-7 w-7 opacity-0 transition-opacity duration-160 focus-visible:opacity-100 group-hover:opacity-100"
         disabled={busy}
         onClick={() => onDelete(draft)}
-        variant="default"
+        variant="overlay"
       >
         <TrashIcon height={14} width={14} />
       </IconButton>

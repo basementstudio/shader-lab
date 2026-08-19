@@ -4,6 +4,8 @@
   --color-canvas: #080808;
   --color-surface-active: rgb(255 255 255 / 0.12);
   --color-surface-control: rgb(255 255 255 / 0.08);
+  --color-surface-overlay: rgb(18 18 22 / 0.72);
+  --color-surface-overlay-strong: rgb(18 18 22 / 0.88);
   --color-surface-selected: rgb(255 255 255 / 0.16);
   --color-surface-subtle: rgb(255 255 255 / 0.08);
   --color-surface-disabled: rgb(255 255 255 / 0.03);
@@ -85,6 +87,8 @@
     --ds-color-glass-pill: rgb(18 18 22 / 0.5);
     --ds-color-surface-active: rgb(255 255 255 / 0.12);
     --ds-color-surface-control: rgb(255 255 255 / 0.08);
+    --ds-color-surface-overlay: rgb(18 18 22 / 0.72);
+    --ds-color-surface-overlay-strong: rgb(18 18 22 / 0.88);
     --ds-color-surface-selected: rgb(255 255 255 / 0.16);
     --ds-color-surface-subtle: rgb(255 255 255 / 0.08);
     --ds-color-surface-disabled: rgb(255 255 255 / 0.03);

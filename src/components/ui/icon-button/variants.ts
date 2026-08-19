@@ -13,6 +13,8 @@ export const iconButtonVariants = cva(
           "border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] text-[var(--ds-color-text-secondary)] hover:not-disabled:border-[var(--ds-border-hover)] hover:not-disabled:bg-[var(--ds-color-surface-active)] hover:not-disabled:text-[var(--ds-color-text-primary)] hover:not-disabled:shadow-none",
         primary:
           "bg-[var(--ds-color-text-primary)] text-[var(--ds-color-text-on-light)] hover:not-disabled:bg-white/82 hover:not-disabled:text-[var(--ds-color-text-on-light)] hover:not-disabled:shadow-none active:not-disabled:bg-white/72 disabled:bg-white/18 disabled:text-black/45",
+        overlay:
+          "bg-[var(--ds-color-surface-overlay)] text-[var(--ds-color-text-primary)] shadow-[inset_0_0_0_1px_var(--ds-border-panel)] backdrop-blur-[8px] hover:not-disabled:bg-[var(--ds-color-surface-overlay-strong)] hover:not-disabled:text-[var(--ds-color-text-primary)] hover:not-disabled:shadow-[inset_0_0_0_1px_var(--ds-border-panel-strong)]",
         emphasis:
           "bg-[linear-gradient(180deg,rgb(255_255_255_/_0.12),rgb(255_255_255_/_0.04))] text-[var(--ds-color-text-primary)] shadow-[inset_0_1px_0_rgb(255_255_255_/_0.12),inset_0_0_0_1px_rgb(255_255_255_/_0.08)] hover:not-disabled:bg-[linear-gradient(180deg,rgb(255_255_255_/_0.18),rgb(255_255_255_/_0.06))] hover:not-disabled:text-[var(--ds-color-text-primary)] hover:not-disabled:shadow-[inset_0_1px_0_rgb(255_255_255_/_0.16),inset_0_0_0_1px_rgb(255_255_255_/_0.12)]",
       },

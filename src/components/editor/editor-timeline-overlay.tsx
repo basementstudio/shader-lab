@@ -474,7 +474,7 @@ function TimelineTransport({
         </Typography>
       </div>
 
-      <div className="inline-flex min-w-0 flex-1 items-center justify-end gap-1">
+      <div className="inline-flex min-w-0 flex-1 items-center justify-end gap-2">
         <Typography
           as="span"
           className="min-w-[136px] shrink-0 whitespace-nowrap text-right text-[12px]"

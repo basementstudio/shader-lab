@@ -31,8 +31,8 @@ export default function GlobalError({
                 Something broke.
               </h1>
               <p className="max-w-xl text-[15px] text-[var(--ds-color-text-secondary)] leading-6 sm:text-[16px]">
-                The app hit an unrecoverable error and the report was sent to
-                us. Reload the page to start a new session.
+                The app hit an unrecoverable error. Reload the page to start a
+                new session.
               </p>
             </div>
 

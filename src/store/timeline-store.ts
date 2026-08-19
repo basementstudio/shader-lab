@@ -961,7 +961,11 @@ export const useTimelineStore = create<TimelineStore>((set, get) => ({
 
         const definition = getParameterDefinition(getLayerDefinition(layer.type).params, track.binding.key)
 
-        return Boolean(definition && isAnimatableValueType(definition.type))
+        return Boolean(
+          definition &&
+            isAnimatableValueType(definition.type) &&
+            isParameterAnimatable(definition)
+        )
       })
 
       return {

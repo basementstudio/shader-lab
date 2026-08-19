@@ -19,6 +19,16 @@ export function AgentBridgeMount() {
   }, [setEnabled])
 
   useEffect(() => {
+    if (process.env.NODE_ENV !== "development") {
+      return
+    }
+
+    void import("@/lib/editor/crt-ab-harness").then((harness) => {
+      harness.registerCrtAbHarness()
+    })
+  }, [])
+
+  useEffect(() => {
     if (!enabled) {
       setStatus("off")
       return

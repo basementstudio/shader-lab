@@ -1,4 +1,3 @@
-import { bloom } from "three/examples/jsm/tsl/display/BloomNode.js"
 import {
   abs,
   clamp,
@@ -23,6 +22,7 @@ import {
   vec4,
 } from "three/tsl"
 import * as THREE from "three/webgpu"
+import { BloomCompositor } from "@/renderer/dual-filter-bloom"
 import { PassNode } from "@/renderer/pass-node"
 import { simplexNoise3d } from "@/renderer/shaders/tsl/noise/simplex-noise-3d"
 import type { LayerParameterValues } from "@/types/editor"
@@ -60,7 +60,6 @@ function toModeValue(value: unknown): number {
 
 export class CrtPass extends PassNode {
   private bloomEnabled = true
-  private bloomNode: ReturnType<typeof bloom> | null = null
   private readonly bloomIntensityUniform: Node
   private readonly bloomRadiusUniform: Node
   private readonly bloomSoftnessUniform: Node
@@ -89,10 +88,18 @@ export class CrtPass extends PassNode {
   private readonly heightUniform: Node
   private readonly timeUniform: Node
 
+  private crtMode = CRT_MODE_SLOT_MASK
+  private buildMode = CRT_MODE_SLOT_MASK
   private readonly placeholder: THREE.Texture
   private historyReadTarget: THREE.WebGLRenderTarget
   private historyWriteTarget: THREE.WebGLRenderTarget
   private historyValid = false
+  private historyPrimedFrames = 0
+  private historyBlitCamera: THREE.OrthographicCamera | null = null
+  private historyBlitGeometry: THREE.PlaneGeometry | null = null
+  private historyBlitInputNode: Node | null = null
+  private historyBlitMaterial: THREE.MeshBasicNodeMaterial | null = null
+  private historyBlitScene: THREE.Scene | null = null
 
   private sourceTextureNodes: Node[] = []
   private historyTextureNodes: Node[] = []
@@ -163,18 +170,73 @@ export class CrtPass extends PassNode {
       node.value = historyTexture
     }
 
+    this.lastRenderer = renderer
+    this.lastOutputTarget = outputTarget
     this.beforeRender(time, delta)
+
+    this.renderBloomCompositor(renderer, outputTarget)
 
     renderer.setRenderTarget(outputTarget)
     renderer.render(this.scene, this.camera)
 
-    renderer.setRenderTarget(this.historyWriteTarget)
-    renderer.render(this.scene, this.camera)
+    this.captureHistory(renderer, outputTarget)
+  }
+
+  private captureHistory(
+    renderer: THREE.WebGPURenderer,
+    outputTarget: THREE.WebGLRenderTarget
+  ): void {
+    const source = outputTarget.texture
+
+    if (
+      outputTarget.width !== this.historyWriteTarget.width ||
+      outputTarget.height !== this.historyWriteTarget.height
+    ) {
+      this.historyValid = false
+      return
+    }
+
+    if (this.historyPrimedFrames >= 2) {
+      renderer.copyTextureToTexture(source, this.historyWriteTarget.texture)
+    } else {
+      this.blitHistory(renderer, source)
+      this.historyPrimedFrames += 1
+    }
 
     const previousRead = this.historyReadTarget
     this.historyReadTarget = this.historyWriteTarget
     this.historyWriteTarget = previousRead
     this.historyValid = true
+  }
+
+  private blitHistory(
+    renderer: THREE.WebGPURenderer,
+    source: THREE.Texture
+  ): void {
+    if (!(this.historyBlitScene && this.historyBlitCamera)) {
+      const blitUv = vec2(uv().x, float(1).sub(uv().y))
+      this.historyBlitInputNode = tslTexture(this.placeholder, blitUv)
+      this.historyBlitMaterial = new THREE.MeshBasicNodeMaterial()
+      this.historyBlitMaterial.colorNode = this.historyBlitInputNode
+      this.historyBlitGeometry = new THREE.PlaneGeometry(2, 2)
+
+      const blitMesh = new THREE.Mesh(
+        this.historyBlitGeometry,
+        this.historyBlitMaterial
+      )
+      blitMesh.frustumCulled = false
+
+      this.historyBlitScene = new THREE.Scene()
+      this.historyBlitScene.add(blitMesh)
+      this.historyBlitCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
+    }
+
+    if (this.historyBlitInputNode) {
+      this.historyBlitInputNode.value = source
+    }
+
+    renderer.setRenderTarget(this.historyWriteTarget)
+    renderer.render(this.historyBlitScene, this.historyBlitCamera)
   }
 
   protected override beforeRender(time: number, _delta: number): void {
@@ -193,7 +255,8 @@ export class CrtPass extends PassNode {
   }
 
   override updateParams(params: LayerParameterValues): void {
-    this.crtModeUniform.value = toModeValue(params.crtMode)
+    const nextMode = toModeValue(params.crtMode)
+    this.crtModeUniform.value = nextMode
     this.cellSizeUniform.value =
       typeof params.cellSize === "number" ? Math.max(2, params.cellSize) : 3
     this.scanlineIntensityUniform.value =
@@ -282,19 +345,21 @@ export class CrtPass extends PassNode {
     this.bloomSoftnessUniform.value = nextBloomSoftness
     this.bloomThresholdUniform.value = nextBloomThreshold
 
+    const modeChanged = nextMode !== this.crtMode
+    this.crtMode = nextMode
+
     if (nextBloomEnabled !== this.bloomEnabled) {
       this.bloomEnabled = nextBloomEnabled
       this.rebuildEffectNode()
       return
     }
 
-    if (this.bloomNode) {
-      this.bloomNode.strength.value = nextBloomIntensity
-      this.bloomNode.radius.value = this.normalizeBloomRadius(nextBloomRadius)
-      this.bloomNode.threshold.value = nextBloomThreshold
-      this.bloomNode.smoothWidth.value =
-        this.normalizeBloomSoftness(nextBloomSoftness)
+    if (modeChanged) {
+      this.rebuildEffectNode()
+      return
     }
+
+    this.applyBloomSettings()
   }
 
   override resize(width: number, height: number): void {
@@ -303,6 +368,7 @@ export class CrtPass extends PassNode {
     this.historyReadTarget.setSize(this.renderWidth, this.renderHeight)
     this.historyWriteTarget.setSize(this.renderWidth, this.renderHeight)
     this.historyValid = false
+    this.historyPrimedFrames = 0
   }
 
   override updateLogicalSize(width: number, height: number): void {
@@ -311,10 +377,17 @@ export class CrtPass extends PassNode {
   }
 
   override dispose(): void {
-    this.disposeBloomNode()
     this.placeholder.dispose()
     this.historyReadTarget.dispose()
     this.historyWriteTarget.dispose()
+    this.historyBlitScene?.clear()
+    this.historyBlitMaterial?.dispose()
+    this.historyBlitGeometry?.dispose()
+    this.historyBlitScene = null
+    this.historyBlitCamera = null
+    this.historyBlitInputNode = null
+    this.historyBlitMaterial = null
+    this.historyBlitGeometry = null
     super.dispose()
   }
 
@@ -323,8 +396,7 @@ export class CrtPass extends PassNode {
       return this.inputNode
     }
 
-    this.disposeBloomNode()
-    this.bloomNode = null
+    this.buildMode = this.crtMode
     this.sourceTextureNodes = []
     this.historyTextureNodes = []
 
@@ -384,11 +456,7 @@ export class CrtPass extends PassNode {
     const samplingUv = vec2(distortedCellUv.x.add(drift), distortedCellUv.y)
     const clampedSamplingUv = clamp(samplingUv, vec2(0, 0), vec2(1, 1))
 
-    const baseSignal = this.sampleSignalColor(
-      clampedSamplingUv,
-      texel,
-      compositeWeight
-    )
+    const baseSignal = this.sampleSignalColor(clampedSamplingUv, texel)
     const baseLuma = this.luma(baseSignal)
     const brightnessSpread = mix(
       float(0.82),
@@ -440,36 +508,13 @@ export class CrtPass extends PassNode {
     const convergenceOffset = convergenceShape.mul(convergenceScale)
     const greenOffset = vec2(float(0), convergenceScale.y.mul(float(-0.2)))
 
-    const redBeam = this.sampleBeamColor(
-      clamp(clampedSamplingUv.add(convergenceOffset), vec2(0, 0), vec2(1, 1)),
-      texel,
-      beamWidthX,
-      compositeWeight
-    )
-    const greenBeam = this.sampleBeamColor(
-      clamp(clampedSamplingUv.add(greenOffset), vec2(0, 0), vec2(1, 1)),
-      texel,
-      beamWidthX,
-      compositeWeight
-    )
-    const blueBeam = this.sampleBeamColor(
-      clamp(clampedSamplingUv.sub(convergenceOffset), vec2(0, 0), vec2(1, 1)),
-      texel,
-      beamWidthX,
-      compositeWeight
-    )
+    const redBeam = this.sampleBeamColor(clamp(clampedSamplingUv.add(convergenceOffset), vec2(0, 0), vec2(1, 1)), texel, beamWidthX)
+    const greenBeam = this.sampleBeamColor(clamp(clampedSamplingUv.add(greenOffset), vec2(0, 0), vec2(1, 1)), texel, beamWidthX)
+    const blueBeam = this.sampleBeamColor(clamp(clampedSamplingUv.sub(convergenceOffset), vec2(0, 0), vec2(1, 1)), texel, beamWidthX)
 
     const yOffset = vec2(float(0), texel.y.mul(beamWidthY))
-    const vBleedUp = this.sampleSignalColor(
-      clamp(clampedSamplingUv.sub(yOffset), vec2(0, 0), vec2(1, 1)),
-      texel,
-      compositeWeight
-    )
-    const vBleedDown = this.sampleSignalColor(
-      clamp(clampedSamplingUv.add(yOffset), vec2(0, 0), vec2(1, 1)),
-      texel,
-      compositeWeight
-    )
+    const vBleedUp = this.sampleSignalColor(clamp(clampedSamplingUv.sub(yOffset), vec2(0, 0), vec2(1, 1)), texel)
+    const vBleedDown = this.sampleSignalColor(clamp(clampedSamplingUv.add(yOffset), vec2(0, 0), vec2(1, 1)), texel)
     const verticalBleed = vBleedUp.add(vBleedDown).mul(float(0.5))
     const verticalBlend = smoothstep(float(0.1), float(1.5), beamWidthY).mul(
       float(0.45)
@@ -497,11 +542,7 @@ export class CrtPass extends PassNode {
       compositeWeight
     )
 
-    const halationSignal = this.sampleHalation(
-      clampedSamplingUv,
-      texel,
-      compositeWeight
-    )
+    const halationSignal = this.sampleHalation(clampedSamplingUv, texel)
     const halation = vec3(
       float(halationSignal.r),
       float(halationSignal.g),
@@ -587,28 +628,30 @@ export class CrtPass extends PassNode {
     color = color.add(historyDecay.mul(float(0.55)))
 
     if (!this.bloomEnabled) {
+      this.bloomCompositor?.dispose()
+      this.bloomCompositor = null
       return vec4(clamp(color, vec3(0, 0, 0), vec3(1, 1, 1)), float(1))
     }
 
-    const bloomInput = vec4(color, float(1))
-    this.bloomNode = bloom(
-      bloomInput,
-      this.bloomIntensityUniform.value as number,
-      this.normalizeBloomRadius(this.bloomRadiusUniform.value as number),
-      this.bloomThresholdUniform.value as number
-    )
-    this.bloomNode.smoothWidth.value = this.normalizeBloomSoftness(
-      this.bloomSoftnessUniform.value as number
-    )
+    return this.buildBloomComposite(color)
+  }
 
-    return vec4(
-      clamp(
-        color.add(this.getBloomTextureNode().rgb),
-        vec3(float(0), float(0), float(0)),
-        vec3(float(1), float(1), float(1))
-      ),
-      float(1)
-    )
+  private buildBloomComposite(color: Node): Node {
+    if (!this.bloomCompositor) {
+      this.bloomCompositor = new BloomCompositor()
+    }
+
+    this.applyBloomSettings()
+    return this.bloomCompositor.build(color)
+  }
+
+  private applyBloomSettings(): void {
+    this.bloomCompositor?.applySettings({
+      intensity: this.bloomIntensityUniform.value as number,
+      radius: this.bloomRadiusUniform.value as number,
+      softness: this.bloomSoftnessUniform.value as number,
+      threshold: this.bloomThresholdUniform.value as number,
+    })
   }
 
   private buildBand(
@@ -662,16 +705,79 @@ export class CrtPass extends PassNode {
     slotJitter: Node,
     apertureJitter: Node,
     tvJitter: Node,
-    apertureSegment: Node,
-    slotWeight: Node,
-    apertureWeight: Node,
-    compositeWeight: Node
+    apertureSegment: Node
   ): Node {
-    const slotX = fract(localX.add(select(oddRow, float(0.5), float(0))))
-    const apertureX = fract(localX)
-    const tvX = fract(localX.add(select(oddRow, float(0.25), float(0))))
+    if (this.buildMode === CRT_MODE_APERTURE_GRILLE) {
+      const apertureX = fract(localX)
 
-    const slotShape = vec3(
+      return vec3(
+        this.buildRoundedPhosphor(
+          apertureX,
+          slotY,
+          float(1 / 6).add(apertureJitter.mul(0.007)),
+          float(0.14).mul(definition).add(apertureJitter.mul(0.008)),
+          float(0.44),
+          float(0.008),
+          float(0.82)
+        ).mul(apertureSegment),
+        this.buildRoundedPhosphor(
+          apertureX,
+          slotY,
+          float(0.5),
+          float(0.135).mul(definition).add(apertureJitter.mul(0.006)),
+          float(0.44),
+          float(0.008),
+          float(0.82)
+        ).mul(apertureSegment),
+        this.buildRoundedPhosphor(
+          apertureX,
+          slotY,
+          float(5 / 6).sub(apertureJitter.mul(0.007)),
+          float(0.14).mul(definition).add(apertureJitter.mul(0.008)),
+          float(0.44),
+          float(0.008),
+          float(0.82)
+        ).mul(apertureSegment)
+      )
+    }
+
+    if (this.buildMode === CRT_MODE_COMPOSITE_TV) {
+      const tvX = fract(localX.add(select(oddRow, float(0.25), float(0))))
+
+      return vec3(
+        this.buildRoundedPhosphor(
+          tvX,
+          slotY,
+          float(1 / 6).add(tvJitter.mul(0.015)),
+          float(0.11).mul(definition).add(tvJitter.mul(0.012)),
+          float(0.34).add(abs(tvJitter).mul(0.04)),
+          float(0.02),
+          float(0.44)
+        ),
+        this.buildRoundedPhosphor(
+          tvX,
+          slotY,
+          float(0.5),
+          float(0.105).mul(definition).add(tvJitter.mul(0.01)),
+          float(0.34).add(abs(tvJitter).mul(0.04)),
+          float(0.02),
+          float(0.44)
+        ),
+        this.buildRoundedPhosphor(
+          tvX,
+          slotY,
+          float(5 / 6).sub(tvJitter.mul(0.015)),
+          float(0.11).mul(definition).add(tvJitter.mul(0.012)),
+          float(0.34).add(abs(tvJitter).mul(0.04)),
+          float(0.02),
+          float(0.44)
+        )
+      )
+    }
+
+    const slotX = fract(localX.add(select(oddRow, float(0.5), float(0))))
+
+    return vec3(
       this.buildRoundedPhosphor(
         slotX,
         slotY,
@@ -700,71 +806,6 @@ export class CrtPass extends PassNode {
         float(0.38)
       )
     )
-
-    const apertureShape = vec3(
-      this.buildRoundedPhosphor(
-        apertureX,
-        slotY,
-        float(1 / 6).add(apertureJitter.mul(0.007)),
-        float(0.14).mul(definition).add(apertureJitter.mul(0.008)),
-        float(0.44),
-        float(0.008),
-        float(0.82)
-      ).mul(apertureSegment),
-      this.buildRoundedPhosphor(
-        apertureX,
-        slotY,
-        float(0.5),
-        float(0.135).mul(definition).add(apertureJitter.mul(0.006)),
-        float(0.44),
-        float(0.008),
-        float(0.82)
-      ).mul(apertureSegment),
-      this.buildRoundedPhosphor(
-        apertureX,
-        slotY,
-        float(5 / 6).sub(apertureJitter.mul(0.007)),
-        float(0.14).mul(definition).add(apertureJitter.mul(0.008)),
-        float(0.44),
-        float(0.008),
-        float(0.82)
-      ).mul(apertureSegment)
-    )
-
-    const tvShape = vec3(
-      this.buildRoundedPhosphor(
-        tvX,
-        slotY,
-        float(1 / 6).add(tvJitter.mul(0.015)),
-        float(0.11).mul(definition).add(tvJitter.mul(0.012)),
-        float(0.34).add(abs(tvJitter).mul(0.04)),
-        float(0.02),
-        float(0.44)
-      ),
-      this.buildRoundedPhosphor(
-        tvX,
-        slotY,
-        float(0.5),
-        float(0.105).mul(definition).add(tvJitter.mul(0.01)),
-        float(0.34).add(abs(tvJitter).mul(0.04)),
-        float(0.02),
-        float(0.44)
-      ),
-      this.buildRoundedPhosphor(
-        tvX,
-        slotY,
-        float(5 / 6).sub(tvJitter.mul(0.015)),
-        float(0.11).mul(definition).add(tvJitter.mul(0.012)),
-        float(0.34).add(abs(tvJitter).mul(0.04)),
-        float(0.02),
-        float(0.44)
-      )
-    )
-
-    return slotShape
-      .mul(slotWeight)
-      .add(apertureShape.mul(apertureWeight))
-      .add(tvShape.mul(compositeWeight))
   }
 
   private buildFeedResponse(
@@ -876,27 +917,28 @@ export class CrtPass extends PassNode {
     const slotY = localCellUv.y
 
     const definition = mix(float(0.72), float(1.18), this.maskIntensityUniform)
-    const rowJitter = simplexNoise3d(vec3(float(0), rowIndex, float(3.7)))
-      .mul(0.5)
-      .add(0.5)
-      .sub(0.5)
-    const slotJitter = simplexNoise3d(
-      vec3(cellCoord.x, cellCoord.y, float(9.3))
-    )
-      .mul(0.5)
-      .add(0.5)
-      .sub(0.5)
-    const apertureJitter = simplexNoise3d(
-      vec3(cellCoord.x, cellCoord.y, float(15.1))
-    )
-      .mul(0.5)
-      .add(0.5)
-      .sub(0.5)
-    const tvJitter = simplexNoise3d(vec3(cellCoord.x, cellCoord.y, float(21.4)))
-      .mul(0.5)
-      .add(0.5)
-      .sub(0.5)
-    const apertureSegment = this.buildBand(slotY, 0.5, float(0.41), float(0.06))
+    const isSlotMask = this.buildMode === CRT_MODE_SLOT_MASK
+    const isApertureGrille = this.buildMode === CRT_MODE_APERTURE_GRILLE
+    const isCompositeTv = this.buildMode === CRT_MODE_COMPOSITE_TV
+    const unusedJitter = float(0)
+    const cellJitter = (seed: number): Node =>
+      simplexNoise3d(vec3(cellCoord.x, cellCoord.y, float(seed)))
+        .mul(0.5)
+        .add(0.5)
+        .sub(0.5)
+
+    const rowJitter = isSlotMask
+      ? simplexNoise3d(vec3(float(0), rowIndex, float(3.7)))
+          .mul(0.5)
+          .add(0.5)
+          .sub(0.5)
+      : unusedJitter
+    const slotJitter = isSlotMask ? cellJitter(9.3) : unusedJitter
+    const apertureJitter = isApertureGrille ? cellJitter(15.1) : unusedJitter
+    const tvJitter = isCompositeTv ? cellJitter(21.4) : unusedJitter
+    const apertureSegment = isApertureGrille
+      ? this.buildBand(slotY, 0.5, float(0.41), float(0.06))
+      : unusedJitter
 
     // 3-tap supersample along the mask axis so the RGB stripes resolve
     // correctly even when the cell is only a few physical pixels wide
@@ -911,10 +953,7 @@ export class CrtPass extends PassNode {
       slotJitter,
       apertureJitter,
       tvJitter,
-      apertureSegment,
-      slotWeight,
-      apertureWeight,
-      compositeWeight
+      apertureSegment
     )
       .add(
         this.buildCombinedMaskShape(
@@ -926,10 +965,7 @@ export class CrtPass extends PassNode {
           slotJitter,
           apertureJitter,
           tvJitter,
-          apertureSegment,
-          slotWeight,
-          apertureWeight,
-          compositeWeight
+          apertureSegment
         )
       )
       .add(
@@ -942,10 +978,7 @@ export class CrtPass extends PassNode {
           slotJitter,
           apertureJitter,
           tvJitter,
-          apertureSegment,
-          slotWeight,
-          apertureWeight,
-          compositeWeight
+          apertureSegment
         )
       )
       .div(float(3))
@@ -1161,118 +1194,65 @@ export class CrtPass extends PassNode {
   }
 
   private modeWeight(targetMode: number): Node {
-    return select(
-      this.crtModeUniform.equal(float(targetMode)),
-      float(1),
-      float(0)
-    )
+    return float(this.buildMode === targetMode ? 1 : 0)
   }
 
   private toNode(value: Node | number): Node {
     return typeof value === "number" ? float(value) : value
   }
 
-  private normalizeBloomRadius(value: number): number {
-    return clamp01(value / 24)
-  }
-
-  private normalizeBloomSoftness(value: number): number {
-    return Math.max(0.001, value * 0.25)
-  }
-
-  private disposeBloomNode(): void {
-    ;(this.bloomNode as { dispose?: () => void } | null)?.dispose?.()
-  }
-
-  private getBloomTextureNode(): Node {
-    const bloomNode = this.bloomNode as
-      | ({
-          getTexture?: () => Node
-          getTextureNode?: () => Node
-        } & object)
-      | null
-
-    if (!bloomNode) {
-      throw new Error("Bloom node is not initialized")
-    }
-
-    if (
-      "getTextureNode" in bloomNode &&
-      typeof bloomNode.getTextureNode === "function"
-    ) {
-      return bloomNode.getTextureNode()
-    }
-
-    if (
-      "getTexture" in bloomNode &&
-      typeof bloomNode.getTexture === "function"
-    ) {
-      return bloomNode.getTexture()
-    }
-
-    throw new Error("Bloom node does not expose a texture getter")
-  }
-
   private sampleBeamColor(
     sampleUv: Node,
     texel: Node,
-    beamWidthX: Node,
-    compositeWeight: Node
+    beamWidthX: Node
   ): Node {
     const xOffset = vec2(texel.x.mul(beamWidthX), float(0))
 
-    const center = this.sampleSignalColor(sampleUv, texel, compositeWeight)
-    const left = this.sampleSignalColor(
-      clamp(sampleUv.sub(xOffset), vec2(0, 0), vec2(1, 1)),
-      texel,
-      compositeWeight
-    )
-    const right = this.sampleSignalColor(
-      clamp(sampleUv.add(xOffset), vec2(0, 0), vec2(1, 1)),
-      texel,
-      compositeWeight
-    )
+    const center = this.sampleSignalColor(sampleUv, texel)
+    const left = this.sampleSignalColor(clamp(sampleUv.sub(xOffset), vec2(0, 0), vec2(1, 1)), texel)
+    const right = this.sampleSignalColor(clamp(sampleUv.add(xOffset), vec2(0, 0), vec2(1, 1)), texel)
 
     return center.mul(0.5).add(left.add(right).mul(0.25))
   }
 
-  private sampleHalation(
-    sampleUv: Node,
-    texel: Node,
-    compositeWeight: Node
-  ): Node {
+  private sampleHalation(sampleUv: Node, texel: Node): Node {
     const haloX = vec2(texel.x.mul(2.2), float(0))
     const haloY = vec2(float(0), texel.y.mul(1.6))
-    const left = this.sampleSignalColor(
-      clamp(sampleUv.sub(haloX), vec2(0, 0), vec2(1, 1)),
-      texel,
-      compositeWeight
-    )
-    const right = this.sampleSignalColor(
-      clamp(sampleUv.add(haloX), vec2(0, 0), vec2(1, 1)),
-      texel,
-      compositeWeight
-    )
-    const up = this.sampleSignalColor(
-      clamp(sampleUv.sub(haloY), vec2(0, 0), vec2(1, 1)),
-      texel,
-      compositeWeight
-    )
-    const down = this.sampleSignalColor(
-      clamp(sampleUv.add(haloY), vec2(0, 0), vec2(1, 1)),
-      texel,
-      compositeWeight
-    )
+    const left = this.sampleSignalColor(clamp(sampleUv.sub(haloX), vec2(0, 0), vec2(1, 1)), texel)
+    const right = this.sampleSignalColor(clamp(sampleUv.add(haloX), vec2(0, 0), vec2(1, 1)), texel)
+    const up = this.sampleSignalColor(clamp(sampleUv.sub(haloY), vec2(0, 0), vec2(1, 1)), texel)
+    const down = this.sampleSignalColor(clamp(sampleUv.add(haloY), vec2(0, 0), vec2(1, 1)), texel)
     return left.add(right).add(up).add(down).mul(0.25)
   }
 
-  private sampleSignalColor(
+  private sampleSignalColor(sampleUv: Node, texel: Node): Node {
+    const center = this.trackSourceTextureNode(sampleUv)
+    const centerColor = vec3(float(center.r), float(center.g), float(center.b))
+    const signalColor =
+      this.buildMode === CRT_MODE_COMPOSITE_TV
+        ? this.buildCompositeSignalColor(centerColor, sampleUv, texel)
+        : centerColor
+    const signalLuma = this.luma(signalColor)
+    const neutralSignal = vec3(signalLuma, signalLuma, signalLuma)
+    const signalChroma = signalColor.sub(neutralSignal)
+    const liftedLuma = signalLuma.add(
+      smoothstep(float(0.38), float(0.02), signalLuma)
+        .mul(this.shadowLiftUniform)
+        .mul(float(0.08))
+    )
+    return clamp(
+      vec3(liftedLuma, liftedLuma, liftedLuma).add(signalChroma),
+      vec3(0, 0, 0),
+      vec3(1, 1, 1)
+    )
+  }
+
+  private buildCompositeSignalColor(
+    centerColor: Node,
     sampleUv: Node,
-    texel: Node,
-    compositeWeight: Node
+    texel: Node
   ): Node {
     const sampleOffset = vec2(texel.x.mul(1.35), float(0))
-    const center = this.trackSourceTextureNode(sampleUv)
     const left = this.trackSourceTextureNode(
       clamp(sampleUv.sub(sampleOffset), vec2(0, 0), vec2(1, 1))
     )
@@ -1280,7 +1260,6 @@ export class CrtPass extends PassNode {
       clamp(sampleUv.add(sampleOffset), vec2(0, 0), vec2(1, 1))
     )
 
-    const centerColor = vec3(float(center.r), float(center.g), float(center.b))
     const leftColor = vec3(float(left.r), float(left.g), float(left.b))
     const rightColor = vec3(float(right.r), float(right.g), float(right.b))
     const avgColor = centerColor.mul(2).add(leftColor).add(rightColor).div(4)
@@ -1301,24 +1280,8 @@ export class CrtPass extends PassNode {
       vec3(0, 0, 0),
       vec3(1, 1, 1)
     )
-    const signalColor = mix(
-      centerColor,
-      compositeColor,
-      compositeWeight.mul(this.signalArtifactsUniform)
-    )
-    const signalLuma = this.luma(signalColor)
-    const neutralSignal = vec3(signalLuma, signalLuma, signalLuma)
-    const signalChroma = signalColor.sub(neutralSignal)
-    const liftedLuma = signalLuma.add(
-      smoothstep(float(0.38), float(0.02), signalLuma)
-        .mul(this.shadowLiftUniform)
-        .mul(float(0.08))
-    )
-    return clamp(
-      vec3(liftedLuma, liftedLuma, liftedLuma).add(signalChroma),
-      vec3(0, 0, 0),
-      vec3(1, 1, 1)
-    )
+
+    return mix(centerColor, compositeColor, this.signalArtifactsUniform)
   }
 
   private trackHistoryTextureNode(uvNode: Node): Node {

@@ -3,7 +3,13 @@ import { customAlphabet } from "nanoid"
 import { getDatabase } from "@/lib/db"
 import { scenes, uploadQuota } from "@/lib/db/schema"
 import { slugifyHandle } from "@/lib/community/handle"
-import { censorProjectFile, censorText } from "@/lib/community/language"
+import {
+  censorProjectFile,
+  censorText,
+  describeBlockedLanguage,
+  findSevereLanguageInProjectFile,
+  hasSevereLanguage,
+} from "@/lib/community/language"
 import { keyFromPublicUrl, scenePrefixOf } from "@/lib/community/r2"
 import {
   DEFAULT_DRAFT_TITLE,
@@ -154,6 +160,7 @@ export interface PublishValidation {
 function parseScenePayload(raw: string): {
   body: string
   projectFile: LabProjectFile
+  severeLocation: string | null
 } {
   if (raw.length > MAX_LAB_BYTES) {
     throw new Error("This scene is too large.")
@@ -167,11 +174,13 @@ function parseScenePayload(raw: string): {
     }
   }
 
+  const severeLocation = findSevereLanguageInProjectFile(parsed)
   const censored = censorProjectFile(parsed)
 
   return {
     body: censored.changed ? JSON.stringify(censored.projectFile) : raw,
     projectFile: censored.projectFile,
+    severeLocation,
   }
 }
 
@@ -200,7 +209,11 @@ export function validateDraftPayload(raw: string): PublishValidation {
 }
 
 export function validateProjectFilePayload(raw: string): PublishValidation {
-  const { body, projectFile } = parseScenePayload(raw)
+  const { body, projectFile, severeLocation } = parseScenePayload(raw)
+
+  if (severeLocation) {
+    throw new Error(describeBlockedLanguage(severeLocation))
+  }
 
   if (projectFile.layers.length === 0) {
     throw new Error("A scene needs at least one visible layer.")
@@ -224,7 +237,13 @@ export function normalizeTitle(value: unknown): string {
     throw new Error("A title is required.")
   }
 
-  return censorText(title.slice(0, MAX_TITLE_LENGTH))
+  const capped = title.slice(0, MAX_TITLE_LENGTH)
+
+  if (hasSevereLanguage(capped)) {
+    throw new Error(describeBlockedLanguage("the title"))
+  }
+
+  return censorText(capped)
 }
 
 export function normalizeDraftTitle(value: unknown): string {
@@ -302,9 +321,17 @@ export async function collectAllowedScenePrefixes(input: {
 export function normalizeDescription(value: unknown): string | null {
   const description = typeof value === "string" ? value.trim() : ""
 
-  return description.length > 0
-    ? censorText(description.slice(0, MAX_DESCRIPTION_LENGTH))
-    : null
+  if (description.length === 0) {
+    return null
+  }
+
+  const capped = description.slice(0, MAX_DESCRIPTION_LENGTH)
+
+  if (hasSevereLanguage(capped)) {
+    throw new Error(describeBlockedLanguage("the description"))
+  }
+
+  return censorText(capped)
 }
 
 export interface QuotaCheck {

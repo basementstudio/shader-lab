@@ -1,4 +1,8 @@
 import { buildRenderProjectState } from "@/lib/agent-bridge/screenshot"
+import {
+  describeBlockedLanguage,
+  findSevereLanguageInScene,
+} from "@/lib/community/language"
 import { describeUploadLimit } from "@/lib/community/upload-limits"
 import {
   buildLabProjectFile,
@@ -397,6 +401,16 @@ export async function publishScene(input: {
 
   if (plan.problem) {
     throw new Error(plan.problem)
+  }
+
+  const severeLocation = findSevereLanguageInScene({
+    description: input.description,
+    projectFile,
+    title: input.title,
+  })
+
+  if (severeLocation) {
+    throw new Error(describeBlockedLanguage(severeLocation))
   }
 
   const thumbnailBlob = await captureThumbnail(input.thumbnailTime)

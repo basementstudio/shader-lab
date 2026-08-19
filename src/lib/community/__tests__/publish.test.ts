@@ -693,3 +693,53 @@ describe("moderating what gets stored", () => {
     expect(validateDraftPayload(raw).body).toBe(raw)
   })
 })
+
+describe("blocking a scene outright", () => {
+  test("a slur in the title stops the publish instead of masking it", () => {
+    expect(() => normalizeTitle("nigger")).toThrow(
+      /we can't publish that.*the title/i
+    )
+  })
+
+  test("a slur in the description stops the publish", () => {
+    expect(() => normalizeDescription("a scene about faggots")).toThrow(
+      /we can't publish that.*the description/i
+    )
+  })
+
+  test("the block runs before the censor, which would otherwise hide it", () => {
+    const raw = labFile()
+    const dirty = raw.replace('"name":"Gradient"', '"name":"NIGGER"')
+
+    expect(() => validateProjectFilePayload(dirty)).toThrow(
+      /we can't publish that/i
+    )
+  })
+
+  test("the message never repeats the word back", () => {
+    let message = ""
+
+    try {
+      normalizeTitle("nigger")
+    } catch (cause) {
+      message = cause instanceof Error ? cause.message : ""
+    }
+
+    expect(message).not.toMatch(/nig/i)
+  })
+
+  test("ordinary swearing is still censored, not blocked", () => {
+    expect(normalizeTitle("fuck this gradient")).toBe("**** this gradient")
+    expect(normalizeDescription("a fucking noise field")).toBe(
+      "a ****ing noise field"
+    )
+  })
+
+  test("a draft can still hold what a publish will not", () => {
+    const raw = labFile()
+    const dirty = raw.replace('"name":"Gradient"', '"name":"NIGGER"')
+
+    expect(() => validateDraftPayload(dirty)).not.toThrow()
+    expect(normalizeDraftTitle("nigger")).toBe("******")
+  })
+})

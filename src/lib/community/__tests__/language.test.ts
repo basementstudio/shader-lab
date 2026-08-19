@@ -2,7 +2,9 @@ import { describe, expect, test } from "bun:test"
 import {
   censorProjectFile,
   censorText,
+  findSevereLanguageInScene,
   hasProfanity,
+  hasSevereLanguage,
 } from "@/lib/community/language"
 import { parseLabProjectFile } from "@/lib/editor/project-file"
 
@@ -167,5 +169,114 @@ describe("censorProjectFile", () => {
     expect(reparsed.layers[0]?.name).toBe("****")
     expect(reparsed.layers[0]?.params.text).toBe("hello")
     expect(reparsed.layers).toHaveLength(1)
+  })
+})
+
+describe("the severe tier", () => {
+  test("blocks slurs", () => {
+    for (const value of ["NIGGER", "faggot", "a chink joke", "spic", "wetback"]) {
+      expect(hasSevereLanguage(value)).toBe(true)
+    }
+  })
+
+  test("lets ordinary swearing through, so it gets censored instead", () => {
+    for (const value of ["fuck this gradient", "shitty scene", "ass", "twat"]) {
+      expect(hasSevereLanguage(value)).toBe(false)
+      expect(hasProfanity(value)).toBe(true)
+    }
+  })
+
+  test("says nothing about words the dataset does not carry", () => {
+    expect(hasProfanity("damn")).toBe(false)
+    expect(hasSevereLanguage("damn")).toBe(false)
+  })
+
+  test("the house list is word-bounded, not a substring match", () => {
+    for (const clean of [
+      "raccoon study",
+      "cocoon",
+      "tycoon gradient",
+      "spice rack",
+      "suspicious noise",
+      "conspicuous",
+      "gobbledygook",
+      "packing list",
+      "Pakistan skyline",
+      "custard",
+      "bean field",
+    ]) {
+      expect(hasSevereLanguage(clean)).toBe(false)
+    }
+  })
+
+  test("still sees through leetspeak and casing", () => {
+    expect(hasSevereLanguage("N1GG3R")).toBe(true)
+  })
+})
+
+describe("findSevereLanguageInScene", () => {
+  const clean = () => parseLabProjectFile(labFile([layer()]))
+
+  test("names the title", () => {
+    expect(
+      findSevereLanguageInScene({ projectFile: clean(), title: "nigger" })
+    ).toBe("the title")
+  })
+
+  test("names the description", () => {
+    expect(
+      findSevereLanguageInScene({
+        description: "a scene about faggots",
+        projectFile: clean(),
+        title: "Fine",
+      })
+    ).toBe("the description")
+  })
+
+  test("names the text layer", () => {
+    const projectFile = parseLabProjectFile(
+      labFile([layer({ params: { text: "NIGGER" }, type: "text" })])
+    )
+
+    expect(findSevereLanguageInScene({ projectFile, title: "Fine" })).toBe(
+      "the text on one of your text layers"
+    )
+  })
+
+  test("names layer names", () => {
+    const projectFile = parseLabProjectFile(labFile([layer({ name: "kike" })]))
+
+    expect(findSevereLanguageInScene({ projectFile, title: "Fine" })).toBe(
+      "your layer names"
+    )
+  })
+
+  test("never echoes the word back at the person", () => {
+    const projectFile = parseLabProjectFile(
+      labFile([layer({ params: { text: "NIGGER" }, type: "text" })])
+    )
+    const where = findSevereLanguageInScene({ projectFile, title: "Fine" })
+
+    expect(where?.toLowerCase()).not.toContain("nig")
+  })
+
+  test("passes a clean scene", () => {
+    expect(
+      findSevereLanguageInScene({
+        description: "a calm noise field",
+        projectFile: clean(),
+        title: "Drift",
+      })
+    ).toBeNull()
+  })
+
+  test("lets an ordinary swear through, so it is censored not blocked", () => {
+    const projectFile = parseLabProjectFile(
+      labFile([layer({ params: { text: "fuck" }, type: "text" })])
+    )
+
+    expect(
+      findSevereLanguageInScene({ projectFile, title: "fucking gradient" })
+    ).toBeNull()
   })
 })

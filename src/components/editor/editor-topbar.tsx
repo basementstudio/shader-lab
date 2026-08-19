@@ -18,11 +18,13 @@ import Link from "next/link"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { AgentConnectPanel } from "@/components/editor/agent-connect-panel"
 import { FloatingDesktopPanel } from "@/components/editor/floating-desktop-panel"
+import { Button } from "@/components/ui/button"
 import { GlassPanel } from "@/components/ui/glass-panel"
 import { IconButton } from "@/components/ui/icon-button"
 import { HoverTooltip } from "@/components/ui/tooltip"
 import { Typography } from "@/components/ui/typography"
 import { playUISound } from "@/lib/audio/shader-lab-sounds"
+import { useCommunityUnread } from "@/lib/community/use-community-unread"
 import {
   applyEditorHistorySnapshot,
   buildEditorHistorySnapshot,
@@ -139,6 +141,8 @@ export function EditorTopBar({
   const [publishedSlug, setPublishedSlug] = useState<string | null>(null)
   const [autoOpenSlug, setAutoOpenSlug] = useState<string | null>(null)
   const [hasOpenedCommunity, setHasOpenedCommunity] = useState(false)
+  const { markSeen: markCommunitySeen, unread: communityUnread } =
+    useCommunityUnread(communityEnabled)
 
   useEffect(() => {
     if (!communityEnabled) {
@@ -616,18 +620,27 @@ export function EditorTopBar({
               <GitHubStarLink />
               {communityEnabled ? (
                 <>
-                  <IconButton
-                    aria-label="Community scenes"
-                    className="h-7 w-7"
-                    onClick={() => {
-                      setHasOpenedCommunity(true)
-                      setCommunityOpen(true)
-                    }}
-                    tooltip="Community scenes"
-                    tooltipSide="bottom"
-                  >
-                    <GlobeIcon height={16} width={16} />
-                  </IconButton>
+                  <span className="relative inline-flex">
+                    <Button
+                      className="h-7 gap-1.5"
+                      onClick={() => {
+                        setHasOpenedCommunity(true)
+                        setCommunityOpen(true)
+                        markCommunitySeen()
+                      }}
+                      size="compact"
+                      variant="secondary"
+                    >
+                      <GlobeIcon height={14} width={14} />
+                      Community
+                    </Button>
+                    {communityUnread ? (
+                      <span
+                        aria-hidden="true"
+                        className="pointer-events-none absolute -top-0.5 -right-0.5 size-2 rounded-full border border-[var(--ds-color-canvas)] bg-emerald-400"
+                      />
+                    ) : null}
+                  </span>
                   <AuthMenu newTab />
                 </>
               ) : null}

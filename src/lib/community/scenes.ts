@@ -274,6 +274,23 @@ export async function listScenesByAuthor(
   return rows.map((row) => ({ ...toSummary(row), status: row.status }))
 }
 
+export async function getLatestPublishedAt(): Promise<string | null> {
+  const rows = await getDatabase()
+    .select({ publishedAt: scenes.publishedAt })
+    .from(scenes)
+    .where(
+      and(
+        eq(scenes.status, "published"),
+        isNull(scenes.deletedAt),
+        sql`${scenes.publishedAt} is not null`
+      )
+    )
+    .orderBy(desc(scenes.publishedAt))
+    .limit(1)
+
+  return rows[0]?.publishedAt?.toISOString() ?? null
+}
+
 export async function listLikedScenesByUser(
   userId: string,
   limit = 60

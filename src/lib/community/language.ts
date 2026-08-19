@@ -37,8 +37,6 @@ const HOUSE_PATTERNS = [
   pattern`|goy|`,
   pattern`|goys|`,
   pattern`|goyim|`,
-  pattern`|uncircumcised|`,
-  pattern`|uncircumsized|`,
 ]
 
 function getMatcher(): RegExpMatcher {

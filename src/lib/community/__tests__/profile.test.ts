@@ -76,3 +76,25 @@ describe("normalizeDisplayName", () => {
     expect(normalizeDisplayName("Tobi Moccagatta")).toBe("Tobi Moccagatta")
   })
 })
+
+describe("normalizeDisplayName on a stored value", () => {
+  test("masks a legacy name that predates moderation", () => {
+    expect(normalizeDisplayName("Fuck Face")).toBe("**** Face")
+  })
+
+  test("is idempotent, so a healed row stops rewriting itself", () => {
+    const once = normalizeDisplayName("Fuck Face")
+
+    expect(normalizeDisplayName(once)).toBe(once)
+  })
+
+  test("leaves a clean stored name identical, so no pointless write", () => {
+    const stored = "Tobi Moccagatta"
+
+    expect(normalizeDisplayName(stored)).toBe(stored)
+  })
+
+  test("a null stored name stays null rather than becoming a write", () => {
+    expect(normalizeDisplayName(null)).toBeNull()
+  })
+})

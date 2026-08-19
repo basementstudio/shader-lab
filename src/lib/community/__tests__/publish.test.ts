@@ -658,7 +658,7 @@ describe("publishing refuses a bad word outright", () => {
   })
 
   test("the house additions stop it", () => {
-    for (const word of ["goy", "goyim", "uncircumcised", "uncircumsized"]) {
+    for (const word of ["goy", "goys", "goyim"]) {
       expect(() => normalizeTitle(word)).toThrow(/we can't publish that/i)
     }
   })

@@ -185,7 +185,7 @@ describe("what counts as a bad word", () => {
   })
 
   test("catches the house additions", () => {
-    for (const value of ["goy", "goyim", "uncircumcised", "uncircumsized"]) {
+    for (const value of ["goy", "goys", "goyim"]) {
       expect(hasProfanity(value)).toBe(true)
     }
   })

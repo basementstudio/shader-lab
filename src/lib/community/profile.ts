@@ -101,7 +101,9 @@ export async function ensureProfile(
   if (existing) {
     await backfillMissingClaim(existing)
 
-    const displayName = normalizeDisplayName(seed.name) ?? existing.displayName
+    const displayName =
+      normalizeDisplayName(seed.name) ??
+      normalizeDisplayName(existing.displayName)
     const avatarUrl = seed.avatarUrl ?? existing.avatarUrl
 
     if (

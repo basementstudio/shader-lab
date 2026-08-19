@@ -12,7 +12,7 @@ import { ButtonLink } from "@/components/ui/button/link"
 import { Typography } from "@/components/ui/typography"
 import { APP_BASE_URL } from "@/lib/app"
 import { isCommunityEnabled } from "@/lib/community/config"
-import { lineageLabel } from "@/lib/community/lineage"
+import { isSelfRemix, lineageLabel } from "@/lib/community/lineage"
 import {
   editorSceneHref,
   OPEN_IN_EDITOR_PARAM,
@@ -179,9 +179,9 @@ async function SceneBody({ params }: PageProps) {
             ) : null}
           </div>
 
-          <div className="flex flex-wrap items-center gap-[var(--ds-space-5)]">
+          <div className="flex flex-col gap-[var(--ds-space-3)]">
             <Link
-              className="inline-flex min-w-0 items-center gap-[var(--ds-space-2)] rounded-[var(--ds-radius-control)] transition-opacity duration-160 hover:opacity-80"
+              className="inline-flex w-fit min-w-0 items-center gap-[var(--ds-space-2)] rounded-[var(--ds-radius-control)] transition-opacity duration-160 hover:opacity-80"
               href={profilePagePath(scene.authorHandle) as Route}
             >
               <AuthorAvatar
@@ -201,37 +201,39 @@ async function SceneBody({ params }: PageProps) {
               </span>
             </Link>
 
-          </div>
-
-          {scene.forkedFrom ? (
-            <Link
-              aria-label={lineageLabel(scene.forkedFrom)}
-              className="w-fit rounded-[var(--ds-radius-control)] transition-opacity duration-160 hover:opacity-80"
-              href={`/community/${scene.forkedFrom.slug}` as Route}
-              title={scene.forkedFrom.title}
-            >
-              <RemixCredit lineage={scene.forkedFrom} />
-            </Link>
-          ) : null}
-
-          <div className="flex flex-wrap gap-1.5">
-            {scene.layerTypes.map((type) => (
-              <span
-                className="inline-flex min-h-6 items-center rounded-[var(--ds-radius-control)] border border-[var(--ds-border-subtle)] bg-[var(--ds-color-surface-subtle)] px-2"
-                key={type}
+            {scene.forkedFrom ? (
+              <Link
+                aria-label={lineageLabel(scene.forkedFrom)}
+                className="w-fit rounded-[var(--ds-radius-control)] transition-opacity duration-160 hover:opacity-80"
+                href={`/community/${scene.forkedFrom.slug}` as Route}
+                title={scene.forkedFrom.title}
               >
-                <Typography as="span" tone="secondary" variant="monoXs">
-                  {getLayerLabel(type)}
-                </Typography>
-              </span>
-            ))}
-            {scene.hasCustomShader ? (
-              <span className="inline-flex min-h-6 items-center rounded-[var(--ds-radius-control)] border border-[var(--ds-border-active)] bg-[var(--ds-color-surface-active)] px-2">
-                <Typography as="span" variant="monoXs">
-                  Custom shader
-                </Typography>
-              </span>
+                <RemixCredit
+                  lineage={scene.forkedFrom}
+                  showAuthor={!isSelfRemix(scene.authorHandle, scene.forkedFrom)}
+                />
+              </Link>
             ) : null}
+
+            <div className="flex flex-wrap gap-1.5">
+              {scene.layerTypes.map((type) => (
+                <span
+                  className="inline-flex min-h-6 items-center rounded-[var(--ds-radius-control)] border border-[var(--ds-border-subtle)] bg-[var(--ds-color-surface-subtle)] px-2"
+                  key={type}
+                >
+                  <Typography as="span" tone="secondary" variant="monoXs">
+                    {getLayerLabel(type)}
+                  </Typography>
+                </span>
+              ))}
+              {scene.hasCustomShader ? (
+                <span className="inline-flex min-h-6 items-center rounded-[var(--ds-radius-control)] border border-[var(--ds-border-active)] bg-[var(--ds-color-surface-active)] px-2">
+                  <Typography as="span" variant="monoXs">
+                    Custom shader
+                  </Typography>
+                </span>
+              ) : null}
+            </div>
           </div>
         </div>
 

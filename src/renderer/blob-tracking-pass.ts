@@ -150,7 +150,6 @@ const DEFAULT_TRACKER_CONFIG: TrackerConfig = {
 }
 
 type BlobShape = "circle" | "diamond" | "square"
-type InnerMaskSource = "blobs" | "motion"
 type CenterMarker = "cross" | "dot" | "none"
 
 type DecorationConfig = {
@@ -401,7 +400,6 @@ export class BlobTrackingPass extends PassNode {
   private motionSampleNode: Node | null = null
   private readonly motionPlaceholder = new THREE.Texture()
   private motionOutput = false
-  private innerMaskSource: InnerMaskSource = "blobs"
 
   private trailRtA: THREE.WebGLRenderTarget | null = null
   private trailRtB: THREE.WebGLRenderTarget | null = null
@@ -565,17 +563,12 @@ export class BlobTrackingPass extends PassNode {
     this.invertUniform.value = params.invert === true ? 1 : 0
 
     const nextMaskOutput = params.outputMode === "mask"
-    const nextMotionOutput =
-params.outputMode === "motion"
-    const nextInnerMaskSource: InnerMaskSource =
-      params.innerEffectMask === "motion" ? "motion" : "blobs"
+    const nextMotionOutput = params.outputMode === "motion"
     const maskChanged =
       nextMaskOutput !== this.maskOutput ||
-      nextMotionOutput !== this.motionOutput ||
-      nextInnerMaskSource !== this.innerMaskSource
+      nextMotionOutput !== this.motionOutput
     this.maskOutput = nextMaskOutput
     this.motionOutput = nextMotionOutput
-    this.innerMaskSource = nextInnerMaskSource
 
     const nextDecorations: DecorationConfig = {
       centerShape: resolveCenterMarker(params.centerShape),
@@ -725,12 +718,9 @@ params.outputMode === "motion"
     const innerSample = tslTexture(this.innerPlaceholder, screenUv)
     this.innerNode = innerSample
 
-    // The inner effect can be confined to the blob shapes or to wherever the
-    // motion mask is lit, which is the article's `mix(video, effect, mask)`.
-    const innerMask = this.innerMaskSource === "motion" ? motionMask : mask
 
     const innerColor = vec3(innerSample.r, innerSample.g, innerSample.b)
-    const innerAmount = innerMask.mul(this.innerActiveUniform)
+    const innerAmount = mask.mul(this.innerActiveUniform)
 
     const trailSample = tslTexture(this.trailPlaceholder, screenUv)
     this.trailSampleNode = trailSample

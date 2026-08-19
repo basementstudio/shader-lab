@@ -3614,18 +3614,6 @@ const blobTrackingParams = [
   },
   {
     animatable: false,
-    defaultValue: "blobs",
-    group: "Inner Effect",
-    key: "innerEffectMask",
-    label: "Render Inside",
-    options: [
-      { label: "Blob Shapes", value: "blobs" },
-      { label: "Motion Mask", value: "motion" },
-    ],
-    type: "select",
-  },
-  {
-    animatable: false,
     defaultValue: "",
     key: "innerEffectParams",
     label: "Inner Effect Params",

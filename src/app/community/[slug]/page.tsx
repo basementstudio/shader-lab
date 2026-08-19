@@ -6,6 +6,7 @@ import { Suspense } from "react"
 import { AuthorAvatar } from "@/components/community/author-avatar"
 import { OpenInEditor } from "@/components/community/open-in-editor"
 import { RemixCredit } from "@/components/community/remix-credit"
+import { ButtonLink } from "@/components/ui/button/link"
 import { Typography } from "@/components/ui/typography"
 import { APP_BASE_URL } from "@/lib/app"
 import { isCommunityEnabled } from "@/lib/community/config"
@@ -131,14 +132,9 @@ async function SceneBody({ params }: PageProps) {
 
   return (
     <main className="mx-auto flex w-full max-w-[1180px] flex-col gap-[var(--ds-space-5)] px-4 py-10 sm:px-6">
-      <Link
-        className="w-fit underline decoration-dotted underline-offset-2"
-        href="/community"
-      >
-        <Typography as="span" tone="tertiary" variant="caption">
-          All scenes
-        </Typography>
-      </Link>
+      <ButtonLink className="w-fit px-0" href="/community" size="compact" variant="ghost">
+        All scenes
+      </ButtonLink>
 
       <div className="grid grid-cols-1 gap-[var(--ds-space-5)] min-[860px]:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
         <div className="flex min-w-0 flex-col gap-[var(--ds-space-4)]">

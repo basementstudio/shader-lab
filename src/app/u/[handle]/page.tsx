@@ -1,11 +1,10 @@
 import type { Metadata, Route } from "next"
-import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
 import { Suspense } from "react"
 import { ProfileHeader } from "@/components/community/profile-header"
 import { ProfileOwnerActions } from "@/components/community/profile-owner-actions"
 import { PublicSceneGrid } from "@/components/community/public-scene-grid"
-import { Typography } from "@/components/ui/typography"
+import { ButtonLink } from "@/components/ui/button/link"
 import { APP_BASE_URL } from "@/lib/app"
 import { isCommunityEnabled } from "@/lib/community/config"
 import { isLookupableHandle } from "@/lib/community/handle"
@@ -104,14 +103,9 @@ async function ProfileRoute({ params }: PageProps) {
   return (
     <main className="mx-auto flex w-full max-w-[1180px] flex-col gap-[var(--ds-space-6)] px-4 py-10 sm:px-6">
       <div className="flex flex-col gap-[var(--ds-space-3)]">
-        <Link
-          className="w-fit underline decoration-dotted underline-offset-2"
-          href="/community"
-        >
-          <Typography as="span" tone="tertiary" variant="caption">
-            All scenes
-          </Typography>
-        </Link>
+        <ButtonLink className="w-fit px-0" href="/community" size="compact" variant="ghost">
+          All scenes
+        </ButtonLink>
 
         <ProfileHeader
           action={<ProfileOwnerActions handle={profile.handle} />}

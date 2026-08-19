@@ -57,20 +57,14 @@ export function ReportControl({ slug }: { slug: string }) {
 
   if (stage === "closed") {
     return (
-      <button
-        className="cursor-pointer self-center border-0 bg-transparent p-0"
+      <Button
+        className="self-center px-0"
         onClick={() => setStage("picking")}
-        type="button"
+        size="compact"
+        variant="ghost"
       >
-        <Typography
-          as="span"
-          className="underline decoration-dotted underline-offset-2"
-          tone="tertiary"
-          variant="caption"
-        >
-          Report this scene
-        </Typography>
-      </button>
+        Report this scene
+      </Button>
     )
   }
 

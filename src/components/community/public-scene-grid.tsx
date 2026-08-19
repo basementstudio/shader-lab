@@ -37,7 +37,7 @@ export function PublicSceneGrid({
 
   return (
     <>
-      <div className="grid grid-cols-2 gap-[var(--ds-space-4)] min-[760px]:grid-cols-4">
+      <div className="grid grid-cols-2 gap-[var(--ds-space-5)] min-[760px]:grid-cols-3">
         {shown.map((scene, index) => (
           <PublicSceneCard
             key={scene.slug}

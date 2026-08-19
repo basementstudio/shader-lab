@@ -49,6 +49,7 @@
     "@react-three/fiber": "^9.5.0",
     "@react-three/postprocessing": "^3.0.4",
     "@vercel/analytics": "^2.0.1",
+    "@vercel/speed-insights": "^2.0.0",
     "@web-kits/audio": "^0.1.0",
     "class-variance-authority": "^0.7.1",
     "drizzle-orm": "^0.45.2",

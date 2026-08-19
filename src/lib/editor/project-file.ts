@@ -307,7 +307,7 @@ const projectAudioSchema = z.looseObject({
   source: z.looseObject({ kind: z.string() }).nullable().optional(),
 })
 
-export const CURRENT_PROJECT_FILE_VERSION = 5
+export const CURRENT_PROJECT_FILE_VERSION = 6
 
 const labProjectFileSchema = z.looseObject({
   assets: z.array(assetReferenceSchema),
@@ -464,7 +464,7 @@ export function applyLabProjectFile(
   )
 
   const nextLayers = projectFile.layers.map((layer) =>
-    hydrateImportedLayer(layer, assetIds, assetRefById)
+    hydrateImportedLayer(layer, assetIds, assetRefById, projectFile.version)
   )
 
   const hasSelectedLayer = nextLayers.some(
@@ -550,11 +550,26 @@ const LEGACY_ASCII_FONT_WEIGHTS: Record<string, number> = {
   thin: 100,
 }
 
-function migrateLayerParams(layer: EditorLayer): LayerParameterValues {
+export function migrateLayerParams(
+  layer: EditorLayer,
+  version: number
+): LayerParameterValues {
   const params: LayerParameterValues = { ...layer.params }
 
   if (layer.type === "ascii" && typeof params.fontWeight === "string") {
     params.fontWeight = LEGACY_ASCII_FONT_WEIGHTS[params.fontWeight] ?? 400
+  }
+
+  // v6 flipped blob-tracking `sensitivity` so higher means more sensitive;
+  // before that it was fed straight in as a luma threshold. The flip landed on
+  // main as v5 while this branch had already published scenes stamped 5 for an
+  // unrelated change, so it has to reach those too.
+  if (
+    version < 6 &&
+    layer.type === "blob-tracking" &&
+    typeof params.sensitivity === "number"
+  ) {
+    params.sensitivity = 1 - params.sensitivity
   }
 
   for (const parameter of getLayerDefinition(layer.type).params) {
@@ -569,9 +584,10 @@ function migrateLayerParams(layer: EditorLayer): LayerParameterValues {
 function hydrateImportedLayer(
   layer: EditorLayer,
   assetIds: Set<string>,
-  assetRefById: Map<string, LabProjectFile["assets"][number]>
+  assetRefById: Map<string, LabProjectFile["assets"][number]>,
+  version: number
 ): EditorLayer {
-  const params = migrateLayerParams(layer)
+  const params = migrateLayerParams(layer, version)
 
   if (!(layer.assetId && !assetIds.has(layer.assetId))) {
     return {

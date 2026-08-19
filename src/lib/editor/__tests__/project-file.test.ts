@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test"
 import {
   CURRENT_PROJECT_FILE_VERSION,
   type LabProjectFile,
+  migrateLayerParams,
   parseLabProjectFile,
 } from "@/lib/editor/project-file"
 import type { EditorLayer } from "@/types/editor"
@@ -357,19 +358,61 @@ describe("parseLabProjectFile", () => {
     )
   })
 
-  test("v5 adds remote assets on top of the v4 ascii migration", () => {
-    expect(CURRENT_PROJECT_FILE_VERSION).toBe(5)
+  test("v6 inverts blob sensitivity on top of the v5 remote assets", () => {
+    expect(CURRENT_PROJECT_FILE_VERSION).toBe(6)
 
-    for (const version of [4, 5]) {
+    for (const version of [4, 5, 6]) {
       const fixture = { ...createValidProjectFile(), version }
 
       expect(parseLabProjectFile(JSON.stringify(fixture)).version).toBe(version)
     }
 
-    const future = { ...createValidProjectFile(), version: 6 }
+    const future = { ...createValidProjectFile(), version: 7 }
 
     expect(() => parseLabProjectFile(JSON.stringify(future))).toThrow(
       "Unsupported Shader Lab project version."
     )
+  })
+})
+
+describe("migrateLayerParams", () => {
+  function blobLayer(params: Record<string, unknown>): EditorLayer {
+    return {
+      id: "blob-1",
+      name: "Blob Tracking",
+      params,
+      type: "blob-tracking",
+      visible: true,
+    } as unknown as EditorLayer
+  }
+
+  test("inverts blob-tracking sensitivity saved before v6", () => {
+    const migrated = migrateLayerParams(blobLayer({ sensitivity: 0.2 }), 4)
+
+    expect(migrated.sensitivity).toBeCloseTo(0.8, 6)
+  })
+
+  test("still inverts a scene published at v5, which predates the flip", () => {
+    const migrated = migrateLayerParams(blobLayer({ sensitivity: 0.2 }), 5)
+
+    expect(migrated.sensitivity).toBeCloseTo(0.8, 6)
+  })
+
+  test("leaves sensitivity alone from v6 onward", () => {
+    const migrated = migrateLayerParams(blobLayer({ sensitivity: 0.2 }), 6)
+
+    expect(migrated.sensitivity).toBeCloseTo(0.2, 6)
+  })
+
+  test("does not touch sensitivity on other layer types", () => {
+    const layer = {
+      id: "grad-1",
+      name: "Gradient",
+      params: { sensitivity: 0.2 },
+      type: "gradient",
+      visible: true,
+    } as unknown as EditorLayer
+
+    expect(migrateLayerParams(layer, 4).sensitivity).toBeCloseTo(0.2, 6)
   })
 })

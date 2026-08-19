@@ -2,41 +2,41 @@ import {
   abs,
   clamp,
   dot,
+  attribute,
   float,
-  Fn,
+  floor,
   fract,
   length,
-  Loop,
   max,
   min,
   mix,
+  positionLocal,
   smoothstep,
   sqrt,
   step,
   type TSLNode,
   texture as tslTexture,
   uniform,
-  uniformArray,
   uv,
   vec2,
   vec3,
   vec4,
 } from "three/tsl"
 import * as THREE from "three/webgpu"
-import type { LayerParameterValues } from "../types/editor"
-import { AsciiPass } from "./ascii-pass"
-import { BloomPass } from "./bloom-pass"
 import {
   INNER_EFFECT_NONE,
+  type ShaderLabBlobInnerEffect,
   isInnerEffectType,
   parseInnerEffectParams,
-  type ShaderLabBlobInnerEffect,
 } from "./blob-tracking-inner-effects"
 import {
   type Blob,
   BlobTracker,
   type TrackerConfig,
+  VELOCITY_LOOKAHEAD,
 } from "./blob-tracking-tracker"
+import { AsciiPass } from "./ascii-pass"
+import { BloomPass } from "./bloom-pass"
 import { ChromaticAberrationPass } from "./chromatic-aberration-pass"
 import { CircuitBentPass } from "./circuit-bent-pass"
 import { CrtPass } from "./crt-pass"
@@ -65,16 +65,25 @@ import { SlicePass } from "./slice-pass"
 import { SmearPass } from "./smear-pass"
 import { ThresholdPass } from "./threshold-pass"
 import { VoxelPass } from "./voxel-pass"
+import type { LayerParameterValues } from "../types/editor"
 
 type Node = TSLNode
 
 const ANALYSIS_WIDTH = 64
 const ANALYSIS_HEIGHT = 36
-const ANALYSIS_SUPERSAMPLE = 4
+const LUMA_MAX_LEVELS = 8
+const MOTION_ENERGY_FLOOR = 0.025
+const DEFAULT_MOTION_PERSISTENCE = 0.82
+const LUMA_WEIGHTS: readonly [number, number, number] = [
+  0.2126, 0.7152, 0.0722,
+]
+
 const MAX_BLOBS = 32
-const OVERLAY_MAX_WIDTH = 960
-const OVERLAY_REDRAW_INTERVAL_MS = 33
-const NO_SIGNATURE = -1
+const TRAIL_DIVISOR = 2
+const TRAIL_FLOOR = 0.02
+const TRAIL_DECAY_MIN = 0.75
+const TRAIL_DECAY_RANGE = 0.24
+const TRAIL_MAX_ALPHA = 0.6
 const CURVE_SUBDIVISIONS = 6
 const MAX_CONNECTOR_SEGMENTS = (MAX_BLOBS - 1) * CURVE_SUBDIVISIONS
 const MAX_ARROW_SEGMENTS = (MAX_BLOBS - 1) * 2
@@ -85,6 +94,20 @@ const DASH_PERIOD = 0.024
 const DASH_DUTY = 0.55
 const MAX_LABEL_CHARS = 16
 const LABEL_HEIGHT_FRACTION = 1 / 54
+const SHAPE_EXTENT_EPSILON = 1e-5
+
+// Motion mask, following "Shading Motion". Its state texture is rgba8unorm at
+// DETECTION_SCALE with R = current luminance and G = the decayed motion trail;
+// our luma pyramid's level 0 is already device/2, i.e. DETECTION_SCALE 0.5.
+const MOTION_TRAIL_FLOOR = 0.025
+const MOTION_THRESHOLD_SPAN = 4
+const DEFAULT_MOTION_MASK_THRESHOLD = 0.08
+
+
+/** Render-target reads are Y-flipped relative to the fullscreen quad's uv(). */
+function renderTargetUv(): Node {
+  return vec2(uv().x, float(1).sub(uv().y))
+}
 
 const ANALYSIS_RT_OPTIONS = {
   depthBuffer: false,
@@ -92,6 +115,16 @@ const ANALYSIS_RT_OPTIONS = {
   generateMipmaps: false,
   magFilter: THREE.NearestFilter,
   minFilter: THREE.NearestFilter,
+  stencilBuffer: false,
+  type: THREE.UnsignedByteType,
+} as const
+
+const LUMA_RT_OPTIONS = {
+  depthBuffer: false,
+  format: THREE.RGBAFormat,
+  generateMipmaps: false,
+  magFilter: THREE.LinearFilter,
+  minFilter: THREE.LinearFilter,
   stencilBuffer: false,
   type: THREE.UnsignedByteType,
 } as const
@@ -112,7 +145,7 @@ const DEFAULT_TRACKER_CONFIG: TrackerConfig = {
   minBlobSize: 3,
   motionThreshold: 0.12,
   persistentTracking: true,
-  sensitivity: 0.5,
+  sensitivity: 0.8,
   smoothing: 0.6,
 }
 
@@ -269,44 +302,53 @@ export class BlobTrackingPass extends PassNode {
   private analysisScene: THREE.Scene | null = null
   private analysisCamera: THREE.OrthographicCamera | null = null
   private analysisMaterial: THREE.MeshBasicNodeMaterial | null = null
-  private analysisGeometry: THREE.PlaneGeometry | null = null
+  private readonly fullscreenGeometry = new THREE.PlaneGeometry(2, 2)
   private analysisRtA: THREE.WebGLRenderTarget | null = null
   private analysisRtB: THREE.WebGLRenderTarget | null = null
   private analysisWriteToA = true
   private analysisInputNode: Node | null = null
   private analysisPrevNode: Node | null = null
 
+  private readonly lumaTargets: THREE.WebGLRenderTarget[] = []
+  private readonly lumaScenes: THREE.Scene[] = []
+  private readonly lumaMaterials: THREE.MeshBasicNodeMaterial[] = []
+  private readonly lumaInputs: Node[] = []
+  private readonly lumaTexelUniforms: Node[] = []
+  private lumaLevelCount = 1
+
+  private readonly motionPersistenceUniform: Node = uniform(0.82)
+  private readonly motionThresholdUniform: Node = uniform(
+    DEFAULT_MOTION_MASK_THRESHOLD
+  )
+  private readonly hasHistoryUniform: Node = uniform(0)
+
   private pendingReadback: Promise<void> | null = null
   private latestAnalysis: Uint8Array | null = null
+  private readbackFailureReported = false
 
   private readonly tracker = new BlobTracker()
   private trackerConfig: TrackerConfig = { ...DEFAULT_TRACKER_CONFIG }
-  private lastTime: number | null = null
+  private lastTimelineTime: number | null = null
 
   private readonly blobEntries: THREE.Vector4[] = Array.from(
     { length: MAX_BLOBS },
     () => new THREE.Vector4(0, 0, 0, 0)
   )
-  private readonly blobTableNode: Node = uniformArray(this.blobEntries, "vec4")
+  private readonly blobMetaEntries: THREE.Vector4[] = Array.from(
+    { length: MAX_BLOBS },
+    () => new THREE.Vector4(0, 0, 0, 0)
+  )
   private readonly blobCountUniform: Node = uniform(0, "int")
 
   private readonly segmentEntries: THREE.Vector4[] = Array.from(
     { length: MAX_CONNECTOR_SEGMENTS },
     () => new THREE.Vector4(0, 0, 0, 0)
   )
-  private readonly segmentArrayNode: Node = uniformArray(
-    this.segmentEntries,
-    "vec4"
-  )
   private readonly segmentCountUniform: Node = uniform(0, "int")
 
   private readonly arrowEntries: THREE.Vector4[] = Array.from(
     { length: MAX_ARROW_SEGMENTS },
     () => new THREE.Vector4(0, 0, 0, 0)
-  )
-  private readonly arrowArrayNode: Node = uniformArray(
-    this.arrowEntries,
-    "vec4"
   )
   private readonly arrowCountUniform: Node = uniform(0, "int")
 
@@ -332,13 +374,44 @@ export class BlobTrackingPass extends PassNode {
   private maskOutput = false
 
   private decorations: DecorationConfig = { ...DEFAULT_DECORATIONS }
-  private overlayCanvas: HTMLCanvasElement | null = null
-  private overlayContext: CanvasRenderingContext2D | null = null
-  private overlayTexture: THREE.CanvasTexture | null = null
-  private readonly overlayPlaceholder = new THREE.Texture()
-  private overlaySignature = NO_SIGNATURE
-  private overlayDirty = false
-  private lastOverlayRedrawAt = 0
+  private decorationScene: THREE.Scene | null = null
+  private decorationRt: THREE.WebGLRenderTarget | null = null
+  private readonly decorationMeshes: THREE.Mesh[] = []
+  private readonly decorationAttributes: THREE.InstancedBufferAttribute[] = []
+  private shapeMesh: THREE.Mesh | null = null
+  private labelMesh: THREE.Mesh | null = null
+  private connectorMesh: THREE.Mesh | null = null
+  private arrowMesh: THREE.Mesh | null = null
+  private decorationSampleNode: Node | null = null
+  private trailDecorationNode: Node | null = null
+  private readonly decorationPlaceholder = new THREE.Texture()
+  private readonly blobRectData = new Float32Array(MAX_BLOBS * 4)
+  private readonly blobMetaData = new Float32Array(MAX_BLOBS * 4)
+  private readonly segmentData = new Float32Array(MAX_CONNECTOR_SEGMENTS * 4)
+  private readonly arrowData = new Float32Array(MAX_ARROW_SEGMENTS * 4)
+
+  private motionScene: THREE.Scene | null = null
+  private motionMaterial: THREE.MeshBasicNodeMaterial | null = null
+  private motionRtA: THREE.WebGLRenderTarget | null = null
+  private motionRtB: THREE.WebGLRenderTarget | null = null
+  private motionWriteToA = true
+  private motionLumaNode: Node | null = null
+  private motionPrevNode: Node | null = null
+  private motionSampleNode: Node | null = null
+  private readonly motionPlaceholder = new THREE.Texture()
+  private motionOutput = false
+
+  private trailRtA: THREE.WebGLRenderTarget | null = null
+  private trailRtB: THREE.WebGLRenderTarget | null = null
+  private trailWriteToA = true
+  private trailScene: THREE.Scene | null = null
+  private trailMaterial: THREE.MeshBasicNodeMaterial | null = null
+  private trailPrevNode: Node | null = null
+  private trailSampleNode: Node | null = null
+  private trailNeedsClear = true
+  private readonly trailPlaceholder = new THREE.Texture()
+  private readonly trailDecayUniform: Node = uniform(0.83)
+  private readonly trailStrengthUniform: Node = uniform(0)
 
   private innerEffectType: ShaderLabBlobInnerEffect = INNER_EFFECT_NONE
   private innerEffectParamsRaw = ""
@@ -357,7 +430,10 @@ export class BlobTrackingPass extends PassNode {
 
     this.applyDecorationUniforms()
     this.createAnalysisResources()
-    this.createOverlayResources()
+    this.createLumaChainResources()
+    this.createDecorationResources()
+    this.createMotionMaskResources()
+    this.createTrailResources()
     this.rebuildEffectNode()
   }
 
@@ -366,15 +442,16 @@ export class BlobTrackingPass extends PassNode {
     inputTexture: THREE.Texture,
     outputTarget: THREE.WebGLRenderTarget,
     time: number,
-    delta: number
+    delta: number,
+    timelineTime = time
   ): void {
     if (
-      this.lastTime !== null &&
-      time < this.lastTime
+      this.lastTimelineTime !== null &&
+      timelineTime < this.lastTimelineTime
     ) {
       this.resetTemporalState()
     }
-    this.lastTime = time
+    this.lastTimelineTime = timelineTime
 
     if (this.childPass && this.innerRt) {
       this.childPass.render(renderer, inputTexture, this.innerRt, time, delta)
@@ -383,7 +460,10 @@ export class BlobTrackingPass extends PassNode {
       }
     }
 
-    const writeTarget = this.renderAnalysis(renderer, inputTexture)
+    const lumaTexture = this.renderLumaChain(renderer, inputTexture)
+    this.renderMotionMask(renderer)
+    const writeTarget = this.renderAnalysis(renderer, lumaTexture)
+    this.hasHistoryUniform.value = 1
 
     if (writeTarget && !this.pendingReadback) {
       this.pendingReadback = this.queueReadback(renderer, writeTarget)
@@ -394,11 +474,14 @@ export class BlobTrackingPass extends PassNode {
         this.latestAnalysis,
         ANALYSIS_WIDTH,
         ANALYSIS_HEIGHT,
-        time,
+        timelineTime,
         this.trackerConfig
       )
       this.syncTrackerOutputs()
     }
+
+    this.renderDecorations(renderer)
+    this.renderTrail(renderer)
 
     super.render(renderer, inputTexture, outputTarget, time, delta)
   }
@@ -433,6 +516,15 @@ export class BlobTrackingPass extends PassNode {
           : DEFAULT_TRACKER_CONFIG.smoothing,
     }
 
+    this.motionThresholdUniform.value =
+      typeof params.motionMaskThreshold === "number"
+        ? clampNumber(params.motionMaskThreshold, 0, 0.5)
+        : DEFAULT_MOTION_MASK_THRESHOLD
+    this.motionPersistenceUniform.value =
+      typeof params.motionPersistence === "number"
+        ? clampNumber(params.motionPersistence, 0, 0.99)
+        : DEFAULT_MOTION_PERSISTENCE
+
     const nextShape = resolveShape(params.shapeType)
     const shapeChanged = nextShape !== this.shapeKind
     this.shapeKind = nextShape
@@ -443,13 +535,16 @@ export class BlobTrackingPass extends PassNode {
         : 1
     if (nextScale !== (this.shapeScaleUniform.value as number)) {
       this.shapeScaleUniform.value = nextScale
-      this.overlayDirty = true
     }
     this.invertUniform.value = params.invert === true ? 1 : 0
 
     const nextMaskOutput = params.outputMode === "mask"
-    const maskChanged = nextMaskOutput !== this.maskOutput
+    const nextMotionOutput = params.outputMode === "motion"
+    const maskChanged =
+      nextMaskOutput !== this.maskOutput ||
+      nextMotionOutput !== this.motionOutput
     this.maskOutput = nextMaskOutput
+    this.motionOutput = nextMotionOutput
 
     const nextDecorations: DecorationConfig = {
       centerShape: resolveCenterMarker(params.centerShape),
@@ -479,13 +574,14 @@ export class BlobTrackingPass extends PassNode {
         decorationStructureKey(nextDecorations) !==
         decorationStructureKey(this.decorations)
       this.decorations = nextDecorations
-      this.overlayDirty = true
       this.applyDecorationUniforms()
     }
 
     if (shapeChanged || maskChanged || structureChanged) {
-      this.overlayDirty = true
       this.rebuildEffectNode()
+    }
+    if (shapeChanged || structureChanged) {
+      this.rebuildDecorationMeshes()
     }
 
     this.updateInnerEffect(params)
@@ -495,6 +591,11 @@ export class BlobTrackingPass extends PassNode {
     this.deviceWidth = Math.max(1, width)
     this.deviceHeight = Math.max(1, height)
     this.innerRt?.setSize(this.deviceWidth, this.deviceHeight)
+    this.resizeLumaChain()
+    this.resizeDecorationTarget()
+    this.resizeMotionTargets()
+    this.resizeTrailTargets()
+    this.hasHistoryUniform.value = 0
     this.childPass?.resize(this.deviceWidth, this.deviceHeight)
   }
 
@@ -504,7 +605,6 @@ export class BlobTrackingPass extends PassNode {
     this.aspectUniform.value = this.logicalWidth / this.logicalHeight
     this.edgeSoftUniform.value = 1.5 / this.logicalHeight
     this.applyDecorationUniforms()
-    this.resizeOverlayCanvas()
     this.childPass?.updateLogicalSize(this.logicalWidth, this.logicalHeight)
   }
 
@@ -516,10 +616,30 @@ export class BlobTrackingPass extends PassNode {
     this.analysisRtA?.dispose()
     this.analysisRtB?.dispose()
     this.analysisMaterial?.dispose()
-    this.analysisGeometry?.dispose()
+    this.fullscreenGeometry.dispose()
+    for (const target of this.lumaTargets) {
+      target.dispose()
+    }
+    for (const material of this.lumaMaterials) {
+      material.dispose()
+    }
     this.analysisScene?.clear()
-    this.overlayTexture?.dispose()
-    this.overlayPlaceholder.dispose()
+    this.disposeDecorationMeshes()
+    this.decorationRt?.dispose()
+    this.decorationScene?.clear()
+    this.decorationPlaceholder.dispose()
+    this.motionRtA?.dispose()
+    this.motionRtB?.dispose()
+    this.motionMaterial?.dispose()
+    this.motionScene?.clear()
+    this.motionPlaceholder.dispose()
+    this.trailRtA?.dispose()
+    this.trailRtB?.dispose()
+    this.trailMaterial?.dispose()
+    this.trailScene?.clear()
+    this.trailPlaceholder.dispose()
+    this.labelIndexTexture.dispose()
+    this.labelAtlas?.dispose()
     this.innerPlaceholder.dispose()
     this.innerRt?.dispose()
     this.childPass?.dispose()
@@ -528,13 +648,43 @@ export class BlobTrackingPass extends PassNode {
   }
 
   protected override buildEffectNode(): Node {
-    if (!(this.blobTableNode && this.shapeScaleUniform)) {
+    // PassNode's constructor builds the node graph before this subclass's field
+    // initializers have run, so bail out until our own resources exist.
+    if (!(this.decorationPlaceholder && this.motionPlaceholder)) {
       return this.inputNode
     }
 
     const screenUv = vec2(uv().x, float(1).sub(uv().y))
 
-    const shapeMask = this.buildShapeMaskNode(screenUv)
+    const motionSample = tslTexture(this.motionPlaceholder, screenUv)
+    this.motionSampleNode = motionSample
+    const motionTrail = float(motionSample.g)
+
+    const motionMask = mix(
+      motionTrail,
+      float(1).sub(motionTrail),
+      this.invertUniform
+    )
+
+    if (this.motionOutput) {
+      // With an inner effect set, emit the effect carried by the mask's alpha —
+      // lit means effect, unlit means transparent. With no inner effect there is
+      // nothing to carry, so emit the mask itself for viewing or for driving
+      // another layer through `compositeMode: "mask"`.
+      if (this.innerEffectType !== INNER_EFFECT_NONE) {
+        const maskedSample = tslTexture(this.innerPlaceholder, screenUv)
+        this.innerNode = maskedSample
+        return vec4(
+          vec3(maskedSample.r, maskedSample.g, maskedSample.b),
+          clamp(motionMask.mul(this.innerActiveUniform), 0, 1)
+        )
+      }
+      return vec4(vec3(motionMask, motionMask, motionMask), float(1))
+    }
+
+    const decorationSample = tslTexture(this.decorationPlaceholder, screenUv)
+    this.decorationSampleNode = decorationSample
+    const shapeMask = float(decorationSample.r)
     const mask = mix(shapeMask, float(1).sub(shapeMask), this.invertUniform)
 
     if (this.maskOutput) {
@@ -544,237 +694,592 @@ export class BlobTrackingPass extends PassNode {
     const innerSample = tslTexture(this.innerPlaceholder, screenUv)
     this.innerNode = innerSample
 
-    const inputColor = vec3(
-      this.inputNode.r,
-      this.inputNode.g,
-      this.inputNode.b
-    )
-    const innerColor = vec3(innerSample.r, innerSample.g, innerSample.b)
-    const interior = mix(
-      inputColor,
-      innerColor,
-      mask.mul(this.innerActiveUniform)
-    )
 
-    const decorated = mix(
-      interior,
+    const innerColor = vec3(innerSample.r, innerSample.g, innerSample.b)
+    const innerAmount = mask.mul(this.innerActiveUniform)
+
+    const trailSample = tslTexture(this.trailPlaceholder, screenUv)
+    this.trailSampleNode = trailSample
+    const trail = float(trailSample.r).mul(this.trailStrengthUniform)
+    const decoration = max(float(decorationSample.g), trail)
+
+    // Emit the effect plus a real alpha rather than pre-mixing with the input:
+    // PassNode's blend already does `mix(base, effect, opacity * alpha)`, so an
+    // unlit mask leaves the layer transparent and the stack below shows through.
+    const composed = mix(
+      innerColor,
       vec3(
         this.strokeColorUniform.r,
         this.strokeColorUniform.g,
         this.strokeColorUniform.b
       ),
-      this.buildDecorationNode(screenUv)
+      decoration
     )
 
-    const overlaySample = tslTexture(
-      this.overlayTexture ?? this.overlayPlaceholder,
-      screenUv
-    )
-    const composed = mix(
-      decorated,
-      vec3(overlaySample.r, overlaySample.g, overlaySample.b),
-      float(overlaySample.a)
-    )
-
-    return vec4(composed, float(1))
+    return vec4(composed, clamp(max(innerAmount, decoration), 0, 1))
   }
 
-  private buildShapeMaskNode(screenUv: Node): Node {
-    const blobTable = this.blobTableNode
-    const blobCount = this.blobCountUniform
-    const shapeScale = this.shapeScaleUniform
-    const aspect = this.aspectUniform
-    const edgeSoft = this.edgeSoftUniform
-    const shapeKind = this.shapeKind
+  private shapeDistance(px: Node, py: Node, halfW: Node, halfH: Node): Node {
+    const hw = max(halfW, float(SHAPE_EXTENT_EPSILON))
+    const hh = max(halfH, float(SHAPE_EXTENT_EPSILON))
 
-    const maskFn = Fn(() => {
-      const coverage = float(0).toVar()
-
-      Loop(blobCount, ({ i }) => {
-        const entry = blobTable.element(i)
-        const halfSize = float(entry.z).mul(shapeScale)
-        const px = abs(float(screenUv.x).sub(float(entry.x))).mul(aspect)
-        const py = abs(float(screenUv.y).sub(float(entry.y)))
-
-        let sdf: Node
-        if (shapeKind === "circle") {
-          sdf = length(vec2(px, py)).sub(halfSize)
-        } else if (shapeKind === "diamond") {
-          sdf = px.add(py).sub(halfSize)
-        } else {
-          sdf = max(px, py).sub(halfSize)
-        }
-
-        const contribution = float(1)
-          .sub(smoothstep(float(0).sub(edgeSoft), edgeSoft, sdf))
-          .mul(float(entry.w))
-
-        coverage.assign(max(coverage, contribution))
-      })
-
-      return coverage
-    })
-
-    return maskFn() as Node
-  }
-
-  private buildDecorationNode(screenUv: Node): Node {
-    const aspect = this.aspectUniform
-    const halfStroke = this.strokeHalfUniform
-    const edge = this.edgeSoftUniform
-    const markerRadius = this.markerRadiusUniform
-    const shapeScale = this.shapeScaleUniform
-    const shapeKind = this.shapeKind
-    const decorations = this.decorations
-
-    const point = vec2(float(screenUv.x).mul(aspect), float(screenUv.y))
-
-    const strokeBand = (distance: Node): Node =>
-      float(1).sub(
-        smoothstep(
-          float(0).sub(edge),
-          edge,
-          abs(distance).sub(halfStroke)
-        )
-      )
-
-    const segmentDistance = (entry: Node): { along: Node; distance: Node } => {
-      const from = vec2(float(entry.x).mul(aspect), float(entry.y))
-      const to = vec2(float(entry.z).mul(aspect), float(entry.w))
-      const span = to.sub(from)
-      const lengthSq = max(dot(span, span), float(1e-8))
-      const travel = clamp(dot(point.sub(from), span).div(lengthSq), 0, 1)
-      const closest = from.add(span.mul(travel))
-      return {
-        along: travel.mul(sqrt(lengthSq)),
-        distance: length(point.sub(closest)),
-      }
+    if (this.shapeKind === "circle") {
+      const radial = length(vec2(px.div(hw), py.div(hh)))
+      return radial.sub(float(1)).mul(min(hw, hh))
     }
 
-    const decorationFn = Fn(() => {
-      const coverage = float(0).toVar()
+    if (this.shapeKind === "diamond") {
+      const radial = px.div(hw).add(py.div(hh)).sub(float(1))
+      const gradient = length(
+        vec2(float(1).div(hw), float(1).div(hh))
+      )
+      return radial.div(gradient)
+    }
 
-      if (decorations.showOutline) {
-        Loop(this.blobCountUniform, ({ i }) => {
-          const entry = this.blobTableNode.element(i)
-          const offsetX = abs(float(point.x).sub(float(entry.x).mul(aspect)))
-          const offsetY = abs(float(point.y).sub(float(entry.y)))
-          const halfSize = float(entry.z).mul(shapeScale)
+    const dx = px.sub(hw)
+    const dy = py.sub(hh)
+    return length(max(vec2(dx, dy), vec2(0, 0))).add(
+      min(max(dx, dy), float(0))
+    )
+  }
 
-          let sdf: Node
-          if (shapeKind === "circle") {
-            sdf = length(vec2(offsetX, offsetY)).sub(halfSize)
-          } else if (shapeKind === "diamond") {
-            sdf = offsetX.add(offsetY).sub(halfSize)
-          } else {
-            sdf = max(offsetX, offsetY).sub(halfSize)
-          }
+  private createLumaChainResources(): void {
+    for (let level = 0; level < LUMA_MAX_LEVELS; level += 1) {
+      const target = new THREE.WebGLRenderTarget(1, 1, LUMA_RT_OPTIONS)
+      const texel = uniform(new THREE.Vector2(1, 1))
+      const input = tslTexture(new THREE.Texture(), renderTargetUv())
+      const material = new THREE.MeshBasicNodeMaterial()
 
-          coverage.assign(max(coverage, strokeBand(sdf).mul(float(entry.w))))
-        })
-      }
-
-      if (decorations.centerShape !== "none") {
-        Loop(this.blobCountUniform, ({ i }) => {
-          const entry = this.blobTableNode.element(i)
-          const offsetX = abs(float(point.x).sub(float(entry.x).mul(aspect)))
-          const offsetY = abs(float(point.y).sub(float(entry.y)))
-
-          let markerSdf: Node
-          if (decorations.centerShape === "cross") {
-            const arm = markerRadius.mul(float(1.6))
-            const horizontal = max(offsetX.sub(arm), offsetY.sub(halfStroke))
-            const vertical = max(offsetX.sub(halfStroke), offsetY.sub(arm))
-            markerSdf = min(horizontal, vertical)
-          } else {
-            markerSdf = length(vec2(offsetX, offsetY)).sub(markerRadius)
-          }
-
-          const marker = float(1).sub(
-            smoothstep(float(0).sub(edge), edge, markerSdf)
-          )
-
-          coverage.assign(max(coverage, marker.mul(float(entry.w))))
-        })
-      }
-
-      if (decorations.connectLines) {
-        Loop(this.segmentCountUniform, ({ i }) => {
-          const { along, distance } = segmentDistance(
-            this.segmentArrayNode.element(i)
-          )
-          let mask = strokeBand(distance)
-          if (decorations.connectorDashed) {
-            mask = mask.mul(
-              step(fract(along.div(float(DASH_PERIOD))), float(DASH_DUTY))
+      const tap = (dx: number, dy: number): Node => {
+        const sample = input.sample(
+          renderTargetUv().add(
+            vec2(
+              float(texel.x).mul(float(dx)),
+              float(texel.y).mul(float(dy))
             )
-          }
-          coverage.assign(max(coverage, mask.mul(float(CONNECTOR_ALPHA))))
-        })
-
-        if (decorations.connectorArrows) {
-          Loop(this.arrowCountUniform, ({ i }) => {
-            const { distance } = segmentDistance(this.arrowArrayNode.element(i))
-            coverage.assign(
-              max(coverage, strokeBand(distance).mul(float(CONNECTOR_ALPHA)))
+          )
+        )
+        return level === 0
+          ? dot(
+              vec3(sample.r, sample.g, sample.b),
+              vec3(LUMA_WEIGHTS[0], LUMA_WEIGHTS[1], LUMA_WEIGHTS[2])
             )
-          })
-        }
+          : float(sample.r)
       }
 
-      if (decorations.showLabels && this.labelAtlas) {
-        const cell = this.labelCellUniform
-        const atlas = this.labelAtlas
-        const indexTexture = this.labelIndexTexture
+      const average = tap(-0.5, -0.5)
+        .add(tap(0.5, -0.5))
+        .add(tap(-0.5, 0.5))
+        .add(tap(0.5, 0.5))
+        .mul(float(0.25))
 
-        Loop(this.blobCountUniform, ({ i }) => {
-          const entry = this.blobTableNode.element(i)
-          const halfSize = float(entry.z).mul(shapeScale)
-          const originX = float(entry.x).mul(aspect).sub(halfSize)
-          const originY = float(entry.y)
-            .add(halfSize)
-            .add(halfStroke)
-            .add(float(cell.y).mul(float(0.35)))
+      material.colorNode = vec4(average, average, average, float(1)) as Node
 
-          const localX = float(point.x).sub(originX)
-          const localY = float(point.y).sub(originY)
-          const column = localX.div(float(cell.x)).floor()
+      const mesh = new THREE.Mesh(this.fullscreenGeometry, material)
+      mesh.frustumCulled = false
+      const scene = new THREE.Scene()
+      scene.add(mesh)
 
-          const inside = localY
-            .greaterThanEqual(float(0))
-            .and(localY.lessThan(float(cell.y)))
-            .and(column.greaterThanEqual(float(0)))
-            .and(column.lessThan(float(MAX_LABEL_CHARS)))
+      this.lumaTargets.push(target)
+      this.lumaTexelUniforms.push(texel)
+      this.lumaInputs.push(input)
+      this.lumaMaterials.push(material)
+      this.lumaScenes.push(scene)
+    }
 
-          const glyph = float(
-            tslTexture(indexTexture)
-              .load(vec2(column, float(i)))
-              .r
-          )
+    this.resizeLumaChain()
+  }
 
-          const cellUvX = fract(localX.div(float(cell.x)))
-          const cellUvY = localY.div(float(cell.y))
-          const atlasUv = vec2(
-            glyph.add(cellUvX).div(float(LABEL_CHARS.length)),
-            cellUvY
-          )
-          const ink = float(
-            tslTexture(atlas, atlasUv).level(float(0)).r
-          )
+  private resizeLumaChain(): void {
+    let sourceWidth = this.deviceWidth
+    let sourceHeight = this.deviceHeight
+    let levels = 0
 
-          const visible = float(inside).mul(
-            step(float(0), glyph)
-          )
-          coverage.assign(
-            max(coverage, ink.mul(visible).mul(float(entry.w)))
-          )
-        })
+    while (levels < LUMA_MAX_LEVELS) {
+      const nextWidth = Math.max(ANALYSIS_WIDTH, Math.floor(sourceWidth / 2))
+      const nextHeight = Math.max(ANALYSIS_HEIGHT, Math.floor(sourceHeight / 2))
+
+      this.lumaTargets[levels]?.setSize(nextWidth, nextHeight)
+      ;(
+        this.lumaTexelUniforms[levels]?.value as THREE.Vector2 | undefined
+      )?.set(1 / sourceWidth, 1 / sourceHeight)
+
+      levels += 1
+      const reachedFloor =
+        nextWidth <= ANALYSIS_WIDTH && nextHeight <= ANALYSIS_HEIGHT
+      sourceWidth = nextWidth
+      sourceHeight = nextHeight
+      if (reachedFloor) break
+    }
+
+    this.lumaLevelCount = Math.max(1, levels)
+  }
+
+  private renderLumaChain(
+    renderer: THREE.WebGPURenderer,
+    inputTexture: THREE.Texture
+  ): THREE.Texture {
+    let source = inputTexture
+
+    for (let level = 0; level < this.lumaLevelCount; level += 1) {
+      const target = this.lumaTargets[level]
+      const scene = this.lumaScenes[level]
+      const input = this.lumaInputs[level]
+      if (!(target && scene && input && this.analysisCamera)) break
+      input.value = source
+      renderer.setRenderTarget(target)
+      renderer.render(scene, this.analysisCamera)
+      source = target.texture
+    }
+
+    return source
+  }
+
+  private strokeBandNode(distance: Node): Node {
+    const edge = this.edgeSoftUniform
+    return float(1).sub(
+      smoothstep(
+        float(0).sub(edge),
+        edge,
+        abs(distance).sub(this.strokeHalfUniform)
+      )
+    )
+  }
+
+  /**
+   * Quads own their attributes: sharing `fullscreenGeometry`'s would mean
+   * `disposeDecorationMeshes` tears down buffers the analysis and trail passes
+   * still need. Layout matches PlaneGeometry(2, 2): uv.y = (y + 1) / 2.
+   */
+  private createInstancedQuad(
+    attributes: Record<string, THREE.InstancedBufferAttribute>
+  ): THREE.InstancedBufferGeometry {
+    const geometry = new THREE.InstancedBufferGeometry()
+    geometry.setAttribute(
+      "position",
+      new THREE.BufferAttribute(
+        new Float32Array([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0]),
+        3
+      )
+    )
+    geometry.setAttribute(
+      "uv",
+      new THREE.BufferAttribute(new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]), 2)
+    )
+    geometry.setIndex(
+      new THREE.BufferAttribute(new Uint16Array([0, 1, 2, 0, 2, 3]), 1)
+    )
+    for (const [name, attributeBuffer] of Object.entries(attributes)) {
+      geometry.setAttribute(name, attributeBuffer)
+    }
+    geometry.instanceCount = 0
+    return geometry
+  }
+
+  private createDecorationMaterial(): THREE.MeshBasicNodeMaterial {
+    const material = new THREE.MeshBasicNodeMaterial()
+    // Coverage unions with a max blend, matching the `max()` chain the previous
+    // full-screen loops used, so overlapping primitives never double up.
+    material.blending = THREE.CustomBlending
+    material.blendEquation = THREE.MaxEquation
+    material.blendSrc = THREE.OneFactor
+    material.blendDst = THREE.OneFactor
+    material.blendEquationAlpha = THREE.MaxEquation
+    material.blendSrcAlpha = THREE.OneFactor
+    material.blendDstAlpha = THREE.OneFactor
+    material.transparent = true
+    material.depthTest = false
+    material.depthWrite = false
+    // quadPositionNode inverts Y to match the screenUv convention, which
+    // reverses triangle winding; without this every quad is back-facing and
+    // silently culled.
+    material.side = THREE.DoubleSide
+    return material
+  }
+
+  /** Local quad corner -> clip space, for a quad centred in point space. */
+  private quadPositionNode(center: Node, half: Node): Node {
+    const screenX = float(center.x)
+      .add(positionLocal.x.mul(float(half.x)))
+      .div(this.aspectUniform)
+    const screenY = float(center.y).add(positionLocal.y.mul(float(half.y)))
+    return vec3(screenX.mul(2).sub(1), float(1).sub(screenY.mul(2)), float(0))
+  }
+
+  /** Recovers point-space position in the fragment stage. */
+  private quadPointNode(center: Node, half: Node): Node {
+    return vec2(
+      float(center.x).add(uv().x.mul(2).sub(1).mul(float(half.x))),
+      float(center.y).add(uv().y.mul(2).sub(1).mul(float(half.y)))
+    )
+  }
+
+  private addDecorationMesh(
+    material: THREE.MeshBasicNodeMaterial,
+    attributes: Record<string, THREE.InstancedBufferAttribute>
+  ): THREE.Mesh {
+    const mesh = new THREE.Mesh(this.createInstancedQuad(attributes), material)
+    mesh.frustumCulled = false
+    mesh.visible = false
+    this.decorationScene?.add(mesh)
+    this.decorationMeshes.push(mesh)
+    return mesh
+  }
+
+  private createBlobAttributes(): {
+    meta: THREE.InstancedBufferAttribute
+    rect: THREE.InstancedBufferAttribute
+  } {
+    const rect = new THREE.InstancedBufferAttribute(this.blobRectData, 4)
+    const meta = new THREE.InstancedBufferAttribute(this.blobMetaData, 4)
+    rect.setUsage(THREE.DynamicDrawUsage)
+    meta.setUsage(THREE.DynamicDrawUsage)
+    this.decorationAttributes.push(rect, meta)
+    return { meta, rect }
+  }
+
+  private buildShapeMesh(): void {
+    const material = this.createDecorationMaterial()
+    const { meta, rect } = this.createBlobAttributes()
+
+    const iRect = attribute("iRect", "vec4")
+    const presence = float(attribute("iMeta", "vec4").x)
+    const halfW = float(iRect.z).mul(this.shapeScaleUniform)
+    const halfH = float(iRect.w).mul(this.shapeScaleUniform)
+    const center = vec2(float(iRect.x).mul(this.aspectUniform), float(iRect.y))
+    const pad = this.strokeHalfUniform
+      .add(this.edgeSoftUniform.mul(3))
+      .add(this.markerRadiusUniform.mul(1.6))
+    const half = vec2(halfW.add(pad), halfH.add(pad))
+
+    material.positionNode = this.quadPositionNode(center, half) as Node
+
+    const offsetX = abs(uv().x.mul(2).sub(1)).mul(float(half.x))
+    const offsetY = abs(uv().y.mul(2).sub(1)).mul(float(half.y))
+    const sdf = this.shapeDistance(offsetX, offsetY, halfW, halfH)
+    const edge = this.edgeSoftUniform
+
+    const fill = float(1)
+      .sub(smoothstep(float(0).sub(edge), edge, sdf))
+      .mul(presence)
+    const outline = this.strokeBandNode(sdf).mul(presence)
+
+    let stroke: Node = this.decorations.showOutline ? outline : float(0)
+    if (this.decorations.centerShape !== "none") {
+      const markerRadius = this.markerRadiusUniform
+      const halfStroke = this.strokeHalfUniform
+      let markerSdf: Node
+      if (this.decorations.centerShape === "cross") {
+        const arm = markerRadius.mul(float(1.6))
+        markerSdf = min(
+          max(offsetX.sub(arm), offsetY.sub(halfStroke)),
+          max(offsetX.sub(halfStroke), offsetY.sub(arm))
+        )
+      } else {
+        markerSdf = length(vec2(offsetX, offsetY)).sub(markerRadius)
       }
+      stroke = max(
+        stroke,
+        float(1)
+          .sub(smoothstep(float(0).sub(edge), edge, markerSdf))
+          .mul(presence)
+      )
+    }
 
-      return coverage
+    // B carries the bare outline: it is what the trail ribbon accumulates.
+    material.colorNode = vec4(fill, stroke, outline, float(1)) as Node
+    this.shapeMesh = this.addDecorationMesh(material, {
+      iMeta: meta,
+      iRect: rect,
     })
+  }
 
-    return decorationFn() as Node
+  private buildLabelMesh(): void {
+    if (!(this.decorations.showLabels && this.labelAtlas)) {
+      return
+    }
+
+    const material = this.createDecorationMaterial()
+    const { meta, rect } = this.createBlobAttributes()
+
+    const iRect = attribute("iRect", "vec4")
+    const iMeta = attribute("iMeta", "vec4")
+    const presence = float(iMeta.x)
+    const row = float(iMeta.y)
+    const cell = this.labelCellUniform
+    const labelW = float(cell.x).mul(float(MAX_LABEL_CHARS))
+    const labelH = float(cell.y)
+    const halfW = float(iRect.z).mul(this.shapeScaleUniform)
+    const halfH = float(iRect.w).mul(this.shapeScaleUniform)
+    const originX = float(iRect.x).mul(this.aspectUniform).sub(halfW)
+    const originY = float(iRect.y)
+      .add(halfH)
+      .add(this.strokeHalfUniform)
+      .add(labelH.mul(float(0.35)))
+    const center = vec2(
+      originX.add(labelW.mul(float(0.5))),
+      originY.add(labelH.mul(float(0.5)))
+    )
+    const half = vec2(labelW.mul(float(0.5)), labelH.mul(float(0.5)))
+
+    material.positionNode = this.quadPositionNode(center, half) as Node
+
+    const column = floor(uv().x.mul(float(MAX_LABEL_CHARS)))
+    const cellUvX = fract(uv().x.mul(float(MAX_LABEL_CHARS)))
+    const glyph = float(
+      tslTexture(this.labelIndexTexture).load(vec2(column, row)).r
+    )
+    const atlasUv = vec2(
+      glyph.add(cellUvX).div(float(LABEL_CHARS.length)),
+      uv().y
+    )
+    const ink = float(tslTexture(this.labelAtlas, atlasUv).level(float(0)).r)
+
+    material.colorNode = vec4(
+      float(0),
+      ink.mul(step(float(0), glyph)).mul(presence),
+      float(0),
+      float(1)
+    ) as Node
+    this.labelMesh = this.addDecorationMesh(material, {
+      iMeta: meta,
+      iRect: rect,
+    })
+  }
+
+  private buildSegmentMesh(data: Float32Array, dashed: boolean): THREE.Mesh {
+    const material = this.createDecorationMaterial()
+    const segmentBuffer = new THREE.InstancedBufferAttribute(data, 4)
+    segmentBuffer.setUsage(THREE.DynamicDrawUsage)
+    this.decorationAttributes.push(segmentBuffer)
+
+    const iSeg = attribute("iSeg", "vec4")
+    const aspect = this.aspectUniform
+    const from = vec2(float(iSeg.x).mul(aspect), float(iSeg.y))
+    const to = vec2(float(iSeg.z).mul(aspect), float(iSeg.w))
+    const pad = this.strokeHalfUniform.add(this.edgeSoftUniform.mul(3))
+    const center = vec2(
+      float(from.x).add(float(to.x)).mul(float(0.5)),
+      float(from.y).add(float(to.y)).mul(float(0.5))
+    )
+    const half = vec2(
+      abs(float(to.x).sub(float(from.x))).mul(float(0.5)).add(pad),
+      abs(float(to.y).sub(float(from.y))).mul(float(0.5)).add(pad)
+    )
+
+    material.positionNode = this.quadPositionNode(center, half) as Node
+
+    const point = this.quadPointNode(center, half)
+    const span = to.sub(from)
+    const lengthSq = max(dot(span, span), float(1e-8))
+    const travel = clamp(dot(point.sub(from), span).div(lengthSq), 0, 1)
+    const closest = from.add(span.mul(travel))
+    let coverage = this.strokeBandNode(length(point.sub(closest)))
+
+    if (dashed) {
+      const along = travel.mul(sqrt(lengthSq))
+      coverage = coverage.mul(
+        step(fract(along.div(float(DASH_PERIOD))), float(DASH_DUTY))
+      )
+    }
+
+    material.colorNode = vec4(
+      float(0),
+      coverage.mul(float(CONNECTOR_ALPHA)),
+      float(0),
+      float(1)
+    ) as Node
+    return this.addDecorationMesh(material, { iSeg: segmentBuffer })
+  }
+
+  private createDecorationResources(): void {
+    this.decorationScene = new THREE.Scene()
+    this.decorationRt = new THREE.WebGLRenderTarget(1, 1, LUMA_RT_OPTIONS)
+    this.rebuildDecorationMeshes()
+    this.resizeDecorationTarget()
+  }
+
+  private disposeDecorationMeshes(): void {
+    for (const mesh of this.decorationMeshes) {
+      this.decorationScene?.remove(mesh)
+      mesh.geometry.dispose()
+      ;(mesh.material as THREE.Material).dispose()
+    }
+    this.decorationMeshes.length = 0
+    this.decorationAttributes.length = 0
+    this.shapeMesh = null
+    this.labelMesh = null
+    this.connectorMesh = null
+    this.arrowMesh = null
+  }
+
+  private rebuildDecorationMeshes(): void {
+    if (!this.decorationScene) {
+      return
+    }
+    this.disposeDecorationMeshes()
+
+    this.buildShapeMesh()
+    this.buildLabelMesh()
+    if (this.decorations.connectLines) {
+      this.connectorMesh = this.buildSegmentMesh(
+        this.segmentData,
+        this.decorations.connectorDashed
+      )
+      if (this.decorations.connectorArrows) {
+        this.arrowMesh = this.buildSegmentMesh(this.arrowData, false)
+      }
+    }
+  }
+
+  private resizeDecorationTarget(): void {
+    this.decorationRt?.setSize(this.deviceWidth, this.deviceHeight)
+  }
+
+  private renderDecorations(renderer: THREE.WebGPURenderer): void {
+    if (!(this.decorationScene && this.decorationRt && this.analysisCamera)) {
+      return
+    }
+
+    for (let index = 0; index < MAX_BLOBS; index += 1) {
+      const entry = this.blobEntries[index]
+      const offset = index * 4
+      if (entry) {
+        this.blobRectData[offset] = entry.x
+        this.blobRectData[offset + 1] = entry.y
+        this.blobRectData[offset + 2] = entry.z
+        this.blobRectData[offset + 3] = entry.w
+      }
+      this.blobMetaData[offset] = this.blobMetaEntries[index]?.x ?? 0
+      this.blobMetaData[offset + 1] = index
+    }
+    const copySegments = (
+      source: THREE.Vector4[],
+      target: Float32Array
+    ): void => {
+      for (let index = 0; index < source.length; index += 1) {
+        const entry = source[index]
+        const offset = index * 4
+        if (!entry) continue
+        target[offset] = entry.x
+        target[offset + 1] = entry.y
+        target[offset + 2] = entry.z
+        target[offset + 3] = entry.w
+      }
+    }
+    copySegments(this.segmentEntries, this.segmentData)
+    copySegments(this.arrowEntries, this.arrowData)
+    for (const attributeBuffer of this.decorationAttributes) {
+      attributeBuffer.needsUpdate = true
+    }
+
+    const applyCount = (mesh: THREE.Mesh | null, count: number): void => {
+      if (!mesh) return
+      ;(mesh.geometry as THREE.InstancedBufferGeometry).instanceCount = count
+      mesh.visible = count > 0
+    }
+
+    const blobCount = this.blobCountUniform.value as number
+    applyCount(this.shapeMesh, blobCount)
+    applyCount(this.labelMesh, blobCount)
+    applyCount(this.connectorMesh, this.segmentCountUniform.value as number)
+    applyCount(this.arrowMesh, this.arrowCountUniform.value as number)
+
+    renderer.setRenderTarget(this.decorationRt)
+    renderer.clear()
+    renderer.render(this.decorationScene, this.analysisCamera)
+
+    if (this.decorationSampleNode) {
+      this.decorationSampleNode.value = this.decorationRt.texture
+    }
+    if (this.trailDecorationNode) {
+      this.trailDecorationNode.value = this.decorationRt.texture
+    }
+  }
+
+  /**
+   * Full-detail motion mask: frame difference against the previous luminance,
+   * thresholded with a smoothstep and accumulated into a decaying trail. This
+   * is separate from the 64x36 analysis grid, which is sized for the CPU
+   * connected-component pass rather than for display.
+   */
+  private createMotionMaskResources(): void {
+    this.motionScene = new THREE.Scene()
+    this.motionMaterial = new THREE.MeshBasicNodeMaterial()
+    this.motionRtA = new THREE.WebGLRenderTarget(1, 1, LUMA_RT_OPTIONS)
+    this.motionRtB = new THREE.WebGLRenderTarget(1, 1, LUMA_RT_OPTIONS)
+
+    const motionUv = renderTargetUv()
+    const lumaSample = tslTexture(new THREE.Texture(), motionUv)
+    const previous = tslTexture(new THREE.Texture(), motionUv)
+    this.motionLumaNode = lumaSample
+    this.motionPrevNode = previous
+
+    const luminance = float(lumaSample.r)
+    const difference = abs(luminance.sub(float(previous.r)))
+    const threshold = this.motionThresholdUniform
+    const motionAmount = smoothstep(
+      threshold,
+      threshold.mul(float(MOTION_THRESHOLD_SPAN)),
+      difference
+    ).mul(this.hasHistoryUniform)
+
+    const decayedTrail = max(
+      float(previous.g)
+        .mul(this.motionPersistenceUniform)
+        .sub(float(MOTION_TRAIL_FLOOR)),
+      float(0)
+    ).mul(this.hasHistoryUniform)
+    const motionTrail = max(decayedTrail, motionAmount)
+
+    this.motionMaterial.colorNode = vec4(
+      luminance,
+      motionTrail,
+      float(0),
+      float(1)
+    ) as Node
+
+    const mesh = new THREE.Mesh(this.fullscreenGeometry, this.motionMaterial)
+    mesh.frustumCulled = false
+    this.motionScene.add(mesh)
+  }
+
+  private resizeMotionTargets(): void {
+    const base = this.lumaTargets[0]
+    const width = Math.max(1, base?.width ?? 1)
+    const height = Math.max(1, base?.height ?? 1)
+    this.motionRtA?.setSize(width, height)
+    this.motionRtB?.setSize(width, height)
+  }
+
+  private renderMotionMask(renderer: THREE.WebGPURenderer): void {
+    const lumaTarget = this.lumaTargets[0]
+    if (
+      !(
+        this.motionScene &&
+        this.motionRtA &&
+        this.motionRtB &&
+        this.motionLumaNode &&
+        this.motionPrevNode &&
+        this.analysisCamera &&
+        lumaTarget
+      )
+    ) {
+      return
+    }
+
+    const writeTarget = this.motionWriteToA ? this.motionRtA : this.motionRtB
+    const readTarget = this.motionWriteToA ? this.motionRtB : this.motionRtA
+
+    this.motionLumaNode.value = lumaTarget.texture
+    this.motionPrevNode.value = readTarget.texture
+    renderer.setRenderTarget(writeTarget)
+    renderer.render(this.motionScene, this.analysisCamera)
+    this.motionWriteToA = !this.motionWriteToA
+
+    if (this.motionSampleNode) {
+      this.motionSampleNode.value = writeTarget.texture
+    }
   }
 
   private createAnalysisResources(): void {
@@ -788,37 +1293,26 @@ export class BlobTrackingPass extends PassNode {
     this.analysisInputNode = inputSample
     this.analysisPrevNode = prevSample
 
-    const lumaWeights = vec3(0.2126, 0.7152, 0.0722)
-    const stepX = 1 / (ANALYSIS_WIDTH * ANALYSIS_SUPERSAMPLE)
-    const stepY = 1 / (ANALYSIS_HEIGHT * ANALYSIS_SUPERSAMPLE)
-    const center = (ANALYSIS_SUPERSAMPLE - 1) / 2
-
-    let lumaSum: Node = float(0)
-    for (let tapY = 0; tapY < ANALYSIS_SUPERSAMPLE; tapY += 1) {
-      for (let tapX = 0; tapX < ANALYSIS_SUPERSAMPLE; tapX += 1) {
-        const tap = inputSample.sample(
-          vec2(
-            float(analysisUv.x).add(float((tapX - center) * stepX)),
-            float(analysisUv.y).add(float((tapY - center) * stepY))
-          )
-        )
-        lumaSum = lumaSum.add(dot(vec3(tap.r, tap.g, tap.b), lumaWeights))
-      }
-    }
-    const luma = lumaSum.div(
-      float(ANALYSIS_SUPERSAMPLE * ANALYSIS_SUPERSAMPLE)
+    const luma = float(inputSample.r)
+    const motion = abs(luma.sub(float(prevSample.g))).mul(
+      this.hasHistoryUniform
     )
+    const decayed = max(
+      float(prevSample.b)
+        .mul(this.motionPersistenceUniform)
+        .sub(float(MOTION_ENERGY_FLOOR)),
+      float(0)
+    )
+    const energy = max(decayed.mul(this.hasHistoryUniform), motion)
 
-    const motion = abs(float(luma).sub(float(prevSample.g)))
     this.analysisMaterial.colorNode = vec4(
       motion,
       luma,
-      float(0),
+      energy,
       float(1)
     ) as Node
 
-    this.analysisGeometry = new THREE.PlaneGeometry(2, 2)
-    const mesh = new THREE.Mesh(this.analysisGeometry, this.analysisMaterial)
+    const mesh = new THREE.Mesh(this.fullscreenGeometry, this.analysisMaterial)
     mesh.frustumCulled = false
     this.analysisScene.add(mesh)
 
@@ -893,58 +1387,23 @@ export class BlobTrackingPass extends PassNode {
             : new Uint8Array(data.buffer, data.byteOffset, data.byteLength)
         this.pendingReadback = null
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         this.pendingReadback = null
+        if (!this.readbackFailureReported) {
+          this.readbackFailureReported = true
+          console.error(
+            "[blob-tracking] analysis readback failed; detection is stalled",
+            error
+          )
+        }
       })
   }
 
-  private syncTrackerOutputs(forceRedraw = false): void {
+  private syncTrackerOutputs(): void {
     const blobs = this.tracker.getBlobs()
     this.updateBlobTable(blobs)
     this.updateConnectorGeometry(blobs)
     this.updateLabelGlyphs(blobs)
-
-    const signature = this.computeOverlaySignature(blobs)
-    if (!this.overlayDirty && signature === this.overlaySignature) {
-      return
-    }
-
-    const now =
-      typeof performance !== "undefined" ? performance.now() : Number.NaN
-    if (
-      !forceRedraw &&
-      Number.isFinite(now) &&
-      now - this.lastOverlayRedrawAt < OVERLAY_REDRAW_INTERVAL_MS
-    ) {
-      return
-    }
-
-    this.lastOverlayRedrawAt = Number.isFinite(now) ? now : 0
-    this.overlaySignature = signature
-    this.overlayDirty = false
-    this.redrawOverlay(blobs)
-  }
-
-  private computeOverlaySignature(blobs: Blob[]): number {
-    const width = this.overlayCanvas?.width ?? 1
-    const height = this.overlayCanvas?.height ?? 1
-    let hash = 0x811c9dc5
-
-    const absorb = (value: number): void => {
-      hash = Math.imul(hash ^ (value | 0), 0x01000193)
-    }
-
-    absorb(Math.round((this.shapeScaleUniform.value as number) * 256))
-    for (const blob of blobs) {
-      absorb(blob.id)
-      absorb(blob.active ? 1 : 0)
-      absorb(Math.round(blob.cx * width))
-      absorb(Math.round(blob.cy * height))
-      absorb(Math.round(blob.halfWidth * width))
-      absorb(Math.round(blob.halfHeight * height))
-    }
-
-    return hash >>> 0
   }
 
   private updateBlobTable(blobs: Blob[]): void {
@@ -954,13 +1413,17 @@ export class BlobTrackingPass extends PassNode {
     for (let index = 0; index < count; index += 1) {
       const blob = blobs[index]
       const entry = this.blobEntries[index]
-      if (!(blob && entry)) continue
+      const meta = this.blobMetaEntries[index]
+      if (!(blob && entry && meta)) continue
+      // Detections describe where the subject was when the readback was queued,
+      // so lead the box by the estimated velocity to cancel that latency.
       entry.set(
-        blob.cx,
-        blob.cy,
-        Math.max(blob.halfWidth * aspect, blob.halfHeight),
-        blob.presence
+        blob.cx + blob.vx * VELOCITY_LOOKAHEAD,
+        blob.cy + blob.vy * VELOCITY_LOOKAHEAD,
+        blob.halfWidth * aspect,
+        blob.halfHeight
       )
+      meta.set(blob.presence, blob.area, blob.vx, blob.vy)
     }
 
     this.blobCountUniform.value = count
@@ -993,6 +1456,12 @@ export class BlobTrackingPass extends PassNode {
   }
 
   private applyDecorationUniforms(): void {
+    // One control drives both how long the ribbon lives and how strongly it
+    // reads; the ceiling matches the alpha the old canvas trail peaked at.
+    const { trailDecay } = this.decorations
+    this.trailStrengthUniform.value = trailDecay * TRAIL_MAX_ALPHA
+    this.trailDecayUniform.value =
+      TRAIL_DECAY_MIN + trailDecay * TRAIL_DECAY_RANGE
     ;(this.strokeColorUniform.value as THREE.Color).setStyle(
       this.decorations.strokeColor,
       THREE.SRGBColorSpace
@@ -1131,115 +1600,97 @@ export class BlobTrackingPass extends PassNode {
     this.arrowCountUniform.value = arrowCount
   }
 
-  private getOverlaySize(): { height: number; width: number } {
-    const width = Math.max(1, Math.min(this.logicalWidth, OVERLAY_MAX_WIDTH))
-    const height = Math.max(
-      1,
-      Math.round((width * this.logicalHeight) / Math.max(1, this.logicalWidth))
+  /**
+   * Trails are a decayed feedback buffer rather than re-stamped history: the
+   * blob outline is composited into a half-resolution target that fades every
+   * frame, which is O(1) in trail length and costs no CPU raster or upload.
+   */
+  private createTrailResources(): void {
+    this.trailScene = new THREE.Scene()
+    this.trailMaterial = new THREE.MeshBasicNodeMaterial()
+    this.trailRtA = new THREE.WebGLRenderTarget(1, 1, LUMA_RT_OPTIONS)
+    this.trailRtB = new THREE.WebGLRenderTarget(1, 1, LUMA_RT_OPTIONS)
+
+    const mesh = new THREE.Mesh(this.fullscreenGeometry, this.trailMaterial)
+    mesh.frustumCulled = false
+    this.trailScene.add(mesh)
+
+    this.rebuildTrailNode()
+    this.resizeTrailTargets()
+  }
+
+  private rebuildTrailNode(): void {
+    if (!this.trailMaterial) {
+      return
+    }
+
+    const trailUv = renderTargetUv()
+    const previous = tslTexture(new THREE.Texture(), trailUv)
+    this.trailPrevNode = previous
+
+    const decayed = max(
+      float(previous.r)
+        .mul(this.trailDecayUniform)
+        .sub(float(TRAIL_FLOOR)),
+      float(0)
     )
-    return { height, width }
+    const trail = max(decayed, this.buildTrailSourceNode(trailUv))
+
+    this.trailMaterial.colorNode = vec4(trail, trail, trail, float(1)) as Node
+    this.trailMaterial.needsUpdate = true
   }
 
-  private createOverlayResources(): void {
-    if (typeof document === "undefined") {
-      return
-    }
-
-    const { height, width } = this.getOverlaySize()
-    this.overlayCanvas = document.createElement("canvas")
-    this.overlayCanvas.width = width
-    this.overlayCanvas.height = height
-    this.overlayContext = this.overlayCanvas.getContext("2d")
-
-    this.overlayTexture = new THREE.CanvasTexture(this.overlayCanvas)
-    this.overlayTexture.colorSpace = THREE.SRGBColorSpace
-    this.overlayTexture.flipY = false
-    this.overlayTexture.generateMipmaps = false
-    this.overlayTexture.magFilter = THREE.LinearFilter
-    this.overlayTexture.minFilter = THREE.LinearFilter
-    this.overlayTexture.wrapS = THREE.ClampToEdgeWrapping
-    this.overlayTexture.wrapT = THREE.ClampToEdgeWrapping
+  /** The blob outline the decoration pass wrote to B is the ribbon source. */
+  private buildTrailSourceNode(screenUv: Node): Node {
+    const sample = tslTexture(this.decorationPlaceholder, screenUv)
+    this.trailDecorationNode = sample
+    return float(sample.b)
   }
 
-  private resizeOverlayCanvas(): void {
-    if (!this.overlayCanvas) {
-      return
-    }
-    const { height, width } = this.getOverlaySize()
+  private resizeTrailTargets(): void {
+    const width = Math.max(1, Math.floor(this.deviceWidth / TRAIL_DIVISOR))
+    const height = Math.max(1, Math.floor(this.deviceHeight / TRAIL_DIVISOR))
+    this.trailRtA?.setSize(width, height)
+    this.trailRtB?.setSize(width, height)
+    this.trailNeedsClear = true
+  }
+
+  private renderTrail(renderer: THREE.WebGPURenderer): void {
     if (
-      this.overlayCanvas.width === width &&
-      this.overlayCanvas.height === height
+      !(
+        this.trailScene &&
+        this.trailRtA &&
+        this.trailRtB &&
+        this.trailPrevNode &&
+        this.analysisCamera
+      )
     ) {
       return
     }
-    this.overlayCanvas.width = width
-    this.overlayCanvas.height = height
-    this.overlaySignature = NO_SIGNATURE
-    this.overlayDirty = false
-    this.redrawOverlay(this.tracker.getBlobs())
-  }
 
-  private redrawOverlay(blobs: Blob[]): void {
-    const context = this.overlayContext
-    if (!(context && this.overlayCanvas && this.overlayTexture)) {
+    if (this.trailNeedsClear) {
+      this.trailNeedsClear = false
+      for (const target of [this.trailRtA, this.trailRtB]) {
+        renderer.setRenderTarget(target)
+        renderer.clear()
+      }
+    }
+
+    if ((this.trailStrengthUniform.value as number) <= 0) {
       return
     }
 
-    const width = this.overlayCanvas.width
-    const height = this.overlayCanvas.height
-    context.clearRect(0, 0, width, height)
+    const writeTarget = this.trailWriteToA ? this.trailRtA : this.trailRtB
+    const readTarget = this.trailWriteToA ? this.trailRtB : this.trailRtA
 
-    const { strokeColor, strokeWidth, trailDecay } = this.decorations
-    const scale = this.shapeScaleUniform.value as number
-    const strokeScale = width / Math.max(1, this.logicalWidth)
-    const scaledStrokeWidth = Math.max(0.75, strokeWidth * strokeScale)
+    this.trailPrevNode.value = readTarget.texture
+    renderer.setRenderTarget(writeTarget)
+    renderer.render(this.trailScene, this.analysisCamera)
+    this.trailWriteToA = !this.trailWriteToA
 
-    context.strokeStyle = strokeColor
-    context.fillStyle = strokeColor
-    context.lineWidth = scaledStrokeWidth
-
-    const activeBlobs = blobs.filter((blob) => blob.active)
-
-    if (trailDecay > 0) {
-      for (const blob of activeBlobs) {
-        const history = blob.history
-        for (let index = 0; index < history.length - 1; index += 2) {
-          const point = history[index]
-          if (!point) continue
-          const age = (index + 1) / history.length
-          context.globalAlpha = age * trailDecay * 0.6 * blob.presence
-          const radius =
-            Math.max(blob.halfWidth * width, blob.halfHeight * height) *
-            scale *
-            (0.4 + age * 0.6)
-          this.strokeShape(context, point.x * width, point.y * height, radius)
-        }
-      }
-      context.globalAlpha = 1
+    if (this.trailSampleNode) {
+      this.trailSampleNode.value = writeTarget.texture
     }
-
-    this.overlayTexture.needsUpdate = true
-  }
-
-  private strokeShape(
-    context: CanvasRenderingContext2D,
-    centerX: number,
-    centerY: number,
-    radius: number
-  ): void {
-    context.beginPath()
-    if (this.shapeKind === "circle") {
-      context.arc(centerX, centerY, radius, 0, Math.PI * 2)
-    } else if (this.shapeKind === "diamond") {
-      context.moveTo(centerX, centerY - radius)
-      context.lineTo(centerX + radius, centerY)
-      context.lineTo(centerX, centerY + radius)
-      context.lineTo(centerX - radius, centerY)
-      context.closePath()
-    } else {
-      context.rect(centerX - radius, centerY - radius, radius * 2, radius * 2)
-    }
-    context.stroke()
   }
 
   private updateInnerEffect(params: LayerParameterValues): void {
@@ -1286,7 +1737,9 @@ export class BlobTrackingPass extends PassNode {
 
     if (this.childPass && nextRaw !== this.innerEffectParamsRaw) {
       this.innerEffectParamsRaw = nextRaw
-      this.childPass.updateParams(parseInnerEffectParams(nextRaw))
+      this.childPass.updateParams(
+        parseInnerEffectParams(nextRaw)
+      )
       this.childPass.flushColorNode()
     }
   }
@@ -1294,14 +1747,16 @@ export class BlobTrackingPass extends PassNode {
   private resetTemporalState(): void {
     this.tracker.reset()
     this.latestAnalysis = null
+    this.hasHistoryUniform.value = 0
     for (const entry of this.blobEntries) {
       entry.set(0, 0, 0, 0)
+    }
+    for (const meta of this.blobMetaEntries) {
+      meta.set(0, 0, 0, 0)
     }
     this.blobCountUniform.value = 0
     this.segmentCountUniform.value = 0
     this.arrowCountUniform.value = 0
-    this.overlaySignature = NO_SIGNATURE
-    this.overlayDirty = false
-    this.redrawOverlay([])
+    this.trailNeedsClear = true
   }
 }

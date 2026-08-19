@@ -377,6 +377,8 @@ export function applyLabProjectFile(
     tracks: projectFile.timeline.tracks,
   })
 
+  useTimelineStore.getState().pruneTracks(nextLayers)
+
   const audioSnapshot = normalizeProjectAudio(projectFile.audio)
   useAudioStore.getState().replaceState(audioSnapshot)
 

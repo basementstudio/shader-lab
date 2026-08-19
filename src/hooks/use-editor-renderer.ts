@@ -24,7 +24,10 @@ function getPixelRatio(): number {
     return 1
   }
 
-  return Math.min(window.devicePixelRatio || 1, 2)
+  const devicePixelRatio = Math.min(window.devicePixelRatio || 1, 2)
+  const renderScale = useEditorStore.getState().renderScale
+
+  return Math.max(0.1, devicePixelRatio * renderScale)
 }
 
 function measureElement(element: HTMLElement): Size {
@@ -72,6 +75,7 @@ export function useEditorRenderer() {
     let resizeObserver: ResizeObserver | null = null
     let frameInFlight = false
     let unregisterFramePump: (() => void) | null = null
+    let unsubscribeRenderScale: (() => void) | null = null
 
     editorStore.setWebGPUStatus("initializing")
 
@@ -119,6 +123,19 @@ export function useEditorRenderer() {
         })
 
         resizeObserver.observe(viewportElement)
+
+        let lastRenderScale = useEditorStore.getState().renderScale
+        unsubscribeRenderScale = useEditorStore.subscribe((state) => {
+          if (state.renderScale === lastRenderScale) {
+            return
+          }
+
+          lastRenderScale = state.renderScale
+          renderer.resize(
+            useEditorStore.getState().canvasSize,
+            getPixelRatio()
+          )
+        })
 
         const scheduleNextFrame = () => {
           animationFrameRef.current = window.requestAnimationFrame(
@@ -227,6 +244,7 @@ export function useEditorRenderer() {
       isDisposed = true
 
       unregisterFramePump?.()
+      unsubscribeRenderScale?.()
 
       if (resizeObserver) {
         resizeObserver.disconnect()

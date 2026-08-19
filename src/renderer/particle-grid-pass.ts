@@ -1,6 +1,4 @@
-import { bloom } from "three/examples/jsm/tsl/display/BloomNode.js"
 import {
-  clamp,
   Fn,
   float,
   floor,
@@ -18,6 +16,7 @@ import {
   vec4,
 } from "three/tsl"
 import * as THREE from "three/webgpu"
+import { BloomCompositor } from "@/renderer/dual-filter-bloom"
 import { PassNode } from "@/renderer/pass-node"
 import { simplexNoise3d } from "@/renderer/shaders/tsl/noise/simplex-noise-3d"
 import type { LayerParameterValues } from "@/types/editor"
@@ -80,7 +79,6 @@ export class ParticleGridPass extends PassNode {
 
   // Bloom
   private bloomEnabled = false
-  private bloomNode: ReturnType<typeof bloom> | null = null
   private readonly bloomIntensityUniform: Node
   private readonly bloomRadiusUniform: Node
   private readonly bloomSoftnessUniform: Node
@@ -241,17 +239,7 @@ export class ParticleGridPass extends PassNode {
       this.rebuildEffectNode()
     }
 
-    if (this.bloomNode) {
-      this.bloomNode.strength.value = this.bloomIntensityUniform.value as number
-      this.bloomNode.radius.value = this.normalizeBloomRadius(
-        this.bloomRadiusUniform.value as number
-      )
-      this.bloomNode.threshold.value = this.bloomThresholdUniform
-        .value as number
-      this.bloomNode.smoothWidth.value = this.normalizeBloomSoftness(
-        this.bloomSoftnessUniform.value as number
-      )
-    }
+    this.applyBloomSettings()
   }
 
   override resize(width: number, height: number): void {
@@ -269,7 +257,6 @@ export class ParticleGridPass extends PassNode {
   }
 
   override dispose(): void {
-    this.disposeBloomNode()
     this.clearGrid()
     this.noiseTexture.dispose()
     this.placeholder.dispose()
@@ -277,13 +264,20 @@ export class ParticleGridPass extends PassNode {
     super.dispose()
   }
 
+  private applyBloomSettings(): void {
+    this.bloomCompositor?.applySettings({
+      intensity: this.bloomIntensityUniform.value as number,
+      radius: this.bloomRadiusUniform.value as number,
+      softness: this.bloomSoftnessUniform.value as number,
+      threshold: this.bloomThresholdUniform.value as number,
+    })
+  }
+
   protected override buildEffectNode(): Node {
     if (!this.blitInputNode) {
       return this.inputNode
     }
 
-    this.disposeBloomNode()
-    this.bloomNode = null
 
     const baseColor = vec3(
       this.blitInputNode.r,
@@ -295,25 +289,12 @@ export class ParticleGridPass extends PassNode {
       return vec4(baseColor, float(1))
     }
 
-    const bloomInput = vec4(baseColor, float(1))
-    this.bloomNode = bloom(
-      bloomInput,
-      this.bloomIntensityUniform.value as number,
-      this.normalizeBloomRadius(this.bloomRadiusUniform.value as number),
-      this.bloomThresholdUniform.value as number
-    )
-    this.bloomNode.smoothWidth.value = this.normalizeBloomSoftness(
-      this.bloomSoftnessUniform.value as number
-    )
+    if (!this.bloomCompositor) {
+      this.bloomCompositor = new BloomCompositor()
+    }
 
-    return vec4(
-      clamp(
-        baseColor.add(this.getBloomTextureNode().rgb),
-        vec3(float(0), float(0), float(0)),
-        vec3(float(1), float(1), float(1))
-      ),
-      float(1)
-    )
+    this.applyBloomSettings()
+    return this.bloomCompositor.build(baseColor)
   }
 
   private rebuildGrid(): void {
@@ -482,44 +463,4 @@ export class ParticleGridPass extends PassNode {
     this.quadSizeUniform.value = Math.min(requestedSize, maxSize)
   }
 
-  private normalizeBloomRadius(value: number): number {
-    return clamp01(value / 24)
-  }
-
-  private normalizeBloomSoftness(value: number): number {
-    return Math.max(0.001, value * 0.25)
-  }
-
-  private disposeBloomNode(): void {
-    ;(this.bloomNode as { dispose?: () => void } | null)?.dispose?.()
-  }
-
-  private getBloomTextureNode(): Node {
-    const bloomNode = this.bloomNode as
-      | ({
-          getTexture?: () => Node
-          getTextureNode?: () => Node
-        } & object)
-      | null
-
-    if (!bloomNode) {
-      throw new Error("Bloom node is not initialized")
-    }
-
-    if (
-      "getTextureNode" in bloomNode &&
-      typeof bloomNode.getTextureNode === "function"
-    ) {
-      return bloomNode.getTextureNode()
-    }
-
-    if (
-      "getTexture" in bloomNode &&
-      typeof bloomNode.getTexture === "function"
-    ) {
-      return bloomNode.getTexture()
-    }
-
-    throw new Error("Bloom node does not expose a texture getter")
-  }
 }

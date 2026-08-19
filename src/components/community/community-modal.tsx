@@ -60,11 +60,12 @@ const SORT_TABS: readonly { label: string; value: SceneSort }[] = [
 
 const VIEW_TABS: readonly {
   label: string
-  value: "drafts" | "explore" | "mine"
+  value: "drafts" | "explore" | "likes" | "mine"
 }[] = [
   { label: "Explore", value: "explore" },
   { label: "My scenes", value: "mine" },
   { label: "Drafts", value: "drafts" },
+  { label: "Likes", value: "likes" },
 ]
 
 const TAB_CLASS_NAME =
@@ -86,13 +87,19 @@ export function CommunityModal({
   const reduceMotion = useReducedMotion() ?? false
   const { data: session } = authClient.useSession()
   const [mounted, setMounted] = useState(false)
-  const [tab, setTab] = useState<"drafts" | "explore" | "mine">("explore")
+  const [tab, setTab] = useState<"drafts" | "explore" | "likes" | "mine">(
+    "explore"
+  )
   const [mine, setMine] = useState<AuthoredScene[] | null>(null)
   const [mineFailed, setMineFailed] = useState(false)
   const [drafts, setDrafts] = useState<DraftSummary[] | null>(null)
   const [draftsFailed, setDraftsFailed] = useState(false)
   const [busyDraftId, setBusyDraftId] = useState<string | null>(null)
-  const [upvoted, setUpvoted] = useState<Set<string>>(new Set())
+  const [likedScenes, setLikedScenes] = useState<
+    CommunitySceneSummary[] | null
+  >(null)
+  const [likedScenesFailed, setLikedScenesFailed] = useState(false)
+  const [liked, setLiked] = useState<Set<string>>(new Set())
   const [sort, setSort] = useState<SceneSort>("popular")
   const [search, setSearch] = useState("")
   const [query, setQuery] = useState("")
@@ -139,7 +146,8 @@ export function CommunityModal({
     setTab("explore")
     setMine(null)
     setDrafts(null)
-    setUpvoted(new Set())
+    setLikedScenes(null)
+    setLiked(new Set())
   }, [userId])
 
   useEffect(() => {
@@ -171,7 +179,7 @@ export function CommunityModal({
       .then((res) => res.json())
       .then((data: { slugs?: string[] }) => {
         if (!cancelled) {
-          setUpvoted(new Set(data.slugs ?? []))
+          setLiked(new Set(data.slugs ?? []))
         }
       })
       .catch(() => undefined)
@@ -228,6 +236,34 @@ export function CommunityModal({
 
     void loadDrafts()
   }, [loadDrafts, open, tab, userId])
+
+  useEffect(() => {
+    if (!(open && userId && tab === "likes")) {
+      return
+    }
+
+    let cancelled = false
+
+    setLikedScenesFailed(false)
+
+    fetch("/api/community/me/likes/scenes")
+      .then((res) => res.json() as Promise<{ scenes?: CommunitySceneSummary[] }>)
+      .then((data) => {
+        if (!cancelled) {
+          setLikedScenes(data.scenes ?? [])
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setLikedScenes([])
+          setLikedScenesFailed(true)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [open, tab, userId])
 
   useEffect(() => {
     if (!open) {
@@ -523,13 +559,13 @@ export function CommunityModal({
     [explore]
   )
 
-  const changeUpvote = useCallback(
-    (slug: string, next: { count: number; upvoted: boolean }) => {
+  const changeLike = useCallback(
+    (slug: string, next: { count: number; liked: boolean }) => {
       applyCounts(slug, { likeCount: next.count })
-      setUpvoted((current) => {
+      setLiked((current) => {
         const nextSet = new Set(current)
 
-        if (next.upvoted) {
+        if (next.liked) {
           nextSet.add(slug)
         } else {
           nextSet.delete(slug)
@@ -757,12 +793,12 @@ export function CommunityModal({
                       onOpenAuthor={openProfile}
                       onOpenSlug={openSceneBySlug}
                       onRemix={remix}
-                      onUpvoteChange={(next) =>
-                        changeUpvote(selected.slug, next)
+                      onLikeChange={(next) =>
+                        changeLike(selected.slug, next)
                       }
                       remixing={remixing}
                       scene={selected}
-                      upvoted={upvoted.has(selected.slug)}
+                      liked={liked.has(selected.slug)}
                     />
                   ) : null}
 
@@ -816,6 +852,51 @@ export function CommunityModal({
 
                       {mine && mine.length > 0 ? (
                         <MyScenesGrid onSelect={openScene} scenes={mine} />
+                      ) : null}
+                    </div>
+                  ) : null}
+
+                  {!(selected || selectedHandle) && tab === "likes" ? (
+                    <div className="h-full overflow-y-auto p-4">
+                      {likedScenes === null && !error ? (
+                        <div className="grid grid-cols-2 gap-[var(--ds-space-4)] min-[720px]:grid-cols-4">
+                          {SKELETON_KEYS.slice(0, 4).map((key) => (
+                            <div
+                              className="flex animate-pulse flex-col gap-[var(--ds-space-2)]"
+                              key={key}
+                            >
+                              <div className="aspect-[16/10] w-full rounded-[8px] border border-[var(--ds-border-subtle)] bg-[var(--ds-color-surface-subtle)]" />
+                              <div className="h-[10px] w-3/5 rounded-[3px] bg-[var(--ds-color-surface-subtle)]" />
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+
+                      {likedScenes?.length === 0 ? (
+                        <div className="flex h-full flex-col items-center justify-center gap-[var(--ds-space-3)]">
+                          <Typography
+                            align="center"
+                            as="p"
+                            tone="secondary"
+                            variant="body"
+                          >
+                            {likedScenesFailed
+                              ? "Could not load the scenes you liked."
+                              : "Nothing liked yet. Tap the heart on a scene to keep it here."}
+                          </Typography>
+                        </div>
+                      ) : null}
+
+                      {likedScenes && likedScenes.length > 0 ? (
+                        <div className="grid grid-cols-2 gap-[var(--ds-space-4)] min-[720px]:grid-cols-4">
+                          {likedScenes.map((scene) => (
+                            <SceneCard
+                              key={scene.slug}
+                              onSelect={openScene}
+                              scene={scene}
+                            />
+                          ))}
+                        </div>
                       ) : null}
                     </div>
                   ) : null}

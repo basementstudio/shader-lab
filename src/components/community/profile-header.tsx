@@ -80,7 +80,7 @@ export function ProfileHeader({
           noun="scene"
           scale={scale}
         />
-        <ProfileStat count={profile.upvoteCount} noun="upvote" scale={scale} />
+        <ProfileStat count={profile.upvoteCount} noun="like" scale={scale} />
         <ProfileStat count={profile.remixCount} noun="remix" scale={scale} />
       </dl>
     </header>

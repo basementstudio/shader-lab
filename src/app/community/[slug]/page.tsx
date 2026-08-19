@@ -233,7 +233,7 @@ async function SceneBody({ params }: PageProps) {
             Remix in Shader Lab
           </ButtonLink>
           <Typography as="span" tone="secondary" variant="monoSm">
-            {countLabel(scene.likeCount, "upvote")} ·{" "}
+            {countLabel(scene.likeCount, "like")} ·{" "}
             {countLabel(scene.remixCount, "remix")}
           </Typography>
         </div>

@@ -1,6 +1,6 @@
 "use client"
 
-import { ShuffleIcon, TriangleUpIcon } from "@radix-ui/react-icons"
+import { HeartIcon, ShuffleIcon } from "@radix-ui/react-icons"
 import Image from "next/image"
 import { AuthorAvatar } from "@/components/community/author-avatar"
 import { Typography } from "@/components/ui/typography"
@@ -33,7 +33,7 @@ export function SceneCard({
         <div className="pointer-events-none absolute top-1.5 right-1.5 inline-flex items-center gap-1.5 rounded-[var(--ds-radius-control)] border border-white/10 bg-[rgb(8_9_12_/_0.68)] px-1.5 py-[3px] backdrop-blur-[8px]">
           <span className="inline-flex items-center gap-1">
             <span className="text-[var(--ds-color-text-secondary)]">
-              <TriangleUpIcon height={11} width={11} />
+              <HeartIcon height={11} width={11} />
             </span>
             <Typography as="span" tone="secondary" variant="monoXs">
               {scene.likeCount}

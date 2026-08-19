@@ -6,7 +6,7 @@ import { DeleteSceneControl } from "@/components/community/delete-scene-control"
 import { RemixCredit } from "@/components/community/remix-credit"
 import { ReportControl } from "@/components/community/report-control"
 import { ShareSceneButton } from "@/components/community/share-scene-button"
-import { UpvoteButton } from "@/components/community/upvote-button"
+import { LikeButton } from "@/components/community/like-button"
 import { Button } from "@/components/ui/button"
 import { Typography } from "@/components/ui/typography"
 import { lineageLabel } from "@/lib/community/lineage"
@@ -36,10 +36,10 @@ export function SceneDetail({
   onOpenAuthor,
   onOpenSlug,
   onRemix,
-  onUpvoteChange,
+  onLikeChange,
   remixing,
   scene,
-  upvoted,
+  liked,
 }: {
   detail: CommunitySceneDetail | null
   isOwn: boolean
@@ -47,10 +47,10 @@ export function SceneDetail({
   onOpenAuthor: (handle: string) => void
   onOpenSlug: (slug: string) => void
   onRemix: (scene: CommunitySceneDetail) => void
-  onUpvoteChange: (next: { count: number; upvoted: boolean }) => void
+  onLikeChange: (next: { count: number; liked: boolean }) => void
   remixing: boolean
   scene: CommunitySceneSummary
-  upvoted: boolean
+  liked: boolean
 }) {
   const description = detail?.description ?? null
   const forkedFrom = detail?.forkedFrom ?? null
@@ -116,11 +116,11 @@ export function SceneDetail({
 
         <div className="mt-auto flex flex-col gap-[var(--ds-space-2)] pt-[var(--ds-space-3)]">
           <div className="flex items-stretch gap-[var(--ds-space-2)]">
-            <UpvoteButton
+            <LikeButton
               count={scene.likeCount}
-              onChange={onUpvoteChange}
+              onChange={onLikeChange}
               slug={scene.slug}
-              upvoted={upvoted}
+              liked={liked}
             />
 
             <Button

@@ -17,6 +17,7 @@ import { ProfilePanel } from "@/components/community/profile-panel"
 import { SceneCard } from "@/components/community/scene-card"
 import { SceneDetail } from "@/components/community/scene-detail"
 import { SceneEmptyState } from "@/components/community/scene-empty-state"
+import { isFeaturedIndex } from "@/components/community/scene-grid"
 import { SceneLoadMore } from "@/components/community/scene-load-more"
 import { ShaderConsentDialog } from "@/components/community/shader-consent-dialog"
 import { Button } from "@/components/ui/button"
@@ -1105,8 +1106,13 @@ export function CommunityModal({
 
                       {items && items.length > 0 ? (
                         <div className="grid grid-cols-2 gap-[var(--ds-space-4)] min-[720px]:grid-cols-4">
-                          {items.map((scene) => (
+                          {items.map((scene, index) => (
                             <SceneCard
+                              featured={isFeaturedIndex(index, {
+                                query,
+                                sort,
+                                total: items.length,
+                              })}
                               key={scene.id}
                               onSelect={openScene}
                               scene={scene}

@@ -4,28 +4,43 @@ import { HeartIcon, ShuffleIcon } from "@radix-ui/react-icons"
 import Image from "next/image"
 import { AuthorAvatar } from "@/components/community/author-avatar"
 import { Typography } from "@/components/ui/typography"
+import { cn } from "@/lib/cn"
 import type { CommunitySceneSummary } from "@/lib/community/scenes"
 
 export function SceneCard({
+  featured = false,
   onSelect,
   scene,
 }: {
+  featured?: boolean
   onSelect: (scene: CommunitySceneSummary) => void
   scene: CommunitySceneSummary
 }) {
   return (
     <button
-      className="group flex w-full cursor-pointer flex-col gap-[var(--ds-space-2)] rounded-[10px] text-left focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--ds-border-active)] focus-visible:outline-offset-2"
+      className={cn(
+        "group flex w-full cursor-pointer flex-col gap-[var(--ds-space-2)] rounded-[10px] text-left focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--ds-border-active)] focus-visible:outline-offset-2",
+        featured && "col-span-2 row-span-2 h-full"
+      )}
       onClick={() => onSelect(scene)}
       type="button"
     >
-      <div className="relative aspect-[16/10] w-full overflow-hidden rounded-[8px] border border-[var(--ds-border-subtle)] bg-[var(--ds-color-surface-subtle)] transition-[border-color] duration-160 ease-[var(--ease-out-cubic)] group-hover:border-[var(--ds-border-hover)]">
+      <div
+        className={cn(
+          "relative w-full overflow-hidden rounded-[8px] border border-[var(--ds-border-subtle)] bg-[var(--ds-color-surface-subtle)] transition-[border-color] duration-160 ease-[var(--ease-out-cubic)] group-hover:border-[var(--ds-border-hover)]",
+          featured ? "min-h-0 flex-1" : "aspect-[16/10]"
+        )}
+      >
         {scene.thumbnailUrl ? (
           <Image
             alt={scene.title}
             className="object-cover"
             fill
-            sizes="(max-width: 900px) 45vw, 260px"
+            sizes={
+              featured
+                ? "(max-width: 900px) 92vw, 540px"
+                : "(max-width: 900px) 45vw, 260px"
+            }
             src={scene.thumbnailUrl}
           />
         ) : null}

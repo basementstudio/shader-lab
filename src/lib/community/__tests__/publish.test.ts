@@ -641,75 +641,40 @@ describe("findAssetOutsideScenePrefixes", () => {
   })
 })
 
-describe("moderating what gets stored", () => {
-  test("normalizeTitle masks a slur rather than rejecting the publish", () => {
-    expect(normalizeTitle("  fuck this gradient  ")).toBe("**** this gradient")
-  })
-
-  test("normalizeDraftTitle masks the same way", () => {
-    expect(normalizeDraftTitle("shit sketch")).toBe("**** sketch")
-  })
-
-  test("normalizeDescription masks", () => {
-    expect(normalizeDescription("a fucking noise field")).toBe(
-      "a ****ing noise field"
-    )
-  })
-
-  test("length caps still apply after masking", () => {
-    expect(normalizeTitle("a".repeat(200))).toHaveLength(MAX_TITLE_LENGTH)
-    expect(normalizeDescription("b".repeat(900))).toHaveLength(
-      MAX_DESCRIPTION_LENGTH
-    )
-  })
-
-  test("the slug never carries the word the title was masked for", () => {
-    const slug = buildSceneSlug(normalizeTitle("fuck gradients"))
-
-    expect(slug).toMatch(/^gradients-[a-z0-9]{6}$/)
-  })
-
-  test("a title that is nothing but a slur still yields a usable slug", () => {
-    expect(normalizeTitle("fuck")).toBe("****")
-    expect(buildSceneSlug(normalizeTitle("fuck"))).toMatch(
-      /^scene-[a-z0-9]{6}$/
-    )
-  })
-
-  test("validateProjectFilePayload hands back a censored body to store", () => {
-    const raw = labFile()
-    const dirty = raw.replace('"name":"Gradient"', '"name":"fuck"')
-    const validated = validateProjectFilePayload(dirty)
-
-    expect(validated.projectFile.layers[0]?.name).toBe("****")
-    expect(validated.body).not.toContain("fuck")
-    expect(JSON.parse(validated.body).layers[0].name).toBe("****")
-  })
-
-  test("a clean scene is stored byte-for-byte as it arrived", () => {
-    const raw = labFile()
-
-    expect(validateProjectFilePayload(raw).body).toBe(raw)
-    expect(validateDraftPayload(raw).body).toBe(raw)
-  })
-})
-
-describe("blocking a scene outright", () => {
-  test("a slur in the title stops the publish instead of masking it", () => {
+describe("publishing refuses a bad word outright", () => {
+  test("a slur in the title stops the publish", () => {
     expect(() => normalizeTitle("nigger")).toThrow(
       /we can't publish that.*the title/i
     )
   })
 
-  test("a slur in the description stops the publish", () => {
-    expect(() => normalizeDescription("a scene about faggots")).toThrow(
+  test("ordinary swearing stops it too, now that everything blocks", () => {
+    expect(() => normalizeTitle("fuck this gradient")).toThrow(
+      /we can't publish that.*the title/i
+    )
+    expect(() => normalizeDescription("a fucking noise field")).toThrow(
       /we can't publish that.*the description/i
     )
   })
 
-  test("the block runs before the censor, which would otherwise hide it", () => {
+  test("the house additions stop it", () => {
+    for (const word of ["goy", "goyim", "uncircumcised", "uncircumsized"]) {
+      expect(() => normalizeTitle(word)).toThrow(/we can't publish that/i)
+    }
+  })
+
+  test("a bad word anywhere in the scene stops it", () => {
     const raw = labFile()
     const dirty = raw.replace('"name":"Gradient"', '"name":"NIGGER"')
+
+    expect(() => validateProjectFilePayload(dirty)).toThrow(
+      /we can't publish that/i
+    )
+  })
+
+  test("the block reads the payload before the censor can hide it", () => {
+    const raw = labFile()
+    const dirty = raw.replace('"name":"Gradient"', '"name":"fuck"')
 
     expect(() => validateProjectFilePayload(dirty)).toThrow(
       /we can't publish that/i
@@ -728,18 +693,47 @@ describe("blocking a scene outright", () => {
     expect(message).not.toMatch(/nig/i)
   })
 
-  test("ordinary swearing is still censored, not blocked", () => {
-    expect(normalizeTitle("fuck this gradient")).toBe("**** this gradient")
-    expect(normalizeDescription("a fucking noise field")).toBe(
-      "a ****ing noise field"
+  test("a clean title and description pass through untouched", () => {
+    expect(normalizeTitle("  Drift Study  ")).toBe("Drift Study")
+    expect(normalizeDescription("  a calm noise field  ")).toBe(
+      "a calm noise field"
     )
   })
 
-  test("a draft can still hold what a publish will not", () => {
+  test("length caps still apply", () => {
+    expect(normalizeTitle("a".repeat(200))).toHaveLength(MAX_TITLE_LENGTH)
+    expect(normalizeDescription("b".repeat(900))).toHaveLength(
+      MAX_DESCRIPTION_LENGTH
+    )
+  })
+
+  test("a clean scene is stored byte-for-byte as it arrived", () => {
+    const raw = labFile()
+
+    expect(validateProjectFilePayload(raw).body).toBe(raw)
+    expect(validateDraftPayload(raw).body).toBe(raw)
+  })
+})
+
+describe("drafts stay permissive, and censor instead", () => {
+  test("a draft still saves what a publish will not", () => {
     const raw = labFile()
     const dirty = raw.replace('"name":"Gradient"', '"name":"NIGGER"')
 
     expect(() => validateDraftPayload(dirty)).not.toThrow()
+  })
+
+  test("a draft title is masked, not refused", () => {
     expect(normalizeDraftTitle("nigger")).toBe("******")
+    expect(normalizeDraftTitle("shit sketch")).toBe("**** sketch")
+  })
+
+  test("the draft body it stores is censored", () => {
+    const raw = labFile()
+    const dirty = raw.replace('"name":"Gradient"', '"name":"fuck"')
+    const validated = validateDraftPayload(dirty)
+
+    expect(validated.projectFile.layers[0]?.name).toBe("****")
+    expect(validated.body).not.toContain("fuck")
   })
 })

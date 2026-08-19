@@ -1,7 +1,7 @@
 import { buildRenderProjectState } from "@/lib/agent-bridge/screenshot"
 import {
   describeBlockedLanguage,
-  findSevereLanguageInScene,
+  findProfanityInScene,
 } from "@/lib/community/language"
 import { describeUploadLimit } from "@/lib/community/upload-limits"
 import {
@@ -403,7 +403,7 @@ export async function publishScene(input: {
     throw new Error(plan.problem)
   }
 
-  const severeLocation = findSevereLanguageInScene({
+  const severeLocation = findProfanityInScene({
     description: input.description,
     projectFile,
     title: input.title,

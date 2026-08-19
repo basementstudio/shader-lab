@@ -12,44 +12,8 @@ import type { LabProjectFile } from "@/lib/editor/project-file"
 
 let matcher: RegExpMatcher | null = null
 let censor: TextCensor | null = null
-let severeMatcher: RegExpMatcher | null = null
 
-function getMatcher(): RegExpMatcher {
-  matcher ??= new RegExpMatcher({
-    ...englishDataset.build(),
-    ...englishRecommendedTransformers,
-  })
-
-  return matcher
-}
-
-function getCensor(): TextCensor {
-  censor ??= new TextCensor().setStrategy(asteriskCensorStrategy())
-
-  return censor
-}
-
-const SEVERE_DATASET_WORDS: ReadonlySet<EnglishProfaneWord> = new Set<
-  EnglishProfaneWord
->([
-  "abeed",
-  "abo",
-  "africoon",
-  "arabush",
-  "boonga",
-  "chingchong",
-  "chink",
-  "dyke",
-  "fag",
-  "kike",
-  "negro",
-  "nigger",
-  "retard",
-  "spastic",
-  "tranny",
-])
-
-const SEVERE_HOUSE_PATTERNS = [
+const HOUSE_PATTERNS = [
   pattern`|spic|`,
   pattern`|spics|`,
   pattern`|coon|`,
@@ -70,37 +34,40 @@ const SEVERE_HOUSE_PATTERNS = [
   pattern`|shemales|`,
   pattern`|mongoloid|`,
   pattern`|mongoloids|`,
+  pattern`|goy|`,
+  pattern`|goys|`,
+  pattern`|goyim|`,
+  pattern`|uncircumcised|`,
+  pattern`|uncircumsized|`,
 ]
 
-function getSevereMatcher(): RegExpMatcher {
-  if (!severeMatcher) {
-    const dataset = new DataSet<{ originalWord: EnglishProfaneWord }>()
-      .addAll(englishDataset)
-      .removePhrasesIf((phrase) => {
-        const word = phrase.metadata?.originalWord
+function getMatcher(): RegExpMatcher {
+  if (!matcher) {
+    const dataset = new DataSet<{ originalWord: EnglishProfaneWord }>().addAll(
+      englishDataset
+    )
 
-        return !(word && SEVERE_DATASET_WORDS.has(word))
-      })
-
-    for (const raw of SEVERE_HOUSE_PATTERNS) {
+    for (const raw of HOUSE_PATTERNS) {
       dataset.addPhrase((phrase) => phrase.addPattern(raw))
     }
 
-    severeMatcher = new RegExpMatcher({
+    matcher = new RegExpMatcher({
       ...dataset.build(),
       ...englishRecommendedTransformers,
     })
   }
 
-  return severeMatcher
+  return matcher
+}
+
+function getCensor(): TextCensor {
+  censor ??= new TextCensor().setStrategy(asteriskCensorStrategy())
+
+  return censor
 }
 
 export function hasProfanity(value: string): boolean {
   return value.length > 0 && getMatcher().hasMatch(value)
-}
-
-export function hasSevereLanguage(value: string): boolean {
-  return value.length > 0 && getSevereMatcher().hasMatch(value)
 }
 
 export function censorText(value: string): string {
@@ -122,7 +89,7 @@ export function describeBlockedLanguage(where: string): string {
   return `${BLOCKED_LANGUAGE_MESSAGE} Have a look at ${where}.`
 }
 
-export function findSevereLanguageInProjectFile(
+export function findProfanityInProjectFile(
   projectFile: LabProjectFile
 ): string | null {
   for (const layer of projectFile.layers) {
@@ -131,12 +98,12 @@ export function findSevereLanguageInProjectFile(
     if (
       layer.type === "text" &&
       typeof rendered === "string" &&
-      hasSevereLanguage(rendered)
+      hasProfanity(rendered)
     ) {
       return "the text on one of your text layers"
     }
 
-    if (hasSevereLanguage(layer.name)) {
+    if (hasProfanity(layer.name)) {
       return "your layer names"
     }
   }
@@ -144,20 +111,20 @@ export function findSevereLanguageInProjectFile(
   return null
 }
 
-export function findSevereLanguageInScene(input: {
+export function findProfanityInScene(input: {
   description?: string | null
   projectFile: LabProjectFile
   title?: string | null
 }): string | null {
-  if (input.title && hasSevereLanguage(input.title)) {
+  if (input.title && hasProfanity(input.title)) {
     return "the title"
   }
 
-  if (input.description && hasSevereLanguage(input.description)) {
+  if (input.description && hasProfanity(input.description)) {
     return "the description"
   }
 
-  return findSevereLanguageInProjectFile(input.projectFile)
+  return findProfanityInProjectFile(input.projectFile)
 }
 
 export interface CensoredProjectFile {

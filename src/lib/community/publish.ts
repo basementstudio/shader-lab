@@ -7,8 +7,8 @@ import {
   censorProjectFile,
   censorText,
   describeBlockedLanguage,
-  findSevereLanguageInProjectFile,
-  hasSevereLanguage,
+  findProfanityInProjectFile,
+  hasProfanity,
 } from "@/lib/community/language"
 import { keyFromPublicUrl, scenePrefixOf } from "@/lib/community/r2"
 import {
@@ -160,7 +160,7 @@ export interface PublishValidation {
 function parseScenePayload(raw: string): {
   body: string
   projectFile: LabProjectFile
-  severeLocation: string | null
+  profanityLocation: string | null
 } {
   if (raw.length > MAX_LAB_BYTES) {
     throw new Error("This scene is too large.")
@@ -174,13 +174,13 @@ function parseScenePayload(raw: string): {
     }
   }
 
-  const severeLocation = findSevereLanguageInProjectFile(parsed)
+  const profanityLocation = findProfanityInProjectFile(parsed)
   const censored = censorProjectFile(parsed)
 
   return {
     body: censored.changed ? JSON.stringify(censored.projectFile) : raw,
     projectFile: censored.projectFile,
-    severeLocation,
+    profanityLocation,
   }
 }
 
@@ -209,10 +209,10 @@ export function validateDraftPayload(raw: string): PublishValidation {
 }
 
 export function validateProjectFilePayload(raw: string): PublishValidation {
-  const { body, projectFile, severeLocation } = parseScenePayload(raw)
+  const { body, projectFile, profanityLocation } = parseScenePayload(raw)
 
-  if (severeLocation) {
-    throw new Error(describeBlockedLanguage(severeLocation))
+  if (profanityLocation) {
+    throw new Error(describeBlockedLanguage(profanityLocation))
   }
 
   if (projectFile.layers.length === 0) {
@@ -239,11 +239,11 @@ export function normalizeTitle(value: unknown): string {
 
   const capped = title.slice(0, MAX_TITLE_LENGTH)
 
-  if (hasSevereLanguage(capped)) {
+  if (hasProfanity(capped)) {
     throw new Error(describeBlockedLanguage("the title"))
   }
 
-  return censorText(capped)
+  return capped
 }
 
 export function normalizeDraftTitle(value: unknown): string {
@@ -327,11 +327,11 @@ export function normalizeDescription(value: unknown): string | null {
 
   const capped = description.slice(0, MAX_DESCRIPTION_LENGTH)
 
-  if (hasSevereLanguage(capped)) {
+  if (hasProfanity(capped)) {
     throw new Error(describeBlockedLanguage("the description"))
   }
 
-  return censorText(capped)
+  return capped
 }
 
 export interface QuotaCheck {

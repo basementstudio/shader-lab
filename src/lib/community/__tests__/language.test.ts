@@ -2,9 +2,8 @@ import { describe, expect, test } from "bun:test"
 import {
   censorProjectFile,
   censorText,
-  findSevereLanguageInScene,
+  findProfanityInScene,
   hasProfanity,
-  hasSevereLanguage,
 } from "@/lib/community/language"
 import { parseLabProjectFile } from "@/lib/editor/project-file"
 
@@ -172,23 +171,27 @@ describe("censorProjectFile", () => {
   })
 })
 
-describe("the severe tier", () => {
-  test("blocks slurs", () => {
+describe("what counts as a bad word", () => {
+  test("catches slurs", () => {
     for (const value of ["NIGGER", "faggot", "a chink joke", "spic", "wetback"]) {
-      expect(hasSevereLanguage(value)).toBe(true)
+      expect(hasProfanity(value)).toBe(true)
     }
   })
 
-  test("lets ordinary swearing through, so it gets censored instead", () => {
+  test("catches ordinary swearing too, now that everything blocks", () => {
     for (const value of ["fuck this gradient", "shitty scene", "ass", "twat"]) {
-      expect(hasSevereLanguage(value)).toBe(false)
+      expect(hasProfanity(value)).toBe(true)
+    }
+  })
+
+  test("catches the house additions", () => {
+    for (const value of ["goy", "goyim", "uncircumcised", "uncircumsized"]) {
       expect(hasProfanity(value)).toBe(true)
     }
   })
 
   test("says nothing about words the dataset does not carry", () => {
     expect(hasProfanity("damn")).toBe(false)
-    expect(hasSevereLanguage("damn")).toBe(false)
   })
 
   test("the house list is word-bounded, not a substring match", () => {
@@ -205,27 +208,27 @@ describe("the severe tier", () => {
       "custard",
       "bean field",
     ]) {
-      expect(hasSevereLanguage(clean)).toBe(false)
+      expect(hasProfanity(clean)).toBe(false)
     }
   })
 
   test("still sees through leetspeak and casing", () => {
-    expect(hasSevereLanguage("N1GG3R")).toBe(true)
+    expect(hasProfanity("N1GG3R")).toBe(true)
   })
 })
 
-describe("findSevereLanguageInScene", () => {
+describe("findProfanityInScene", () => {
   const clean = () => parseLabProjectFile(labFile([layer()]))
 
   test("names the title", () => {
     expect(
-      findSevereLanguageInScene({ projectFile: clean(), title: "nigger" })
+      findProfanityInScene({ projectFile: clean(), title: "nigger" })
     ).toBe("the title")
   })
 
   test("names the description", () => {
     expect(
-      findSevereLanguageInScene({
+      findProfanityInScene({
         description: "a scene about faggots",
         projectFile: clean(),
         title: "Fine",
@@ -238,7 +241,7 @@ describe("findSevereLanguageInScene", () => {
       labFile([layer({ params: { text: "NIGGER" }, type: "text" })])
     )
 
-    expect(findSevereLanguageInScene({ projectFile, title: "Fine" })).toBe(
+    expect(findProfanityInScene({ projectFile, title: "Fine" })).toBe(
       "the text on one of your text layers"
     )
   })
@@ -246,7 +249,7 @@ describe("findSevereLanguageInScene", () => {
   test("names layer names", () => {
     const projectFile = parseLabProjectFile(labFile([layer({ name: "kike" })]))
 
-    expect(findSevereLanguageInScene({ projectFile, title: "Fine" })).toBe(
+    expect(findProfanityInScene({ projectFile, title: "Fine" })).toBe(
       "your layer names"
     )
   })
@@ -255,14 +258,14 @@ describe("findSevereLanguageInScene", () => {
     const projectFile = parseLabProjectFile(
       labFile([layer({ params: { text: "NIGGER" }, type: "text" })])
     )
-    const where = findSevereLanguageInScene({ projectFile, title: "Fine" })
+    const where = findProfanityInScene({ projectFile, title: "Fine" })
 
     expect(where?.toLowerCase()).not.toContain("nig")
   })
 
   test("passes a clean scene", () => {
     expect(
-      findSevereLanguageInScene({
+      findProfanityInScene({
         description: "a calm noise field",
         projectFile: clean(),
         title: "Drift",
@@ -270,13 +273,16 @@ describe("findSevereLanguageInScene", () => {
     ).toBeNull()
   })
 
-  test("lets an ordinary swear through, so it is censored not blocked", () => {
+  test("catches an ordinary swear too, not just slurs", () => {
     const projectFile = parseLabProjectFile(
       labFile([layer({ params: { text: "fuck" }, type: "text" })])
     )
 
+    expect(findProfanityInScene({ projectFile, title: "Fine" })).toBe(
+      "the text on one of your text layers"
+    )
     expect(
-      findSevereLanguageInScene({ projectFile, title: "fucking gradient" })
-    ).toBeNull()
+      findProfanityInScene({ projectFile: clean(), title: "fucking gradient" })
+    ).toBe("the title")
   })
 })

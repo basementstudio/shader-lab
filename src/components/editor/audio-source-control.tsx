@@ -318,8 +318,8 @@ export function AudioSourceControl({
         <Popover.Trigger
           aria-label={triggerLabel}
           className={cn(
-            "inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-[8px] text-[var(--ds-color-text-secondary)] transition-[background-color,border-color,color] duration-160 ease-[var(--ease-out-cubic)] hover:border-[var(--ds-border-hover)] hover:bg-white/8 data-[popup-open]:border-[var(--ds-border-hover)] data-[popup-open]:bg-white/8 data-[popup-open]:text-[var(--ds-color-text-primary)]",
-            active && "bg-white/12 text-[var(--ds-color-text-primary)]"
+            "inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-[8px] text-[var(--ds-color-text-secondary)] transition-[background-color,border-color,color] duration-160 ease-[var(--ease-out-cubic)] hover:border-[var(--ds-border-hover)] hover:bg-[var(--ds-color-surface-active)] data-[popup-open]:border-[var(--ds-border-hover)] data-[popup-open]:bg-[var(--ds-color-surface-active)] data-[popup-open]:text-[var(--ds-color-text-primary)]",
+            active && "bg-[var(--ds-color-surface-selected)] text-[var(--ds-color-text-primary)]"
           )}
         >
           <MusicNoteIcon />
@@ -373,7 +373,7 @@ export function AudioSourceControl({
                 />
 
                 <button
-                  className="inline-flex h-8 cursor-pointer items-center justify-center rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-3 text-[var(--ds-color-text-secondary)] transition-[background-color,border-color] duration-160 ease-[var(--ease-out-cubic)] hover:border-[var(--ds-border-hover)] hover:bg-white/8"
+                  className="inline-flex h-8 cursor-pointer items-center justify-center rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-3 text-[var(--ds-color-text-secondary)] transition-[background-color,border-color] duration-160 ease-[var(--ease-out-cubic)] hover:border-[var(--ds-border-hover)] hover:bg-[var(--ds-color-surface-active)]"
                   onClick={() => fileInputRef.current?.click()}
                   type="button"
                 >

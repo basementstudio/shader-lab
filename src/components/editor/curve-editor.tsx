@@ -267,7 +267,7 @@ function CurveEditorContent({ easing, onChange }: CurveEditorProps) {
 
   return (
     <div className="flex w-[340px] flex-col gap-3 p-3">
-      <div className="relative overflow-hidden rounded-[14px] border border-white/6 bg-[linear-gradient(180deg,rgb(255_255_255_/_0.045)_0%,rgb(255_255_255_/_0.018)_100%)] px-3 py-3 shadow-[inset_0_1px_0_rgb(255_255_255_/_0.05)]">
+      <div className="relative overflow-hidden rounded-[14px] border border-[var(--ds-border-divider)] bg-[linear-gradient(180deg,rgb(255_255_255_/_0.045)_0%,rgb(255_255_255_/_0.018)_100%)] px-3 py-3 shadow-[inset_0_1px_0_rgb(255_255_255_/_0.05)]">
         <svg
           aria-label="Easing curve editor"
           className="block select-none"
@@ -416,14 +416,14 @@ function CurveEditorContent({ easing, onChange }: CurveEditorProps) {
         </div>
       </div>
 
-      <div className="max-h-[272px] overflow-y-auto rounded-[14px] border border-white/6 bg-[linear-gradient(180deg,rgb(255_255_255_/_0.03)_0%,rgb(255_255_255_/_0.015)_100%)] px-3 py-3">
+      <div className="max-h-[272px] overflow-y-auto rounded-[14px] border border-[var(--ds-border-divider)] bg-[linear-gradient(180deg,rgb(255_255_255_/_0.03)_0%,rgb(255_255_255_/_0.015)_100%)] px-3 py-3">
         <div className="flex flex-col gap-4">
           <button
             className={cn(
               "inline-flex items-center gap-2 self-start rounded-[10px] border px-2.5 py-1.5 transition-[background-color,border-color,color] duration-140 ease-[var(--ease-out-cubic)] hover:bg-white/6 hover:border-white/10",
               isStep
-                ? "border-white/14 bg-white/8 text-[var(--ds-color-text-primary)]"
-                : "border-white/6 text-[var(--ds-color-text-secondary)]"
+                ? "border-[var(--ds-border-active)] bg-[var(--ds-color-surface-selected)] text-[var(--ds-color-text-primary)]"
+                : "border-[var(--ds-border-divider)] text-[var(--ds-color-text-secondary)]"
             )}
             onClick={() => onChange({ type: "step" })}
             type="button"
@@ -464,8 +464,8 @@ function CurveEditorContent({ easing, onChange }: CurveEditorProps) {
                     className={cn(
                       "inline-flex items-center gap-2 rounded-[10px] border px-2.5 py-2 text-left transition-[background-color,border-color,color,transform] duration-140 ease-[var(--ease-out-cubic)] hover:bg-white/6 hover:border-white/10 active:scale-[0.985]",
                       activePreset === preset.name
-                        ? "border-white/14 bg-white/8 text-[var(--ds-color-text-primary)]"
-                        : "border-white/6 text-[var(--ds-color-text-secondary)]"
+                        ? "border-[var(--ds-border-active)] bg-[var(--ds-color-surface-selected)] text-[var(--ds-color-text-primary)]"
+                        : "border-[var(--ds-border-divider)] text-[var(--ds-color-text-secondary)]"
                     )}
                     key={preset.name}
                     onClick={() =>
@@ -538,7 +538,7 @@ export function CurveEditorPopover({ easing, onChange }: CurveEditorProps) {
     <Popover.Root modal={false}>
       <Popover.Trigger
         aria-label="Edit easing curve"
-        className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] text-[var(--ds-color-text-secondary)] transition-[background-color,border-color,color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:bg-white/8 hover:border-[var(--ds-border-hover)] active:scale-[0.96] data-[popup-open]:bg-white/8 data-[popup-open]:border-[var(--ds-border-hover)] data-[popup-open]:text-[var(--ds-color-text-primary)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--ds-border-active)]"
+        className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] text-[var(--ds-color-text-secondary)] transition-[background-color,border-color,color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:bg-[var(--ds-color-surface-active)] hover:border-[var(--ds-border-hover)] active:scale-[0.96] data-[popup-open]:bg-[var(--ds-color-surface-active)] data-[popup-open]:border-[var(--ds-border-hover)] data-[popup-open]:text-[var(--ds-color-text-primary)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--ds-border-active)]"
       >
         <CurvePreview easing={easing} />
       </Popover.Trigger>

@@ -40,7 +40,7 @@ export function SceneCard({
             </Typography>
           </span>
 
-          <span aria-hidden="true" className="h-2.5 w-px bg-white/12" />
+          <span aria-hidden="true" className="h-2.5 w-px bg-[var(--ds-border-divider)]" />
 
           <span className="inline-flex items-center gap-1">
             <span className="text-[var(--ds-color-text-secondary)]">

@@ -1388,7 +1388,8 @@ export function EditorTimelineOverlay() {
                             <div
                               className={cn(
                                 "flex min-h-8 items-center gap-1.5 rounded-[10px] border border-transparent px-1.5 transition-[background-color,border-color,color] duration-160 ease-[var(--ease-out-cubic)]",
-                                isFocused && "border-white/8 bg-white/8"
+                                isFocused &&
+                                  "border-[var(--ds-border-hover)] bg-[var(--ds-color-surface-active)]"
                               )}
                               key={entry.id}
                             >
@@ -1487,7 +1488,7 @@ export function EditorTimelineOverlay() {
                     {tickPositions.minorTicks.map((tick) => (
                       <span
                         aria-hidden="true"
-                        className="absolute bottom-0 h-[10px] w-px bg-white/6"
+                        className="absolute bottom-0 h-[10px] w-px bg-[var(--ds-border-divider)]"
                         key={`minor-${tick}`}
                         style={{
                           left: `${(tick / duration) * 100}%`,
@@ -1536,7 +1537,7 @@ export function EditorTimelineOverlay() {
                         return (
                           <div
                             className={cn(
-                              "relative basis-[46px] border-b border-white/4 bg-[linear-gradient(90deg,rgb(255_255_255_/_0.02)_0%,rgb(255_255_255_/_0.015)_100%)] transition-opacity duration-160 ease-[var(--ease-out-cubic)]",
+                              "relative basis-[46px] border-b border-[var(--ds-border-divider)] bg-[linear-gradient(90deg,rgb(255_255_255_/_0.02)_0%,rgb(255_255_255_/_0.015)_100%)] transition-opacity duration-160 ease-[var(--ease-out-cubic)]",
                               isFocused &&
                                 "bg-[linear-gradient(90deg,rgb(var(--timeline-track-rgb,122_162_255)_/_0.12)_0%,rgb(var(--timeline-track-rgb,122_162_255)_/_0.03)_42%,rgb(255_255_255_/_0.02)_100%)]",
                               !laneEnabled && "opacity-55"

@@ -8,6 +8,7 @@ import { OpenInEditor } from "@/components/community/open-in-editor"
 import { PublicSceneCard } from "@/components/community/public-scene-card"
 import { RemixCredit } from "@/components/community/remix-credit"
 import { SCENE_GRID_CLASS_NAME } from "@/components/community/scene-grid"
+import { SceneTag } from "@/components/community/scene-tag"
 import { ButtonLink } from "@/components/ui/button/link"
 import { Typography } from "@/components/ui/typography"
 import { APP_BASE_URL } from "@/lib/app"
@@ -217,22 +218,8 @@ async function SceneBody({ params }: PageProps) {
 
             <div className="flex flex-wrap gap-1.5">
               {scene.layerTypes.map((type) => (
-                <span
-                  className="inline-flex min-h-6 items-center rounded-[var(--ds-radius-control)] border border-[var(--ds-border-subtle)] bg-[var(--ds-color-surface-subtle)] px-2"
-                  key={type}
-                >
-                  <Typography as="span" tone="secondary" variant="monoXs">
-                    {getLayerLabel(type)}
-                  </Typography>
-                </span>
+                <SceneTag key={type}>{getLayerLabel(type)}</SceneTag>
               ))}
-              {scene.hasCustomShader ? (
-                <span className="inline-flex min-h-6 items-center rounded-[var(--ds-radius-control)] border border-[var(--ds-border-active)] bg-[var(--ds-color-surface-active)] px-2">
-                  <Typography as="span" variant="monoXs">
-                    Custom shader
-                  </Typography>
-                </span>
-              ) : null}
             </div>
           </div>
         </div>

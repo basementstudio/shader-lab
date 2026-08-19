@@ -14,6 +14,7 @@ import type {
   CommunitySceneDetail,
   CommunitySceneSummary,
 } from "@/lib/community/scenes"
+import { SceneTag } from "@/components/community/scene-tag"
 import { getLayerLabel } from "@/lib/editor/config/layer-catalog"
 
 function formatPublishedAt(value: string | null): string {
@@ -97,22 +98,8 @@ export function SceneDetail({
 
         <div className="flex flex-wrap gap-1.5">
           {scene.layerTypes.map((type) => (
-            <span
-              className="inline-flex min-h-6 items-center rounded-[var(--ds-radius-control)] border border-[var(--ds-border-subtle)] bg-[var(--ds-color-surface-subtle)] px-2"
-              key={type}
-            >
-              <Typography as="span" tone="secondary" variant="monoXs">
-                {getLayerLabel(type)}
-              </Typography>
-            </span>
+            <SceneTag key={type}>{getLayerLabel(type)}</SceneTag>
           ))}
-          {scene.hasCustomShader ? (
-            <span className="inline-flex min-h-6 items-center rounded-[var(--ds-radius-control)] border border-[var(--ds-border-active)] bg-[var(--ds-color-surface-active)] px-2">
-              <Typography as="span" variant="monoXs">
-                Custom shader
-              </Typography>
-            </span>
-          ) : null}
         </div>
 
         {forkedFrom ? (

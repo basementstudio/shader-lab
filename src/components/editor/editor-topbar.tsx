@@ -24,6 +24,7 @@ import { IconButtonLink } from "@/components/ui/icon-button/link"
 import { HoverTooltip } from "@/components/ui/tooltip"
 import { Typography } from "@/components/ui/typography"
 import { playUISound } from "@/lib/audio/shader-lab-sounds"
+import { cn } from "@/lib/cn"
 import { useCommunityUnread } from "@/lib/community/use-community-unread"
 import {
   applyEditorHistorySnapshot,
@@ -76,6 +77,18 @@ const EditorExportDialog = dynamic(
 
 const HISTORY_COMMIT_DEBOUNCE_MS = 220
 const GITHUB_REPO_URL = "https://github.com/basementstudio/shader-lab"
+
+function TopbarDivider({ className }: { className?: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        "block h-4 w-px rounded-full bg-[var(--ds-border-divider)]",
+        className
+      )}
+    />
+  )
+}
 
 function GitHubStarLink({ mobile = false }: { mobile?: boolean }) {
   return (
@@ -445,7 +458,7 @@ export function EditorTopBar({
       >
         {({ dragHandleProps }) => (
           <GlassPanel
-            className="flex min-h-10 w-auto items-center justify-between gap-[var(--ds-space-4)] px-[10px] py-1"
+            className="flex min-h-11 w-auto items-center justify-between gap-[var(--ds-space-4)] px-[10px] py-[3px]"
             variant="panel"
           >
             <IconButton
@@ -458,7 +471,7 @@ export function EditorTopBar({
               <DragHandleDots2Icon height={14} width={14} />
             </IconButton>
 
-            <div className="inline-flex items-center gap-0.5 rounded-[calc(var(--ds-radius-icon)+1px)] border border-white/8 bg-black/25">
+            <div className="inline-flex items-center gap-0.5 rounded-[var(--ds-radius-bar)] border border-white/8 bg-black/25 p-[3px]">
               <IconButton
                 aria-label="Undo"
                 className="h-7 w-7 disabled:opacity-45"
@@ -483,10 +496,7 @@ export function EditorTopBar({
                 <ResetIcon className="scale-x-[-1]" height={18} width={18} />
               </IconButton>
 
-              <span
-                aria-hidden="true"
-                className="mx-0.5 block h-4 w-px rounded-full bg-[var(--ds-border-divider)]"
-              />
+              <TopbarDivider className="mx-0.5" />
 
               <IconButton
                 aria-label="Zoom out"
@@ -526,10 +536,7 @@ export function EditorTopBar({
               >
                 <ZoomInIcon height={18} width={18} />
               </IconButton>
-              <span
-                aria-hidden="true"
-                className="mx-0.5 block h-4 w-px rounded-full bg-[var(--ds-border-divider)]"
-              />
+              <TopbarDivider className="mx-0.5" />
 
               {rightSidebarVisible ? (
                 <IconButton
@@ -613,6 +620,7 @@ export function EditorTopBar({
               >
                 <DownloadIcon height={16} width={16} />
               </IconButton>
+              <TopbarDivider />
               <GitHubStarLink />
               <AgentConnectPanel />
               {communityEnabled ? (
@@ -707,10 +715,7 @@ export function EditorTopBar({
               >
                 <ZoomInIcon height={18} width={18} />
               </IconButton>
-              <span
-                aria-hidden="true"
-                className="mx-1 block h-5 w-px rounded-full bg-[var(--ds-border-divider)]"
-              />
+              <TopbarDivider className="mx-1 h-5" />
               <IconButton
                 aria-label="Export"
                 className="h-7 w-7 disabled:opacity-45"

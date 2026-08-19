@@ -307,7 +307,7 @@ const projectAudioSchema = z.looseObject({
   source: z.looseObject({ kind: z.string() }).nullable().optional(),
 })
 
-export const CURRENT_PROJECT_FILE_VERSION = 5
+export const CURRENT_PROJECT_FILE_VERSION = 6
 
 const labProjectFileSchema = z.looseObject({
   assets: z.array(assetReferenceSchema),
@@ -560,10 +560,12 @@ export function migrateLayerParams(
     params.fontWeight = LEGACY_ASCII_FONT_WEIGHTS[params.fontWeight] ?? 400
   }
 
-  // v5 flipped blob-tracking `sensitivity` so higher means more sensitive;
-  // before that it was fed straight in as a luma threshold.
+  // v6 flipped blob-tracking `sensitivity` so higher means more sensitive;
+  // before that it was fed straight in as a luma threshold. The flip landed on
+  // main as v5 while this branch had already published scenes stamped 5 for an
+  // unrelated change, so it has to reach those too.
   if (
-    version < 5 &&
+    version < 6 &&
     layer.type === "blob-tracking" &&
     typeof params.sensitivity === "number"
   ) {

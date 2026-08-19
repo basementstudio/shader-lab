@@ -10,7 +10,7 @@ export function RemixCredit({ lineage }: { lineage: SceneLineage }) {
 
   return (
     <span className="inline-flex min-w-0 items-center gap-[var(--ds-space-2)]">
-      <Typography as="span" tone="tertiary" variant="caption">
+      <Typography as="span" tone="secondary" variant="caption">
         Remixed from
       </Typography>
       <span className="inline-flex min-w-0 items-center gap-1.5">

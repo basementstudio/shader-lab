@@ -1,6 +1,7 @@
 import type { ReactNode } from "react"
 import { AuthorAvatar } from "@/components/community/author-avatar"
 import { Typography } from "@/components/ui/typography"
+import { pluralize } from "@/lib/plural"
 import type { PublicProfileView } from "@/lib/community/profiles"
 
 function joinedLabel(joinedAt: string): string | null {
@@ -75,46 +76,35 @@ export function ProfileHeader({
 
       <dl className="flex flex-wrap gap-[var(--ds-space-5)]">
         <ProfileStat
-          label={profile.publishedCount === 1 ? "scene" : "scenes"}
+          count={profile.publishedCount}
+          noun="scene"
           scale={scale}
-          value={profile.publishedCount}
         />
-        <ProfileStat
-          label={profile.upvoteCount === 1 ? "upvote" : "upvotes"}
-          scale={scale}
-          value={profile.upvoteCount}
-        />
-        <ProfileStat
-          label={profile.remixCount === 1 ? "remix" : "remixes"}
-          scale={scale}
-          value={profile.remixCount}
-        />
+        <ProfileStat count={profile.upvoteCount} noun="upvote" scale={scale} />
+        <ProfileStat count={profile.remixCount} noun="remix" scale={scale} />
       </dl>
     </header>
   )
 }
 
 function ProfileStat({
-  label,
+  count,
+  noun,
   scale,
-  value,
 }: {
-  label: string
+  count: number
+  noun: string
   scale: ProfileHeaderScale
-  value: number
 }) {
   const step = SCALES[scale]
+  const label = pluralize(count, noun)
 
   return (
     <div className="flex items-baseline gap-1.5">
       <dt className="sr-only">{label}</dt>
       <dd className="flex items-baseline gap-1.5">
-        <Typography
-          as="span"
-          className="tabular-nums"
-          variant={step.statValue}
-        >
-          {value}
+        <Typography as="span" className="tabular-nums" variant={step.statValue}>
+          {count}
         </Typography>
         <Typography as="span" tone="secondary" variant={step.statLabel}>
           {label}

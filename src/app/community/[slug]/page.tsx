@@ -136,7 +136,7 @@ async function SceneBody({ params }: PageProps) {
     : null
 
   return (
-    <main className="mx-auto flex w-full max-w-[1180px] flex-col gap-[var(--ds-space-16)] px-4 py-10 sm:px-6">
+    <main className="mx-auto flex w-full max-w-[1180px] flex-col gap-[var(--ds-space-10)] px-4 py-10 sm:px-6">
       <div className="flex flex-col gap-[var(--ds-space-6)]">
         <ButtonLink
           className="w-fit px-0"
@@ -161,7 +161,7 @@ async function SceneBody({ params }: PageProps) {
         </figure>
       </div>
 
-      <div className="grid grid-cols-1 gap-[var(--ds-space-8)] min-[860px]:grid-cols-[minmax(0,1fr)_auto]">
+      <div className="mt-[var(--ds-space-6)] grid grid-cols-1 gap-[var(--ds-space-8)] min-[860px]:grid-cols-[minmax(0,1fr)_auto]">
         <div className="flex min-w-0 flex-col gap-[var(--ds-space-5)]">
           <div className="flex flex-col gap-[var(--ds-space-3)]">
             <Typography as="h1" className="text-balance" variant="display">

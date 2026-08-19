@@ -2,17 +2,18 @@
 
 import { AuthorAvatar } from "@/components/community/author-avatar"
 import { Typography } from "@/components/ui/typography"
-import { lineageAuthorName } from "@/lib/community/lineage"
+import { isSelfRemix, lineageAuthorName } from "@/lib/community/lineage"
 import type { SceneLineage } from "@/lib/community/scenes"
 
 export function RemixCredit({
   lineage,
-  showAuthor = true,
+  sceneAuthorHandle,
 }: {
   lineage: SceneLineage
-  showAuthor?: boolean
+  sceneAuthorHandle: string
 }) {
   const name = lineageAuthorName(lineage)
+  const showAuthor = !isSelfRemix(sceneAuthorHandle, lineage)
 
   return (
     <span className="inline-flex min-w-0 items-center gap-[var(--ds-space-2)]">

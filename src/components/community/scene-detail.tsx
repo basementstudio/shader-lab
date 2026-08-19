@@ -110,7 +110,10 @@ export function SceneDetail({
             title={forkedFrom.title}
             type="button"
           >
-            <RemixCredit lineage={forkedFrom} />
+            <RemixCredit
+              lineage={forkedFrom}
+              sceneAuthorHandle={scene.authorHandle}
+            />
           </button>
         ) : null}
 

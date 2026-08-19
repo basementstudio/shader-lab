@@ -13,7 +13,7 @@ import { ButtonLink } from "@/components/ui/button/link"
 import { Typography } from "@/components/ui/typography"
 import { APP_BASE_URL } from "@/lib/app"
 import { isCommunityEnabled } from "@/lib/community/config"
-import { isSelfRemix, lineageLabel } from "@/lib/community/lineage"
+import { lineageLabel } from "@/lib/community/lineage"
 import {
   editorSceneHref,
   OPEN_IN_EDITOR_PARAM,
@@ -211,7 +211,7 @@ async function SceneBody({ params }: PageProps) {
               >
                 <RemixCredit
                   lineage={scene.forkedFrom}
-                  showAuthor={!isSelfRemix(scene.authorHandle, scene.forkedFrom)}
+                  sceneAuthorHandle={scene.authorHandle}
                 />
               </Link>
             ) : null}

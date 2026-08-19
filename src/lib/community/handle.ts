@@ -1,3 +1,5 @@
+import { hasProfanity } from "@/lib/community/language"
+
 export const HANDLE_MIN_LENGTH = 3
 export const HANDLE_MAX_LENGTH = 30
 
@@ -69,7 +71,11 @@ export function isLookupableHandle(handle: string): boolean {
 }
 
 export function isValidHandle(handle: string): boolean {
-  return isLookupableHandle(handle) && !isReservedHandle(handle)
+  return (
+    isLookupableHandle(handle) &&
+    !isReservedHandle(handle) &&
+    !hasProfanity(handle)
+  )
 }
 
 const MAX_RAW_HANDLE_INPUT = 60
@@ -104,6 +110,10 @@ export function describeHandleInput(
     }
   }
 
+  if (hasProfanity(handle)) {
+    return { reason: "That handle reads as language we do not allow." }
+  }
+
   return { handle }
 }
 
@@ -121,13 +131,13 @@ export function deriveHandleSeed(input: {
 }): string {
   const fromName = slugifyHandle(input.name ?? "")
 
-  if (fromName.length >= HANDLE_MIN_LENGTH) {
+  if (fromName.length >= HANDLE_MIN_LENGTH && !hasProfanity(fromName)) {
     return fromName
   }
 
   const fromEmail = emailLocalPart(input.email)
 
-  if (fromEmail.length >= HANDLE_MIN_LENGTH) {
+  if (fromEmail.length >= HANDLE_MIN_LENGTH && !hasProfanity(fromEmail)) {
     return fromEmail
   }
 

@@ -1,7 +1,18 @@
 import { eq } from "drizzle-orm"
 import { buildHandleCandidates } from "@/lib/community/handle"
+import { censorText } from "@/lib/community/language"
 import { getDatabase } from "@/lib/db"
 import { handleClaims, profiles } from "@/lib/db/schema"
+
+export const MAX_DISPLAY_NAME_LENGTH = 80
+
+export function normalizeDisplayName(value: unknown): string | null {
+  const name = typeof value === "string" ? value.trim() : ""
+
+  return name.length > 0
+    ? censorText(name.slice(0, MAX_DISPLAY_NAME_LENGTH))
+    : null
+}
 
 export interface ProfileSeed {
   avatarUrl?: string | null
@@ -90,7 +101,7 @@ export async function ensureProfile(
   if (existing) {
     await backfillMissingClaim(existing)
 
-    const displayName = seed.name ?? existing.displayName
+    const displayName = normalizeDisplayName(seed.name) ?? existing.displayName
     const avatarUrl = seed.avatarUrl ?? existing.avatarUrl
 
     if (
@@ -116,7 +127,7 @@ export async function ensureProfile(
           .insert(profiles)
           .values({
             avatarUrl: seed.avatarUrl ?? null,
-            displayName: seed.name ?? null,
+            displayName: normalizeDisplayName(seed.name),
             handle,
             userId,
           })

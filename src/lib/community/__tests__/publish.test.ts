@@ -10,6 +10,7 @@ import {
   MAX_TITLE_LENGTH,
   MAX_TOTAL_BYTES,
   normalizeDescription,
+  normalizeDraftTitle,
   normalizeThumbnailUrl,
   normalizeTitle,
   planUploads,
@@ -637,5 +638,58 @@ describe("findAssetOutsideScenePrefixes", () => {
         new Set([scenePrefixFor("scn_own")])
       )
     ).toBeNull()
+  })
+})
+
+describe("moderating what gets stored", () => {
+  test("normalizeTitle masks a slur rather than rejecting the publish", () => {
+    expect(normalizeTitle("  fuck this gradient  ")).toBe("**** this gradient")
+  })
+
+  test("normalizeDraftTitle masks the same way", () => {
+    expect(normalizeDraftTitle("shit sketch")).toBe("**** sketch")
+  })
+
+  test("normalizeDescription masks", () => {
+    expect(normalizeDescription("a fucking noise field")).toBe(
+      "a ****ing noise field"
+    )
+  })
+
+  test("length caps still apply after masking", () => {
+    expect(normalizeTitle("a".repeat(200))).toHaveLength(MAX_TITLE_LENGTH)
+    expect(normalizeDescription("b".repeat(900))).toHaveLength(
+      MAX_DESCRIPTION_LENGTH
+    )
+  })
+
+  test("the slug never carries the word the title was masked for", () => {
+    const slug = buildSceneSlug(normalizeTitle("fuck gradients"))
+
+    expect(slug).toMatch(/^gradients-[a-z0-9]{6}$/)
+  })
+
+  test("a title that is nothing but a slur still yields a usable slug", () => {
+    expect(normalizeTitle("fuck")).toBe("****")
+    expect(buildSceneSlug(normalizeTitle("fuck"))).toMatch(
+      /^scene-[a-z0-9]{6}$/
+    )
+  })
+
+  test("validateProjectFilePayload hands back a censored body to store", () => {
+    const raw = labFile()
+    const dirty = raw.replace('"name":"Gradient"', '"name":"fuck"')
+    const validated = validateProjectFilePayload(dirty)
+
+    expect(validated.projectFile.layers[0]?.name).toBe("****")
+    expect(validated.body).not.toContain("fuck")
+    expect(JSON.parse(validated.body).layers[0].name).toBe("****")
+  })
+
+  test("a clean scene is stored byte-for-byte as it arrived", () => {
+    const raw = labFile()
+
+    expect(validateProjectFilePayload(raw).body).toBe(raw)
+    expect(validateDraftPayload(raw).body).toBe(raw)
   })
 })

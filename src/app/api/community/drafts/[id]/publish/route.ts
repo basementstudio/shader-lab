@@ -240,7 +240,7 @@ export async function POST(
 
   try {
     await putObject({
-      body: raw,
+      body: validated.body,
       contentType: "application/json",
       key: labKey,
     })

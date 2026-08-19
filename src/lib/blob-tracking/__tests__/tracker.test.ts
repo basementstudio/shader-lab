@@ -7,8 +7,13 @@ import {
   TRACK_GRACE_FRAMES,
 } from "@/lib/blob-tracking/tracker"
 
-type Cell = { luma?: number; motion?: number }
+type Cell = { energy?: number; luma?: number; motion?: number }
 
+/**
+ * Mirrors the analysis pass output. `energy` defaults to `motion` because the
+ * GPU writes `max(decayedEnergy, motion)`, so a cell seeing fresh motion always
+ * carries at least that much energy.
+ */
 function makeGrid(
   width: number,
   height: number,
@@ -17,10 +22,11 @@ function makeGrid(
   const grid = new Uint8Array(width * height * 4)
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
-      const { luma = 0, motion = 0 } = cell(x, y)
+      const { luma = 0, motion = 0, energy } = cell(x, y)
       const index = (y * width + x) * 4
       grid[index] = motion
       grid[index + 1] = luma
+      grid[index + 2] = energy ?? motion
       grid[index + 3] = 255
     }
   }
@@ -67,6 +73,41 @@ describe("BlobTracker detection", () => {
     expect(blobs[0]?.area).toBe(4)
     expect(blobs[0]?.cx).toBeCloseTo((2.5 + 0.5) / 8, 5)
     expect(blobs[0]?.cy).toBeCloseTo((2.5 + 0.5) / 8, 5)
+  })
+
+  test("detects on decayed energy after instantaneous motion stops", () => {
+    const held = makeGrid(8, 8, (x, y) =>
+      x >= 2 && x <= 3 && y >= 2 && y <= 3 ? { energy: 200, motion: 0 } : {}
+    )
+    const tracker = new BlobTracker()
+
+    tracker.step(held, 8, 8, 0, config({ detectionMode: "motion" }))
+
+    expect(tracker.getBlobs()).toHaveLength(1)
+    expect(tracker.getBlobs()[0]?.area).toBe(4)
+  })
+
+  test("ignores instantaneous motion that carries no energy", () => {
+    const stale = makeGrid(8, 8, (x, y) =>
+      x >= 2 && x <= 3 && y >= 2 && y <= 3 ? { energy: 0, motion: 255 } : {}
+    )
+    const tracker = new BlobTracker()
+
+    tracker.step(stale, 8, 8, 0, config({ detectionMode: "motion" }))
+
+    expect(tracker.getBlobs()).toHaveLength(0)
+  })
+
+  test("higher sensitivity detects dimmer content", () => {
+    const dim = lumaBlock(8, 8, [{ luma: 60, x0: 2, x1: 3, y0: 2, y1: 3 }])
+
+    const shy = new BlobTracker()
+    shy.step(dim, 8, 8, 0, config({ sensitivity: 0.5 }))
+    expect(shy.getBlobs()).toHaveLength(0)
+
+    const keen = new BlobTracker()
+    keen.step(dim, 8, 8, 0, config({ sensitivity: 0.9 }))
+    expect(keen.getBlobs()).toHaveLength(1)
   })
 
   test("does not merge separated components", () => {
@@ -345,5 +386,70 @@ describe("BlobTracker auto detection mode", () => {
     // Proof it re-armed to motion: a luminance-only frame now yields nothing.
     tracker.step(staticGrid, 16, 16, STATIC_STEPS_BEFORE_FALLBACK + 1, cfg)
     expect(tracker.getBlobs()).toHaveLength(0)
+  })
+})
+
+describe("BlobTracker velocity", () => {
+  const GRID = 32
+
+  function movingGrid(x0: number): Uint8Array {
+    return lumaBlock(GRID, 16, [{ x0, x1: x0 + 1, y0: 7, y1: 8 }])
+  }
+
+  test("estimates velocity from a steady drift", () => {
+    const tracker = new BlobTracker()
+    const settings = config({ persistentTracking: true, smoothing: 0 })
+
+    // The estimate is an EMA, so give it enough steps to converge.
+    for (let step = 0; step < 16; step += 1) {
+      tracker.step(movingGrid(2 + step), GRID, 16, step, settings)
+    }
+
+    const blob = tracker.getBlobs()[0]
+    expect(blob?.vx).toBeGreaterThan(0)
+    // One cell per step across a 32-wide grid.
+    expect(blob?.vx).toBeCloseTo(1 / GRID, 3)
+    expect(blob?.vy).toBeCloseTo(0, 4)
+  })
+
+  test("a stationary blob has no velocity", () => {
+    const tracker = new BlobTracker()
+    const settings = config({ persistentTracking: true, smoothing: 0 })
+
+    for (let step = 0; step < 5; step += 1) {
+      tracker.step(movingGrid(4), GRID, 16, step, settings)
+    }
+
+    expect(tracker.getBlobs()[0]?.vx).toBeCloseTo(0, 4)
+  })
+
+  test("crossing blobs keep their ids", () => {
+    const tracker = new BlobTracker()
+    const settings = config({ persistentTracking: true, smoothing: 0 })
+
+    // Two blobs approach, meet, and pass through each other.
+    for (let step = 0; step < 10; step += 1) {
+      const left = 2 + step
+      const right = 12 - step
+      tracker.step(
+        lumaBlock(24, 16, [
+          { x0: left, x1: left, y0: 7, y1: 7 },
+          { x0: right, x1: right, y0: 7, y1: 7 },
+        ]),
+        24,
+        16,
+        step,
+        settings
+      )
+    }
+
+    const active = tracker.getBlobs().filter((blob) => blob.active)
+    expect(active.map((blob) => blob.id).sort((a, b) => a - b)).toEqual([1, 2])
+
+    // Id 1 started on the left and travelled right, so after crossing it must
+    // be the right-hand blob. If the two swapped identities this inverts.
+    const first = active.find((blob) => blob.id === 1)
+    const second = active.find((blob) => blob.id === 2)
+    expect(first?.cx).toBeGreaterThan(second?.cx as number)
   })
 })

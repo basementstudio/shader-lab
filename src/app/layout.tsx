@@ -11,6 +11,7 @@ import { cn } from "@/lib/cn"
 import { fontsVariable } from "@/lib/fonts"
 import "@/app/globals.css"
 import { Analytics } from "@vercel/analytics/next"
+import { SpeedInsights } from "@vercel/speed-insights/next"
 
 export const metadata: Metadata = {
   appleWebApp: {
@@ -87,6 +88,7 @@ export default function RootLayout({ children }: PropsWithChildren) {
         {children}
         <Suspense fallback={null}>
           <Analytics />
+          <SpeedInsights />
         </Suspense>
       </body>
     </html>

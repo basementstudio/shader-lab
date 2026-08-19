@@ -35,7 +35,7 @@ export function AuthorLink({
       <Typography
         as="span"
         className="overflow-hidden text-ellipsis whitespace-nowrap"
-        tone="tertiary"
+        tone="secondary"
         variant="caption"
       >
         {label}

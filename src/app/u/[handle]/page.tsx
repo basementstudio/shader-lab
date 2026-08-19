@@ -111,6 +111,7 @@ async function ProfileRoute({ params }: PageProps) {
         <ProfileHeader
           action={<ProfileOwnerActions handle={profile.handle} />}
           profile={profile}
+          scale="page"
         />
       </div>
 

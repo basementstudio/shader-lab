@@ -458,7 +458,7 @@ export function EditorTopBar({
               <DragHandleDots2Icon height={14} width={14} />
             </IconButton>
 
-            <div className="inline-flex items-center gap-1 rounded-[var(--ds-radius-control)] border border-[var(--ds-border-divider)] px-1 py-1">
+            <div className="inline-flex items-center gap-0.5 rounded-[var(--ds-radius-control)] bg-black/25 p-[3px]">
               <IconButton
                 aria-label="Undo"
                 className="h-7 w-7 disabled:opacity-45"
@@ -526,6 +526,26 @@ export function EditorTopBar({
               >
                 <ZoomInIcon height={18} width={18} />
               </IconButton>
+              <span
+                aria-hidden="true"
+                className="mx-0.5 block h-4 w-px rounded-full bg-[var(--ds-border-divider)]"
+              />
+
+              <IconButton
+                aria-label="Interface sounds"
+                className="h-7 w-7"
+                onClick={() => toggleSoundEnabled()}
+                selected={soundEnabled}
+                tooltip={soundEnabled ? "Mute sounds" : "Unmute sounds"}
+                tooltipSide="bottom"
+                uiSound="none"
+              >
+                {soundEnabled ? (
+                  <SpeakerLoudIcon height={16} width={16} />
+                ) : (
+                  <SpeakerOffIcon height={16} width={16} />
+                )}
+              </IconButton>
             </div>
 
             <div className="inline-flex items-center gap-1.5">
@@ -582,21 +602,6 @@ export function EditorTopBar({
                 </IconButton>
               ) : null}
               <AgentConnectPanel />
-              <IconButton
-                aria-label="Interface sounds"
-                className="h-7 w-7"
-                onClick={() => toggleSoundEnabled()}
-                selected={soundEnabled}
-                tooltip={soundEnabled ? "Mute sounds" : "Unmute sounds"}
-                tooltipSide="bottom"
-                uiSound="none"
-              >
-                {soundEnabled ? (
-                  <SpeakerLoudIcon height={16} width={16} />
-                ) : (
-                  <SpeakerOffIcon height={16} width={16} />
-                )}
-              </IconButton>
               <IconButton
                 aria-label="Export"
                 className="h-7 w-7 disabled:opacity-45"

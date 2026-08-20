@@ -1,19 +1,19 @@
 "use client"
-import type { AudioModulationInput } from "@/lib/editor/audio/links"
 import { decodeAudioBuffer } from "@/lib/editor/audio/decode"
 import {
-  encodeExportAudio,
   type ExportAudioTrackConfig,
+  encodeExportAudio,
   getEncoderPrimingSeconds,
   planExportAudioSegments,
   renderExportAudio,
   resolveExportAudioConfig,
 } from "@/lib/editor/audio/export-audio"
+import type { AudioModulationInput } from "@/lib/editor/audio/links"
+import { acquirePreviewRenderLock } from "@/lib/editor/preview-render-lock"
 import {
   createVideoExportEncoder,
   getSupportedVideoExportConfig,
 } from "@/lib/editor/video-export-encoder"
-import { acquirePreviewRenderLock } from "@/lib/editor/preview-render-lock"
 import { buildRendererFrame } from "@/renderer/contracts"
 import {
   browserSupportsWebGPU,
@@ -356,8 +356,7 @@ async function prepareExportAudio(
     loop: projectState.timeline.loop,
     offsetSeconds: source.offsetSeconds,
     sourceDurationSeconds: decoded.duration,
-    startSeconds:
-      options.startTime + getEncoderPrimingSeconds(config.codec),
+    startSeconds: options.startTime + getEncoderPrimingSeconds(config.codec),
     timelineDurationSeconds: projectState.timeline.duration,
   })
 
@@ -473,7 +472,8 @@ async function runVideoExport(
 
   let renderCanvas: HTMLCanvasElement | null = null
   let renderer: Awaited<ReturnType<typeof createExportRenderer>> | null = null
-  let encoder: Awaited<ReturnType<typeof createVideoExportEncoder>> | null = null
+  let encoder: Awaited<ReturnType<typeof createVideoExportEncoder>> | null =
+    null
   let finalized = false
 
   try {
@@ -617,11 +617,7 @@ async function runVideoExport(
       if (isLastFrame || now - lastProgressAt >= PROGRESS_INTERVAL_MS) {
         lastProgressAt = now
         options.onProgress?.({
-          label: buildRenderLabel(
-            frameIndex + 1,
-            totalFrames,
-            renderStartedAt
-          ),
+          label: buildRenderLabel(frameIndex + 1, totalFrames, renderStartedAt),
           value: 0.08 + ((frameIndex + 1) / totalFrames) * 0.88,
         })
       }
@@ -659,7 +655,9 @@ async function createExportRenderer(canvas: HTMLCanvasElement) {
     throw new Error("WebGPU export is not available in this browser.")
   }
 
-  const renderer = await createWebGPURenderer(canvas)
+  const renderer = await createWebGPURenderer(canvas, {
+    strictPassFailures: true,
+  })
   await renderer.initialize()
   return renderer
 }

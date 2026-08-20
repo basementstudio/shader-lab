@@ -1,6 +1,6 @@
 import {
-  applyAudioModulation,
   type AudioModulationInput,
+  applyAudioModulation,
 } from "@/lib/editor/audio/links"
 import { cloneParameterValues } from "@/lib/editor/parameter-schema"
 import { evaluateTimelineForLayers } from "@/lib/editor/timeline/evaluate"
@@ -47,6 +47,7 @@ export interface EditorRenderer {
   hasPendingCompilations(): boolean
   hasPendingResources(): boolean
   initialize(): Promise<void>
+  isDeviceLost(): boolean
   prepareForExportFrame(time: number, loop: boolean): Promise<void>
   render(frame: RendererFrame): void
   resize(size: Size, pixelRatio: number): void

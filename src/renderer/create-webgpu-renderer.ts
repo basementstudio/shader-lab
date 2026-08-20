@@ -1,9 +1,6 @@
 import * as Sentry from "@sentry/nextjs"
 import * as THREE from "three/webgpu"
-import {
-  markDeviceLost,
-  recordDeviceDiagnostics,
-} from "@/lib/webgpu-diagnostics"
+import { recordDeviceDiagnostics } from "@/lib/webgpu-diagnostics"
 import type { EditorRenderer, RendererFrame } from "@/renderer/contracts"
 import { PipelineManager } from "@/renderer/pipeline-manager"
 import type { Size } from "@/types/editor"
@@ -38,8 +35,15 @@ function getGpuQueue(instance: THREE.WebGPURenderer): GpuQueueLike | null {
   return queue
 }
 
+export type CreateRendererOptions = {
+  // Exports are deliverables: a pass failure must abort rather than silently
+  // ship a frame with a missing layer.
+  strictPassFailures?: boolean
+}
+
 export async function createWebGPURenderer(
-  canvas: HTMLCanvasElement
+  canvas: HTMLCanvasElement,
+  options: CreateRendererOptions = {}
 ): Promise<EditorRenderer> {
   const renderer = new THREE.WebGPURenderer({
     alpha: false,
@@ -48,6 +52,9 @@ export async function createWebGPURenderer(
   })
   let pipeline: PipelineManager | null = null
   let currentPixelRatio = 1
+  // Per renderer, not module state: preview and export own separate devices, so
+  // a lost export device must not halt a healthy preview.
+  let deviceLost = false
 
   function toDeviceSize(size: Size): Size {
     return {
@@ -58,7 +65,13 @@ export async function createWebGPURenderer(
 
   function renderFrame(frame: RendererFrame) {
     if (!pipeline) {
-      pipeline = new PipelineManager(renderer, toDeviceSize(frame.viewportSize))
+      pipeline = new PipelineManager(
+        renderer,
+        toDeviceSize(frame.viewportSize),
+        {
+          strictPassFailures: options.strictPassFailures === true,
+        }
+      )
     }
 
     pipeline.updateLogicalSize(frame.logicalSize)
@@ -90,7 +103,7 @@ export async function createWebGPURenderer(
       const reportDeviceLost = deviceLostHost.onDeviceLost.bind(renderer)
       deviceLostHost.onDeviceLost = (info) => {
         reportDeviceLost(info)
-        markDeviceLost()
+        deviceLost = true
         Sentry.captureMessage("WebGPU device lost", {
           extra: { message: info.message },
           level: "error",
@@ -110,6 +123,10 @@ export async function createWebGPURenderer(
         }
       ).toneMapping = THREE.NoToneMapping
       renderer.setClearColor("#0a0d10", 1)
+    },
+
+    isDeviceLost() {
+      return deviceLost
     },
 
     hasPendingCompilations() {

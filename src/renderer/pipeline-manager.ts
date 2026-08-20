@@ -133,6 +133,7 @@ export class PipelineManager {
   private layerMeta = new Map<string, LayerMeta>()
   private passFailures = new Map<string, PassFailureState>()
   private failedPasses = new Set<string>()
+  private readonly strictPassFailures: boolean
   private pendingMediaLoads = new Set<string>()
   private cachedActivePasses: LayerPassNode[] = []
   private activePassesDirty = true
@@ -153,7 +154,12 @@ export class PipelineManager {
   private rtA: THREE.WebGLRenderTarget
   private rtB: THREE.WebGLRenderTarget
 
-  constructor(renderer: THREE.WebGPURenderer, size: Size) {
+  constructor(
+    renderer: THREE.WebGPURenderer,
+    size: Size,
+    options: { strictPassFailures?: boolean } = {}
+  ) {
+    this.strictPassFailures = options.strictPassFailures === true
     this.renderer = renderer
     this.width = Math.max(1, size.width)
     this.height = Math.max(1, size.height)
@@ -236,15 +242,16 @@ export class PipelineManager {
       }
 
       if (this.layerSignatures.get(layerId) !== signature) {
-        // The user changed something: give a disabled pass another chance.
-        this.clearPassFailure(layerId)
-
         const versionBefore = pass.getMaterialVersion()
         this.layerSignatures.set(layerId, signature)
         this.applyLayerState(pass, renderableLayer)
         this.markDirty()
 
         if (pass.getMaterialVersion() !== versionBefore) {
+          // Recover on a material rebuild, not on any signature change: keyframed
+          // and audio-driven values change the signature every frame, which would
+          // reset the failure count before it could ever throttle.
+          this.clearPassFailure(layerId)
           this.scheduleCompile(pass)
         }
       }
@@ -315,6 +322,12 @@ export class PipelineManager {
           timelineTime
         )
       } catch (error) {
+        // Exports must fail loudly: dropping a layer would ship a frame that
+        // looks fine but is wrong.
+        if (this.strictPassFailures) {
+          throw error
+        }
+
         this.handlePassRenderFailure(pass.layerId, error)
         // Skip the swap: the failed pass contributes nothing.
         continue

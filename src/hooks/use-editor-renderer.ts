@@ -14,7 +14,7 @@ import {
   startRendererBootTrace,
   stopRendererBootTrace,
 } from "@/lib/renderer-boot"
-import { gpuSnapshot, isDeviceLost } from "@/lib/webgpu-diagnostics"
+import { gpuSnapshot } from "@/lib/webgpu-diagnostics"
 import { buildRendererFrame, type EditorRenderer } from "@/renderer/contracts"
 import {
   browserSupportsWebGPU,
@@ -193,6 +193,9 @@ export function useEditorRenderer() {
           }
 
           loopHalted = true
+          // Terminal before the first frame: otherwise the boot deadline still
+          // fires a misleading timeout 20s later.
+          settleRendererBootDeadline()
           useEditorStore.getState().setWebGPUStatus("error", message)
           setFallbackMessage(message)
 
@@ -221,7 +224,7 @@ export function useEditorRenderer() {
             })
           }
 
-          const deviceLost = isDeviceLost()
+          const deviceLost = renderer.isDeviceLost()
 
           if (deviceLost) {
             haltLoop(
@@ -262,8 +265,8 @@ export function useEditorRenderer() {
 
         const runFrame = async (now: number) => {
           // three's render() returns silently once the device is lost, so this
-          // never surfaces as a throw — poll the flag instead.
-          if (isDeviceLost()) {
+          // never surfaces as a throw — poll the renderer instead.
+          if (renderer.isDeviceLost()) {
             haltLoop(
               "The GPU device was lost. Reload the page to restart the renderer.",
               true

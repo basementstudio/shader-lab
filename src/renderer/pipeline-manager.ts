@@ -9,6 +9,13 @@ import { GradientPass } from "@/renderer/gradient-pass"
 import { LivePass } from "@/renderer/live-pass"
 import { MagnifyLensPass } from "@/renderer/magnify-lens-pass"
 import { MediaPass } from "@/renderer/media-pass"
+import {
+  errorFingerprint,
+  type LayerType,
+  nextPassFailureState,
+  type PassFailureState,
+  reportPassFailure,
+} from "@/renderer/pass-failure"
 import type { PassNode } from "@/renderer/pass-node"
 import { createPassNode } from "@/renderer/pass-node-factory"
 import { PixelTrailPass } from "@/renderer/pixel-trail-pass"
@@ -17,6 +24,9 @@ import { TextPass } from "@/renderer/text-pass"
 import type { EditorLayer, SceneConfig, Size } from "@/types/editor"
 
 type LayerPassNode = FluidPass | LivePass | MediaPass | PassNode
+
+// Editing the layer re-enables a dropped pass. See pass-failure.ts.
+const MAX_PASS_FAILURES = 3
 
 const RENDER_TARGET_OPTIONS = {
   depthBuffer: false,
@@ -119,6 +129,10 @@ export class PipelineManager {
   private layerSignatures = new Map<string, string>()
   private compilingPasses = new Set<string>()
   private compiledVersions = new Map<string, number>()
+  // Attributes compile and render failures to a layer type. See pass-failure.ts.
+  private layerTypes = new Map<string, LayerType>()
+  private passFailures = new Map<string, PassFailureState>()
+  private readonly strictPassFailures: boolean
   private pendingMediaLoads = new Set<string>()
   private cachedActivePasses: LayerPassNode[] = []
   private activePassesDirty = true
@@ -139,7 +153,12 @@ export class PipelineManager {
   private rtA: THREE.WebGLRenderTarget
   private rtB: THREE.WebGLRenderTarget
 
-  constructor(renderer: THREE.WebGPURenderer, size: Size) {
+  constructor(
+    renderer: THREE.WebGPURenderer,
+    size: Size,
+    options: { strictPassFailures?: boolean } = {}
+  ) {
+    this.strictPassFailures = options.strictPassFailures === true
     this.renderer = renderer
     this.width = Math.max(1, size.width)
     this.height = Math.max(1, size.height)
@@ -196,6 +215,8 @@ export class PipelineManager {
       this.layerSignatures.delete(layerId)
       this.compilingPasses.delete(layerId)
       this.compiledVersions.delete(layerId)
+      this.layerTypes.delete(layerId)
+      this.clearPassFailure(layerId)
       this.markDirty()
     }
 
@@ -205,6 +226,8 @@ export class PipelineManager {
       const layerId = renderableLayer.layer.id
       const signature = createLayerSignature(renderableLayer)
       let pass = this.passMap.get(layerId)
+
+      this.layerTypes.set(layerId, renderableLayer.layer.type)
 
       if (!pass) {
         pass = this.createPass(renderableLayer.layer)
@@ -221,6 +244,10 @@ export class PipelineManager {
         this.markDirty()
 
         if (pass.getMaterialVersion() !== versionBefore) {
+          // Recover on a material rebuild, not on any signature change: keyframed
+          // and audio-driven values change the signature every frame, which would
+          // reset the failure count before it could ever throttle.
+          this.clearPassFailure(layerId)
           this.scheduleCompile(pass)
         }
       }
@@ -242,6 +269,7 @@ export class PipelineManager {
       this.cachedActivePasses = this.passes.filter(
         (pass) =>
           pass.enabled &&
+          !this.isPassDisabled(pass.layerId) &&
           (!this.compilingPasses.has(pass.layerId) ||
             this.compiledVersions.has(pass.layerId))
       )
@@ -271,23 +299,44 @@ export class PipelineManager {
     let writeTarget = this.rtB
 
     for (const pass of activePasses) {
-      ;(
-        pass.render as (
-          renderer: THREE.WebGPURenderer,
-          inputTexture: THREE.Texture,
-          outputTarget: THREE.WebGLRenderTarget,
-          time: number,
-          delta: number,
-          timelineTime: number
-        ) => void
-      )(
-        this.renderer,
-        readTarget.texture,
-        writeTarget,
-        time,
-        delta,
-        timelineTime
-      )
+      try {
+        ;(
+          pass.render as (
+            renderer: THREE.WebGPURenderer,
+            inputTexture: THREE.Texture,
+            outputTarget: THREE.WebGLRenderTarget,
+            time: number,
+            delta: number,
+            timelineTime: number
+          ) => void
+        )(
+          this.renderer,
+          readTarget.texture,
+          writeTarget,
+          time,
+          delta,
+          timelineTime
+        )
+      } catch (error) {
+        // Exports must fail loudly: dropping a layer would ship a frame that
+        // looks fine but is wrong. Still report, so the abort is diagnosable.
+        if (this.strictPassFailures) {
+          reportPassFailure(
+            this.layerTypes.get(pass.layerId),
+            pass.layerId,
+            "pass-render",
+            error
+          )
+          throw error
+        }
+
+        this.handlePassRenderFailure(pass.layerId, error)
+        // Skip the swap: the failed pass contributes nothing.
+        continue
+      }
+
+      this.passFailures.delete(pass.layerId)
+
       const previousRead = readTarget
       readTarget = writeTarget
       writeTarget = previousRead
@@ -496,6 +545,41 @@ export class PipelineManager {
     }
   }
 
+  private isPassDisabled(layerId: string): boolean {
+    return (this.passFailures.get(layerId)?.total ?? 0) >= MAX_PASS_FAILURES
+  }
+
+  private handlePassRenderFailure(layerId: string, error: unknown): void {
+    const state = nextPassFailureState(
+      this.passFailures.get(layerId),
+      errorFingerprint(error)
+    )
+
+    this.passFailures.set(layerId, state)
+
+    if (state.count === 1) {
+      reportPassFailure(
+        this.layerTypes.get(layerId),
+        layerId,
+        "pass-render",
+        error
+      )
+    }
+
+    if (state.total === MAX_PASS_FAILURES) {
+      this.markDirty()
+    }
+  }
+
+  private clearPassFailure(layerId: string): void {
+    const wasDisabled = this.isPassDisabled(layerId)
+    this.passFailures.delete(layerId)
+
+    if (wasDisabled) {
+      this.markDirty()
+    }
+  }
+
   private scheduleCompile(pass: LayerPassNode): void {
     const version = pass.getMaterialVersion()
     if (this.compiledVersions.get(pass.layerId) === version) {
@@ -514,8 +598,15 @@ export class PipelineManager {
         this.compiledVersions.set(pass.layerId, pass.getMaterialVersion())
         this.markDirty()
       })
-      .catch(() => {
+      .catch((error: unknown) => {
+        // Keep the delete: dropping it wedges hasPendingCompilations().
         this.compilingPasses.delete(pass.layerId)
+        reportPassFailure(
+          this.layerTypes.get(pass.layerId),
+          pass.layerId,
+          "pipeline-compile",
+          error
+        )
       })
   }
 

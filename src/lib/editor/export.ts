@@ -659,7 +659,9 @@ async function createExportRenderer(canvas: HTMLCanvasElement) {
     throw new Error("WebGPU export is not available in this browser.")
   }
 
-  const renderer = await createWebGPURenderer(canvas)
+  const renderer = await createWebGPURenderer(canvas, {
+    strictPassFailures: true,
+  })
   await renderer.initialize()
   return renderer
 }

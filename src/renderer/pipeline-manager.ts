@@ -9,6 +9,7 @@ import { GradientPass } from "@/renderer/gradient-pass"
 import { LivePass } from "@/renderer/live-pass"
 import { MagnifyLensPass } from "@/renderer/magnify-lens-pass"
 import { MediaPass } from "@/renderer/media-pass"
+import { type LayerMeta, reportPassFailure } from "@/renderer/pass-failure"
 import type { PassNode } from "@/renderer/pass-node"
 import { createPassNode } from "@/renderer/pass-node-factory"
 import { PixelTrailPass } from "@/renderer/pixel-trail-pass"
@@ -119,6 +120,8 @@ export class PipelineManager {
   private layerSignatures = new Map<string, string>()
   private compilingPasses = new Set<string>()
   private compiledVersions = new Map<string, number>()
+  // Attributes compile and render failures to a layer type. See pass-failure.ts.
+  private layerMeta = new Map<string, LayerMeta>()
   private pendingMediaLoads = new Set<string>()
   private cachedActivePasses: LayerPassNode[] = []
   private activePassesDirty = true
@@ -196,6 +199,7 @@ export class PipelineManager {
       this.layerSignatures.delete(layerId)
       this.compilingPasses.delete(layerId)
       this.compiledVersions.delete(layerId)
+      this.layerMeta.delete(layerId)
       this.markDirty()
     }
 
@@ -205,6 +209,11 @@ export class PipelineManager {
       const layerId = renderableLayer.layer.id
       const signature = createLayerSignature(renderableLayer)
       let pass = this.passMap.get(layerId)
+
+      this.layerMeta.set(layerId, {
+        kind: renderableLayer.layer.kind,
+        type: renderableLayer.layer.type,
+      })
 
       if (!pass) {
         pass = this.createPass(renderableLayer.layer)
@@ -271,23 +280,36 @@ export class PipelineManager {
     let writeTarget = this.rtB
 
     for (const pass of activePasses) {
-      ;(
-        pass.render as (
-          renderer: THREE.WebGPURenderer,
-          inputTexture: THREE.Texture,
-          outputTarget: THREE.WebGLRenderTarget,
-          time: number,
-          delta: number,
-          timelineTime: number
-        ) => void
-      )(
-        this.renderer,
-        readTarget.texture,
-        writeTarget,
-        time,
-        delta,
-        timelineTime
-      )
+      try {
+        ;(
+          pass.render as (
+            renderer: THREE.WebGPURenderer,
+            inputTexture: THREE.Texture,
+            outputTarget: THREE.WebGLRenderTarget,
+            time: number,
+            delta: number,
+            timelineTime: number
+          ) => void
+        )(
+          this.renderer,
+          readTarget.texture,
+          writeTarget,
+          time,
+          delta,
+          timelineTime
+        )
+      } catch (error) {
+        reportPassFailure(
+          this.layerMeta.get(pass.layerId),
+          pass.layerId,
+          "pass-render",
+          error,
+          "Layer failed to render."
+        )
+        // Skip the swap: the failed pass contributes nothing.
+        continue
+      }
+
       const previousRead = readTarget
       readTarget = writeTarget
       writeTarget = previousRead
@@ -514,8 +536,16 @@ export class PipelineManager {
         this.compiledVersions.set(pass.layerId, pass.getMaterialVersion())
         this.markDirty()
       })
-      .catch(() => {
+      .catch((error: unknown) => {
+        // Keep the delete: dropping it wedges hasPendingCompilations().
         this.compilingPasses.delete(pass.layerId)
+        reportPassFailure(
+          this.layerMeta.get(pass.layerId),
+          pass.layerId,
+          "pipeline-compile",
+          error,
+          "Shader compilation failed."
+        )
       })
   }
 

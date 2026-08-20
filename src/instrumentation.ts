@@ -1,13 +1,23 @@
 import * as Sentry from "@sentry/nextjs"
+import { resolveTracesSampleRate } from "@/lib/sentry-sampling"
 
-export async function register() {
-  if (process.env.NEXT_RUNTIME === "nodejs") {
-    await import("../sentry.server.config")
-  }
+const environment =
+  process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? "development"
 
-  if (process.env.NEXT_RUNTIME === "edge") {
-    await import("../sentry.edge.config")
-  }
+// One init for node and edge; only includeLocalVariables is runtime-specific.
+export function register() {
+  Sentry.init({
+    dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+    environment,
+    enabled: process.env.NODE_ENV === "production",
+    tracesSampleRate: resolveTracesSampleRate(
+      environment,
+      process.env.NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE
+    ),
+    ...(process.env.NEXT_RUNTIME === "nodejs"
+      ? { includeLocalVariables: true }
+      : {}),
+  })
 }
 
 export const onRequestError = Sentry.captureRequestError

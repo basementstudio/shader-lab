@@ -1,4 +1,9 @@
+import * as Sentry from "@sentry/nextjs"
 import * as THREE from "three/webgpu"
+import {
+  markDeviceLost,
+  recordDeviceDiagnostics,
+} from "@/lib/webgpu-diagnostics"
 import type { EditorRenderer, RendererFrame } from "@/renderer/contracts"
 import { PipelineManager } from "@/renderer/pipeline-manager"
 import type { Size } from "@/types/editor"
@@ -9,6 +14,12 @@ export function browserSupportsWebGPU(): boolean {
 
 type GpuQueueLike = { onSubmittedWorkDone: () => Promise<unknown> }
 type GpuDeviceLike = { destroy?: () => void; queue?: GpuQueueLike }
+
+type DeviceLostInfo = { message: string; reason: string | null }
+// Assignable on the instance, but absent from the bundled three/webgpu types.
+type RendererWithDeviceLost = {
+  onDeviceLost: (info: DeviceLostInfo) => void
+}
 
 function getGpuDevice(instance: THREE.WebGPURenderer): GpuDeviceLike | null {
   return (
@@ -65,6 +76,27 @@ export async function createWebGPURenderer(
   return {
     async initialize() {
       await renderer.init()
+
+      const device = getGpuDevice(renderer)
+
+      if (device) {
+        recordDeviceDiagnostics(device as unknown as GPUDevice)
+      }
+
+      // three owns device.lost and already filters reason === "destroyed" (our
+      // own destroyDevice during export teardown). Wrap rather than replace:
+      // calling through preserves the renderer's _isDeviceLost flag.
+      const deviceLostHost = renderer as unknown as RendererWithDeviceLost
+      const reportDeviceLost = deviceLostHost.onDeviceLost.bind(renderer)
+      deviceLostHost.onDeviceLost = (info) => {
+        reportDeviceLost(info)
+        markDeviceLost()
+        Sentry.captureMessage("WebGPU device lost", {
+          extra: { message: info.message },
+          level: "error",
+          tags: { "gpu.lost_reason": info.reason ?? "unknown" },
+        })
+      }
       ;(
         renderer as THREE.WebGPURenderer & {
           outputColorSpace: string

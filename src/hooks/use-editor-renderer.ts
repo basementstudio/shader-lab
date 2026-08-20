@@ -1,18 +1,26 @@
 "use client"
 
+import * as Sentry from "@sentry/nextjs"
 import { useEffect, useRef, useState } from "react"
 import { registerAgentFramePump } from "@/lib/agent-bridge/frame-pump"
+import { isPreviewRenderLocked } from "@/lib/editor/preview-render-lock"
+import {
+  armRendererBootDeadline,
+  bootMarks,
+  captureRendererBootRecovery,
+  captureRendererBootTimeout,
+  markBootStage,
+  startRendererBootTrace,
+  stopRendererBootTrace,
+} from "@/lib/renderer-boot"
+import { gpuSnapshot, isDeviceLost } from "@/lib/webgpu-diagnostics"
 import { buildRendererFrame, type EditorRenderer } from "@/renderer/contracts"
 import {
   browserSupportsWebGPU,
   createWebGPURenderer,
 } from "@/renderer/create-webgpu-renderer"
-import { isPreviewRenderLocked } from "@/lib/editor/preview-render-lock"
 import { useAssetStore } from "@/store/asset-store"
-import {
-  selectAudioModulationInput,
-  useAudioStore,
-} from "@/store/audio-store"
+import { selectAudioModulationInput, useAudioStore } from "@/store/audio-store"
 import { useEditorStore } from "@/store/editor-store"
 import { useLayerStore } from "@/store/layer-store"
 import { useMetricsStore } from "@/store/metrics-store"
@@ -36,6 +44,32 @@ function measureElement(element: HTMLElement): Size {
   return {
     height: Math.max(1, Math.round(bounds.height)),
     width: Math.max(1, Math.round(bounds.width)),
+  }
+}
+
+// Generous: this only waits on adapter and device acquisition.
+const BOOT_TIMEOUT_MS = 20_000
+
+// A persistent GPU fault throws every frame; halt instead of spinning.
+const MAX_CONSECUTIVE_FRAME_FAILURES = 5
+
+function frameFingerprint(error: unknown): string {
+  if (!(error instanceof Error)) {
+    return String(error)
+  }
+
+  return [error.name, error.message, error.stack?.split("\n")[1]?.trim()].join(
+    "|"
+  )
+}
+
+function sceneInfo() {
+  const editor = useEditorStore.getState()
+
+  return {
+    layerCount: useLayerStore.getState().layers.length,
+    outputSize: `${editor.outputSize.width}x${editor.outputSize.height}`,
+    renderScale: editor.renderScale,
   }
 }
 
@@ -66,6 +100,9 @@ export function useEditorRenderer() {
         "This browser does not expose WebGPU yet."
       )
       setFallbackMessage("WebGPU is not available in this browser.")
+      // Not a Sentry event: an unsupported browser is analytics, not an error.
+      // The context rides along on any real error instead.
+      Sentry.setContext("gpu", gpuSnapshot())
       return
     }
 
@@ -76,12 +113,22 @@ export function useEditorRenderer() {
     let frameInFlight = false
     let unregisterFramePump: (() => void) | null = null
     let unsubscribeRenderScale: (() => void) | null = null
+    let consecutiveFrameFailures = 0
+    let loopHalted = false
+    let firstFrameMarked = false
+    const reportedFrameErrors = new Set<string>()
 
     editorStore.setWebGPUStatus("initializing")
+    startRendererBootTrace()
+    markBootStage("webgpu-probed")
+    armRendererBootDeadline(BOOT_TIMEOUT_MS, () => {
+      captureRendererBootTimeout(BOOT_TIMEOUT_MS, sceneInfo())
+    })
 
     async function initializeRenderer() {
       try {
         const renderer = await createWebGPURenderer(canvasElement)
+        markBootStage("renderer-created")
 
         if (isDisposed) {
           renderer.dispose()
@@ -90,6 +137,8 @@ export function useEditorRenderer() {
 
         rendererRef.current = renderer
         await renderer.initialize()
+        markBootStage("device-ready")
+        Sentry.setContext("gpu", gpuSnapshot())
         editorStore.setLiveRenderer(renderer)
         editorStore.setLiveCanvas(canvasElement)
 
@@ -131,13 +180,14 @@ export function useEditorRenderer() {
           }
 
           lastRenderScale = state.renderScale
-          renderer.resize(
-            useEditorStore.getState().canvasSize,
-            getPixelRatio()
-          )
+          renderer.resize(useEditorStore.getState().canvasSize, getPixelRatio())
         })
 
         const scheduleNextFrame = () => {
+          if (isDisposed || loopHalted) {
+            return
+          }
+
           animationFrameRef.current = window.requestAnimationFrame(
             (nextNow) => {
               void renderFrame(nextNow)
@@ -145,14 +195,79 @@ export function useEditorRenderer() {
           )
         }
 
+        const haltLoop = (message: string, deviceLost: boolean) => {
+          loopHalted = true
+          useEditorStore.getState().setWebGPUStatus("error", message)
+          setFallbackMessage(message)
+
+          Sentry.captureMessage("Render loop halted", {
+            extra: { consecutiveFrameFailures, ...sceneInfo() },
+            level: "error",
+            tags: {
+              "halt.device_lost": String(deviceLost),
+              surface: "render-loop-halted",
+            },
+          })
+        }
+
+        const handleFrameFailure = (error: unknown) => {
+          consecutiveFrameFailures += 1
+
+          // By fingerprint, not a flag: a different failure is new information.
+          const fingerprint = frameFingerprint(error)
+
+          if (!reportedFrameErrors.has(fingerprint)) {
+            reportedFrameErrors.add(fingerprint)
+            Sentry.captureException(error, {
+              contexts: { renderer_boot: { marks: bootMarks() } },
+              extra: sceneInfo(),
+              tags: { surface: "render-frame" },
+            })
+          }
+
+          const deviceLost = isDeviceLost()
+
+          if (deviceLost) {
+            haltLoop(
+              "The GPU device was lost. Reload the page to restart the renderer.",
+              true
+            )
+            return
+          }
+
+          if (consecutiveFrameFailures >= MAX_CONSECUTIVE_FRAME_FAILURES) {
+            haltLoop(
+              "The renderer stopped after repeated errors. Reload the page to try again.",
+              false
+            )
+          }
+        }
+
         const renderFrame = async (now: number) => {
           frameInFlight = true
 
+          try {
+            await runFrame(now)
+
+            if (consecutiveFrameFailures > 0) {
+              // Recovered: forget fingerprints so a recurrence reports again.
+              consecutiveFrameFailures = 0
+              reportedFrameErrors.clear()
+            }
+          } catch (error) {
+            handleFrameFailure(error)
+          } finally {
+            // Must be finally: a throw would wedge the agent frame pump.
+            frameInFlight = false
+          }
+
+          scheduleNextFrame()
+        }
+
+        const runFrame = async (now: number) => {
           if (isPreviewRenderLocked()) {
             lastFrameTime = now
-            frameInFlight = false
             useMetricsStore.getState().setFps(0)
-            scheduleNextFrame()
             return
           }
 
@@ -207,8 +322,12 @@ export function useEditorRenderer() {
           }
 
           renderer.render(frame)
-          frameInFlight = false
-          scheduleNextFrame()
+
+          if (!firstFrameMarked) {
+            firstFrameMarked = true
+            markBootStage("first-frame")
+            captureRendererBootRecovery()
+          }
         }
 
         animationFrameRef.current = window.requestAnimationFrame((nextNow) => {
@@ -235,6 +354,10 @@ export function useEditorRenderer() {
 
         useEditorStore.getState().setWebGPUStatus("error", message)
         setFallbackMessage(message)
+        Sentry.captureException(error, {
+          contexts: { renderer_boot: { marks: bootMarks() } },
+          tags: { surface: "webgpu-init" },
+        })
       }
     }
 
@@ -243,6 +366,7 @@ export function useEditorRenderer() {
     return () => {
       isDisposed = true
 
+      stopRendererBootTrace()
       unregisterFramePump?.()
       unsubscribeRenderScale?.()
 

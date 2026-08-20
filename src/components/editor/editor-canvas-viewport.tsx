@@ -11,26 +11,27 @@ import {
   useSyncExternalStore,
 } from "react"
 import { useEditorRenderer } from "@/hooks/use-editor-renderer"
+import { getCompositionFrame } from "@/lib/editor/composition"
 import { isEditableTarget } from "@/lib/editor/is-editable-target"
 import { inferFileAssetKind } from "@/lib/editor/media-file"
 import {
   isPreviewRenderLocked,
   subscribeToPreviewRenderLock,
 } from "@/lib/editor/preview-render-lock"
+import { getSeedableMediaDuration } from "@/lib/editor/timeline-duration"
 import {
   applyZoomAtPoint,
   clampZoom,
   getWheelZoomFactor,
 } from "@/lib/editor/view-transform"
-import { getCompositionFrame } from "@/lib/editor/composition"
-import { getSeedableMediaDuration } from "@/lib/editor/timeline-duration"
 import { useAssetStore } from "@/store/asset-store"
 import { useEditorStore } from "@/store/editor-store"
 import { useLayerStore } from "@/store/layer-store"
 import { useTimelineStore } from "@/store/timeline-store"
 
 export function EditorCanvasViewport() {
-  const { canvasRef, isReady, viewportRef } = useEditorRenderer()
+  const { canvasRef, fallbackMessage, isReady, viewportRef } =
+    useEditorRenderer()
   const previewPaused = useSyncExternalStore(
     subscribeToPreviewRenderLock,
     isPreviewRenderLocked,
@@ -194,7 +195,9 @@ export function EditorCanvasViewport() {
           x: event.clientX - rect.left - rect.width / 2,
           y: event.clientY - rect.top - rect.height / 2,
         }
-        const nextZoom = clampZoom(state.zoom * getWheelZoomFactor(event.deltaY))
+        const nextZoom = clampZoom(
+          state.zoom * getWheelZoomFactor(event.deltaY)
+        )
         const nextState = applyZoomAtPoint(
           state.zoom,
           state.panOffset,
@@ -250,10 +253,12 @@ export function EditorCanvasViewport() {
         return
       }
 
-      useEditorStore.getState().setPan(
-        activePan.startPanX + (event.clientX - activePan.originX),
-        activePan.startPanY + (event.clientY - activePan.originY)
-      )
+      useEditorStore
+        .getState()
+        .setPan(
+          activePan.startPanX + (event.clientX - activePan.originX),
+          activePan.startPanY + (event.clientY - activePan.originY)
+        )
     },
     []
   )
@@ -373,7 +378,24 @@ export function EditorCanvasViewport() {
         ) : null}
       </div>
 
-      {!isReady ? (
+      {fallbackMessage ? (
+        <div className="absolute inset-0 flex items-center justify-center p-6">
+          <div
+            className="max-w-sm rounded-[var(--ds-radius-panel)] border border-[var(--ds-border-panel)] bg-[rgb(18_18_22_/_0.88)] px-4 py-3 backdrop-blur-[28px]"
+            role="alert"
+          >
+            <p className="mb-1 font-[var(--ds-font-mono)] text-[11px] leading-4 text-[var(--ds-color-text-primary)] uppercase tracking-[0.18em]">
+              Renderer unavailable
+            </p>
+            <p className="text-[12px] text-[var(--ds-color-text-secondary)] leading-5">
+              {fallbackMessage}
+            </p>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Guarded: otherwise this sweeps forever on a dead renderer. */}
+      {!(isReady || fallbackMessage) ? (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
           <div
             aria-hidden="true"

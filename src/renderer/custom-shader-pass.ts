@@ -1,4 +1,16 @@
-import { clamp, float, pow, texture as tslTexture, type TSLNode, uniform, uv, vec2, vec3, vec4 } from "three/tsl"
+import * as Sentry from "@sentry/nextjs"
+import {
+  clamp,
+  float,
+  pow,
+  type TSLNode,
+  texture as tslTexture,
+  uniform,
+  uv,
+  vec2,
+  vec3,
+  vec4,
+} from "three/tsl"
 import * as THREE from "three/webgpu"
 import { emitCustomShaderCompileResult } from "@/lib/agent-bridge/compile-events"
 import { CUSTOM_SHADER_ENTRY_EXPORT } from "@/lib/editor/custom-shader/shared"
@@ -9,6 +21,21 @@ import type { LayerParameterValues } from "@/types/editor"
 
 type Node = TSLNode
 type TypedNode = TSLNode & { nodeType?: string | null }
+
+// Breadcrumbs only, never captures: broken TSL is expected user input and the
+// sidebar already shows the message. See pass-failure.ts.
+function addCompileBreadcrumb(
+  layerId: string,
+  sourceLength: number,
+  error: string | null
+): void {
+  Sentry.addBreadcrumb({
+    category: "shader.compile",
+    data: { firstDiagnostic: error?.split("\n")[0], layerId, sourceLength },
+    level: error === null ? "info" : "warning",
+    message: error === null ? "custom shader compiled" : "custom shader failed",
+  })
+}
 
 export class CustomShaderPass extends PassNode {
   private compiledSketch: (() => Node) | null = null
@@ -79,11 +106,12 @@ export class CustomShaderPass extends PassNode {
 
         this.compiledSketch = compiled.buildNode
         useLayerStore.getState().setLayerRuntimeError(this.layerId, null)
+        addCompileBreadcrumb(this.layerId, sourceCode.length, null)
         this.rebuildEffectNode()
         emitCustomShaderCompileResult({
           error:
-            useLayerStore.getState().getLayerById(this.layerId)
-              ?.runtimeError ?? null,
+            useLayerStore.getState().getLayerById(this.layerId)?.runtimeError ??
+            null,
           layerId: this.layerId,
           revision: sourceRevision,
         })
@@ -100,6 +128,7 @@ export class CustomShaderPass extends PassNode {
 
         this.compiledSketch = null
         useLayerStore.getState().setLayerRuntimeError(this.layerId, message)
+        addCompileBreadcrumb(this.layerId, sourceCode.length, message)
         this.rebuildEffectNode()
         emitCustomShaderCompileResult({
           error: message,
@@ -146,14 +175,18 @@ export class CustomShaderPass extends PassNode {
 
       return vec4(finalRgb, float(1))
     } catch (error) {
-      useLayerStore
-        .getState()
-        .setLayerRuntimeError(
-          this.layerId,
-          error instanceof Error
-            ? error.message
-            : "Custom shader execution failed."
-        )
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Custom shader execution failed."
+
+      useLayerStore.getState().setLayerRuntimeError(this.layerId, message)
+      Sentry.addBreadcrumb({
+        category: "shader.compile",
+        data: { layerId: this.layerId, surface: "build-effect-node" },
+        level: "warning",
+        message,
+      })
       return vec4(vec3(float(0), float(0), float(0)), float(1))
     }
   }

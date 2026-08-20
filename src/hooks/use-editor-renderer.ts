@@ -10,6 +10,7 @@ import {
   captureRendererBootRecovery,
   captureRendererBootTimeout,
   markBootStage,
+  settleRendererBootDeadline,
   startRendererBootTrace,
   stopRendererBootTrace,
 } from "@/lib/renderer-boot"
@@ -19,6 +20,7 @@ import {
   browserSupportsWebGPU,
   createWebGPURenderer,
 } from "@/renderer/create-webgpu-renderer"
+import { errorFingerprint } from "@/renderer/pass-failure"
 import { useAssetStore } from "@/store/asset-store"
 import { selectAudioModulationInput, useAudioStore } from "@/store/audio-store"
 import { useEditorStore } from "@/store/editor-store"
@@ -52,16 +54,6 @@ const BOOT_TIMEOUT_MS = 20_000
 
 // A persistent GPU fault throws every frame; halt instead of spinning.
 const MAX_CONSECUTIVE_FRAME_FAILURES = 5
-
-function frameFingerprint(error: unknown): string {
-  if (!(error instanceof Error)) {
-    return String(error)
-  }
-
-  return [error.name, error.message, error.stack?.split("\n")[1]?.trim()].join(
-    "|"
-  )
-}
 
 function sceneInfo() {
   const editor = useEditorStore.getState()
@@ -196,6 +188,10 @@ export function useEditorRenderer() {
         }
 
         const haltLoop = (message: string, deviceLost: boolean) => {
+          if (loopHalted) {
+            return
+          }
+
           loopHalted = true
           useEditorStore.getState().setWebGPUStatus("error", message)
           setFallbackMessage(message)
@@ -214,7 +210,7 @@ export function useEditorRenderer() {
           consecutiveFrameFailures += 1
 
           // By fingerprint, not a flag: a different failure is new information.
-          const fingerprint = frameFingerprint(error)
+          const fingerprint = errorFingerprint(error)
 
           if (!reportedFrameErrors.has(fingerprint)) {
             reportedFrameErrors.add(fingerprint)
@@ -265,6 +261,16 @@ export function useEditorRenderer() {
         }
 
         const runFrame = async (now: number) => {
+          // three's render() returns silently once the device is lost, so this
+          // never surfaces as a throw — poll the flag instead.
+          if (isDeviceLost()) {
+            haltLoop(
+              "The GPU device was lost. Reload the page to restart the renderer.",
+              true
+            )
+            return
+          }
+
           if (isPreviewRenderLocked()) {
             lastFrameTime = now
             useMetricsStore.getState().setFps(0)
@@ -326,6 +332,7 @@ export function useEditorRenderer() {
           if (!firstFrameMarked) {
             firstFrameMarked = true
             markBootStage("first-frame")
+            settleRendererBootDeadline()
             captureRendererBootRecovery()
           }
         }
@@ -335,7 +342,7 @@ export function useEditorRenderer() {
         })
 
         unregisterFramePump = registerAgentFramePump(() => {
-          if (isDisposed || frameInFlight) {
+          if (isDisposed || frameInFlight || loopHalted) {
             return
           }
 
@@ -354,6 +361,9 @@ export function useEditorRenderer() {
 
         useEditorStore.getState().setWebGPUStatus("error", message)
         setFallbackMessage(message)
+        // Terminal: without this the 20s deadline still fires a second, bogus
+        // "boot timed out" on top of the real failure.
+        settleRendererBootDeadline()
         Sentry.captureException(error, {
           contexts: { renderer_boot: { marks: bootMarks() } },
           tags: { surface: "webgpu-init" },

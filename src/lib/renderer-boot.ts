@@ -106,10 +106,16 @@ export const armRendererBootDeadline = (
   armDeadline()
 }
 
+// Boot reached a terminal state (first frame or init failure). Clearing
+// deadlineExpire also stops syncVisibility from re-arming on the next focus.
+export const settleRendererBootDeadline = () => {
+  deadlineExpire = null
+  disarmDeadline()
+}
+
 export const stopRendererBootTrace = () => {
   document.removeEventListener("visibilitychange", syncVisibility)
-  disarmDeadline()
-  deadlineExpire = null
+  settleRendererBootDeadline()
   subscribed = false
 }
 

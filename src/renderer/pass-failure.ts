@@ -16,6 +16,40 @@ export function classifyPassFailure(
   return meta?.type === "custom-shader" ? "contain" : "capture"
 }
 
+export type PassFailureState = { count: number; fingerprint: string }
+
+export type PassFailureDecision = {
+  disable: boolean
+  report: boolean
+  state: PassFailureState
+}
+
+// A pass that throws while anything needs continuous rendering throws ~60x a
+// second: report once per fingerprint, then drop the pass from the composite.
+export function nextPassFailureState(
+  previous: PassFailureState | undefined,
+  fingerprint: string,
+  maxFailures: number
+): PassFailureDecision {
+  const count = previous?.fingerprint === fingerprint ? previous.count + 1 : 1
+
+  return {
+    disable: count >= maxFailures,
+    report: count === 1,
+    state: { count, fingerprint },
+  }
+}
+
+export function errorFingerprint(error: unknown): string {
+  if (!(error instanceof Error)) {
+    return String(error)
+  }
+
+  return [error.name, error.message, error.stack?.split("\n")[1]?.trim()].join(
+    "|"
+  )
+}
+
 export function reportPassFailure(
   meta: LayerMeta | undefined,
   layerId: string,

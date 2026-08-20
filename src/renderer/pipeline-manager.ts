@@ -9,7 +9,13 @@ import { GradientPass } from "@/renderer/gradient-pass"
 import { LivePass } from "@/renderer/live-pass"
 import { MagnifyLensPass } from "@/renderer/magnify-lens-pass"
 import { MediaPass } from "@/renderer/media-pass"
-import { type LayerMeta, reportPassFailure } from "@/renderer/pass-failure"
+import {
+  errorFingerprint,
+  type LayerMeta,
+  nextPassFailureState,
+  type PassFailureState,
+  reportPassFailure,
+} from "@/renderer/pass-failure"
 import type { PassNode } from "@/renderer/pass-node"
 import { createPassNode } from "@/renderer/pass-node-factory"
 import { PixelTrailPass } from "@/renderer/pixel-trail-pass"
@@ -18,6 +24,9 @@ import { TextPass } from "@/renderer/text-pass"
 import type { EditorLayer, SceneConfig, Size } from "@/types/editor"
 
 type LayerPassNode = FluidPass | LivePass | MediaPass | PassNode
+
+// Editing the layer re-enables a dropped pass. See pass-failure.ts.
+const MAX_PASS_FAILURES = 3
 
 const RENDER_TARGET_OPTIONS = {
   depthBuffer: false,
@@ -122,6 +131,8 @@ export class PipelineManager {
   private compiledVersions = new Map<string, number>()
   // Attributes compile and render failures to a layer type. See pass-failure.ts.
   private layerMeta = new Map<string, LayerMeta>()
+  private passFailures = new Map<string, PassFailureState>()
+  private failedPasses = new Set<string>()
   private pendingMediaLoads = new Set<string>()
   private cachedActivePasses: LayerPassNode[] = []
   private activePassesDirty = true
@@ -200,6 +211,7 @@ export class PipelineManager {
       this.compilingPasses.delete(layerId)
       this.compiledVersions.delete(layerId)
       this.layerMeta.delete(layerId)
+      this.clearPassFailure(layerId)
       this.markDirty()
     }
 
@@ -224,6 +236,9 @@ export class PipelineManager {
       }
 
       if (this.layerSignatures.get(layerId) !== signature) {
+        // The user changed something: give a disabled pass another chance.
+        this.clearPassFailure(layerId)
+
         const versionBefore = pass.getMaterialVersion()
         this.layerSignatures.set(layerId, signature)
         this.applyLayerState(pass, renderableLayer)
@@ -251,6 +266,7 @@ export class PipelineManager {
       this.cachedActivePasses = this.passes.filter(
         (pass) =>
           pass.enabled &&
+          !this.failedPasses.has(pass.layerId) &&
           (!this.compilingPasses.has(pass.layerId) ||
             this.compiledVersions.has(pass.layerId))
       )
@@ -299,16 +315,12 @@ export class PipelineManager {
           timelineTime
         )
       } catch (error) {
-        reportPassFailure(
-          this.layerMeta.get(pass.layerId),
-          pass.layerId,
-          "pass-render",
-          error,
-          "Layer failed to render."
-        )
+        this.handlePassRenderFailure(pass.layerId, error)
         // Skip the swap: the failed pass contributes nothing.
         continue
       }
+
+      this.passFailures.delete(pass.layerId)
 
       const previousRead = readTarget
       readTarget = writeTarget
@@ -515,6 +527,39 @@ export class PipelineManager {
             this.markDirty()
           })
       }
+    }
+  }
+
+  private handlePassRenderFailure(layerId: string, error: unknown): void {
+    const { disable, report, state } = nextPassFailureState(
+      this.passFailures.get(layerId),
+      errorFingerprint(error),
+      MAX_PASS_FAILURES
+    )
+
+    this.passFailures.set(layerId, state)
+
+    if (report) {
+      reportPassFailure(
+        this.layerMeta.get(layerId),
+        layerId,
+        "pass-render",
+        error,
+        "Layer failed to render."
+      )
+    }
+
+    if (disable) {
+      this.failedPasses.add(layerId)
+      this.markDirty()
+    }
+  }
+
+  private clearPassFailure(layerId: string): void {
+    this.passFailures.delete(layerId)
+
+    if (this.failedPasses.delete(layerId)) {
+      this.markDirty()
     }
   }
 

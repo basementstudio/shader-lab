@@ -546,7 +546,7 @@ export class PipelineManager {
   }
 
   private isPassDisabled(layerId: string): boolean {
-    return (this.passFailures.get(layerId)?.count ?? 0) >= MAX_PASS_FAILURES
+    return (this.passFailures.get(layerId)?.total ?? 0) >= MAX_PASS_FAILURES
   }
 
   private handlePassRenderFailure(layerId: string, error: unknown): void {
@@ -566,7 +566,7 @@ export class PipelineManager {
       )
     }
 
-    if (state.count === MAX_PASS_FAILURES) {
+    if (state.total === MAX_PASS_FAILURES) {
       this.markDirty()
     }
   }

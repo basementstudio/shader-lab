@@ -60,7 +60,19 @@ describe("nextPassFailureState", () => {
     expect(states[2]?.count).toBe(1)
   })
 
+  // An error whose message varies per frame must still hit the ceiling,
+  // otherwise `count` resets forever and reporting never stops.
+  test("total ignores the fingerprint so varying errors still get disabled", () => {
+    const states = run(["a", "b", "c", "d"])
+
+    expect(states.map((s) => s.count)).toEqual([1, 1, 1, 1])
+    expect(states.map((s) => s.total)).toEqual([1, 2, 3, 4])
+  })
+
   test("a cleared pass starts over", () => {
-    expect(nextPassFailureState(undefined, "boom").count).toBe(1)
+    expect(nextPassFailureState(undefined, "boom")).toMatchObject({
+      count: 1,
+      total: 1,
+    })
   })
 })

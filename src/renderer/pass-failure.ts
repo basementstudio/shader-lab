@@ -25,17 +25,28 @@ export function classifyPassFailure(
   return type === "custom-shader" ? "contain" : "capture"
 }
 
-export type PassFailureState = { count: number; fingerprint: string }
+export type PassFailureState = {
+  count: number
+  fingerprint: string
+  total: number
+}
 
-// A pass that throws while anything needs continuous rendering throws ~60x a
-// second, so callers report only on count === 1 and disable at a ceiling.
+/**
+ * A pass that throws while anything needs continuous rendering throws ~60x a
+ * second. Callers report only when `count` is 1 — a fingerprint they haven't
+ * seen — and disable the pass once `total` hits a ceiling. `total` ignores the
+ * fingerprint on purpose: an error whose message varies per frame would
+ * otherwise reset `count` forever and never stop reporting.
+ */
 export function nextPassFailureState(
   previous: PassFailureState | undefined,
   fingerprint: string
 ): PassFailureState {
+  const total = (previous?.total ?? 0) + 1
+
   return previous?.fingerprint === fingerprint
-    ? { count: previous.count + 1, fingerprint }
-    : { count: 1, fingerprint }
+    ? { count: previous.count + 1, fingerprint, total }
+    : { count: 1, fingerprint, total }
 }
 
 export function errorFingerprint(error: unknown): string {

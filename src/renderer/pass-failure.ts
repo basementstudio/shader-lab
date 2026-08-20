@@ -2,42 +2,40 @@ import * as Sentry from "@sentry/nextjs"
 import { useLayerStore } from "@/store/layer-store"
 import type { EditorLayer } from "@/types/editor"
 
-export type LayerMeta = { kind: EditorLayer["kind"]; type: EditorLayer["type"] }
+export type LayerType = EditorLayer["type"]
 
-export type PassFailureSurface = "pass-render" | "pipeline-compile"
+export type PassFailureSurface =
+  | "build-effect-node"
+  | "pass-render"
+  | "pipeline-compile"
+
+const FALLBACK_MESSAGE: Record<PassFailureSurface, string> = {
+  "build-effect-node": "Custom shader execution failed.",
+  "pass-render": "Layer failed to render.",
+  "pipeline-compile": "Shader compilation failed.",
+}
 
 // "contain" runs user-authored code, so its failures are expected input rather
 // than defects and must never become Sentry issues.
 export type PassFailureHandling = "capture" | "contain"
 
 export function classifyPassFailure(
-  meta: LayerMeta | undefined
+  type: LayerType | undefined
 ): PassFailureHandling {
-  return meta?.type === "custom-shader" ? "contain" : "capture"
+  return type === "custom-shader" ? "contain" : "capture"
 }
 
 export type PassFailureState = { count: number; fingerprint: string }
 
-export type PassFailureDecision = {
-  disable: boolean
-  report: boolean
-  state: PassFailureState
-}
-
 // A pass that throws while anything needs continuous rendering throws ~60x a
-// second: report once per fingerprint, then drop the pass from the composite.
+// second, so callers report only on count === 1 and disable at a ceiling.
 export function nextPassFailureState(
   previous: PassFailureState | undefined,
-  fingerprint: string,
-  maxFailures: number
-): PassFailureDecision {
-  const count = previous?.fingerprint === fingerprint ? previous.count + 1 : 1
-
-  return {
-    disable: count >= maxFailures,
-    report: count === 1,
-    state: { count, fingerprint },
-  }
+  fingerprint: string
+): PassFailureState {
+  return previous?.fingerprint === fingerprint
+    ? { count: previous.count + 1, fingerprint }
+    : { count: 1, fingerprint }
 }
 
 export function errorFingerprint(error: unknown): string {
@@ -51,15 +49,15 @@ export function errorFingerprint(error: unknown): string {
 }
 
 export function reportPassFailure(
-  meta: LayerMeta | undefined,
+  type: LayerType | undefined,
   layerId: string,
   surface: PassFailureSurface,
-  error: unknown,
-  fallback: string
+  error: unknown
 ): void {
-  const message = error instanceof Error ? error.message : fallback
+  const message =
+    error instanceof Error ? error.message : FALLBACK_MESSAGE[surface]
 
-  if (classifyPassFailure(meta) === "contain") {
+  if (classifyPassFailure(type) === "contain") {
     useLayerStore.getState().setLayerRuntimeError(layerId, message)
     Sentry.addBreadcrumb({
       category: "shader.compile",
@@ -71,6 +69,6 @@ export function reportPassFailure(
   }
 
   Sentry.captureException(error, {
-    tags: { "layer.type": meta?.type ?? "unknown", surface },
+    tags: { "layer.type": type ?? "unknown", surface },
   })
 }

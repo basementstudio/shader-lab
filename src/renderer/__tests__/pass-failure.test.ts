@@ -10,9 +10,7 @@ import type { EditorLayer } from "@/types/editor"
 // run, so mocking the layer store leaks into unrelated suites.
 describe("classifyPassFailure", () => {
   test("custom-shader failures are contained, never captured", () => {
-    expect(classifyPassFailure({ kind: "source", type: "custom-shader" })).toBe(
-      "contain"
-    )
+    expect(classifyPassFailure("custom-shader")).toBe("contain")
   })
 
   test("built-in layers are captured", () => {
@@ -27,7 +25,7 @@ describe("classifyPassFailure", () => {
     ]
 
     for (const type of builtIns) {
-      expect(classifyPassFailure({ kind: "source", type })).toBe("capture")
+      expect(classifyPassFailure(type)).toBe("capture")
     }
   })
 
@@ -37,40 +35,32 @@ describe("classifyPassFailure", () => {
 })
 
 describe("nextPassFailureState", () => {
-  const run = (fingerprints: string[], max = 3) => {
+  const run = (fingerprints: string[]) => {
     let state: PassFailureState | undefined
     return fingerprints.map((fingerprint) => {
-      const decision = nextPassFailureState(state, fingerprint, max)
-      state = decision.state
-      return decision
+      state = nextPassFailureState(state, fingerprint)
+      return state
     })
   }
 
-  // The whole point: a pass throwing at 60fps must not send 60 events a second.
-  test("reports the same failure once, however many frames repeat it", () => {
-    const decisions = run(Array.from({ length: 60 }, () => "boom"))
+  // The whole point: callers report only on count === 1, so a pass throwing at
+  // 60fps sends one event, not sixty.
+  test("counts repeats of the same failure so only the first reports", () => {
+    const states = run(Array.from({ length: 60 }, () => "boom"))
 
-    expect(decisions.filter((d) => d.report)).toHaveLength(1)
-    expect(decisions[0]?.report).toBe(true)
+    expect(states.filter((s) => s.count === 1)).toHaveLength(1)
+    expect(states[0]?.count).toBe(1)
+    expect(states.at(-1)?.count).toBe(60)
   })
 
-  test("disables the pass once it hits the limit, and stays disabled", () => {
-    const decisions = run(Array.from({ length: 10 }, () => "boom"))
+  test("a different failure restarts the count, so it reports again", () => {
+    const states = run(["a", "a", "b"])
 
-    expect(decisions.slice(0, 2).some((d) => d.disable)).toBe(false)
-    expect(decisions[2]?.disable).toBe(true)
-    expect(decisions.at(-1)?.disable).toBe(true)
+    expect(states[1]?.count).toBe(2)
+    expect(states[2]?.count).toBe(1)
   })
 
-  test("a different failure reports again and restarts the count", () => {
-    const decisions = run(["a", "a", "b"])
-
-    expect(decisions[2]?.report).toBe(true)
-    expect(decisions[2]?.state.count).toBe(1)
-    expect(decisions[2]?.disable).toBe(false)
-  })
-
-  test("a cleared pass reports again", () => {
-    expect(nextPassFailureState(undefined, "boom", 3).report).toBe(true)
+  test("a cleared pass starts over", () => {
+    expect(nextPassFailureState(undefined, "boom").count).toBe(1)
   })
 })

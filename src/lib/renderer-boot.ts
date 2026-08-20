@@ -1,162 +1,13 @@
 import * as Sentry from "@sentry/nextjs"
 import { gpuSnapshot } from "@/lib/webgpu-diagnostics"
 
-// One boot per page load; a retry-boot feature would need the one-shot guards
-// (`marks`, `deadlineFired`) revisited.
 export type BootStage =
   | "webgpu-probed"
   | "renderer-created"
   | "device-ready"
   | "first-frame"
 
-let startedAt = 0
-let wasHidden = false
-let recoveryReported = false
-const marks: Partial<Record<BootStage, number>> = {}
-
-let visibleSince: number | null = null
-let visibleAccum = 0
-
-let deadlineBudget = 0
-let deadlineExpire: (() => void) | null = null
-let deadlineTimer: ReturnType<typeof setTimeout> | null = null
-let deadlineFired = false
-let subscribed = false
-
-const visibleElapsed = () =>
-  Math.round(
-    visibleAccum +
-      (visibleSince === null ? 0 : performance.now() - visibleSince)
-  )
-
 const toSeconds = (ms: number) => Number((ms / 1000).toFixed(2))
-
-const armDeadline = () => {
-  if (deadlineFired || deadlineExpire === null) {
-    return
-  }
-
-  if (visibleSince === null || deadlineTimer !== null) {
-    return
-  }
-
-  deadlineTimer = setTimeout(
-    () => {
-      deadlineTimer = null
-      deadlineFired = true
-      deadlineExpire?.()
-    },
-    Math.max(0, deadlineBudget - visibleElapsed())
-  )
-}
-
-const disarmDeadline = () => {
-  if (deadlineTimer === null) {
-    return
-  }
-
-  clearTimeout(deadlineTimer)
-  deadlineTimer = null
-}
-
-const syncVisibility = () => {
-  if (document.visibilityState === "hidden") {
-    wasHidden = true
-
-    if (visibleSince !== null) {
-      visibleAccum += performance.now() - visibleSince
-      visibleSince = null
-    }
-
-    disarmDeadline()
-    return
-  }
-
-  if (visibleSince === null) {
-    visibleSince = performance.now()
-    armDeadline()
-  }
-}
-
-export const startRendererBootTrace = () => {
-  if (startedAt === 0) {
-    startedAt = performance.now()
-    wasHidden = document.visibilityState === "hidden"
-    visibleSince = wasHidden ? null : startedAt
-  }
-
-  if (subscribed) {
-    return
-  }
-
-  subscribed = true
-  document.addEventListener("visibilitychange", syncVisibility)
-  syncVisibility()
-}
-
-// Charged only while the tab is visible: a backgrounded tab gets throttled rAF,
-// so wall-clock time there would report a failure nobody saw.
-export const armRendererBootDeadline = (
-  budgetMs: number,
-  onExpire: () => void
-) => {
-  // deadlineFired never resets: re-arming after expiry would file twice.
-  deadlineBudget = budgetMs
-  deadlineExpire = onExpire
-  armDeadline()
-}
-
-// Boot reached a terminal state (first frame or init failure). Clearing
-// deadlineExpire also stops syncVisibility from re-arming on the next focus.
-export const settleRendererBootDeadline = () => {
-  deadlineExpire = null
-  disarmDeadline()
-}
-
-export const stopRendererBootTrace = () => {
-  document.removeEventListener("visibilitychange", syncVisibility)
-  settleRendererBootDeadline()
-  subscribed = false
-}
-
-export const markBootStage = (stage: BootStage) => {
-  if (marks[stage] !== undefined) {
-    return
-  }
-
-  if (startedAt === 0) {
-    startRendererBootTrace()
-  }
-
-  marks[stage] = toSeconds(performance.now() - startedAt)
-  Sentry.addBreadcrumb({
-    category: "renderer.boot",
-    data: { atSec: marks[stage] },
-    level: "info",
-    message: stage,
-  })
-}
-
-// Written once per stage, so key order is already chronological.
-const lastStage = (): BootStage | "none" => {
-  const seen = Object.keys(marks) as BootStage[]
-  return seen[seen.length - 1] ?? "none"
-}
-
-interface NavigatorWithHints extends Navigator {
-  deviceMemory?: number
-}
-
-const deviceSnapshot = () => {
-  const nav = navigator as NavigatorWithHints
-
-  return {
-    cpuCores: nav.hardwareConcurrency,
-    deviceMemoryGb: nav.deviceMemory,
-    dpr: window.devicePixelRatio,
-    viewport: `${window.innerWidth}x${window.innerHeight}`,
-  }
-}
 
 const memoryBucket = (gb: number | undefined) => {
   if (gb === undefined) {
@@ -174,72 +25,187 @@ const memoryBucket = (gb: number | undefined) => {
   return ">=8"
 }
 
-const commonFields = () => {
-  const device = deviceSnapshot()
-  const gpu = gpuSnapshot()
-
-  return {
-    contexts: { renderer_boot_device: device, renderer_boot_gpu: gpu },
-    gpu,
-    tags: {
-      "boot.was_hidden": String(wasHidden),
-      "boot.automated": String(navigator.webdriver === true),
-      "device.memory_bucket": memoryBucket(device.deviceMemoryGb),
-      "gpu.adapter_acquired": String(gpu.adapterAcquired),
-    },
-  }
+interface NavigatorWithHints extends Navigator {
+  deviceMemory?: number
 }
 
-export const captureRendererBootTimeout = (
-  budgetMs: number,
-  sceneInfo: Record<string, unknown>
-) => {
-  if (startedAt === 0) {
-    return
+/**
+ * One instance per boot, created by the renderer effect. Module-level state
+ * would survive a remount and file a timeout for the previous mount's clock.
+ */
+export class RendererBootTrace {
+  private startedAt = 0
+  private wasHidden = false
+  private recoveryReported = false
+  private readonly marks: Partial<Record<BootStage, number>> = {}
+
+  private visibleSince: number | null = null
+  private visibleAccum = 0
+
+  private budgetMs = 0
+  private onExpire: (() => void) | null = null
+  private timer: ReturnType<typeof setTimeout> | null = null
+  private expired = false
+
+  private readonly syncVisibility = () => {
+    if (document.visibilityState === "hidden") {
+      this.wasHidden = true
+
+      if (this.visibleSince !== null) {
+        this.visibleAccum += performance.now() - this.visibleSince
+        this.visibleSince = null
+      }
+
+      this.disarm()
+      return
+    }
+
+    if (this.visibleSince === null) {
+      this.visibleSince = performance.now()
+      this.arm()
+    }
   }
 
-  const elapsedSec = toSeconds(performance.now() - startedAt)
-  const { tags, contexts } = commonFields()
+  start(): void {
+    if (this.startedAt === 0) {
+      this.startedAt = performance.now()
+    }
 
-  Sentry.captureMessage("Renderer boot timed out", {
-    contexts: {
-      // Copied: Sentry serializes async, so a later stage would look earlier.
-      renderer_boot: {
-        budgetSec: toSeconds(budgetMs),
-        elapsedSec,
-        marks: { ...marks },
-        visibleSec: toSeconds(visibleElapsed()),
-        ...sceneInfo,
+    document.addEventListener("visibilitychange", this.syncVisibility)
+    this.syncVisibility()
+  }
+
+  /**
+   * Charged only while the tab is visible: a backgrounded tab gets throttled
+   * rAF, so wall-clock time would report a failure nobody saw.
+   */
+  armDeadline(budgetMs: number, onExpire: () => void): void {
+    this.budgetMs = budgetMs
+    this.onExpire = onExpire
+    this.arm()
+  }
+
+  /** Boot reached a terminal state; stop the deadline re-arming on refocus. */
+  settleDeadline(): void {
+    this.onExpire = null
+    this.disarm()
+  }
+
+  dispose(): void {
+    document.removeEventListener("visibilitychange", this.syncVisibility)
+    this.settleDeadline()
+  }
+
+  mark(stage: BootStage): void {
+    if (this.marks[stage] !== undefined) {
+      return
+    }
+
+    this.marks[stage] = toSeconds(performance.now() - this.startedAt)
+    Sentry.addBreadcrumb({
+      category: "renderer.boot",
+      data: { atSec: this.marks[stage] },
+      level: "info",
+      message: stage,
+    })
+  }
+
+  captureTimeout(sceneInfo: Record<string, unknown>): void {
+    this.capture("Renderer boot timed out", "warning", {
+      context: { budgetSec: toSeconds(this.budgetMs), ...sceneInfo },
+      tags: { "boot.last_stage": this.lastStage() },
+    })
+  }
+
+  /** No-ops unless the deadline expired: nothing to recover from otherwise. */
+  captureRecovery(): void {
+    if (this.recoveryReported || !this.expired) {
+      return
+    }
+
+    this.recoveryReported = true
+    this.capture("Renderer boot recovered after timeout", "info")
+  }
+
+  private capture(
+    message: string,
+    level: "info" | "warning",
+    extra: {
+      context?: Record<string, unknown>
+      tags?: Record<string, string>
+    } = {}
+  ): void {
+    const nav = navigator as NavigatorWithHints
+    const device = {
+      cpuCores: nav.hardwareConcurrency,
+      deviceMemoryGb: nav.deviceMemory,
+      dpr: window.devicePixelRatio,
+      viewport: `${window.innerWidth}x${window.innerHeight}`,
+    }
+    const gpu = gpuSnapshot()
+
+    Sentry.captureMessage(message, {
+      contexts: {
+        renderer_boot: {
+          elapsedSec: toSeconds(performance.now() - this.startedAt),
+          // Copied: Sentry serializes async, so a later stage would look earlier.
+          marks: { ...this.marks },
+          visibleSec: toSeconds(this.visibleElapsed()),
+          ...extra.context,
+        },
+        renderer_boot_device: device,
+        renderer_boot_gpu: gpu,
       },
-      ...contexts,
-    },
-    level: "warning",
-    tags: { ...tags, "boot.last_stage": lastStage() },
-  })
-}
-
-export const captureRendererBootRecovery = () => {
-  // Guarded on deadlineFired so callers can fire it on every good frame.
-  if (startedAt === 0 || recoveryReported || !deadlineFired) {
-    return
+      level,
+      tags: {
+        "boot.automated": String(navigator.webdriver === true),
+        "boot.was_hidden": String(this.wasHidden),
+        "device.memory_bucket": memoryBucket(device.deviceMemoryGb),
+        "gpu.adapter_acquired": String(gpu.adapterAcquired),
+        ...extra.tags,
+      },
+    })
   }
 
-  recoveryReported = true
+  private visibleElapsed(): number {
+    return Math.round(
+      this.visibleAccum +
+        (this.visibleSince === null ? 0 : performance.now() - this.visibleSince)
+    )
+  }
 
-  const { tags, contexts } = commonFields()
+  /** Written once per stage, so key order is already chronological. */
+  private lastStage(): BootStage | "none" {
+    const seen = Object.keys(this.marks) as BootStage[]
+    return seen[seen.length - 1] ?? "none"
+  }
 
-  Sentry.captureMessage("Renderer boot recovered after timeout", {
-    contexts: {
-      renderer_boot: {
-        elapsedSec: toSeconds(performance.now() - startedAt),
-        marks: { ...marks },
-        visibleSec: toSeconds(visibleElapsed()),
+  private arm(): void {
+    // `expired` never resets: re-arming after expiry would file twice.
+    if (this.expired || this.onExpire === null) {
+      return
+    }
+
+    if (this.visibleSince === null || this.timer !== null) {
+      return
+    }
+
+    this.timer = setTimeout(
+      () => {
+        this.timer = null
+        this.expired = true
+        this.onExpire?.()
       },
-      ...contexts,
-    },
-    level: "info",
-    tags,
-  })
-}
+      Math.max(0, this.budgetMs - this.visibleElapsed())
+    )
+  }
 
-export const bootMarks = () => ({ ...marks })
+  private disarm(): void {
+    if (this.timer === null) {
+      return
+    }
+
+    clearTimeout(this.timer)
+    this.timer = null
+  }
+}

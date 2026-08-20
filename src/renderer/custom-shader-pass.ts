@@ -15,6 +15,7 @@ import * as THREE from "three/webgpu"
 import { emitCustomShaderCompileResult } from "@/lib/agent-bridge/compile-events"
 import { CUSTOM_SHADER_ENTRY_EXPORT } from "@/lib/editor/custom-shader/shared"
 import { compileCustomShaderModule } from "@/renderer/custom-shader-runtime"
+import { reportPassFailure } from "@/renderer/pass-failure"
 import { PassNode } from "@/renderer/pass-node"
 import { useLayerStore } from "@/store/layer-store"
 import type { LayerParameterValues } from "@/types/editor"
@@ -175,18 +176,12 @@ export class CustomShaderPass extends PassNode {
 
       return vec4(finalRgb, float(1))
     } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Custom shader execution failed."
-
-      useLayerStore.getState().setLayerRuntimeError(this.layerId, message)
-      Sentry.addBreadcrumb({
-        category: "shader.compile",
-        data: { layerId: this.layerId, surface: "build-effect-node" },
-        level: "warning",
-        message,
-      })
+      reportPassFailure(
+        "custom-shader",
+        this.layerId,
+        "build-effect-node",
+        error
+      )
       return vec4(vec3(float(0), float(0), float(0)), float(1))
     }
   }

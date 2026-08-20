@@ -1,6 +1,6 @@
 import {
-  type AudioModulationInput,
   applyAudioModulation,
+  type AudioModulationInput,
 } from "@/lib/editor/audio/links"
 import { cloneParameterValues } from "@/lib/editor/parameter-schema"
 import { evaluateTimelineForLayers } from "@/lib/editor/timeline/evaluate"

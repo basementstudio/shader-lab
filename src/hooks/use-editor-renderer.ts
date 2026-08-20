@@ -4,16 +4,7 @@ import * as Sentry from "@sentry/nextjs"
 import { useEffect, useRef, useState } from "react"
 import { registerAgentFramePump } from "@/lib/agent-bridge/frame-pump"
 import { isPreviewRenderLocked } from "@/lib/editor/preview-render-lock"
-import {
-  armRendererBootDeadline,
-  bootMarks,
-  captureRendererBootRecovery,
-  captureRendererBootTimeout,
-  markBootStage,
-  settleRendererBootDeadline,
-  startRendererBootTrace,
-  stopRendererBootTrace,
-} from "@/lib/renderer-boot"
+import { RendererBootTrace } from "@/lib/renderer-boot"
 import { gpuSnapshot } from "@/lib/webgpu-diagnostics"
 import { buildRendererFrame, type EditorRenderer } from "@/renderer/contracts"
 import {
@@ -54,6 +45,15 @@ const BOOT_TIMEOUT_MS = 20_000
 
 // A persistent GPU fault throws every frame; halt instead of spinning.
 const MAX_CONSECUTIVE_FRAME_FAILURES = 5
+
+const HALT_MESSAGE = {
+  "device-lost":
+    "The GPU device was lost. Reload the page to restart the renderer.",
+  "repeated-errors":
+    "The renderer stopped after repeated errors. Reload the page to try again.",
+} as const
+
+type HaltReason = keyof typeof HALT_MESSAGE
 
 function sceneInfo() {
   const editor = useEditorStore.getState()
@@ -111,16 +111,17 @@ export function useEditorRenderer() {
     const reportedFrameErrors = new Set<string>()
 
     editorStore.setWebGPUStatus("initializing")
-    startRendererBootTrace()
-    markBootStage("webgpu-probed")
-    armRendererBootDeadline(BOOT_TIMEOUT_MS, () => {
-      captureRendererBootTimeout(BOOT_TIMEOUT_MS, sceneInfo())
+    const boot = new RendererBootTrace()
+    boot.start()
+    boot.mark("webgpu-probed")
+    boot.armDeadline(BOOT_TIMEOUT_MS, () => {
+      boot.captureTimeout(sceneInfo())
     })
 
     async function initializeRenderer() {
       try {
         const renderer = await createWebGPURenderer(canvasElement)
-        markBootStage("renderer-created")
+        boot.mark("renderer-created")
 
         if (isDisposed) {
           renderer.dispose()
@@ -129,7 +130,7 @@ export function useEditorRenderer() {
 
         rendererRef.current = renderer
         await renderer.initialize()
-        markBootStage("device-ready")
+        boot.mark("device-ready")
         Sentry.setContext("gpu", gpuSnapshot())
         editorStore.setLiveRenderer(renderer)
         editorStore.setLiveCanvas(canvasElement)
@@ -187,7 +188,7 @@ export function useEditorRenderer() {
           )
         }
 
-        const haltLoop = (message: string, deviceLost: boolean) => {
+        const haltLoop = (reason: HaltReason) => {
           if (loopHalted) {
             return
           }
@@ -195,17 +196,16 @@ export function useEditorRenderer() {
           loopHalted = true
           // Terminal before the first frame: otherwise the boot deadline still
           // fires a misleading timeout 20s later.
-          settleRendererBootDeadline()
+          boot.settleDeadline()
+
+          const message = HALT_MESSAGE[reason]
           useEditorStore.getState().setWebGPUStatus("error", message)
           setFallbackMessage(message)
 
           Sentry.captureMessage("Render loop halted", {
             extra: { consecutiveFrameFailures, ...sceneInfo() },
             level: "error",
-            tags: {
-              "halt.device_lost": String(deviceLost),
-              surface: "render-loop-halted",
-            },
+            tags: { "halt.reason": reason, surface: "render-loop-halted" },
           })
         }
 
@@ -217,28 +217,20 @@ export function useEditorRenderer() {
 
           if (!reportedFrameErrors.has(fingerprint)) {
             reportedFrameErrors.add(fingerprint)
+            // The boot breadcrumbs already carry the stage timings.
             Sentry.captureException(error, {
-              contexts: { renderer_boot: { marks: bootMarks() } },
               extra: sceneInfo(),
               tags: { surface: "render-frame" },
             })
           }
 
-          const deviceLost = renderer.isDeviceLost()
-
-          if (deviceLost) {
-            haltLoop(
-              "The GPU device was lost. Reload the page to restart the renderer.",
-              true
-            )
+          if (renderer.isDeviceLost()) {
+            haltLoop("device-lost")
             return
           }
 
           if (consecutiveFrameFailures >= MAX_CONSECUTIVE_FRAME_FAILURES) {
-            haltLoop(
-              "The renderer stopped after repeated errors. Reload the page to try again.",
-              false
-            )
+            haltLoop("repeated-errors")
           }
         }
 
@@ -267,10 +259,7 @@ export function useEditorRenderer() {
           // three's render() returns silently once the device is lost, so this
           // never surfaces as a throw — poll the renderer instead.
           if (renderer.isDeviceLost()) {
-            haltLoop(
-              "The GPU device was lost. Reload the page to restart the renderer.",
-              true
-            )
+            haltLoop("device-lost")
             return
           }
 
@@ -334,9 +323,9 @@ export function useEditorRenderer() {
 
           if (!firstFrameMarked) {
             firstFrameMarked = true
-            markBootStage("first-frame")
-            settleRendererBootDeadline()
-            captureRendererBootRecovery()
+            boot.mark("first-frame")
+            boot.settleDeadline()
+            boot.captureRecovery()
           }
         }
 
@@ -366,11 +355,8 @@ export function useEditorRenderer() {
         setFallbackMessage(message)
         // Terminal: without this the 20s deadline still fires a second, bogus
         // "boot timed out" on top of the real failure.
-        settleRendererBootDeadline()
-        Sentry.captureException(error, {
-          contexts: { renderer_boot: { marks: bootMarks() } },
-          tags: { surface: "webgpu-init" },
-        })
+        boot.settleDeadline()
+        Sentry.captureException(error, { tags: { surface: "webgpu-init" } })
       }
     }
 
@@ -379,7 +365,7 @@ export function useEditorRenderer() {
     return () => {
       isDisposed = true
 
-      stopRendererBootTrace()
+      boot.dispose()
       unregisterFramePump?.()
       unsubscribeRenderScale?.()
 

@@ -11,7 +11,7 @@ import { MagnifyLensPass } from "@/renderer/magnify-lens-pass"
 import { MediaPass } from "@/renderer/media-pass"
 import {
   errorFingerprint,
-  type LayerMeta,
+  type LayerType,
   nextPassFailureState,
   type PassFailureState,
   reportPassFailure,
@@ -130,9 +130,8 @@ export class PipelineManager {
   private compilingPasses = new Set<string>()
   private compiledVersions = new Map<string, number>()
   // Attributes compile and render failures to a layer type. See pass-failure.ts.
-  private layerMeta = new Map<string, LayerMeta>()
+  private layerTypes = new Map<string, LayerType>()
   private passFailures = new Map<string, PassFailureState>()
-  private failedPasses = new Set<string>()
   private readonly strictPassFailures: boolean
   private pendingMediaLoads = new Set<string>()
   private cachedActivePasses: LayerPassNode[] = []
@@ -216,7 +215,7 @@ export class PipelineManager {
       this.layerSignatures.delete(layerId)
       this.compilingPasses.delete(layerId)
       this.compiledVersions.delete(layerId)
-      this.layerMeta.delete(layerId)
+      this.layerTypes.delete(layerId)
       this.clearPassFailure(layerId)
       this.markDirty()
     }
@@ -228,10 +227,7 @@ export class PipelineManager {
       const signature = createLayerSignature(renderableLayer)
       let pass = this.passMap.get(layerId)
 
-      this.layerMeta.set(layerId, {
-        kind: renderableLayer.layer.kind,
-        type: renderableLayer.layer.type,
-      })
+      this.layerTypes.set(layerId, renderableLayer.layer.type)
 
       if (!pass) {
         pass = this.createPass(renderableLayer.layer)
@@ -273,7 +269,7 @@ export class PipelineManager {
       this.cachedActivePasses = this.passes.filter(
         (pass) =>
           pass.enabled &&
-          !this.failedPasses.has(pass.layerId) &&
+          !this.isPassDisabled(pass.layerId) &&
           (!this.compilingPasses.has(pass.layerId) ||
             this.compiledVersions.has(pass.layerId))
       )
@@ -323,8 +319,14 @@ export class PipelineManager {
         )
       } catch (error) {
         // Exports must fail loudly: dropping a layer would ship a frame that
-        // looks fine but is wrong.
+        // looks fine but is wrong. Still report, so the abort is diagnosable.
         if (this.strictPassFailures) {
+          reportPassFailure(
+            this.layerTypes.get(pass.layerId),
+            pass.layerId,
+            "pass-render",
+            error
+          )
           throw error
         }
 
@@ -543,35 +545,37 @@ export class PipelineManager {
     }
   }
 
+  private isPassDisabled(layerId: string): boolean {
+    return (this.passFailures.get(layerId)?.count ?? 0) >= MAX_PASS_FAILURES
+  }
+
   private handlePassRenderFailure(layerId: string, error: unknown): void {
-    const { disable, report, state } = nextPassFailureState(
+    const state = nextPassFailureState(
       this.passFailures.get(layerId),
-      errorFingerprint(error),
-      MAX_PASS_FAILURES
+      errorFingerprint(error)
     )
 
     this.passFailures.set(layerId, state)
 
-    if (report) {
+    if (state.count === 1) {
       reportPassFailure(
-        this.layerMeta.get(layerId),
+        this.layerTypes.get(layerId),
         layerId,
         "pass-render",
-        error,
-        "Layer failed to render."
+        error
       )
     }
 
-    if (disable) {
-      this.failedPasses.add(layerId)
+    if (state.count === MAX_PASS_FAILURES) {
       this.markDirty()
     }
   }
 
   private clearPassFailure(layerId: string): void {
+    const wasDisabled = this.isPassDisabled(layerId)
     this.passFailures.delete(layerId)
 
-    if (this.failedPasses.delete(layerId)) {
+    if (wasDisabled) {
       this.markDirty()
     }
   }
@@ -598,11 +602,10 @@ export class PipelineManager {
         // Keep the delete: dropping it wedges hasPendingCompilations().
         this.compilingPasses.delete(pass.layerId)
         reportPassFailure(
-          this.layerMeta.get(pass.layerId),
+          this.layerTypes.get(pass.layerId),
           pass.layerId,
           "pipeline-compile",
-          error,
-          "Shader compilation failed."
+          error
         )
       })
   }

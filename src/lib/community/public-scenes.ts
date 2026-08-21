@@ -15,11 +15,11 @@ import {
   getPublishedSceneWithAuthor,
   listPublishedScenes,
 } from "@/lib/community/scenes"
-import type { LayerType } from "@/types/editor"
+import type { EffectLayerType } from "@/types/editor"
 
 export const PUBLIC_GRID_LIMIT = 48
 
-export async function getPublicScenes(layer?: LayerType): Promise<{
+export async function getPublicScenes(effect?: EffectLayerType): Promise<{
   nextCursor: string | null
   scenes: CommunitySceneSummary[]
 }> {
@@ -35,7 +35,7 @@ export async function getPublicScenes(layer?: LayerType): Promise<{
     return await listPublishedScenes({
       limit: PUBLIC_GRID_LIMIT,
       sort: "popular",
-      ...(layer ? { layer } : {}),
+      ...(effect ? { effect } : {}),
     })
   } catch {
     return { nextCursor: null, scenes: [] }

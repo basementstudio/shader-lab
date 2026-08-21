@@ -3,7 +3,7 @@
 import { EmptyState } from "@/components/community/empty-state"
 import { Button } from "@/components/ui/button"
 import { getLayerLabel } from "@/lib/editor/config/layer-catalog"
-import type { LayerType } from "@/types/editor"
+import type { EffectLayerType } from "@/types/editor"
 
 function EmptyGlyph() {
   return (
@@ -37,23 +37,23 @@ function EmptyGlyph() {
 
 export function SceneEmptyState({
   onClearFilters,
-  layer,
+  effect,
   query,
 }: {
   onClearFilters: () => void
-  layer?: LayerType | null
+  effect?: EffectLayerType | null
   query: string
 }) {
   const searching = query.trim().length > 0
-  const filtered = searching || Boolean(layer)
+  const filtered = searching || Boolean(effect)
   let description =
     "Published scenes show up here. Build something in the editor and publish it to be the first."
   let title = "No scenes published yet"
 
-  if (layer) {
+  if (effect) {
     description =
-      "Try another layer, or clear the filter to explore every scene."
-    title = `No scenes using ${getLayerLabel(layer)} yet`
+      "Try another effect, or clear the filter to explore every scene."
+    title = `No scenes using ${getLayerLabel(effect)} yet`
   }
 
   if (searching) {

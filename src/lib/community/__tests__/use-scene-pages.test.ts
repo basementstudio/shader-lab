@@ -41,10 +41,10 @@ describe("sceneListUrl", () => {
     expect(params.get("q")).toBe("crt")
   })
 
-  test("carries a layer filter through", () => {
-    const params = paramsOf(sceneListUrl({ layer: "crt", sort: "popular" }))
+  test("carries an effect filter through", () => {
+    const params = paramsOf(sceneListUrl({ effect: "crt", sort: "popular" }))
 
-    expect(params.get("layer")).toBe("crt")
+    expect(params.get("effect")).toBe("crt")
   })
 
   test("a null author is treated as absent", () => {

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import {
   COMMUNITY_PATH,
-  communityLayerPath,
+  communityEffectPath,
   EDITOR_PATH,
   editorSceneHref,
   profileDisplayPath,
@@ -26,9 +26,9 @@ describe("community paths", () => {
     )
   })
 
-  test("a layer filter stays on the public community page", () => {
-    expect(communityLayerPath("chromatic-aberration")).toBe(
-      "/tools/shader-lab/community?layer=chromatic-aberration"
+  test("an effect filter stays on the public community page", () => {
+    expect(communityEffectPath("chromatic-aberration")).toBe(
+      "/tools/shader-lab/community?effect=chromatic-aberration"
     )
   })
 })

@@ -2,13 +2,13 @@ import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { Suspense } from "react"
 import { PublicSceneGrid } from "@/components/community/public-scene-grid"
-import { PublicSceneLayerFilter } from "@/components/community/public-scene-layer-filter"
+import { PublicSceneEffectFilter } from "@/components/community/public-scene-effect-filter"
 import { ButtonLink } from "@/components/ui/button/link"
 import { Typography } from "@/components/ui/typography"
 import { APP_BASE_URL } from "@/lib/app"
 import { isCommunityEnabled } from "@/lib/community/config"
 import { getPublicScenes } from "@/lib/community/public-scenes"
-import { isCommunityLayerType } from "@/lib/community/scene-layer-filter"
+import { isCommunityEffectType } from "@/lib/community/scene-effect-filter"
 import { COMMUNITY_PATH } from "@/lib/community/scene-links"
 import { getLayerLabel } from "@/lib/editor/config/layer-catalog"
 
@@ -72,28 +72,28 @@ export default function CommunityPage({ searchParams }: PageProps) {
 }
 
 async function CommunityScenes({ searchParams }: PageProps) {
-  const rawLayer = (await searchParams).layer
-  const layer = isCommunityLayerType(rawLayer) ? rawLayer : undefined
-  const page = await getPublicScenes(layer)
+  const rawEffect = (await searchParams).effect
+  const effect = isCommunityEffectType(rawEffect) ? rawEffect : undefined
+  const page = await getPublicScenes(effect)
 
   return (
     <section className="flex flex-col gap-[var(--ds-space-6)]">
       <div className="flex items-center gap-2">
         <Typography as="span" tone="tertiary" variant="overline">
-          Layer
+          Effect
         </Typography>
-        <PublicSceneLayerFilter {...(layer ? { layer } : {})} />
+        <PublicSceneEffectFilter {...(effect ? { effect } : {})} />
       </div>
 
       <PublicSceneGrid
         emptyLabel={
-          layer
-            ? `No scenes using ${getLayerLabel(layer)} published yet.`
+          effect
+            ? `No scenes using ${getLayerLabel(effect)} published yet.`
             : "No scenes published yet."
         }
         initialNextCursor={page.nextCursor}
         initialScenes={page.scenes}
-        {...(layer ? { layer } : {})}
+        {...(effect ? { effect } : {})}
       />
     </section>
   )

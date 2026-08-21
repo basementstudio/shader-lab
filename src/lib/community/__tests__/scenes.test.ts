@@ -3,9 +3,9 @@ import type { SQL } from "drizzle-orm"
 import { PgDialect } from "drizzle-orm/pg-core"
 import type { SceneCursor } from "@/lib/community/scene-cursor"
 import {
+  buildEffectFilter,
   buildKeysetFilter,
   buildOrderBy,
-  buildLayerFilter,
   resolveLabUrl,
   resolveThumbnailUrl,
   SCENE_SORTS,
@@ -192,9 +192,9 @@ describe("scene keyset pagination", () => {
   })
 })
 
-describe("scene layer filtering", () => {
+describe("scene effect filtering", () => {
   test("uses PostgreSQL array containment so the GIN index can serve it", () => {
-    expect(dialect.sqlToQuery(buildLayerFilter("crt"))).toEqual({
+    expect(dialect.sqlToQuery(buildEffectFilter("crt"))).toEqual({
       params: ['{"crt"}'],
       sql: '"scenes"."layer_types" @> $1',
       typings: ["none"],

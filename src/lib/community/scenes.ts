@@ -18,7 +18,7 @@ import { getDatabase } from "@/lib/db"
 import { likes, profiles, scenes } from "@/lib/db/schema"
 import { normalizeHost } from "@/lib/editor/remote-asset"
 import { readEnv } from "@/lib/read-env"
-import type { LayerType } from "@/types/editor"
+import type { EffectLayerType, LayerType } from "@/types/editor"
 
 export const SCENE_SORTS = ["popular", "latest", "featured"] as const
 export type SceneSort = (typeof SCENE_SORTS)[number]
@@ -179,8 +179,8 @@ export function buildKeysetFilter(sort: SceneSort, cursor: SceneCursor) {
   return sql`(${scenes.publishedAt}, ${scenes.id}) < (${publishedAt}::timestamptz, ${cursor.id}::text)`
 }
 
-export function buildLayerFilter(layer: LayerType) {
-  return arrayContains(scenes.layerTypes, [layer])
+export function buildEffectFilter(effect: EffectLayerType) {
+  return arrayContains(scenes.layerTypes, [effect])
 }
 
 function escapeLike(value: string): string {
@@ -198,7 +198,7 @@ export async function listPublishedScenes(options?: {
   limit?: number
   query?: string
   sort?: SceneSort
-  layer?: LayerType
+  effect?: EffectLayerType
 }): Promise<SceneListPage> {
   const limit = Math.min(Math.max(options?.limit ?? 24, 1), 60)
   const sort = options?.sort ?? DEFAULT_SCENE_SORT
@@ -219,8 +219,8 @@ export async function listPublishedScenes(options?: {
     filters.push(buildKeysetFilter(sort, options.cursor))
   }
 
-  if (options?.layer) {
-    filters.push(buildLayerFilter(options.layer))
+  if (options?.effect) {
+    filters.push(buildEffectFilter(options.effect))
   }
 
   if (query.length > 0) {

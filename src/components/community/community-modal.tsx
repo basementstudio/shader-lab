@@ -37,10 +37,10 @@ import type {
 } from "@/lib/community/scenes"
 import { scenePagePath } from "@/lib/community/scene-links"
 import {
-  ALL_COMMUNITY_LAYERS_VALUE,
-  COMMUNITY_LAYER_FILTER_OPTIONS,
-  isCommunityLayerType,
-} from "@/lib/community/scene-layer-filter"
+  ALL_COMMUNITY_EFFECTS_VALUE,
+  COMMUNITY_EFFECT_FILTER_OPTIONS,
+  isCommunityEffectType,
+} from "@/lib/community/scene-effect-filter"
 import { MAX_DRAFTS_PER_AUTHOR } from "@/lib/community/upload-limits"
 import { useScenePages } from "@/lib/community/use-scene-pages"
 import { requestAutosave } from "@/lib/editor/autosave/bus"
@@ -55,7 +55,7 @@ import { useAssetStore } from "@/store/asset-store"
 import { useDraftStore } from "@/store/draft-store"
 import { useEditorStore } from "@/store/editor-store"
 import { useRemixOriginStore } from "@/store/remix-origin-store"
-import type { LayerType } from "@/types/editor"
+import type { EffectLayerType } from "@/types/editor"
 
 const SKELETON_KEYS = ["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8"] as const
 
@@ -208,12 +208,12 @@ export function CommunityModal({
   const [sort, setSort] = useState<SceneSort>("popular")
   const [search, setSearch] = useState("")
   const [query, setQuery] = useState("")
-  const [layer, setLayer] = useState<LayerType | null>(null)
+  const [effect, setEffect] = useState<EffectLayerType | null>(null)
   const explore = useScenePages({
     enabled: open && tab === "explore",
     query,
     sort,
-    layer,
+    effect,
   })
   const items = explore.scenes
   const [selected, setSelected] = useState<CommunitySceneSummary | null>(null)
@@ -885,17 +885,17 @@ export function CommunityModal({
                 {selected || selectedHandle || tab !== "explore" ? null : (
                   <div className="flex shrink-0 items-center gap-2 border-b border-[var(--ds-border-divider)] px-4 py-2">
                     <Typography as="span" tone="tertiary" variant="overline">
-                      Layer
+                      Effect
                     </Typography>
                     <Select
                       onValueChange={(value) =>
-                        setLayer(isCommunityLayerType(value) ? value : null)
+                        setEffect(isCommunityEffectType(value) ? value : null)
                       }
-                      options={COMMUNITY_LAYER_FILTER_OPTIONS}
+                      options={COMMUNITY_EFFECT_FILTER_OPTIONS}
                       popupClassName="min-w-[190px]"
-                      triggerAriaLabel="Filter scenes by layer"
+                      triggerAriaLabel="Filter scenes by effect"
                       triggerClassName="h-7 w-[160px] min-h-7 py-1"
-                      value={layer ?? ALL_COMMUNITY_LAYERS_VALUE}
+                      value={effect ?? ALL_COMMUNITY_EFFECTS_VALUE}
                     />
                   </div>
                 )}
@@ -1134,9 +1134,9 @@ export function CommunityModal({
                         <SceneEmptyState
                           onClearFilters={() => {
                             setSearch("")
-                            setLayer(null)
+                            setEffect(null)
                           }}
-                          layer={layer}
+                          effect={effect}
                           query={query}
                         />
                       ) : null}
@@ -1148,7 +1148,7 @@ export function CommunityModal({
                               featured={isFeaturedIndex(index, {
                                 query,
                                 sort,
-                                layer,
+                                effect,
                                 total: items.length,
                               })}
                               key={scene.id}

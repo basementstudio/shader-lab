@@ -1,4 +1,14 @@
-import { and, desc, eq, ilike, isNull, ne, or, sql } from "drizzle-orm"
+import {
+  and,
+  arrayContains,
+  desc,
+  eq,
+  ilike,
+  isNull,
+  ne,
+  or,
+  sql,
+} from "drizzle-orm"
 import { alias } from "drizzle-orm/pg-core"
 import {
   encodeSceneCursor,
@@ -8,7 +18,7 @@ import { getDatabase } from "@/lib/db"
 import { likes, profiles, scenes } from "@/lib/db/schema"
 import { normalizeHost } from "@/lib/editor/remote-asset"
 import { readEnv } from "@/lib/read-env"
-import type { LayerType } from "@/types/editor"
+import type { EffectLayerType, LayerType } from "@/types/editor"
 
 export const SCENE_SORTS = ["popular", "latest", "featured"] as const
 export type SceneSort = (typeof SCENE_SORTS)[number]
@@ -169,6 +179,10 @@ export function buildKeysetFilter(sort: SceneSort, cursor: SceneCursor) {
   return sql`(${scenes.publishedAt}, ${scenes.id}) < (${publishedAt}::timestamptz, ${cursor.id}::text)`
 }
 
+export function buildEffectFilter(effects: readonly EffectLayerType[]) {
+  return arrayContains(scenes.layerTypes, [...effects])
+}
+
 function escapeLike(value: string): string {
   return value.replace(/[\\%_]/g, (match) => `\\${match}`)
 }
@@ -184,6 +198,7 @@ export async function listPublishedScenes(options?: {
   limit?: number
   query?: string
   sort?: SceneSort
+  effects?: readonly EffectLayerType[]
 }): Promise<SceneListPage> {
   const limit = Math.min(Math.max(options?.limit ?? 24, 1), 60)
   const sort = options?.sort ?? DEFAULT_SCENE_SORT
@@ -202,6 +217,10 @@ export async function listPublishedScenes(options?: {
 
   if (options?.cursor) {
     filters.push(buildKeysetFilter(sort, options.cursor))
+  }
+
+  if (options?.effects && options.effects.length > 0) {
+    filters.push(buildEffectFilter(options.effects))
   }
 
   if (query.length > 0) {

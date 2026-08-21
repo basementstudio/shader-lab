@@ -2,6 +2,8 @@
 
 import { EmptyState } from "@/components/community/empty-state"
 import { Button } from "@/components/ui/button"
+import { getLayerLabel } from "@/lib/editor/config/layer-catalog"
+import type { EffectLayerType } from "@/types/editor"
 
 function EmptyGlyph() {
   return (
@@ -34,32 +36,46 @@ function EmptyGlyph() {
 }
 
 export function SceneEmptyState({
-  onClearSearch,
+  onClearFilters,
+  effects,
   query,
 }: {
-  onClearSearch: () => void
+  onClearFilters: () => void
+  effects: readonly EffectLayerType[]
   query: string
 }) {
   const searching = query.trim().length > 0
+  const filtered = searching || effects.length > 0
+  let description =
+    "Published scenes show up here. Build something in the editor and publish it to be the first."
+  let title = "No scenes published yet"
+
+  if (effects.length > 0) {
+    description =
+      "Remove an effect, or clear the filters to explore every scene."
+    title =
+      effects.length === 1
+        ? `No scenes using ${getLayerLabel(effects[0]!)} yet`
+        : "No scenes use all selected effects yet"
+  }
+
+  if (searching) {
+    description = "Try a different title, or an author's name or handle."
+    title = "No scenes match that search"
+  }
 
   return (
     <EmptyState
       action={
-        searching ? (
-          <Button onClick={onClearSearch} variant="secondary">
-            Clear search
+        filtered ? (
+          <Button onClick={onClearFilters} variant="secondary">
+            Clear filter
           </Button>
         ) : null
       }
-      description={
-        searching
-          ? "Try a different title, or an author's name or handle."
-          : "Published scenes show up here. Build something in the editor and publish it to be the first."
-      }
+      description={description}
       glyph={<EmptyGlyph />}
-      title={
-        searching ? "No scenes match that search" : "No scenes published yet"
-      }
+      title={title}
     />
   )
 }

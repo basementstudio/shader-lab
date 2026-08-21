@@ -27,18 +27,20 @@ import { HoverTooltip } from "@/components/ui/tooltip"
 import { Typography } from "@/components/ui/typography"
 import { authClient } from "@/lib/auth/client"
 import { cn } from "@/lib/cn"
+import { COMMUNITY_EFFECT_TYPES } from "@/lib/community/scene-effect-filter"
+import { scenePagePath } from "@/lib/community/scene-links"
 import type {
   AuthoredScene,
-  DraftSummary,
   CommunitySceneDetail,
   CommunitySceneSummary,
+  DraftSummary,
   SceneSort,
 } from "@/lib/community/scenes"
-import { scenePagePath } from "@/lib/community/scene-links"
 import { MAX_DRAFTS_PER_AUTHOR } from "@/lib/community/upload-limits"
 import { useScenePages } from "@/lib/community/use-scene-pages"
 import { requestAutosave } from "@/lib/editor/autosave/bus"
 import { withAutosaveSuppressed } from "@/lib/editor/autosave/suppress"
+import { getLayerLabel } from "@/lib/editor/config/layer-catalog"
 import { acquirePreviewRenderLock } from "@/lib/editor/preview-render-lock"
 import {
   applyLabProjectFile,
@@ -49,6 +51,7 @@ import { useAssetStore } from "@/store/asset-store"
 import { useDraftStore } from "@/store/draft-store"
 import { useEditorStore } from "@/store/editor-store"
 import { useRemixOriginStore } from "@/store/remix-origin-store"
+import type { EffectLayerType } from "@/types/editor"
 
 const SKELETON_KEYS = ["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8"] as const
 
@@ -101,7 +104,6 @@ function PublishedGlyph() {
     </svg>
   )
 }
-
 function LikesGlyph() {
   return (
     <svg
@@ -202,10 +204,12 @@ export function CommunityModal({
   const [sort, setSort] = useState<SceneSort>("popular")
   const [search, setSearch] = useState("")
   const [query, setQuery] = useState("")
+  const [effects, setEffects] = useState<EffectLayerType[]>([])
   const explore = useScenePages({
     enabled: open && tab === "explore",
     query,
     sort,
+    effects,
   })
   const items = explore.scenes
   const [selected, setSelected] = useState<CommunitySceneSummary | null>(null)
@@ -874,6 +878,72 @@ export function CommunityModal({
                   )}
                 </div>
 
+                {selected || selectedHandle || tab !== "explore" ? null : (
+                  <fieldset
+                    aria-label="Filter community scenes by effect"
+                    className="m-0 flex min-w-0 shrink-0 gap-1.5 overflow-x-auto border-x-0 border-t-0 border-b border-[var(--ds-border-divider)] px-4 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                  >
+                    <button
+                      aria-pressed={effects.length === 0}
+                      className={cn(
+                        TAB_CLASS_NAME,
+                        "shrink-0",
+                        effects.length === 0 &&
+                          "border-[var(--ds-border-active)] bg-[var(--ds-color-surface-active)]"
+                      )}
+                      onClick={() => setEffects([])}
+                      type="button"
+                    >
+                      <Typography
+                        as="span"
+                        tone={effects.length === 0 ? "primary" : "tertiary"}
+                        variant="label"
+                      >
+                        All
+                      </Typography>
+                    </button>
+
+                    {COMMUNITY_EFFECT_TYPES.map((effectType) => (
+                      <button
+                        aria-pressed={effects.includes(effectType)}
+                        className={cn(
+                          TAB_CLASS_NAME,
+                          "shrink-0",
+                          effects.includes(effectType) &&
+                            "border-[var(--ds-border-active)] bg-[var(--ds-color-surface-active)]"
+                        )}
+                        key={effectType}
+                        onClick={() =>
+                          setEffects((current) =>
+                            current.includes(effectType)
+                              ? current.filter(
+                                  (effect) => effect !== effectType
+                                )
+                              : COMMUNITY_EFFECT_TYPES.filter(
+                                  (effect) =>
+                                    current.includes(effect) ||
+                                    effect === effectType
+                                )
+                          )
+                        }
+                        type="button"
+                      >
+                        <Typography
+                          as="span"
+                          tone={
+                            effects.includes(effectType)
+                              ? "primary"
+                              : "tertiary"
+                          }
+                          variant="label"
+                        >
+                          {getLayerLabel(effectType)}
+                        </Typography>
+                      </button>
+                    ))}
+                  </fieldset>
+                )}
+
                 {error ? (
                   <div
                     className="border-b border-[var(--ds-border-divider)] bg-[rgb(120_28_28_/_0.22)] px-4 py-2"
@@ -885,7 +955,14 @@ export function CommunityModal({
                   </div>
                 ) : null}
 
-                <div className="h-[min(62vh,560px)]">
+                <div
+                  className={cn(
+                    "h-[min(62vh,560px)]",
+                    tab === "explore" &&
+                      !(selected || selectedHandle) &&
+                      "h-[min(62vh,calc(100vh-254px),560px)]"
+                  )}
+                >
                   {selected ? (
                     <SceneDetail
                       detail={detail}
@@ -1099,7 +1176,11 @@ export function CommunityModal({
 
                       {items?.length === 0 ? (
                         <SceneEmptyState
-                          onClearSearch={() => setSearch("")}
+                          onClearFilters={() => {
+                            setSearch("")
+                            setEffects([])
+                          }}
+                          effects={effects}
                           query={query}
                         />
                       ) : null}
@@ -1111,6 +1192,7 @@ export function CommunityModal({
                               featured={isFeaturedIndex(index, {
                                 query,
                                 sort,
+                                effects,
                                 total: items.length,
                               })}
                               key={scene.id}

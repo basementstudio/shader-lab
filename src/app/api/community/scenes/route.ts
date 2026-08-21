@@ -7,6 +7,7 @@ import {
   SCENE_SORTS,
   type SceneSort,
 } from "@/lib/community/scenes"
+import { getCommunityEffectSelection } from "@/lib/community/scene-effect-filter"
 
 const FIRST_PAGE_CACHE =
   "public, s-maxage=60, stale-while-revalidate=300, max-age=0"
@@ -34,12 +35,16 @@ export async function GET(request: Request) {
 
   try {
     const query = url.searchParams.get("q")?.slice(0, 80) ?? ""
+    const effects = getCommunityEffectSelection(
+      url.searchParams.getAll("effect")
+    )
     const page = await listPublishedScenes({
       ...(requestedAuthor.length > 0 ? { authorHandle: requestedAuthor } : {}),
       cursor: decodeSceneCursor(rawCursor),
       ...(Number.isFinite(limit) ? { limit } : {}),
       ...(query.trim().length > 0 ? { query } : {}),
       sort: parseSort(url.searchParams.get("sort")),
+      ...(effects.length > 0 ? { effects } : {}),
     })
 
     const cacheable = !(rawCursor || query.trim().length > 0)

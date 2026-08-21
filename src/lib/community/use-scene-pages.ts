@@ -3,10 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { mergeScenePages } from "@/lib/community/merge-scenes"
 import type { CommunitySceneSummary, SceneSort } from "@/lib/community/scenes"
+import type { EffectLayerType } from "@/types/editor"
 
 export const SCENE_PAGE_SIZE = 24
 
 const MAX_CACHED_PAGES = 12
+const NO_EFFECTS: readonly EffectLayerType[] = []
 
 interface ScenePageResponse {
   nextCursor?: string | null
@@ -21,9 +23,12 @@ interface CachedPage {
 export function sceneListKey(
   sort: SceneSort,
   query: string,
-  author?: string | null
+  author?: string | null,
+  effects?: readonly EffectLayerType[]
 ): string {
-  return `${author ?? ""}|${sort}|${query.trim().toLowerCase()}`
+  const effectKey = [...(effects ?? NO_EFFECTS)].sort().join(",")
+
+  return `${author ?? ""}|${sort}|${query.trim().toLowerCase()}|${effectKey}`
 }
 
 export function sceneListUrl(input: {
@@ -32,6 +37,7 @@ export function sceneListUrl(input: {
   limit?: number
   query?: string
   sort: SceneSort
+  effects?: readonly EffectLayerType[]
 }): string {
   const params = new URLSearchParams({
     limit: String(input.limit ?? SCENE_PAGE_SIZE),
@@ -46,6 +52,10 @@ export function sceneListUrl(input: {
 
   if (input.author) {
     params.set("author", input.author)
+  }
+
+  for (const effect of input.effects ?? NO_EFFECTS) {
+    params.append("effect", effect)
   }
 
   if (input.cursor) {
@@ -126,12 +136,14 @@ export function useScenePages(input: {
   initial?: CachedPage | null
   query?: string
   sort: SceneSort
+  effects?: readonly EffectLayerType[]
 }): ScenePagesState {
   const enabled = input.enabled ?? true
   const query = input.query ?? ""
   const { sort } = input
   const author = input.author ?? null
-  const key = sceneListKey(sort, query, author)
+  const effects = input.effects ?? NO_EFFECTS
+  const key = sceneListKey(sort, query, author, effects)
 
   const cache = useRef(new Map<string, CachedPage>())
   const inFlight = useRef<string | null>(null)
@@ -194,7 +206,7 @@ export function useScenePages(input: {
     let request = pending.current.get(key)
 
     if (!request) {
-      request = fetchScenePage(sceneListUrl({ author, query, sort }))
+      request = fetchScenePage(sceneListUrl({ author, effects, query, sort }))
         .then((page) => {
           remember(key, page)
 
@@ -223,7 +235,7 @@ export function useScenePages(input: {
     return () => {
       cancelled = true
     }
-  }, [author, enabled, key, query, remember, sort])
+  }, [author, effects, enabled, key, query, remember, sort])
 
   const loadMore = useCallback(() => {
     if (!(enabled && nextCursor)) {
@@ -243,7 +255,7 @@ export function useScenePages(input: {
     void appendNextScenePage({
       fetchPage: () =>
         fetchScenePage(
-          sceneListUrl({ author, cursor: nextCursor, query, sort })
+          sceneListUrl({ author, cursor: nextCursor, effects, query, sort })
         ),
       isStale: () => visibleKey.current !== key,
       key,
@@ -260,7 +272,7 @@ export function useScenePages(input: {
         setLoading(false)
       },
     })
-  }, [author, enabled, key, nextCursor, query, remember, sort])
+  }, [author, effects, enabled, key, nextCursor, query, remember, sort])
 
   const patch = useCallback(
     (slug: string, changes: Partial<CommunitySceneSummary>) => {

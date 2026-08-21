@@ -1,6 +1,8 @@
 "use client"
 
+import type { Route } from "next"
 import Image from "next/image"
+import Link from "next/link"
 import { AuthorAvatar } from "@/components/community/author-avatar"
 import { DeleteSceneControl } from "@/components/community/delete-scene-control"
 import { RemixCredit } from "@/components/community/remix-credit"
@@ -10,6 +12,8 @@ import { LikeButton } from "@/components/community/like-button"
 import { Button } from "@/components/ui/button"
 import { Typography } from "@/components/ui/typography"
 import { lineageLabel } from "@/lib/community/lineage"
+import { getCommunitySceneEffects } from "@/lib/community/scene-effect-filter"
+import { communityEffectPath } from "@/lib/community/scene-links"
 import type {
   CommunitySceneDetail,
   CommunitySceneSummary,
@@ -53,6 +57,7 @@ export function SceneDetail({
   liked: boolean
 }) {
   const description = detail?.description ?? null
+  const effects = getCommunitySceneEffects(scene.layerTypes)
   const forkedFrom = detail?.forkedFrom ?? null
   return (
     <div className="grid h-full grid-cols-1 gap-4 overflow-y-auto p-4 min-[760px]:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] min-[760px]:overflow-hidden">
@@ -96,11 +101,19 @@ export function SceneDetail({
           ) : null}
         </div>
 
-        <div className="flex flex-wrap gap-1.5">
-          {scene.layerTypes.map((type) => (
-            <SceneTag key={type}>{getLayerLabel(type)}</SceneTag>
-          ))}
-        </div>
+        {effects.length > 0 ? (
+          <div className="flex flex-wrap gap-1.5">
+            {effects.map((effect) => (
+              <Link
+                className="rounded-[var(--ds-radius-control)] transition-opacity duration-160 hover:opacity-75"
+                href={communityEffectPath(effect) as Route}
+                key={effect}
+              >
+                <SceneTag>{getLayerLabel(effect)}</SceneTag>
+              </Link>
+            ))}
+          </div>
+        ) : null}
 
         {forkedFrom ? (
           <button

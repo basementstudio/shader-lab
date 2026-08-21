@@ -12,6 +12,22 @@ export function scenePagePath(slug: string): string {
   return `${COMMUNITY_PATH}/${slug}`
 }
 
+export function communityEffectPath(effect: string): string {
+  return communityEffectsPath([effect])
+}
+
+export function communityEffectsPath(effects: readonly string[]): string {
+  const params = new URLSearchParams()
+
+  for (const effect of effects) {
+    params.append("effect", effect)
+  }
+
+  const query = params.toString()
+
+  return query ? `${COMMUNITY_PATH}?${query}` : COMMUNITY_PATH
+}
+
 export function sceneSharePath(slug: string): string {
   return `${scenePagePath(slug)}?${OPEN_IN_EDITOR_PARAM}=1`
 }

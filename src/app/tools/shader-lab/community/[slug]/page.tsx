@@ -14,8 +14,10 @@ import { Typography } from "@/components/ui/typography"
 import { APP_BASE_URL } from "@/lib/app"
 import { isCommunityEnabled } from "@/lib/community/config"
 import { lineageLabel } from "@/lib/community/lineage"
+import { getCommunitySceneEffects } from "@/lib/community/scene-effect-filter"
 import {
   COMMUNITY_PATH,
+  communityEffectPath,
   editorSceneHref,
   OPEN_IN_EDITOR_PARAM,
   profilePagePath,
@@ -130,6 +132,7 @@ async function SceneBody({ params }: PageProps) {
   }
 
   const authorName = scene.authorName ?? `@${scene.authorHandle}`
+  const effects = getCommunitySceneEffects(scene.layerTypes)
   const publishedAt = scene.publishedAt
     ? new Date(scene.publishedAt).toLocaleDateString("en-US", {
         day: "numeric",
@@ -218,11 +221,19 @@ async function SceneBody({ params }: PageProps) {
               </Link>
             ) : null}
 
-            <div className="flex flex-wrap gap-1.5">
-              {scene.layerTypes.map((type) => (
-                <SceneTag key={type}>{getLayerLabel(type)}</SceneTag>
-              ))}
-            </div>
+            {effects.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5">
+                {effects.map((effect) => (
+                  <Link
+                    className="rounded-[var(--ds-radius-control)] transition-opacity duration-160 hover:opacity-75"
+                    href={communityEffectPath(effect) as Route}
+                    key={effect}
+                  >
+                    <SceneTag>{getLayerLabel(effect)}</SceneTag>
+                  </Link>
+                ))}
+              </div>
+            ) : null}
           </div>
         </div>
 
@@ -290,11 +301,7 @@ async function MoreByAuthor({
 
       <div className={SCENE_GRID_CLASS_NAME}>
         {scenes.map((scene) => (
-          <PublicSceneCard
-            key={scene.slug}
-            scene={scene}
-            showAuthor={false}
-          />
+          <PublicSceneCard key={scene.slug} scene={scene} showAuthor={false} />
         ))}
       </div>
     </section>

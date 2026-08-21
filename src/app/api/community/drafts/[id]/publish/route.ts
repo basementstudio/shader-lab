@@ -4,6 +4,7 @@ import { revalidateTag } from "next/cache"
 import { connection } from "next/server"
 import { getOptionalSession } from "@/lib/auth/server"
 import { authorTag, COMMUNITY_FEED_TAG } from "@/lib/community/cache-tags"
+import { rejectBot } from "@/lib/community/bot-check"
 import { isCommunityEnabled, isMediaConfigured } from "@/lib/community/config"
 import { ensureProfile } from "@/lib/community/profile"
 import {
@@ -22,7 +23,6 @@ import {
 } from "@/lib/community/publish"
 import { putObject } from "@/lib/community/r2"
 import { resolveForkedFromId } from "@/lib/community/scenes"
-import { verifyTurnstile } from "@/lib/community/turnstile"
 import { getDatabase } from "@/lib/db"
 import { sceneAssets, scenes } from "@/lib/db/schema"
 
@@ -38,6 +38,12 @@ export async function POST(
 
   if (!(isCommunityEnabled() && isMediaConfigured())) {
     return badRequest("Publishing is not configured on this deployment.", 503)
+  }
+
+  const refused = await rejectBot()
+
+  if (refused) {
+    return refused
   }
 
   const session = await getOptionalSession()
@@ -59,22 +65,12 @@ export async function POST(
     projectFile?: unknown
     thumbnailUrl?: unknown
     title?: unknown
-    turnstileToken?: unknown
   }
 
   try {
     payload = await request.json()
   } catch {
     return badRequest("Invalid request body.")
-  }
-
-  const turnstile = await verifyTurnstile(
-    typeof payload.turnstileToken === "string" ? payload.turnstileToken : null,
-    request.headers.get("cf-connecting-ip")
-  )
-
-  if (!turnstile.ok) {
-    return badRequest("Could not verify that you are human. Please retry.", 403)
   }
 
   let title: string
@@ -294,6 +290,5 @@ export async function POST(
 
   return Response.json({
     scene: { id: draftId, slug },
-    turnstileSkipped: turnstile.skipped,
   })
 }

@@ -1,4 +1,5 @@
 import { getOptionalSession } from "@/lib/auth/server"
+import { rejectBot } from "@/lib/community/bot-check"
 import { isCommunityEnabled } from "@/lib/community/config"
 import { reportScene } from "@/lib/community/moderation"
 import { ensureProfile } from "@/lib/community/profile"
@@ -13,6 +14,12 @@ export async function POST(
 ) {
   if (!isCommunityEnabled()) {
     return Response.json({ error: "Not available." }, { status: 503 })
+  }
+
+  const refused = await rejectBot()
+
+  if (refused) {
+    return refused
   }
 
   const session = await getOptionalSession()

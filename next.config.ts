@@ -1,5 +1,6 @@
 import withBundleAnalyzer from "@next/bundle-analyzer"
 import { withSentryConfig } from "@sentry/nextjs"
+import { withBotId } from "botid/next/config"
 import type { NextConfig } from "next"
 import { readEnvList } from "@/lib/read-env"
 
@@ -177,7 +178,7 @@ const bundleAnalyzerPlugin = withBundleAnalyzer({
 })
 
 const NextApp = () => {
-  const plugins = [bundleAnalyzerPlugin]
+  const plugins = [bundleAnalyzerPlugin, withBotId]
   return plugins.reduce((config, plugin) => plugin(config), nextConfig)
 }
 

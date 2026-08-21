@@ -1,5 +1,9 @@
 import * as Sentry from "@sentry/nextjs"
+import { initBotId } from "botid/client/core"
+import { BOT_PROTECTED_ROUTES } from "@/lib/community/bot-protected-routes"
 import { resolveTracesSampleRate } from "@/lib/sentry-sampling"
+
+initBotId({ protect: [...BOT_PROTECTED_ROUTES] })
 
 const environment =
   process.env.NEXT_PUBLIC_VERCEL_ENV ?? process.env.NODE_ENV ?? "development"

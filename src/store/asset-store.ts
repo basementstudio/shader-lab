@@ -3,6 +3,7 @@ import {
   forgetStoredAssets,
   persistAssetBlob,
 } from "@/lib/editor/autosave/assets"
+import { getDefaultProjectAssets } from "@/lib/editor/default-project"
 import { inferFileAssetKind, isAudioFileName } from "@/lib/editor/media-file"
 import type { AssetKind, EditorAsset } from "@/types/editor"
 
@@ -69,7 +70,7 @@ function validateFile(file: File): AssetKind {
 
   if (file.size > MAX_SIZE_BYTES) {
     throw new Error(
-      `File is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum size is 100 MB.`
+      `File is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum size is ${MAX_SIZE_BYTES / 1024 / 1024} MB.`
     )
   }
 
@@ -156,7 +157,7 @@ function loadAudioMetadata(url: string): Promise<{ duration: number }> {
 }
 
 export const useAssetStore = create<AssetStore>((set, get) => ({
-  assets: [],
+  assets: getDefaultProjectAssets(),
 
   async loadAsset(file) {
     const kind = validateFile(file)

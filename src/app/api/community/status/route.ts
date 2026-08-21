@@ -5,7 +5,6 @@ import {
   isCommunityEnabled,
   isDatabaseConfigured,
   isMediaConfigured,
-  isTurnstileConfigured,
 } from "@/lib/community/config"
 import {
   AUTH_BASE_URL_VARS,
@@ -46,7 +45,6 @@ export async function GET() {
       auth: isAuthConfigured(),
       database: isDatabaseConfigured(),
       media: isMediaConfigured(),
-      turnstile: isTurnstileConfigured(),
     },
     enabled: isCommunityEnabled(),
     endpoints: {

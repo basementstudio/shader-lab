@@ -60,7 +60,11 @@ function FailedMark() {
       aria-hidden="true"
       className="pointer-events-none absolute top-0 right-0 flex size-2 items-center justify-center"
     >
-      <Cross2Icon height={8} width={8} />
+      <Cross2Icon
+        className="!size-2.5"
+        stroke="currentColor"
+        strokeWidth={1.1}
+      />
     </span>
   )
 }

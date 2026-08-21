@@ -1,1 +1,0 @@
-CREATE INDEX "scenes_author_status_updated_idx" ON "scenes" USING btree ("author_id","status","updated_at" DESC NULLS LAST);

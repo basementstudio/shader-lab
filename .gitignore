@@ -78,6 +78,6 @@ PACKAGE_PLAN.md
 packages/shader-lab-mcp/dist/
 packages/shader-lab-mcp/.xmcp/
 
-# drizzle schema snapshots
-drizzle/meta/
+# drizzle migrations and schema snapshots
+drizzle/
 

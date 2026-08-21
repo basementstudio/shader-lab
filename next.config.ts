@@ -1,4 +1,5 @@
 import withBundleAnalyzer from "@next/bundle-analyzer"
+import { withSentryConfig } from "@sentry/nextjs"
 import type { NextConfig } from "next"
 import { readEnvList } from "@/lib/read-env"
 
@@ -180,4 +181,29 @@ const NextApp = () => {
   return plugins.reduce((config, plugin) => plugin(config), nextConfig)
 }
 
-export default NextApp
+// Not the token alone: a dev machine can have one in .env.sentry-build-plugin.
+const canPublishSentryArtifacts =
+  process.env.VERCEL === "1" && Boolean(process.env.SENTRY_AUTH_TOKEN)
+
+if (process.env.VERCEL_ENV === "production" && !canPublishSentryArtifacts) {
+  console.warn(
+    "[sentry] SENTRY_AUTH_TOKEN is not set — skipping sourcemap upload and release creation. Production stack traces will be minified."
+  )
+}
+
+export default withSentryConfig(NextApp, {
+  org: "basement-studio",
+  project: "shader-lab",
+  silent: !process.env.VERCEL,
+  widenClientFileUpload: true,
+  tunnelRoute: "/monitoring",
+  sourcemaps: { disable: !canPublishSentryArtifacts },
+  release: {
+    create: canPublishSentryArtifacts,
+    // Must be explicit: @sentry/nextjs skips release name resolution when
+    // `create` is false, leaving tokenless builds with no release tag at all.
+    ...(process.env.VERCEL_GIT_COMMIT_SHA
+      ? { name: process.env.VERCEL_GIT_COMMIT_SHA }
+      : {}),
+  },
+})

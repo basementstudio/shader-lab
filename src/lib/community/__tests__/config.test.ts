@@ -15,7 +15,6 @@ const KEYS = [
   "R2_ACCESS_KEY_ID",
   "R2_BUCKET",
   "R2_SECRET_ACCESS_KEY",
-  "TURNSTILE_SECRET_KEY",
 ] as const
 
 const saved = new Map<string, string | undefined>()
@@ -107,7 +106,6 @@ describe("getMissingCommunityCapabilities", () => {
       "auth",
       "database",
       "media",
-      "turnstile",
     ])
   })
 

@@ -395,7 +395,6 @@ export async function publishScene(input: {
   description: string
   thumbnailTime: number
   title: string
-  turnstileToken?: string | null
 }): Promise<PublishResult> {
   const { localAssets, plan, projectFile } = inspectScene({ prune: true })
 
@@ -512,7 +511,6 @@ export async function publishScene(input: {
         projectFile: JSON.stringify(publishable),
         thumbnailUrl: thumbnailTarget.publicUrl,
         title: input.title,
-        turnstileToken: input.turnstileToken ?? null,
       }),
       headers: { "content-type": "application/json" },
       method: "POST",

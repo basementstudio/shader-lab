@@ -1,6 +1,7 @@
 import { and, eq, inArray } from "drizzle-orm"
 import { nanoid } from "nanoid"
 import { getOptionalSession } from "@/lib/auth/server"
+import { rejectBot } from "@/lib/community/bot-check"
 import { isCommunityEnabled, isMediaConfigured } from "@/lib/community/config"
 import { ensureProfile } from "@/lib/community/profile"
 import {
@@ -96,6 +97,12 @@ export async function POST(request: Request) {
       { error: "Uploads are not configured on this deployment." },
       { status: 503 }
     )
+  }
+
+  const refused = await rejectBot()
+
+  if (refused) {
+    return refused
   }
 
   const session = await getOptionalSession()

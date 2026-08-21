@@ -10,6 +10,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react"
+import { useMobileCanvasFit } from "@/components/editor/use-mobile-canvas-fit"
 import { useEditorRenderer } from "@/hooks/use-editor-renderer"
 import { isEditableTarget } from "@/lib/editor/is-editable-target"
 import { inferFileAssetKind } from "@/lib/editor/media-file"
@@ -34,6 +35,8 @@ const PENDING_SCENE_TIMEOUT_MS = 20_000
 
 export function EditorCanvasViewport() {
   const { canvasRef, isReady, viewportRef } = useEditorRenderer()
+
+  useMobileCanvasFit(viewportRef)
   const exportingPreview = useSyncExternalStore(
     subscribeToPreviewRenderLock,
     isPreviewExporting,

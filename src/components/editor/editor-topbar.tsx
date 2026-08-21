@@ -18,6 +18,7 @@ import dynamic from "next/dynamic"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { AgentConnectPanel } from "@/components/editor/agent-connect-panel"
 import { FloatingDesktopPanel } from "@/components/editor/floating-desktop-panel"
+import { fitMobileCanvas } from "@/components/editor/use-mobile-canvas-fit"
 import { Button } from "@/components/ui/button"
 import { ButtonLink } from "@/components/ui/button/link"
 import { GlassPanel } from "@/components/ui/glass-panel"
@@ -690,10 +691,10 @@ export function EditorTopBar({
                 <ZoomOutIcon height={18} width={18} />
               </IconButton>
               <IconButton
-                aria-label="Reset view"
+                aria-label="Fit scene to screen"
                 className="size-full min-h-11"
                 onClick={() => {
-                  resetView()
+                  fitMobileCanvas()
                   playUISound("action.reset")
                 }}
                 tooltipDisabled={!hasResettableView}

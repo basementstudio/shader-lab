@@ -706,65 +706,71 @@ export function EditorTopBar({
               ) : null}
             </div>
 
-            <div className="inline-flex w-full items-center justify-between gap-1.5">
-              <IconButton
-                aria-label="Zoom out"
-                className="h-7 w-7 disabled:opacity-45"
-                onClick={() => applyZoomStep("out")}
-                variant="default"
-              >
-                <ZoomOutIcon height={18} width={18} />
-              </IconButton>
-              <IconButton
-                aria-label="Reset view"
-                className="min-w-16"
-                labelled
-                onClick={() => {
-                  resetView()
-                  playUISound("action.reset")
-                }}
-                tooltipDisabled={!hasResettableView}
-                uiSound="none"
-                variant="outline"
-              >
-                <Typography as="span" tone="inherit" variant="monoSm">
-                  {Math.round(zoom * 100)}%
-                </Typography>
-              </IconButton>
-              <IconButton
-                aria-label="Zoom in"
-                className="h-7 w-7 disabled:opacity-45"
-                onClick={() => applyZoomStep("in")}
-                variant="default"
-              >
-                <ZoomInIcon height={18} width={18} />
-              </IconButton>
-              <TopbarDivider className="mx-1 h-5" />
-              <IconButton
-                aria-label="Export"
-                className="h-7 w-7 disabled:opacity-45"
-                onClick={() => handleExportDialogOpenChange(true)}
-                tooltip="Download"
-                uiSound="action.export"
-                variant="default"
-              >
-                <DownloadIcon height={16} width={16} />
-              </IconButton>
-              <IconButton
-                aria-label="Interface sounds"
-                className="h-7 w-7"
-                onClick={() => toggleSoundEnabled()}
-                selected={soundEnabled}
-                tooltip={soundEnabled ? "Mute sounds" : "Unmute sounds"}
-                uiSound="none"
-              >
-                {soundEnabled ? (
-                  <SpeakerLoudIcon height={16} width={16} />
-                ) : (
-                  <SpeakerOffIcon height={16} width={16} />
-                )}
-              </IconButton>
-              <GitHubStarLink mobile />
+            <div className="flex w-full items-center justify-between gap-2">
+              <div className="inline-flex items-center gap-1.5">
+                <IconButton
+                  aria-label="Zoom out"
+                  className="h-7 w-7 disabled:opacity-45"
+                  onClick={() => applyZoomStep("out")}
+                  variant="default"
+                >
+                  <ZoomOutIcon height={18} width={18} />
+                </IconButton>
+                <IconButton
+                  aria-label="Reset view"
+                  className="min-w-16"
+                  labelled
+                  onClick={() => {
+                    resetView()
+                    playUISound("action.reset")
+                  }}
+                  tooltipDisabled={!hasResettableView}
+                  uiSound="none"
+                  variant="outline"
+                >
+                  <Typography as="span" tone="inherit" variant="monoSm">
+                    {Math.round(zoom * 100)}%
+                  </Typography>
+                </IconButton>
+                <IconButton
+                  aria-label="Zoom in"
+                  className="h-7 w-7 disabled:opacity-45"
+                  onClick={() => applyZoomStep("in")}
+                  variant="default"
+                >
+                  <ZoomInIcon height={18} width={18} />
+                </IconButton>
+              </div>
+
+              <TopbarDivider className="h-5" />
+
+              <div className="inline-flex items-center gap-1.5">
+                <IconButton
+                  aria-label="Export"
+                  className="h-7 w-7 disabled:opacity-45"
+                  onClick={() => handleExportDialogOpenChange(true)}
+                  tooltip="Download"
+                  uiSound="action.export"
+                  variant="default"
+                >
+                  <DownloadIcon height={16} width={16} />
+                </IconButton>
+                <IconButton
+                  aria-label="Interface sounds"
+                  className="h-7 w-7"
+                  onClick={() => toggleSoundEnabled()}
+                  selected={soundEnabled}
+                  tooltip={soundEnabled ? "Mute sounds" : "Unmute sounds"}
+                  uiSound="none"
+                >
+                  {soundEnabled ? (
+                    <SpeakerLoudIcon height={16} width={16} />
+                  ) : (
+                    <SpeakerOffIcon height={16} width={16} />
+                  )}
+                </IconButton>
+                <GitHubStarLink mobile />
+              </div>
             </div>
           </GlassPanel>
         </div>

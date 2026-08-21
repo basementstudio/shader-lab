@@ -23,6 +23,7 @@ import { ShaderConsentDialog } from "@/components/community/shader-consent-dialo
 import { Button } from "@/components/ui/button"
 import { GlassPanel } from "@/components/ui/glass-panel"
 import { IconButton } from "@/components/ui/icon-button"
+import { Select } from "@/components/ui/select"
 import { HoverTooltip } from "@/components/ui/tooltip"
 import { Typography } from "@/components/ui/typography"
 import { authClient } from "@/lib/auth/client"
@@ -36,10 +37,10 @@ import type {
 } from "@/lib/community/scenes"
 import { scenePagePath } from "@/lib/community/scene-links"
 import {
-  CURATED_SCENE_TAGS,
-  getSceneTagLabel,
-  type CuratedSceneTag,
-} from "@/lib/community/scene-tags"
+  ALL_COMMUNITY_LAYERS_VALUE,
+  COMMUNITY_LAYER_FILTER_OPTIONS,
+  isCommunityLayerType,
+} from "@/lib/community/scene-layer-filter"
 import { MAX_DRAFTS_PER_AUTHOR } from "@/lib/community/upload-limits"
 import { useScenePages } from "@/lib/community/use-scene-pages"
 import { requestAutosave } from "@/lib/editor/autosave/bus"
@@ -54,6 +55,7 @@ import { useAssetStore } from "@/store/asset-store"
 import { useDraftStore } from "@/store/draft-store"
 import { useEditorStore } from "@/store/editor-store"
 import { useRemixOriginStore } from "@/store/remix-origin-store"
+import type { LayerType } from "@/types/editor"
 
 const SKELETON_KEYS = ["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8"] as const
 
@@ -206,12 +208,12 @@ export function CommunityModal({
   const [sort, setSort] = useState<SceneSort>("popular")
   const [search, setSearch] = useState("")
   const [query, setQuery] = useState("")
-  const [tag, setTag] = useState<CuratedSceneTag | null>(null)
+  const [layer, setLayer] = useState<LayerType | null>(null)
   const explore = useScenePages({
     enabled: open && tab === "explore",
     query,
     sort,
-    tag,
+    layer,
   })
   const items = explore.scenes
   const [selected, setSelected] = useState<CommunitySceneSummary | null>(null)
@@ -881,33 +883,20 @@ export function CommunityModal({
                 </div>
 
                 {selected || selectedHandle || tab !== "explore" ? null : (
-                  <div className="flex shrink-0 gap-1.5 overflow-x-auto border-b border-[var(--ds-border-divider)] px-4 py-2">
-                    {CURATED_SCENE_TAGS.map((sceneTag) => (
-                      <button
-                        aria-pressed={tag === sceneTag}
-                        className={cn(
-                          TAB_CLASS_NAME,
-                          "shrink-0",
-                          tag === sceneTag &&
-                            "border-[var(--ds-border-active)] bg-[var(--ds-color-surface-active)]"
-                        )}
-                        key={sceneTag}
-                        onClick={() =>
-                          setTag((current) =>
-                            current === sceneTag ? null : sceneTag
-                          )
-                        }
-                        type="button"
-                      >
-                        <Typography
-                          as="span"
-                          tone={tag === sceneTag ? "primary" : "tertiary"}
-                          variant="label"
-                        >
-                          {getSceneTagLabel(sceneTag)}
-                        </Typography>
-                      </button>
-                    ))}
+                  <div className="flex shrink-0 items-center gap-2 border-b border-[var(--ds-border-divider)] px-4 py-2">
+                    <Typography as="span" tone="tertiary" variant="overline">
+                      Layer
+                    </Typography>
+                    <Select
+                      onValueChange={(value) =>
+                        setLayer(isCommunityLayerType(value) ? value : null)
+                      }
+                      options={COMMUNITY_LAYER_FILTER_OPTIONS}
+                      popupClassName="min-w-[190px]"
+                      triggerAriaLabel="Filter scenes by layer"
+                      triggerClassName="h-7 w-[160px] min-h-7 py-1"
+                      value={layer ?? ALL_COMMUNITY_LAYERS_VALUE}
+                    />
                   </div>
                 )}
 
@@ -1145,10 +1134,10 @@ export function CommunityModal({
                         <SceneEmptyState
                           onClearFilters={() => {
                             setSearch("")
-                            setTag(null)
+                            setLayer(null)
                           }}
+                          layer={layer}
                           query={query}
-                          tag={tag}
                         />
                       ) : null}
 
@@ -1159,7 +1148,7 @@ export function CommunityModal({
                               featured={isFeaturedIndex(index, {
                                 query,
                                 sort,
-                                tag,
+                                layer,
                                 total: items.length,
                               })}
                               key={scene.id}

@@ -12,8 +12,7 @@ import { LikeButton } from "@/components/community/like-button"
 import { Button } from "@/components/ui/button"
 import { Typography } from "@/components/ui/typography"
 import { lineageLabel } from "@/lib/community/lineage"
-import { communityTagPath } from "@/lib/community/scene-links"
-import { getSceneTagLabel, isCuratedSceneTag } from "@/lib/community/scene-tags"
+import { communityLayerPath } from "@/lib/community/scene-links"
 import type {
   CommunitySceneDetail,
   CommunitySceneSummary,
@@ -101,17 +100,14 @@ export function SceneDetail({
         </div>
 
         <div className="flex flex-wrap gap-1.5">
-          {scene.tags.filter(isCuratedSceneTag).map((tag) => (
+          {scene.layerTypes.map((type) => (
             <Link
               className="rounded-[var(--ds-radius-control)] transition-opacity duration-160 hover:opacity-75"
-              href={communityTagPath(tag) as Route}
-              key={tag}
+              href={communityLayerPath(type) as Route}
+              key={type}
             >
-              <SceneTag>{getSceneTagLabel(tag)}</SceneTag>
+              <SceneTag>{getLayerLabel(type)}</SceneTag>
             </Link>
-          ))}
-          {scene.layerTypes.map((type) => (
-            <SceneTag key={type}>{getLayerLabel(type)}</SceneTag>
           ))}
         </div>
 

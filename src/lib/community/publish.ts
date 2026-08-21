@@ -11,7 +11,6 @@ import {
   hasProfanity,
 } from "@/lib/community/language"
 import { keyFromPublicUrl, scenePrefixOf } from "@/lib/community/r2"
-import { isCuratedSceneTag, MAX_SCENE_TAGS } from "@/lib/community/scene-tags"
 import {
   DEFAULT_DRAFT_TITLE,
   describeUploadLimit,
@@ -139,10 +138,7 @@ export function planUploads(input: {
   return { signedBytes, uploads }
 }
 
-const sceneSlugSuffix = customAlphabet(
-  "0123456789abcdefghijklmnopqrstuvwxyz",
-  6
-)
+const sceneSlugSuffix = customAlphabet("0123456789abcdefghijklmnopqrstuvwxyz", 6)
 
 export function buildSceneSlug(title: string): string {
   const base = slugifyHandle(title).slice(0, 48).replace(/-+$/g, "")
@@ -248,30 +244,6 @@ export function normalizeTitle(value: unknown): string {
   }
 
   return capped
-}
-
-export function normalizeTags(value: unknown): string[] {
-  if (!Array.isArray(value)) {
-    return []
-  }
-
-  const tags = [
-    ...new Set(
-      value.map((tag) =>
-        typeof tag === "string" ? tag.trim().toLowerCase() : ""
-      )
-    ),
-  ]
-
-  if (tags.some((tag) => !isCuratedSceneTag(tag))) {
-    throw new Error("Choose tags from the available options.")
-  }
-
-  if (tags.length > MAX_SCENE_TAGS) {
-    throw new Error(`Choose up to ${MAX_SCENE_TAGS} tags.`)
-  }
-
-  return tags
 }
 
 export function normalizeDraftTitle(value: unknown): string {

@@ -15,11 +15,11 @@ import {
   getPublishedSceneWithAuthor,
   listPublishedScenes,
 } from "@/lib/community/scenes"
-import type { CuratedSceneTag } from "@/lib/community/scene-tags"
+import type { LayerType } from "@/types/editor"
 
 export const PUBLIC_GRID_LIMIT = 48
 
-export async function getPublicScenes(tag?: CuratedSceneTag): Promise<{
+export async function getPublicScenes(layer?: LayerType): Promise<{
   nextCursor: string | null
   scenes: CommunitySceneSummary[]
 }> {
@@ -35,7 +35,7 @@ export async function getPublicScenes(tag?: CuratedSceneTag): Promise<{
     return await listPublishedScenes({
       limit: PUBLIC_GRID_LIMIT,
       sort: "popular",
-      ...(tag ? { tag } : {}),
+      ...(layer ? { layer } : {}),
     })
   } catch {
     return { nextCursor: null, scenes: [] }

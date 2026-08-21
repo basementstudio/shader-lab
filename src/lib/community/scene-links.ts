@@ -12,8 +12,8 @@ export function scenePagePath(slug: string): string {
   return `${COMMUNITY_PATH}/${slug}`
 }
 
-export function communityTagPath(tag: string): string {
-  return `${COMMUNITY_PATH}?tag=${encodeURIComponent(tag)}`
+export function communityLayerPath(layer: string): string {
+  return `${COMMUNITY_PATH}?layer=${encodeURIComponent(layer)}`
 }
 
 export function sceneSharePath(slug: string): string {

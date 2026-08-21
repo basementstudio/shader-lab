@@ -91,7 +91,6 @@ export const scenes = pgTable(
     remixCount: integer("remix_count").notNull().default(0),
     slug: text("slug").notNull().unique(),
     status: sceneStatus("status").notNull().default("draft"),
-    tags: text("tags").array().notNull().default(sql`'{}'::text[]`),
     thumbnailImageId: text("thumbnail_image_id"),
     title: text("title").notNull(),
     updatedAt,
@@ -113,7 +112,6 @@ export const scenes = pgTable(
     index("scenes_featured_idx").on(table.featuredAt.desc()),
     index("scenes_forked_from_idx").on(table.forkedFromId),
     index("scenes_layer_types_idx").using("gin", table.layerTypes),
-    index("scenes_tags_idx").using("gin", table.tags),
   ]
 )
 

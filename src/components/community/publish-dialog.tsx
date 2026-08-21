@@ -18,12 +18,6 @@ import {
   THUMBNAIL_MAX_TIME_SECONDS,
 } from "@/lib/community/publish-client"
 import { formatBytes } from "@/lib/community/upload-limits"
-import {
-  CURATED_SCENE_TAGS,
-  getSceneTagLabel,
-  MAX_SCENE_TAGS,
-  type CuratedSceneTag,
-} from "@/lib/community/scene-tags"
 import { acquirePreviewRenderLock } from "@/lib/editor/preview-render-lock"
 import { numberInputControlClassName } from "@/components/ui/number-input"
 import { cn } from "@/lib/cn"
@@ -45,7 +39,6 @@ export function PublishDialog({
   const [mounted, setMounted] = useState(false)
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
-  const [tags, setTags] = useState<CuratedSceneTag[]>([])
   const [thumbnailTime, setThumbnailTime] = useState(0)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [capturing, setCapturing] = useState(false)
@@ -65,7 +58,6 @@ export function PublishDialog({
 
     setPublishing(false)
     setError(null)
-    setTags([])
     setPlan(describePublishPlan())
 
     const state = useTimelineStore.getState()
@@ -151,12 +143,7 @@ export function PublishDialog({
     setError(null)
 
     try {
-      const result = await publishScene({
-        description,
-        tags,
-        thumbnailTime,
-        title,
-      })
+      const result = await publishScene({ description, thumbnailTime, title })
 
       onPublished(result.slug)
     } catch (cause) {
@@ -166,17 +153,7 @@ export function PublishDialog({
     } finally {
       setPublishing(false)
     }
-  }, [description, onPublished, tags, thumbnailTime, title])
-
-  const toggleTag = useCallback((tag: CuratedSceneTag) => {
-    setTags((current) => {
-      if (current.includes(tag)) {
-        return current.filter((entry) => entry !== tag)
-      }
-
-      return current.length < MAX_SCENE_TAGS ? [...current, tag] : current
-    })
-  }, [])
+  }, [description, onPublished, thumbnailTime, title])
 
   if (!mounted) {
     return null
@@ -241,7 +218,7 @@ export function PublishDialog({
             >
               <GlassPanel
                 aria-modal="true"
-                className="max-h-[calc(100vh-112px)] overflow-y-auto p-0"
+                className="overflow-hidden p-0"
                 role="dialog"
                 variant="panel"
               >
@@ -302,44 +279,6 @@ export function PublishDialog({
                           value={description}
                         />
                       </label>
-
-                      <div className="flex flex-col gap-1.5">
-                        <div className="flex items-baseline justify-between gap-2">
-                          <Typography as="span" tone="tertiary" variant="overline">
-                            Tags
-                          </Typography>
-                          <Typography as="span" tone="tertiary" variant="monoXs">
-                            {tags.length}/{MAX_SCENE_TAGS}
-                          </Typography>
-                        </div>
-                        <div className="flex flex-wrap gap-1.5">
-                          {CURATED_SCENE_TAGS.map((tag) => {
-                            const selected = tags.includes(tag)
-
-                            return (
-                              <button
-                                aria-pressed={selected}
-                                className={cn(
-                                  "min-h-7 cursor-pointer rounded-[var(--ds-radius-control)] border px-2 transition-colors duration-160 disabled:cursor-not-allowed disabled:opacity-40",
-                                  selected
-                                    ? "border-[var(--ds-border-active)] bg-[var(--ds-color-surface-active)] text-[var(--ds-color-text-primary)]"
-                                    : "border-[var(--ds-border-subtle)] bg-transparent text-[var(--ds-color-text-secondary)] hover:border-[var(--ds-border-active)]"
-                                )}
-                                disabled={
-                                  !selected && tags.length >= MAX_SCENE_TAGS
-                                }
-                                key={tag}
-                                onClick={() => toggleTag(tag)}
-                                type="button"
-                              >
-                                <Typography as="span" variant="monoXs">
-                                  {getSceneTagLabel(tag)}
-                                </Typography>
-                              </button>
-                            )
-                          })}
-                        </div>
-                      </div>
 
                       <Slider
                         label="Thumbnail frame"

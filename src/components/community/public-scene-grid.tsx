@@ -5,8 +5,8 @@ import { SCENE_GRID_CLASS_NAME } from "@/components/community/scene-grid"
 import { SceneLoadMore } from "@/components/community/scene-load-more"
 import { Typography } from "@/components/ui/typography"
 import type { CommunitySceneSummary, SceneSort } from "@/lib/community/scenes"
-import type { CuratedSceneTag } from "@/lib/community/scene-tags"
 import { useScenePages } from "@/lib/community/use-scene-pages"
+import type { LayerType } from "@/types/editor"
 
 export function PublicSceneGrid({
   author,
@@ -15,7 +15,7 @@ export function PublicSceneGrid({
   initialScenes,
   showAuthor = true,
   sort = "popular",
-  tag,
+  layer,
 }: {
   author?: string | null
   emptyLabel?: string
@@ -23,13 +23,13 @@ export function PublicSceneGrid({
   initialScenes: CommunitySceneSummary[]
   showAuthor?: boolean
   sort?: SceneSort
-  tag?: CuratedSceneTag
+  layer?: LayerType
 }) {
   const { error, hasMore, loadMore, loading, scenes } = useScenePages({
     author: author ?? null,
     initial: { nextCursor: initialNextCursor, scenes: initialScenes },
     sort,
-    tag: tag ?? null,
+    layer: layer ?? null,
   })
 
   const shown = scenes ?? initialScenes

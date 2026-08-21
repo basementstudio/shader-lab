@@ -16,13 +16,12 @@ import { isCommunityEnabled } from "@/lib/community/config"
 import { lineageLabel } from "@/lib/community/lineage"
 import {
   COMMUNITY_PATH,
-  communityTagPath,
+  communityLayerPath,
   editorSceneHref,
   OPEN_IN_EDITOR_PARAM,
   profilePagePath,
   scenePagePath,
 } from "@/lib/community/scene-links"
-import { getSceneTagLabel, isCuratedSceneTag } from "@/lib/community/scene-tags"
 import { getPublicProfileScenes } from "@/lib/community/public-profiles"
 import { getPublicScene } from "@/lib/community/public-scenes"
 import { getLayerLabel } from "@/lib/editor/config/layer-catalog"
@@ -221,17 +220,14 @@ async function SceneBody({ params }: PageProps) {
             ) : null}
 
             <div className="flex flex-wrap gap-1.5">
-              {scene.tags.filter(isCuratedSceneTag).map((tag) => (
+              {scene.layerTypes.map((type) => (
                 <Link
                   className="rounded-[var(--ds-radius-control)] transition-opacity duration-160 hover:opacity-75"
-                  href={communityTagPath(tag) as Route}
-                  key={tag}
+                  href={communityLayerPath(type) as Route}
+                  key={type}
                 >
-                  <SceneTag>{getSceneTagLabel(tag)}</SceneTag>
+                  <SceneTag>{getLayerLabel(type)}</SceneTag>
                 </Link>
-              ))}
-              {scene.layerTypes.map((type) => (
-                <SceneTag key={type}>{getLayerLabel(type)}</SceneTag>
               ))}
             </div>
           </div>

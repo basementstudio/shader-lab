@@ -1,21 +1,16 @@
 import type { Metadata } from "next"
-import type { Route } from "next"
-import Link from "next/link"
 import { notFound } from "next/navigation"
 import { Suspense } from "react"
 import { PublicSceneGrid } from "@/components/community/public-scene-grid"
+import { PublicSceneLayerFilter } from "@/components/community/public-scene-layer-filter"
 import { ButtonLink } from "@/components/ui/button/link"
 import { Typography } from "@/components/ui/typography"
 import { APP_BASE_URL } from "@/lib/app"
-import { cn } from "@/lib/cn"
 import { isCommunityEnabled } from "@/lib/community/config"
 import { getPublicScenes } from "@/lib/community/public-scenes"
-import { COMMUNITY_PATH, communityTagPath } from "@/lib/community/scene-links"
-import {
-  CURATED_SCENE_TAGS,
-  getSceneTagLabel,
-  isCuratedSceneTag,
-} from "@/lib/community/scene-tags"
+import { isCommunityLayerType } from "@/lib/community/scene-layer-filter"
+import { COMMUNITY_PATH } from "@/lib/community/scene-links"
+import { getLayerLabel } from "@/lib/editor/config/layer-catalog"
 
 const TITLE = "Made by the community"
 
@@ -77,58 +72,28 @@ export default function CommunityPage({ searchParams }: PageProps) {
 }
 
 async function CommunityScenes({ searchParams }: PageProps) {
-  const rawTag = (await searchParams).tag
-  const tag = isCuratedSceneTag(rawTag) ? rawTag : undefined
-  const page = await getPublicScenes(tag)
+  const rawLayer = (await searchParams).layer
+  const layer = isCommunityLayerType(rawLayer) ? rawLayer : undefined
+  const page = await getPublicScenes(layer)
 
   return (
     <section className="flex flex-col gap-[var(--ds-space-6)]">
-      <nav
-        aria-label="Filter community scenes by tag"
-        className="flex gap-2 overflow-x-auto"
-      >
-        <Link
-          aria-current={tag ? undefined : "page"}
-          className={cn(
-            "shrink-0 rounded-[var(--ds-radius-control)] border px-3 py-1.5 transition-colors duration-160",
-            tag
-              ? "border-[var(--ds-border-subtle)] text-[var(--ds-color-text-secondary)] hover:border-[var(--ds-border-active)]"
-              : "border-[var(--ds-border-active)] bg-[var(--ds-color-surface-active)] text-[var(--ds-color-text-primary)]"
-          )}
-          href={COMMUNITY_PATH as Route}
-        >
-          <Typography as="span" variant="label">
-            All
-          </Typography>
-        </Link>
-        {CURATED_SCENE_TAGS.map((sceneTag) => (
-          <Link
-            aria-current={tag === sceneTag ? "page" : undefined}
-            className={cn(
-              "shrink-0 rounded-[var(--ds-radius-control)] border px-3 py-1.5 transition-colors duration-160",
-              tag === sceneTag
-                ? "border-[var(--ds-border-active)] bg-[var(--ds-color-surface-active)] text-[var(--ds-color-text-primary)]"
-                : "border-[var(--ds-border-subtle)] text-[var(--ds-color-text-secondary)] hover:border-[var(--ds-border-active)]"
-            )}
-            href={communityTagPath(sceneTag) as Route}
-            key={sceneTag}
-          >
-            <Typography as="span" variant="label">
-              {getSceneTagLabel(sceneTag)}
-            </Typography>
-          </Link>
-        ))}
-      </nav>
+      <div className="flex items-center gap-2">
+        <Typography as="span" tone="tertiary" variant="overline">
+          Layer
+        </Typography>
+        <PublicSceneLayerFilter {...(layer ? { layer } : {})} />
+      </div>
 
       <PublicSceneGrid
         emptyLabel={
-          tag
-            ? `No ${getSceneTagLabel(tag)} scenes published yet.`
+          layer
+            ? `No scenes using ${getLayerLabel(layer)} published yet.`
             : "No scenes published yet."
         }
         initialNextCursor={page.nextCursor}
         initialScenes={page.scenes}
-        {...(tag ? { tag } : {})}
+        {...(layer ? { layer } : {})}
       />
     </section>
   )

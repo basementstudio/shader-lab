@@ -43,13 +43,6 @@
       "when": 1787028425144,
       "tag": "0005_small_stardust",
       "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1787339508646,
-      "tag": "0006_foamy_runaways",
-      "breakpoints": true
     }
   ]
 }

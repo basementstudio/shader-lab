@@ -393,7 +393,6 @@ export async function saveDraft(input?: {
 
 export async function publishScene(input: {
   description: string
-  tags: string[]
   thumbnailTime: number
   title: string
   turnstileToken?: string | null
@@ -512,7 +511,6 @@ export async function publishScene(input: {
         forkedFromSlug: useRemixOriginStore.getState().origin?.slug ?? null,
         projectFile: JSON.stringify(publishable),
         thumbnailUrl: thumbnailTarget.publicUrl,
-        tags: input.tags,
         title: input.title,
         turnstileToken: input.turnstileToken ?? null,
       }),

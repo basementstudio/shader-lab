@@ -14,7 +14,6 @@ import {
   encodeSceneCursor,
   type SceneCursor,
 } from "@/lib/community/scene-cursor"
-import type { CuratedSceneTag } from "@/lib/community/scene-tags"
 import { getDatabase } from "@/lib/db"
 import { likes, profiles, scenes } from "@/lib/db/schema"
 import { normalizeHost } from "@/lib/editor/remote-asset"
@@ -40,7 +39,6 @@ export interface CommunitySceneSummary {
   publishedAt: string | null
   remixCount: number
   slug: string
-  tags: string[]
   thumbnailUrl: string | null
   title: string
 }
@@ -107,7 +105,6 @@ const summaryColumns = {
   publishedAt: scenes.publishedAt,
   remixCount: scenes.remixCount,
   slug: scenes.slug,
-  tags: scenes.tags,
   thumbnailImageId: scenes.thumbnailImageId,
   title: scenes.title,
 }
@@ -126,7 +123,6 @@ function toSummary(row: {
   publishedAt: Date | null
   remixCount: number
   slug: string
-  tags: string[]
   thumbnailImageId: string | null
   title: string
 }): CommunitySceneSummary {
@@ -144,7 +140,6 @@ function toSummary(row: {
     publishedAt: row.publishedAt?.toISOString() ?? null,
     remixCount: row.remixCount,
     slug: row.slug,
-    tags: row.tags,
     thumbnailUrl: resolveThumbnailUrl(row.thumbnailImageId),
     title: row.title,
   }
@@ -184,8 +179,8 @@ export function buildKeysetFilter(sort: SceneSort, cursor: SceneCursor) {
   return sql`(${scenes.publishedAt}, ${scenes.id}) < (${publishedAt}::timestamptz, ${cursor.id}::text)`
 }
 
-export function buildTagFilter(tag: CuratedSceneTag) {
-  return arrayContains(scenes.tags, [tag])
+export function buildLayerFilter(layer: LayerType) {
+  return arrayContains(scenes.layerTypes, [layer])
 }
 
 function escapeLike(value: string): string {
@@ -203,7 +198,7 @@ export async function listPublishedScenes(options?: {
   limit?: number
   query?: string
   sort?: SceneSort
-  tag?: CuratedSceneTag
+  layer?: LayerType
 }): Promise<SceneListPage> {
   const limit = Math.min(Math.max(options?.limit ?? 24, 1), 60)
   const sort = options?.sort ?? DEFAULT_SCENE_SORT
@@ -224,8 +219,8 @@ export async function listPublishedScenes(options?: {
     filters.push(buildKeysetFilter(sort, options.cursor))
   }
 
-  if (options?.tag) {
-    filters.push(buildTagFilter(options.tag))
+  if (options?.layer) {
+    filters.push(buildLayerFilter(options.layer))
   }
 
   if (query.length > 0) {

@@ -26,8 +26,8 @@ describe("isFeaturedIndex", () => {
     expect(isFeaturedIndex(0, { ...base, query: "   " })).toBe(true)
   })
 
-  test("does not feature a tag-filtered result", () => {
-    expect(isFeaturedIndex(0, { ...base, tag: "glitch" })).toBe(false)
+  test("does not feature a layer-filtered result", () => {
+    expect(isFeaturedIndex(0, { ...base, layer: "crt" })).toBe(false)
   })
 
   test("does not feature until the two hero rows can be filled", () => {

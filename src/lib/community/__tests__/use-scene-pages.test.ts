@@ -41,10 +41,10 @@ describe("sceneListUrl", () => {
     expect(params.get("q")).toBe("crt")
   })
 
-  test("carries a curated tag through", () => {
-    const params = paramsOf(sceneListUrl({ sort: "popular", tag: "glitch" }))
+  test("carries a layer filter through", () => {
+    const params = paramsOf(sceneListUrl({ layer: "crt", sort: "popular" }))
 
-    expect(params.get("tag")).toBe("glitch")
+    expect(params.get("layer")).toBe("crt")
   })
 
   test("a null author is treated as absent", () => {
@@ -81,7 +81,7 @@ describe("sceneListKey", () => {
   })
 
   test("separates filtered and unfiltered lists", () => {
-    expect(sceneListKey("popular", "", null, "glitch")).not.toBe(
+    expect(sceneListKey("popular", "", null, "crt")).not.toBe(
       sceneListKey("popular", "", null)
     )
   })

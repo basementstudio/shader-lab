@@ -5,7 +5,7 @@ import type { SceneCursor } from "@/lib/community/scene-cursor"
 import {
   buildKeysetFilter,
   buildOrderBy,
-  buildTagFilter,
+  buildLayerFilter,
   resolveLabUrl,
   resolveThumbnailUrl,
   SCENE_SORTS,
@@ -192,11 +192,11 @@ describe("scene keyset pagination", () => {
   })
 })
 
-describe("scene tag filtering", () => {
+describe("scene layer filtering", () => {
   test("uses PostgreSQL array containment so the GIN index can serve it", () => {
-    expect(dialect.sqlToQuery(buildTagFilter("glitch"))).toEqual({
-      params: ['{"glitch"}'],
-      sql: '"scenes"."tags" @> $1',
+    expect(dialect.sqlToQuery(buildLayerFilter("crt"))).toEqual({
+      params: ['{"crt"}'],
+      sql: '"scenes"."layer_types" @> $1',
       typings: ["none"],
     })
   })

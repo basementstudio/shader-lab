@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import {
   COMMUNITY_PATH,
+  communityLayerPath,
   EDITOR_PATH,
   editorSceneHref,
   profileDisplayPath,
@@ -22,6 +23,12 @@ describe("community paths", () => {
   test("the editor opens a scene from its own path", () => {
     expect(editorSceneHref("5am-tokyo-run-q1zxkc")).toBe(
       "/tools/shader-lab?scene=5am-tokyo-run-q1zxkc"
+    )
+  })
+
+  test("a layer filter stays on the public community page", () => {
+    expect(communityLayerPath("chromatic-aberration")).toBe(
+      "/tools/shader-lab/community?layer=chromatic-aberration"
     )
   })
 })

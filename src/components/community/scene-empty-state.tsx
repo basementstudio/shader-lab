@@ -2,10 +2,8 @@
 
 import { EmptyState } from "@/components/community/empty-state"
 import { Button } from "@/components/ui/button"
-import {
-  getSceneTagLabel,
-  type CuratedSceneTag,
-} from "@/lib/community/scene-tags"
+import { getLayerLabel } from "@/lib/editor/config/layer-catalog"
+import type { LayerType } from "@/types/editor"
 
 function EmptyGlyph() {
   return (
@@ -39,22 +37,23 @@ function EmptyGlyph() {
 
 export function SceneEmptyState({
   onClearFilters,
+  layer,
   query,
-  tag,
 }: {
   onClearFilters: () => void
+  layer?: LayerType | null
   query: string
-  tag?: CuratedSceneTag | null
 }) {
   const searching = query.trim().length > 0
-  const filtered = searching || Boolean(tag)
+  const filtered = searching || Boolean(layer)
   let description =
     "Published scenes show up here. Build something in the editor and publish it to be the first."
   let title = "No scenes published yet"
 
-  if (tag) {
-    description = "Try another tag, or clear the filter to explore every scene."
-    title = `No ${getSceneTagLabel(tag)} scenes yet`
+  if (layer) {
+    description =
+      "Try another layer, or clear the filter to explore every scene."
+    title = `No scenes using ${getLayerLabel(layer)} yet`
   }
 
   if (searching) {

@@ -1,5 +1,5 @@
 import type { SceneSort } from "@/lib/community/scenes"
-import type { CuratedSceneTag } from "@/lib/community/scene-tags"
+import type { LayerType } from "@/types/editor"
 
 export const SCENE_GRID_CLASS_NAME =
   "grid grid-cols-1 gap-[var(--ds-space-5)] min-[640px]:grid-cols-2 min-[1000px]:grid-cols-3"
@@ -11,7 +11,7 @@ export function isFeaturedIndex(
   input: {
     query: string
     sort: SceneSort
-    tag?: CuratedSceneTag | null
+    layer?: LayerType | null
     total: number
   }
 ): boolean {
@@ -23,7 +23,7 @@ export function isFeaturedIndex(
     return false
   }
 
-  if (input.tag) {
+  if (input.layer) {
     return false
   }
 

@@ -9,16 +9,6 @@ export const COMMUNITY_EFFECT_TYPES: readonly EffectLayerType[] = [
   ...EFFECT_LAYER_TYPES,
 ].sort((left, right) => getLayerLabel(left).localeCompare(getLayerLabel(right)))
 
-export const ALL_COMMUNITY_EFFECTS_VALUE = "__all_effects__"
-
-export const COMMUNITY_EFFECT_FILTER_OPTIONS = [
-  { label: "All effects", value: ALL_COMMUNITY_EFFECTS_VALUE },
-  ...COMMUNITY_EFFECT_TYPES.map((effect) => ({
-    label: getLayerLabel(effect),
-    value: effect,
-  })),
-] as const
-
 const COMMUNITY_EFFECT_TYPE_SET = new Set<EffectLayerType>(
   COMMUNITY_EFFECT_TYPES
 )

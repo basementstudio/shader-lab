@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test"
 import {
-  COMMUNITY_EFFECT_FILTER_OPTIONS,
   COMMUNITY_EFFECT_TYPES,
   getCommunitySceneEffects,
   isCommunityEffectType,
@@ -19,19 +18,6 @@ describe("community effect filters", () => {
         left.localeCompare(right)
       )
     )
-  })
-
-  test("starts with an unfiltered option and labels each effect", () => {
-    expect(COMMUNITY_EFFECT_FILTER_OPTIONS[0]?.label).toBe("All effects")
-
-    for (const effect of COMMUNITY_EFFECT_TYPES) {
-      expect(
-        COMMUNITY_EFFECT_FILTER_OPTIONS.some(
-          (option) =>
-            option.value === effect && option.label === getLayerLabel(effect)
-        )
-      ).toBe(true)
-    }
   })
 
   test("accepts effects and rejects source, model, and editorial tags", () => {

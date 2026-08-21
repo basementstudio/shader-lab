@@ -23,28 +23,24 @@ import { ShaderConsentDialog } from "@/components/community/shader-consent-dialo
 import { Button } from "@/components/ui/button"
 import { GlassPanel } from "@/components/ui/glass-panel"
 import { IconButton } from "@/components/ui/icon-button"
-import { Select } from "@/components/ui/select"
 import { HoverTooltip } from "@/components/ui/tooltip"
 import { Typography } from "@/components/ui/typography"
 import { authClient } from "@/lib/auth/client"
 import { cn } from "@/lib/cn"
+import { COMMUNITY_EFFECT_TYPES } from "@/lib/community/scene-effect-filter"
+import { scenePagePath } from "@/lib/community/scene-links"
 import type {
   AuthoredScene,
-  DraftSummary,
   CommunitySceneDetail,
   CommunitySceneSummary,
+  DraftSummary,
   SceneSort,
 } from "@/lib/community/scenes"
-import { scenePagePath } from "@/lib/community/scene-links"
-import {
-  ALL_COMMUNITY_EFFECTS_VALUE,
-  COMMUNITY_EFFECT_FILTER_OPTIONS,
-  isCommunityEffectType,
-} from "@/lib/community/scene-effect-filter"
 import { MAX_DRAFTS_PER_AUTHOR } from "@/lib/community/upload-limits"
 import { useScenePages } from "@/lib/community/use-scene-pages"
 import { requestAutosave } from "@/lib/editor/autosave/bus"
 import { withAutosaveSuppressed } from "@/lib/editor/autosave/suppress"
+import { getLayerLabel } from "@/lib/editor/config/layer-catalog"
 import { acquirePreviewRenderLock } from "@/lib/editor/preview-render-lock"
 import {
   applyLabProjectFile,
@@ -883,21 +879,59 @@ export function CommunityModal({
                 </div>
 
                 {selected || selectedHandle || tab !== "explore" ? null : (
-                  <div className="flex shrink-0 items-center gap-2 border-b border-[var(--ds-border-divider)] px-4 py-2">
-                    <Typography as="span" tone="tertiary" variant="overline">
-                      Effect
-                    </Typography>
-                    <Select
-                      onValueChange={(value) =>
-                        setEffect(isCommunityEffectType(value) ? value : null)
-                      }
-                      options={COMMUNITY_EFFECT_FILTER_OPTIONS}
-                      popupClassName="min-w-[190px]"
-                      triggerAriaLabel="Filter scenes by effect"
-                      triggerClassName="h-7 w-[160px] min-h-7 py-1"
-                      value={effect ?? ALL_COMMUNITY_EFFECTS_VALUE}
-                    />
-                  </div>
+                  <fieldset
+                    aria-label="Filter community scenes by effect"
+                    className="m-0 flex min-w-0 shrink-0 gap-1.5 overflow-x-auto border-x-0 border-t-0 border-b border-[var(--ds-border-divider)] px-4 py-2"
+                  >
+                    <button
+                      aria-pressed={effect === null}
+                      className={cn(
+                        TAB_CLASS_NAME,
+                        "shrink-0",
+                        effect === null &&
+                          "border-[var(--ds-border-active)] bg-[var(--ds-color-surface-active)]"
+                      )}
+                      onClick={() => setEffect(null)}
+                      type="button"
+                    >
+                      <Typography
+                        as="span"
+                        tone={effect === null ? "primary" : "tertiary"}
+                        variant="label"
+                      >
+                        All
+                      </Typography>
+                    </button>
+
+                    {COMMUNITY_EFFECT_TYPES.map((effectType) => (
+                      <button
+                        aria-pressed={effect === effectType}
+                        className={cn(
+                          TAB_CLASS_NAME,
+                          "shrink-0",
+                          effect === effectType &&
+                            "border-[var(--ds-border-active)] bg-[var(--ds-color-surface-active)]"
+                        )}
+                        key={effectType}
+                        onClick={() =>
+                          setEffect((current) =>
+                            current === effectType ? null : effectType
+                          )
+                        }
+                        type="button"
+                      >
+                        <Typography
+                          as="span"
+                          tone={
+                            effect === effectType ? "primary" : "tertiary"
+                          }
+                          variant="label"
+                        >
+                          {getLayerLabel(effectType)}
+                        </Typography>
+                      </button>
+                    ))}
+                  </fieldset>
                 )}
 
                 {error ? (

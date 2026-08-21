@@ -2,6 +2,10 @@
 
 import { EmptyState } from "@/components/community/empty-state"
 import { Button } from "@/components/ui/button"
+import {
+  getSceneTagLabel,
+  type CuratedSceneTag,
+} from "@/lib/community/scene-tags"
 
 function EmptyGlyph() {
   return (
@@ -34,32 +38,42 @@ function EmptyGlyph() {
 }
 
 export function SceneEmptyState({
-  onClearSearch,
+  onClearFilters,
   query,
+  tag,
 }: {
-  onClearSearch: () => void
+  onClearFilters: () => void
   query: string
+  tag?: CuratedSceneTag | null
 }) {
   const searching = query.trim().length > 0
+  const filtered = searching || Boolean(tag)
+  let description =
+    "Published scenes show up here. Build something in the editor and publish it to be the first."
+  let title = "No scenes published yet"
+
+  if (tag) {
+    description = "Try another tag, or clear the filter to explore every scene."
+    title = `No ${getSceneTagLabel(tag)} scenes yet`
+  }
+
+  if (searching) {
+    description = "Try a different title, or an author's name or handle."
+    title = "No scenes match that search"
+  }
 
   return (
     <EmptyState
       action={
-        searching ? (
-          <Button onClick={onClearSearch} variant="secondary">
-            Clear search
+        filtered ? (
+          <Button onClick={onClearFilters} variant="secondary">
+            Clear filter
           </Button>
         ) : null
       }
-      description={
-        searching
-          ? "Try a different title, or an author's name or handle."
-          : "Published scenes show up here. Build something in the editor and publish it to be the first."
-      }
+      description={description}
       glyph={<EmptyGlyph />}
-      title={
-        searching ? "No scenes match that search" : "No scenes published yet"
-      }
+      title={title}
     />
   )
 }

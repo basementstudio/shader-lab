@@ -35,6 +35,11 @@ import type {
   SceneSort,
 } from "@/lib/community/scenes"
 import { scenePagePath } from "@/lib/community/scene-links"
+import {
+  CURATED_SCENE_TAGS,
+  getSceneTagLabel,
+  type CuratedSceneTag,
+} from "@/lib/community/scene-tags"
 import { MAX_DRAFTS_PER_AUTHOR } from "@/lib/community/upload-limits"
 import { useScenePages } from "@/lib/community/use-scene-pages"
 import { requestAutosave } from "@/lib/editor/autosave/bus"
@@ -101,7 +106,6 @@ function PublishedGlyph() {
     </svg>
   )
 }
-
 function LikesGlyph() {
   return (
     <svg
@@ -202,10 +206,12 @@ export function CommunityModal({
   const [sort, setSort] = useState<SceneSort>("popular")
   const [search, setSearch] = useState("")
   const [query, setQuery] = useState("")
+  const [tag, setTag] = useState<CuratedSceneTag | null>(null)
   const explore = useScenePages({
     enabled: open && tab === "explore",
     query,
     sort,
+    tag,
   })
   const items = explore.scenes
   const [selected, setSelected] = useState<CommunitySceneSummary | null>(null)
@@ -874,6 +880,37 @@ export function CommunityModal({
                   )}
                 </div>
 
+                {selected || selectedHandle || tab !== "explore" ? null : (
+                  <div className="flex shrink-0 gap-1.5 overflow-x-auto border-b border-[var(--ds-border-divider)] px-4 py-2">
+                    {CURATED_SCENE_TAGS.map((sceneTag) => (
+                      <button
+                        aria-pressed={tag === sceneTag}
+                        className={cn(
+                          TAB_CLASS_NAME,
+                          "shrink-0",
+                          tag === sceneTag &&
+                            "border-[var(--ds-border-active)] bg-[var(--ds-color-surface-active)]"
+                        )}
+                        key={sceneTag}
+                        onClick={() =>
+                          setTag((current) =>
+                            current === sceneTag ? null : sceneTag
+                          )
+                        }
+                        type="button"
+                      >
+                        <Typography
+                          as="span"
+                          tone={tag === sceneTag ? "primary" : "tertiary"}
+                          variant="label"
+                        >
+                          {getSceneTagLabel(sceneTag)}
+                        </Typography>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
                 {error ? (
                   <div
                     className="border-b border-[var(--ds-border-divider)] bg-[rgb(120_28_28_/_0.22)] px-4 py-2"
@@ -885,7 +922,14 @@ export function CommunityModal({
                   </div>
                 ) : null}
 
-                <div className="h-[min(62vh,560px)]">
+                <div
+                  className={cn(
+                    "h-[min(62vh,560px)]",
+                    tab === "explore" &&
+                      !(selected || selectedHandle) &&
+                      "h-[min(62vh,calc(100vh-254px),560px)]"
+                  )}
+                >
                   {selected ? (
                     <SceneDetail
                       detail={detail}
@@ -1099,8 +1143,12 @@ export function CommunityModal({
 
                       {items?.length === 0 ? (
                         <SceneEmptyState
-                          onClearSearch={() => setSearch("")}
+                          onClearFilters={() => {
+                            setSearch("")
+                            setTag(null)
+                          }}
                           query={query}
+                          tag={tag}
                         />
                       ) : null}
 
@@ -1111,6 +1159,7 @@ export function CommunityModal({
                               featured={isFeaturedIndex(index, {
                                 query,
                                 sort,
+                                tag,
                                 total: items.length,
                               })}
                               key={scene.id}

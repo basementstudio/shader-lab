@@ -12,6 +12,10 @@ export function scenePagePath(slug: string): string {
   return `${COMMUNITY_PATH}/${slug}`
 }
 
+export function communityTagPath(tag: string): string {
+  return `${COMMUNITY_PATH}?tag=${encodeURIComponent(tag)}`
+}
+
 export function sceneSharePath(slug: string): string {
   return `${scenePagePath(slug)}?${OPEN_IN_EDITOR_PARAM}=1`
 }

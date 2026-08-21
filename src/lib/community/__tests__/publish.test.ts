@@ -11,6 +11,7 @@ import {
   MAX_TOTAL_BYTES,
   normalizeDescription,
   normalizeDraftTitle,
+  normalizeTags,
   normalizeThumbnailUrl,
   normalizeTitle,
   planUploads,
@@ -153,6 +154,33 @@ describe("normalizeDescription", () => {
   })
 })
 
+describe("normalizeTags", () => {
+  test("treats a missing or non-array value as no tags", () => {
+    for (const value of [null, undefined, "glitch", 5, {}]) {
+      expect(normalizeTags(value)).toEqual([])
+    }
+  })
+
+  test("normalizes case and whitespace and removes duplicates", () => {
+    expect(normalizeTags([" Glitch ", "glitch", " NATURE "])).toEqual([
+      "glitch",
+      "nature",
+    ])
+  })
+
+  test("rejects tags outside the curated set", () => {
+    expect(() => normalizeTags(["glitch", "watercolor"])).toThrow(
+      /available options/i
+    )
+  })
+
+  test("rejects more than three unique tags", () => {
+    expect(() =>
+      normalizeTags(["abstract", "background", "glitch", "nature"])
+    ).toThrow(/up to 3 tags/i)
+  })
+})
+
 describe("dayBucket", () => {
   test("is a UTC calendar day", () => {
     expect(dayBucket(new Date("2026-08-12T23:59:59Z"))).toBe("2026-08-12")
@@ -188,9 +216,7 @@ describe("validateProjectFilePayload", () => {
       },
     ])
 
-    expect(() => validateProjectFilePayload(payload)).toThrow(
-      /untrusted host/
-    )
+    expect(() => validateProjectFilePayload(payload)).toThrow(/untrusted host/)
   })
 
   test("accepts an asset on an allowlisted host", () => {
@@ -214,9 +240,9 @@ describe("validateProjectFilePayload", () => {
   })
 
   test("rejects an oversized payload before parsing it", () => {
-    expect(() => validateProjectFilePayload("x".repeat(9 * 1024 * 1024))).toThrow(
-      /too large/
-    )
+    expect(() =>
+      validateProjectFilePayload("x".repeat(9 * 1024 * 1024))
+    ).toThrow(/too large/)
   })
 })
 
@@ -295,12 +321,12 @@ describe("decideQuota", () => {
       scenesToday: MAX_SCENES_PER_DAY,
     }
 
-    expect(decideQuota({ addScene: false, bucket, bytes: 1024, current }).ok).toBe(
-      true
-    )
-    expect(decideQuota({ addScene: true, bucket, bytes: 1024, current }).ok).toBe(
-      false
-    )
+    expect(
+      decideQuota({ addScene: false, bucket, bytes: 1024, current }).ok
+    ).toBe(true)
+    expect(
+      decideQuota({ addScene: true, bucket, bytes: 1024, current }).ok
+    ).toBe(false)
   })
 
   test("the daily scene cap resets when the bucket rolls over", () => {
@@ -517,10 +543,7 @@ describe("planUploads", () => {
     const plan = planUploads({
       draftId,
       requested: Array.from({ length: MAX_ASSETS_PER_SCENE + 1 }, (_, index) =>
-        videoUpload(
-          `${index}`.padStart(64, "c").slice(0, 64),
-          MAX_ASSET_BYTES
-        )
+        videoUpload(`${index}`.padStart(64, "c").slice(0, 64), MAX_ASSET_BYTES)
       ),
       storedUrls: new Map(),
     })

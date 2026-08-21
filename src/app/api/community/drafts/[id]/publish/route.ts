@@ -13,6 +13,7 @@ import {
   findAssetOutsideScenePrefixes,
   MAX_LAB_BYTES,
   normalizeDescription,
+  normalizeTags,
   normalizeThumbnailUrl,
   normalizeTitle,
   releaseQuota,
@@ -58,6 +59,7 @@ export async function POST(
     forkedFromSlug?: unknown
     projectFile?: unknown
     thumbnailUrl?: unknown
+    tags?: unknown
     title?: unknown
     turnstileToken?: unknown
   }
@@ -79,10 +81,12 @@ export async function POST(
 
   let title: string
   let description: string | null
+  let tags: string[]
 
   try {
     title = normalizeTitle(payload.title)
     description = normalizeDescription(payload.description)
+    tags = normalizeTags(payload.tags)
   } catch (cause) {
     return badRequest(cause instanceof Error ? cause.message : "Invalid title.")
   }
@@ -183,7 +187,10 @@ export async function POST(
 
   // Promoting only spent a scene slot; a first publish also spent the bytes.
   const refund = () =>
-    releaseQuota(userId, prior ? { scenes: 1 } : { bytes: sceneBytes, scenes: 1 })
+    releaseQuota(
+      userId,
+      prior ? { scenes: 1 } : { bytes: sceneBytes, scenes: 1 }
+    )
 
   const slug = buildSceneSlug(title)
 
@@ -200,6 +207,7 @@ export async function POST(
     publishedAt: now,
     slug,
     status: "published" as const,
+    tags,
     thumbnailImageId: thumbnailUrl,
     title,
     updatedAt: now,

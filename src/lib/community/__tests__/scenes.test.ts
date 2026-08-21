@@ -5,6 +5,7 @@ import type { SceneCursor } from "@/lib/community/scene-cursor"
 import {
   buildKeysetFilter,
   buildOrderBy,
+  buildTagFilter,
   resolveLabUrl,
   resolveThumbnailUrl,
   SCENE_SORTS,
@@ -39,9 +40,7 @@ afterEach(() => {
 
 describe("resolveLabUrl", () => {
   test("passes through a root-relative path untouched", () => {
-    expect(resolveLabUrl("/local/scene.lab.json")).toBe(
-      "/local/scene.lab.json"
-    )
+    expect(resolveLabUrl("/local/scene.lab.json")).toBe("/local/scene.lab.json")
   })
 
   test("passes through an absolute https url untouched", () => {
@@ -123,9 +122,9 @@ const cursor: SceneCursor = {
 }
 
 function sceneColumnsIn(query: SQL): string[] {
-  return [
-    ...dialect.sqlToQuery(query).sql.matchAll(/"scenes"\."(\w+)"/g),
-  ].map((match) => match[1] as string)
+  return [...dialect.sqlToQuery(query).sql.matchAll(/"scenes"\."(\w+)"/g)].map(
+    (match) => match[1] as string
+  )
 }
 
 function orderByColumns(sort: SceneSort): string[] {
@@ -171,9 +170,9 @@ describe("scene keyset pagination", () => {
   test("a featured cursor without a featured timestamp cannot page, so it matches nothing", () => {
     const stripped: SceneCursor = { ...cursor, featuredAt: null }
 
-    expect(dialect.sqlToQuery(buildKeysetFilter("featured", stripped)).sql).toBe(
-      "false"
-    )
+    expect(
+      dialect.sqlToQuery(buildKeysetFilter("featured", stripped)).sql
+    ).toBe("false")
   })
 
   test("popular still binds the like count as an int", () => {
@@ -190,5 +189,15 @@ describe("scene keyset pagination", () => {
     expect(sceneColumnsIn(buildKeysetFilter("latest", cursor))).not.toContain(
       "featured_at"
     )
+  })
+})
+
+describe("scene tag filtering", () => {
+  test("uses PostgreSQL array containment so the GIN index can serve it", () => {
+    expect(dialect.sqlToQuery(buildTagFilter("glitch"))).toEqual({
+      params: ['{"glitch"}'],
+      sql: '"scenes"."tags" @> $1',
+      typings: ["none"],
+    })
   })
 })

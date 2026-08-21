@@ -1,6 +1,8 @@
 "use client"
 
+import type { Route } from "next"
 import Image from "next/image"
+import Link from "next/link"
 import { AuthorAvatar } from "@/components/community/author-avatar"
 import { DeleteSceneControl } from "@/components/community/delete-scene-control"
 import { RemixCredit } from "@/components/community/remix-credit"
@@ -10,6 +12,8 @@ import { LikeButton } from "@/components/community/like-button"
 import { Button } from "@/components/ui/button"
 import { Typography } from "@/components/ui/typography"
 import { lineageLabel } from "@/lib/community/lineage"
+import { communityTagPath } from "@/lib/community/scene-links"
+import { getSceneTagLabel, isCuratedSceneTag } from "@/lib/community/scene-tags"
 import type {
   CommunitySceneDetail,
   CommunitySceneSummary,
@@ -97,6 +101,15 @@ export function SceneDetail({
         </div>
 
         <div className="flex flex-wrap gap-1.5">
+          {scene.tags.filter(isCuratedSceneTag).map((tag) => (
+            <Link
+              className="rounded-[var(--ds-radius-control)] transition-opacity duration-160 hover:opacity-75"
+              href={communityTagPath(tag) as Route}
+              key={tag}
+            >
+              <SceneTag>{getSceneTagLabel(tag)}</SceneTag>
+            </Link>
+          ))}
           {scene.layerTypes.map((type) => (
             <SceneTag key={type}>{getLayerLabel(type)}</SceneTag>
           ))}

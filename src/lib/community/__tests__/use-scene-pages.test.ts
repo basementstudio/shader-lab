@@ -12,7 +12,9 @@ function paramsOf(url: string): URLSearchParams {
 
 describe("sceneListUrl", () => {
   test("omits author when there is none", () => {
-    expect(paramsOf(sceneListUrl({ sort: "popular" })).has("author")).toBe(false)
+    expect(paramsOf(sceneListUrl({ sort: "popular" })).has("author")).toBe(
+      false
+    )
   })
 
   test("carries the author through", () => {
@@ -39,10 +41,16 @@ describe("sceneListUrl", () => {
     expect(params.get("q")).toBe("crt")
   })
 
+  test("carries a curated tag through", () => {
+    const params = paramsOf(sceneListUrl({ sort: "popular", tag: "glitch" }))
+
+    expect(params.get("tag")).toBe("glitch")
+  })
+
   test("a null author is treated as absent", () => {
-    expect(paramsOf(sceneListUrl({ author: null, sort: "popular" })).has("author")).toBe(
-      false
-    )
+    expect(
+      paramsOf(sceneListUrl({ author: null, sort: "popular" })).has("author")
+    ).toBe(false)
   })
 })
 
@@ -69,6 +77,12 @@ describe("sceneListKey", () => {
     )
     expect(sceneListKey("latest", "crt", "alice")).not.toBe(
       sceneListKey("latest", "", "alice")
+    )
+  })
+
+  test("separates filtered and unfiltered lists", () => {
+    expect(sceneListKey("popular", "", null, "glitch")).not.toBe(
+      sceneListKey("popular", "", null)
     )
   })
 })

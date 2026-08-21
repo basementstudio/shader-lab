@@ -26,6 +26,10 @@ describe("isFeaturedIndex", () => {
     expect(isFeaturedIndex(0, { ...base, query: "   " })).toBe(true)
   })
 
+  test("does not feature a tag-filtered result", () => {
+    expect(isFeaturedIndex(0, { ...base, tag: "glitch" })).toBe(false)
+  })
+
   test("does not feature until the two hero rows can be filled", () => {
     // a 2x2 tile in a 4-column grid leaves four cells beside it
     for (let total = 0; total < FEATURED_MIN_SCENES; total++) {

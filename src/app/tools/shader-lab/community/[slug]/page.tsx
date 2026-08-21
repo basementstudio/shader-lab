@@ -16,11 +16,13 @@ import { isCommunityEnabled } from "@/lib/community/config"
 import { lineageLabel } from "@/lib/community/lineage"
 import {
   COMMUNITY_PATH,
+  communityTagPath,
   editorSceneHref,
   OPEN_IN_EDITOR_PARAM,
   profilePagePath,
   scenePagePath,
 } from "@/lib/community/scene-links"
+import { getSceneTagLabel, isCuratedSceneTag } from "@/lib/community/scene-tags"
 import { getPublicProfileScenes } from "@/lib/community/public-profiles"
 import { getPublicScene } from "@/lib/community/public-scenes"
 import { getLayerLabel } from "@/lib/editor/config/layer-catalog"
@@ -219,6 +221,15 @@ async function SceneBody({ params }: PageProps) {
             ) : null}
 
             <div className="flex flex-wrap gap-1.5">
+              {scene.tags.filter(isCuratedSceneTag).map((tag) => (
+                <Link
+                  className="rounded-[var(--ds-radius-control)] transition-opacity duration-160 hover:opacity-75"
+                  href={communityTagPath(tag) as Route}
+                  key={tag}
+                >
+                  <SceneTag>{getSceneTagLabel(tag)}</SceneTag>
+                </Link>
+              ))}
               {scene.layerTypes.map((type) => (
                 <SceneTag key={type}>{getLayerLabel(type)}</SceneTag>
               ))}
@@ -290,11 +301,7 @@ async function MoreByAuthor({
 
       <div className={SCENE_GRID_CLASS_NAME}>
         {scenes.map((scene) => (
-          <PublicSceneCard
-            key={scene.slug}
-            scene={scene}
-            showAuthor={false}
-          />
+          <PublicSceneCard key={scene.slug} scene={scene} showAuthor={false} />
         ))}
       </div>
     </section>

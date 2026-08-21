@@ -3,6 +3,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { AuthorLink } from "@/components/community/author-link"
 import { Typography } from "@/components/ui/typography"
+import { scenePagePath } from "@/lib/community/scene-links"
 import type { CommunitySceneSummary } from "@/lib/community/scenes"
 
 export function PublicSceneCard({
@@ -18,7 +19,7 @@ export function PublicSceneCard({
     <div className="group flex min-w-0 flex-col gap-[5px]">
       <Link
         className="flex min-w-0 flex-col gap-[var(--ds-space-2)] rounded-[10px] focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--ds-border-active)] focus-visible:outline-offset-2"
-        href={`/community/${scene.slug}` as Route}
+        href={scenePagePath(scene.slug) as Route}
       >
         <div className="relative aspect-[16/10] w-full overflow-hidden rounded-[8px] border border-[var(--ds-border-subtle)] bg-[var(--ds-color-surface-subtle)] transition-[border-color] duration-160 ease-[var(--ease-out-cubic)] group-hover:border-[var(--ds-border-hover)]">
           {scene.thumbnailUrl ? (

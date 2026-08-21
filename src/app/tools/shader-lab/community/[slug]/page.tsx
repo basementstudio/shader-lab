@@ -15,9 +15,11 @@ import { APP_BASE_URL } from "@/lib/app"
 import { isCommunityEnabled } from "@/lib/community/config"
 import { lineageLabel } from "@/lib/community/lineage"
 import {
+  COMMUNITY_PATH,
   editorSceneHref,
   OPEN_IN_EDITOR_PARAM,
   profilePagePath,
+  scenePagePath,
 } from "@/lib/community/scene-links"
 import { getPublicProfileScenes } from "@/lib/community/public-profiles"
 import { getPublicScene } from "@/lib/community/public-scenes"
@@ -59,13 +61,13 @@ export async function generateMetadata({
   })
 
   return {
-    alternates: { canonical: `/community/${scene.slug}` },
+    alternates: { canonical: scenePagePath(scene.slug) },
     description,
     openGraph: {
       description,
       title: scene.title,
       type: "article",
-      url: `${APP_BASE_URL}/community/${scene.slug}`,
+      url: `${APP_BASE_URL}${scenePagePath(scene.slug)}`,
     },
     title: scene.title,
     twitter: { card: "summary_large_image", description, title: scene.title },
@@ -141,7 +143,7 @@ async function SceneBody({ params }: PageProps) {
       <div className="flex flex-col gap-[var(--ds-space-6)]">
         <ButtonLink
           className="w-fit px-0"
-          href="/community"
+          href={COMMUNITY_PATH as Route}
           size="compact"
           variant="ghost"
         >
@@ -206,7 +208,7 @@ async function SceneBody({ params }: PageProps) {
               <Link
                 aria-label={lineageLabel(scene.forkedFrom)}
                 className="w-fit rounded-[var(--ds-radius-control)] transition-opacity duration-160 hover:opacity-80"
-                href={`/community/${scene.forkedFrom.slug}` as Route}
+                href={scenePagePath(scene.forkedFrom.slug) as Route}
                 title={scene.forkedFrom.title}
               >
                 <RemixCredit

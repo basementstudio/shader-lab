@@ -1,11 +1,15 @@
 export const OPEN_IN_EDITOR_PARAM = "open"
 
+export const EDITOR_PATH = "/tools/shader-lab"
+
+export const COMMUNITY_PATH = `${EDITOR_PATH}/community`
+
 export function editorSceneHref(slug: string): string {
-  return `/tools/shader-lab?scene=${encodeURIComponent(slug)}`
+  return `${EDITOR_PATH}?scene=${encodeURIComponent(slug)}`
 }
 
 export function scenePagePath(slug: string): string {
-  return `/community/${slug}`
+  return `${COMMUNITY_PATH}/${slug}`
 }
 
 export function sceneSharePath(slug: string): string {
@@ -13,5 +17,9 @@ export function sceneSharePath(slug: string): string {
 }
 
 export function profilePagePath(handle: string): string {
-  return `/u/${handle}`
+  return `${COMMUNITY_PATH}/u/${handle}`
+}
+
+export function profileDisplayPath(handle: string): string {
+  return profilePagePath(handle).slice(EDITOR_PATH.length)
 }

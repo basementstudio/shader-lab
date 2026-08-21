@@ -28,6 +28,7 @@ import { HoverTooltip } from "@/components/ui/tooltip"
 import { Typography } from "@/components/ui/typography"
 import { playUISound } from "@/lib/audio/shader-lab-sounds"
 import { cn } from "@/lib/cn"
+import { COMMUNITY_PATH } from "@/lib/community/scene-links"
 import { useCommunityUnread } from "@/lib/community/use-community-unread"
 import {
   applyEditorHistorySnapshot,
@@ -754,7 +755,7 @@ export function EditorTopBar({
                 <span className="relative col-span-2 inline-flex">
                   <ButtonLink
                     className="min-h-11 w-full gap-2"
-                    href={"/community" as Route}
+                    href={COMMUNITY_PATH as Route}
                     onClick={() => markCommunitySeen()}
                     variant="secondary"
                   >

@@ -61,9 +61,9 @@ function FailedMark() {
       className="pointer-events-none absolute top-0 right-0 flex size-2 items-center justify-center"
     >
       <Cross2Icon
-        className="!size-2.5"
+        className="!size-[11px]"
         stroke="currentColor"
-        strokeWidth={1.1}
+        strokeWidth={2.2}
       />
     </span>
   )

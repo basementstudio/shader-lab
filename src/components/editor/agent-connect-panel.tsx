@@ -1,7 +1,7 @@
 "use client"
 
 import { Popover } from "@base-ui/react/popover"
-import { CheckIcon, CopyIcon } from "@radix-ui/react-icons"
+import { CheckIcon, CopyIcon, Cross2Icon } from "@radix-ui/react-icons"
 import { useCallback, useEffect, useState } from "react"
 import { GlassPanel } from "@/components/ui/glass-panel"
 import { IconButton } from "@/components/ui/icon-button"
@@ -27,10 +27,42 @@ const STATUS_COPY: Record<
     dot: "animate-pulse bg-amber-400",
     label: "Waiting for your agent",
   },
+  failed: {
+    dot: "bg-red-400",
+    label: "Could not reach your agent",
+  },
   off: {
     dot: "bg-white/25",
     label: "Agent control is off",
   },
+}
+
+function SignalMark({ busy }: { busy: boolean }) {
+  return (
+    <span
+      aria-hidden="true"
+      className="pointer-events-none absolute top-0 right-0 flex size-1.5 items-center justify-center"
+    >
+      {busy ? (
+        <>
+          <span className="absolute size-1.5 animate-[agent-signal-ring_1.5s_var(--ease-out-cubic)_infinite] rounded-full border border-current" />
+          <span className="absolute size-1.5 animate-[agent-signal-ring_1.5s_var(--ease-out-cubic)_0.5s_infinite] rounded-full border border-current" />
+        </>
+      ) : null}
+      <span className="size-1.5 rounded-full bg-current" />
+    </span>
+  )
+}
+
+function FailedMark() {
+  return (
+    <span
+      aria-hidden="true"
+      className="pointer-events-none absolute top-0 right-0 flex size-2 items-center justify-center"
+    >
+      <Cross2Icon height={8} width={8} />
+    </span>
+  )
 }
 
 function XmcpIcon({ size = 16 }: { size?: number }) {
@@ -133,6 +165,7 @@ function CommandBox({ command }: { command: string }) {
 }
 
 export function AgentConnectPanel() {
+  const busy = useAgentBridgeStore((state) => state.busy)
   const enabled = useAgentBridgeStore((state) => state.enabled)
   const status = useAgentBridgeStore((state) => state.status)
   const setEnabled = useAgentBridgeStore((state) => state.setEnabled)
@@ -147,32 +180,25 @@ export function AgentConnectPanel() {
   )
 
   const copyState = STATUS_COPY[status]
+  const live = status === "connected"
 
   return (
     <Popover.Root onOpenChange={onOpenChange}>
-      <span className="relative inline-flex">
-        <Popover.Trigger
-          render={
-            <IconButton
-              aria-label="Connect an agent (MCP)"
-              selected={enabled}
-              tooltip="Connect an agent (MCP)"
-              tooltipSide="bottom"
-            >
-              <XmcpIcon />
-            </IconButton>
-          }
-        />
-        {enabled ? (
-          <span
-            aria-hidden="true"
-            className={cn(
-              "pointer-events-none absolute -top-0.5 -right-0.5 size-2 rounded-full border border-[var(--ds-color-canvas)]",
-              copyState.dot
-            )}
-          />
-        ) : null}
-      </span>
+      <Popover.Trigger
+        render={
+          <IconButton
+            aria-label={`Connect an agent (MCP) — ${copyState.label}`}
+            className="relative"
+            tooltip={copyState.label}
+            tooltipSide="bottom"
+            variant={live ? "ghost" : "default"}
+          >
+            <XmcpIcon />
+            {live ? <SignalMark busy={busy} /> : null}
+            {status === "failed" ? <FailedMark /> : null}
+          </IconButton>
+        }
+      />
 
       <Popover.Portal>
         <Popover.Positioner

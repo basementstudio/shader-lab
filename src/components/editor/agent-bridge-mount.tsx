@@ -9,6 +9,7 @@ import { useAgentBridgeStore } from "@/store/agent-bridge-store"
 
 export function AgentBridgeMount() {
   const enabled = useAgentBridgeStore((state) => state.enabled)
+  const setBusy = useAgentBridgeStore((state) => state.setBusy)
   const setEnabled = useAgentBridgeStore((state) => state.setEnabled)
   const setStatus = useAgentBridgeStore((state) => state.setStatus)
 
@@ -34,15 +35,16 @@ export function AgentBridgeMount() {
       return
     }
 
-    const stop = startAgentBridgeClient((status) => {
-      setStatus(status)
+    const stop = startAgentBridgeClient({
+      onBusyChange: setBusy,
+      onStatusChange: setStatus,
     })
 
     return () => {
       stop()
       setStatus("off")
     }
-  }, [enabled, setStatus])
+  }, [enabled, setBusy, setStatus])
 
   return null
 }

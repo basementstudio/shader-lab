@@ -5,6 +5,8 @@ const BUILT_IN_ASSET_HOSTS = ["cloudflarestream.com", "videodelivery.net"]
 
 const LOOPBACK_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"])
 
+export const BUNDLED_ASSET_PATH_PREFIX = "/scenes/default/"
+
 export function normalizeHost(value: string): string {
   return value
     .trim()
@@ -40,7 +42,15 @@ export function getAllowedAssetHosts(): string[] {
   ]
 }
 
+export function isBundledAssetUrl(rawUrl: string): boolean {
+  return rawUrl.startsWith(BUNDLED_ASSET_PATH_PREFIX) && !rawUrl.includes("..")
+}
+
 export function isAllowedAssetOrigin(rawUrl: string): boolean {
+  if (isBundledAssetUrl(rawUrl)) {
+    return true
+  }
+
   let url: URL
 
   try {

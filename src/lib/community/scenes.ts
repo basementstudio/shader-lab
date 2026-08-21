@@ -179,8 +179,8 @@ export function buildKeysetFilter(sort: SceneSort, cursor: SceneCursor) {
   return sql`(${scenes.publishedAt}, ${scenes.id}) < (${publishedAt}::timestamptz, ${cursor.id}::text)`
 }
 
-export function buildEffectFilter(effect: EffectLayerType) {
-  return arrayContains(scenes.layerTypes, [effect])
+export function buildEffectFilter(effects: readonly EffectLayerType[]) {
+  return arrayContains(scenes.layerTypes, [...effects])
 }
 
 function escapeLike(value: string): string {
@@ -198,7 +198,7 @@ export async function listPublishedScenes(options?: {
   limit?: number
   query?: string
   sort?: SceneSort
-  effect?: EffectLayerType
+  effects?: readonly EffectLayerType[]
 }): Promise<SceneListPage> {
   const limit = Math.min(Math.max(options?.limit ?? 24, 1), 60)
   const sort = options?.sort ?? DEFAULT_SCENE_SORT
@@ -219,8 +219,8 @@ export async function listPublishedScenes(options?: {
     filters.push(buildKeysetFilter(sort, options.cursor))
   }
 
-  if (options?.effect) {
-    filters.push(buildEffectFilter(options.effect))
+  if (options?.effects && options.effects.length > 0) {
+    filters.push(buildEffectFilter(options.effects))
   }
 
   if (query.length > 0) {

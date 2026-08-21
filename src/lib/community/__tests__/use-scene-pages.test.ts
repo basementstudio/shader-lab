@@ -41,10 +41,12 @@ describe("sceneListUrl", () => {
     expect(params.get("q")).toBe("crt")
   })
 
-  test("carries an effect filter through", () => {
-    const params = paramsOf(sceneListUrl({ effect: "crt", sort: "popular" }))
+  test("carries multiple effect filters through", () => {
+    const params = paramsOf(
+      sceneListUrl({ effects: ["crt", "dithering"], sort: "popular" })
+    )
 
-    expect(params.get("effect")).toBe("crt")
+    expect(params.getAll("effect")).toEqual(["crt", "dithering"])
   })
 
   test("a null author is treated as absent", () => {
@@ -81,8 +83,14 @@ describe("sceneListKey", () => {
   })
 
   test("separates filtered and unfiltered lists", () => {
-    expect(sceneListKey("popular", "", null, "crt")).not.toBe(
+    expect(sceneListKey("popular", "", null, ["crt"])).not.toBe(
       sceneListKey("popular", "", null)
+    )
+  })
+
+  test("uses a stable cache key regardless of selection order", () => {
+    expect(sceneListKey("popular", "", null, ["crt", "dithering"])).toBe(
+      sceneListKey("popular", "", null, ["dithering", "crt"])
     )
   })
 })

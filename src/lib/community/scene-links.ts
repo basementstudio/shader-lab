@@ -13,7 +13,19 @@ export function scenePagePath(slug: string): string {
 }
 
 export function communityEffectPath(effect: string): string {
-  return `${COMMUNITY_PATH}?effect=${encodeURIComponent(effect)}`
+  return communityEffectsPath([effect])
+}
+
+export function communityEffectsPath(effects: readonly string[]): string {
+  const params = new URLSearchParams()
+
+  for (const effect of effects) {
+    params.append("effect", effect)
+  }
+
+  const query = params.toString()
+
+  return query ? `${COMMUNITY_PATH}?${query}` : COMMUNITY_PATH
 }
 
 export function sceneSharePath(slug: string): string {

@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test"
 import {
   COMMUNITY_PATH,
   communityEffectPath,
+  communityEffectsPath,
   EDITOR_PATH,
   editorSceneHref,
   profileDisplayPath,
@@ -30,6 +31,13 @@ describe("community paths", () => {
     expect(communityEffectPath("chromatic-aberration")).toBe(
       "/tools/shader-lab/community?effect=chromatic-aberration"
     )
+  })
+
+  test("multiple effect filters use repeatable shareable parameters", () => {
+    expect(communityEffectsPath(["crt", "dithering"])).toBe(
+      "/tools/shader-lab/community?effect=crt&effect=dithering"
+    )
+    expect(communityEffectsPath([])).toBe(COMMUNITY_PATH)
   })
 })
 

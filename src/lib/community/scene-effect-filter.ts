@@ -22,6 +22,15 @@ export function isCommunityEffectType(
   )
 }
 
+export function getCommunityEffectSelection(
+  value: unknown
+): EffectLayerType[] {
+  const values = Array.isArray(value) ? value : [value]
+  const selected = new Set(values.filter(isCommunityEffectType))
+
+  return COMMUNITY_EFFECT_TYPES.filter((effect) => selected.has(effect))
+}
+
 export function getCommunitySceneEffects(
   layerTypes: readonly LayerType[]
 ): EffectLayerType[] {

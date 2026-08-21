@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import {
   COMMUNITY_EFFECT_TYPES,
+  getCommunityEffectSelection,
   getCommunitySceneEffects,
   isCommunityEffectType,
 } from "@/lib/community/scene-effect-filter"
@@ -43,6 +44,17 @@ describe("community effect filters", () => {
   test("derives every effect tag from a mixed scene stack", () => {
     expect(
       getCommunitySceneEffects(["image", "crt", "dithering", "text"])
+    ).toEqual(["crt", "dithering"])
+  })
+
+  test("normalizes a multi-select URL value in catalog order", () => {
+    expect(
+      getCommunityEffectSelection([
+        "dithering",
+        "image",
+        "crt",
+        "dithering",
+      ])
     ).toEqual(["crt", "dithering"])
   })
 })

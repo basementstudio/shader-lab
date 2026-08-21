@@ -11,7 +11,7 @@ export function isFeaturedIndex(
   input: {
     query: string
     sort: SceneSort
-    effect?: EffectLayerType | null
+    effects?: readonly EffectLayerType[]
     total: number
   }
 ): boolean {
@@ -23,7 +23,7 @@ export function isFeaturedIndex(
     return false
   }
 
-  if (input.effect) {
+  if (input.effects && input.effects.length > 0) {
     return false
   }
 

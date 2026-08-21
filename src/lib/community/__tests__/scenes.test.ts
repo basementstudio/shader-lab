@@ -193,9 +193,9 @@ describe("scene keyset pagination", () => {
 })
 
 describe("scene effect filtering", () => {
-  test("uses PostgreSQL array containment so the GIN index can serve it", () => {
-    expect(dialect.sqlToQuery(buildEffectFilter("crt"))).toEqual({
-      params: ['{"crt"}'],
+  test("requires every selected effect in one GIN-indexable containment query", () => {
+    expect(dialect.sqlToQuery(buildEffectFilter(["crt", "dithering"]))).toEqual({
+      params: ['{"crt","dithering"}'],
       sql: '"scenes"."layer_types" @> $1',
       typings: ["none"],
     })

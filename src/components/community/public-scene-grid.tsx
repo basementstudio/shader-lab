@@ -8,6 +8,8 @@ import type { CommunitySceneSummary, SceneSort } from "@/lib/community/scenes"
 import { useScenePages } from "@/lib/community/use-scene-pages"
 import type { EffectLayerType } from "@/types/editor"
 
+const NO_EFFECTS: readonly EffectLayerType[] = []
+
 export function PublicSceneGrid({
   author,
   emptyLabel = "No scenes published yet.",
@@ -15,7 +17,7 @@ export function PublicSceneGrid({
   initialScenes,
   showAuthor = true,
   sort = "popular",
-  effect,
+  effects = NO_EFFECTS,
 }: {
   author?: string | null
   emptyLabel?: string
@@ -23,13 +25,13 @@ export function PublicSceneGrid({
   initialScenes: CommunitySceneSummary[]
   showAuthor?: boolean
   sort?: SceneSort
-  effect?: EffectLayerType
+  effects?: readonly EffectLayerType[]
 }) {
   const { error, hasMore, loadMore, loading, scenes } = useScenePages({
     author: author ?? null,
     initial: { nextCursor: initialNextCursor, scenes: initialScenes },
     sort,
-    effect: effect ?? null,
+    effects,
   })
 
   const shown = scenes ?? initialScenes

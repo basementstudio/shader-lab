@@ -204,12 +204,12 @@ export function CommunityModal({
   const [sort, setSort] = useState<SceneSort>("popular")
   const [search, setSearch] = useState("")
   const [query, setQuery] = useState("")
-  const [effect, setEffect] = useState<EffectLayerType | null>(null)
+  const [effects, setEffects] = useState<EffectLayerType[]>([])
   const explore = useScenePages({
     enabled: open && tab === "explore",
     query,
     sort,
-    effect,
+    effects,
   })
   const items = explore.scenes
   const [selected, setSelected] = useState<CommunitySceneSummary | null>(null)
@@ -884,19 +884,19 @@ export function CommunityModal({
                     className="m-0 flex min-w-0 shrink-0 gap-1.5 overflow-x-auto border-x-0 border-t-0 border-b border-[var(--ds-border-divider)] px-4 py-2"
                   >
                     <button
-                      aria-pressed={effect === null}
+                      aria-pressed={effects.length === 0}
                       className={cn(
                         TAB_CLASS_NAME,
                         "shrink-0",
-                        effect === null &&
+                        effects.length === 0 &&
                           "border-[var(--ds-border-active)] bg-[var(--ds-color-surface-active)]"
                       )}
-                      onClick={() => setEffect(null)}
+                      onClick={() => setEffects([])}
                       type="button"
                     >
                       <Typography
                         as="span"
-                        tone={effect === null ? "primary" : "tertiary"}
+                        tone={effects.length === 0 ? "primary" : "tertiary"}
                         variant="label"
                       >
                         All
@@ -905,17 +905,25 @@ export function CommunityModal({
 
                     {COMMUNITY_EFFECT_TYPES.map((effectType) => (
                       <button
-                        aria-pressed={effect === effectType}
+                        aria-pressed={effects.includes(effectType)}
                         className={cn(
                           TAB_CLASS_NAME,
                           "shrink-0",
-                          effect === effectType &&
+                          effects.includes(effectType) &&
                             "border-[var(--ds-border-active)] bg-[var(--ds-color-surface-active)]"
                         )}
                         key={effectType}
                         onClick={() =>
-                          setEffect((current) =>
-                            current === effectType ? null : effectType
+                          setEffects((current) =>
+                            current.includes(effectType)
+                              ? current.filter(
+                                  (effect) => effect !== effectType
+                                )
+                              : COMMUNITY_EFFECT_TYPES.filter(
+                                  (effect) =>
+                                    current.includes(effect) ||
+                                    effect === effectType
+                                )
                           )
                         }
                         type="button"
@@ -923,7 +931,9 @@ export function CommunityModal({
                         <Typography
                           as="span"
                           tone={
-                            effect === effectType ? "primary" : "tertiary"
+                            effects.includes(effectType)
+                              ? "primary"
+                              : "tertiary"
                           }
                           variant="label"
                         >
@@ -1168,9 +1178,9 @@ export function CommunityModal({
                         <SceneEmptyState
                           onClearFilters={() => {
                             setSearch("")
-                            setEffect(null)
+                            setEffects([])
                           }}
-                          effect={effect}
+                          effects={effects}
                           query={query}
                         />
                       ) : null}
@@ -1182,7 +1192,7 @@ export function CommunityModal({
                               featured={isFeaturedIndex(index, {
                                 query,
                                 sort,
-                                effect,
+                                effects,
                                 total: items.length,
                               })}
                               key={scene.id}

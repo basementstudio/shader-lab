@@ -27,7 +27,7 @@ describe("isFeaturedIndex", () => {
   })
 
   test("does not feature an effect-filtered result", () => {
-    expect(isFeaturedIndex(0, { ...base, effect: "crt" })).toBe(false)
+    expect(isFeaturedIndex(0, { ...base, effects: ["crt"] })).toBe(false)
   })
 
   test("does not feature until the two hero rows can be filled", () => {

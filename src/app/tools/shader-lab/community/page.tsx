@@ -8,7 +8,7 @@ import { Typography } from "@/components/ui/typography"
 import { APP_BASE_URL } from "@/lib/app"
 import { isCommunityEnabled } from "@/lib/community/config"
 import { getPublicScenes } from "@/lib/community/public-scenes"
-import { isCommunityEffectType } from "@/lib/community/scene-effect-filter"
+import { getCommunityEffectSelection } from "@/lib/community/scene-effect-filter"
 import { COMMUNITY_PATH } from "@/lib/community/scene-links"
 import { getLayerLabel } from "@/lib/editor/config/layer-catalog"
 
@@ -72,9 +72,15 @@ export default function CommunityPage({ searchParams }: PageProps) {
 }
 
 async function CommunityScenes({ searchParams }: PageProps) {
-  const rawEffect = (await searchParams).effect
-  const effect = isCommunityEffectType(rawEffect) ? rawEffect : undefined
-  const page = await getPublicScenes(effect)
+  const effects = getCommunityEffectSelection((await searchParams).effect)
+  const page = await getPublicScenes(effects)
+  let emptyLabel = "No scenes published yet."
+
+  if (effects.length === 1) {
+    emptyLabel = `No scenes using ${getLayerLabel(effects[0]!)} published yet.`
+  } else if (effects.length > 1) {
+    emptyLabel = "No scenes use all selected effects yet."
+  }
 
   return (
     <section className="flex flex-col gap-[var(--ds-space-6)]">
@@ -82,18 +88,14 @@ async function CommunityScenes({ searchParams }: PageProps) {
         <Typography as="span" tone="tertiary" variant="overline">
           Effect
         </Typography>
-        <PublicSceneEffectFilter {...(effect ? { effect } : {})} />
+        <PublicSceneEffectFilter effects={effects} />
       </div>
 
       <PublicSceneGrid
-        emptyLabel={
-          effect
-            ? `No scenes using ${getLayerLabel(effect)} published yet.`
-            : "No scenes published yet."
-        }
+        emptyLabel={emptyLabel}
         initialNextCursor={page.nextCursor}
         initialScenes={page.scenes}
-        {...(effect ? { effect } : {})}
+        effects={effects}
       />
     </section>
   )

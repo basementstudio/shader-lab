@@ -37,23 +37,26 @@ function EmptyGlyph() {
 
 export function SceneEmptyState({
   onClearFilters,
-  effect,
+  effects,
   query,
 }: {
   onClearFilters: () => void
-  effect?: EffectLayerType | null
+  effects: readonly EffectLayerType[]
   query: string
 }) {
   const searching = query.trim().length > 0
-  const filtered = searching || Boolean(effect)
+  const filtered = searching || effects.length > 0
   let description =
     "Published scenes show up here. Build something in the editor and publish it to be the first."
   let title = "No scenes published yet"
 
-  if (effect) {
+  if (effects.length > 0) {
     description =
-      "Try another effect, or clear the filter to explore every scene."
-    title = `No scenes using ${getLayerLabel(effect)} yet`
+      "Remove an effect, or clear the filters to explore every scene."
+    title =
+      effects.length === 1
+        ? `No scenes using ${getLayerLabel(effects[0]!)} yet`
+        : "No scenes use all selected effects yet"
   }
 
   if (searching) {

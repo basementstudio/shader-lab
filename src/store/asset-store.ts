@@ -69,7 +69,7 @@ function validateFile(file: File): AssetKind {
 
   if (file.size > MAX_SIZE_BYTES) {
     throw new Error(
-      `File is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum size is 100 MB.`
+      `File is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum size is ${MAX_SIZE_BYTES / 1024 / 1024} MB.`
     )
   }
 

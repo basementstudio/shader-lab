@@ -1,6 +1,7 @@
 import { revalidateTag } from "next/cache"
 import { connection } from "next/server"
 import { getOptionalSession } from "@/lib/auth/server"
+import { rejectBot } from "@/lib/community/bot-check"
 import {
   authorTag,
   COMMUNITY_FEED_TAG,
@@ -41,6 +42,12 @@ export async function DELETE(
 
   if (!isCommunityEnabled()) {
     return Response.json({ error: "Not available." }, { status: 503 })
+  }
+
+  const refused = await rejectBot()
+
+  if (refused) {
+    return refused
   }
 
   const session = await getOptionalSession()

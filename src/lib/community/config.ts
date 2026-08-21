@@ -1,7 +1,7 @@
 import { resolveAuthBaseUrl, resolveDatabaseUrl } from "@/lib/community/env"
 import { readEnv, readEnvList } from "@/lib/read-env"
 
-export type CommunityCapability = "auth" | "database" | "media" | "turnstile"
+export type CommunityCapability = "auth" | "database" | "media"
 
 function hasValue(name: string): boolean {
   return readEnv(name) !== null
@@ -24,10 +24,6 @@ export function isMediaConfigured(): boolean {
   )
 }
 
-export function isTurnstileConfigured(): boolean {
-  return hasValue("TURNSTILE_SECRET_KEY")
-}
-
 export function isCommunityEnabled(): boolean {
   return isDatabaseConfigured() && isAuthConfigured()
 }
@@ -45,10 +41,6 @@ export function getMissingCommunityCapabilities(): CommunityCapability[] {
 
   if (!isMediaConfigured()) {
     missing.push("media")
-  }
-
-  if (!isTurnstileConfigured()) {
-    missing.push("turnstile")
   }
 
   return missing

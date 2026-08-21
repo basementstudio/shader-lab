@@ -513,7 +513,7 @@ describe("planUploads", () => {
     }
   })
 
-  test("a request that would sign more than the whole allowance is refused", () => {
+  test("sums every signed upload, and one full scene stays inside the allowance", () => {
     const plan = planUploads({
       draftId,
       requested: Array.from({ length: MAX_ASSETS_PER_SCENE + 1 }, (_, index) =>
@@ -529,13 +529,44 @@ describe("planUploads", () => {
       throw new Error(plan.error)
     }
 
-    expect(plan.signedBytes).toBeGreaterThan(MAX_TOTAL_BYTES)
+    expect(plan.signedBytes).toBe((MAX_ASSETS_PER_SCENE + 1) * MAX_ASSET_BYTES)
+    expect(plan.signedBytes).toBeLessThan(MAX_TOTAL_BYTES)
+
+    expect(
+      decideQuota({
+        addScene: false,
+        bucket: "2026-08-17",
+        bytes: plan.signedBytes,
+        current: null,
+      }).ok
+    ).toBe(true)
+  })
+
+  test("the allowance still refuses a scene once earlier publishes have filled it", () => {
+    const plan = planUploads({
+      draftId,
+      requested: Array.from({ length: MAX_ASSETS_PER_SCENE + 1 }, (_, index) =>
+        videoUpload(
+          `${index}`.padStart(64, "c").slice(0, 64),
+          MAX_ASSET_BYTES
+        )
+      ),
+      storedUrls: new Map(),
+    })
+
+    if ("error" in plan) {
+      throw new Error(plan.error)
+    }
 
     const decision = decideQuota({
       addScene: false,
       bucket: "2026-08-17",
       bytes: plan.signedBytes,
-      current: null,
+      current: {
+        bytesUsed: MAX_TOTAL_BYTES - plan.signedBytes + 1,
+        dayBucket: "2026-08-17",
+        scenesToday: 0,
+      },
     })
 
     expect(decision.ok).toBe(false)

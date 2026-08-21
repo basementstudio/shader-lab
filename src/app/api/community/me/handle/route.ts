@@ -6,6 +6,7 @@ import {
   COMMUNITY_FEED_TAG,
   profileHandleTag,
 } from "@/lib/community/cache-tags"
+import { rejectBot } from "@/lib/community/bot-check"
 import { isCommunityEnabled } from "@/lib/community/config"
 import { MAX_HANDLE_CLAIMS, renameHandle } from "@/lib/community/handle-rename"
 
@@ -14,6 +15,12 @@ export async function PATCH(request: Request) {
 
   if (!isCommunityEnabled()) {
     return Response.json({ error: "Not available." }, { status: 503 })
+  }
+
+  const refused = await rejectBot()
+
+  if (refused) {
+    return refused
   }
 
   const session = await getOptionalSession()

@@ -52,6 +52,7 @@
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
     "@web-kits/audio": "^0.1.0",
+    "botid": "^1.5.11",
     "class-variance-authority": "^0.7.1",
     "drizzle-orm": "^0.45.2",
     "motion": "^12.38.0",

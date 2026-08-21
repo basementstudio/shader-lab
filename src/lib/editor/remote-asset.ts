@@ -7,6 +7,10 @@ const LOOPBACK_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"])
 
 export const BUNDLED_ASSET_PATH_PREFIX = "/scenes/default/"
 
+const BUNDLED_ASSET_BASE = "http://bundled.invalid"
+
+const ENCODED_PATH_SEPARATOR = /%2f|%5c/i
+
 export function normalizeHost(value: string): string {
   return value
     .trim()
@@ -43,7 +47,25 @@ export function getAllowedAssetHosts(): string[] {
 }
 
 export function isBundledAssetUrl(rawUrl: string): boolean {
-  return rawUrl.startsWith(BUNDLED_ASSET_PATH_PREFIX) && !rawUrl.includes("..")
+  if (
+    !rawUrl.startsWith(BUNDLED_ASSET_PATH_PREFIX) ||
+    ENCODED_PATH_SEPARATOR.test(rawUrl)
+  ) {
+    return false
+  }
+
+  let resolved: URL
+
+  try {
+    resolved = new URL(rawUrl, BUNDLED_ASSET_BASE)
+  } catch {
+    return false
+  }
+
+  return (
+    resolved.origin === BUNDLED_ASSET_BASE &&
+    resolved.pathname.startsWith(BUNDLED_ASSET_PATH_PREFIX)
+  )
 }
 
 export function isAllowedAssetOrigin(rawUrl: string): boolean {

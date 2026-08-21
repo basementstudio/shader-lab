@@ -4,6 +4,7 @@ import { useEffect } from "react"
 import { isPreviewRenderLocked } from "@/lib/editor/preview-render-lock"
 import { useAssetStore } from "@/store/asset-store"
 import { useAudioStore } from "@/store/audio-store"
+import { useSoundStore } from "@/store/sound-store"
 import { useTimelineStore } from "@/store/timeline-store"
 
 const MAX_DRIFT_SECONDS = 0.15
@@ -24,6 +25,7 @@ export function useAudioMonitor(enabled: boolean): void {
     let lastPlaying: boolean | null = null
     let lastFrozen: boolean | null = null
     let wasAudible = false
+    let buffered = false
 
     const resolveUrl = (): string | null => {
       const source = useAudioStore.getState().source
@@ -42,7 +44,11 @@ export function useAudioMonitor(enabled: boolean): void {
     }
 
     const shouldBeAudible = (): boolean => {
-      if (currentUrl === null || !enabled) {
+      if (currentUrl === null || !(enabled && buffered)) {
+        return false
+      }
+
+      if (!useSoundStore.getState().enabled) {
         return false
       }
 
@@ -90,6 +96,8 @@ export function useAudioMonitor(enabled: boolean): void {
       }
 
       currentUrl = url
+      buffered = false
+      wasAudible = false
 
       if (url) {
         element.src = url
@@ -131,7 +139,14 @@ export function useAudioMonitor(enabled: boolean): void {
     })
 
     const unsubscribeAssets = useAssetStore.subscribe(applySource)
+    const unsubscribeSound = useSoundStore.subscribe(apply)
 
+    const onBuffered = (): void => {
+      buffered = true
+      apply()
+    }
+
+    element.addEventListener("canplaythrough", onBuffered)
     document.addEventListener("visibilitychange", apply)
 
     applySource()
@@ -140,10 +155,12 @@ export function useAudioMonitor(enabled: boolean): void {
 
     return () => {
       window.clearInterval(driftTimer)
+      element.removeEventListener("canplaythrough", onBuffered)
       document.removeEventListener("visibilitychange", apply)
       unsubscribeTimeline()
       unsubscribeAudio()
       unsubscribeAssets()
+      unsubscribeSound()
 
       element.pause()
       element.removeAttribute("src")

@@ -2,6 +2,7 @@
 
 import { useEffect, useEffectEvent } from "react"
 import { playUISound } from "@/lib/audio/shader-lab-sounds"
+import { requestDraftSave } from "@/lib/editor/draft-save-bus"
 import { isEditableTarget } from "@/lib/editor/is-editable-target"
 import { useEditorStore } from "@/store/editor-store"
 import { useLayerStore } from "@/store/layer-store"
@@ -25,6 +26,17 @@ export function EditorShortcuts() {
 
   const handleKeyDown = useEffectEvent((event: KeyboardEvent) => {
     if (isEditableTarget(event.target)) {
+      return
+    }
+
+    if (
+      (event.metaKey || event.ctrlKey) &&
+      !event.altKey &&
+      event.key.toLowerCase() === "s"
+    ) {
+      event.preventDefault()
+      requestDraftSave({ asNewDraft: event.shiftKey })
+
       return
     }
 

@@ -1,4 +1,9 @@
-let lockCount = 0
+export type PreviewRenderLockReason = "export" | "idle"
+
+const counts: Record<PreviewRenderLockReason, number> = {
+  export: 0,
+  idle: 0,
+}
 
 const listeners = new Set<() => void>()
 
@@ -8,8 +13,10 @@ function notify(): void {
   }
 }
 
-export function acquirePreviewRenderLock(): () => void {
-  lockCount += 1
+export function acquirePreviewRenderLock(
+  reason: PreviewRenderLockReason = "idle"
+): () => void {
+  counts[reason] += 1
   let released = false
   notify()
 
@@ -19,13 +26,17 @@ export function acquirePreviewRenderLock(): () => void {
     }
 
     released = true
-    lockCount = Math.max(0, lockCount - 1)
+    counts[reason] = Math.max(0, counts[reason] - 1)
     notify()
   }
 }
 
 export function isPreviewRenderLocked(): boolean {
-  return lockCount > 0
+  return counts.export > 0 || counts.idle > 0
+}
+
+export function isPreviewExporting(): boolean {
+  return counts.export > 0
 }
 
 export function subscribeToPreviewRenderLock(listener: () => void): () => void {

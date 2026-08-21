@@ -26,6 +26,7 @@ export function loadImageTexture(url: string): Promise<THREE.Texture> {
 export function createVideoTexture(url: string): Promise<VideoHandle> {
   return new Promise((resolve, reject) => {
     const video = document.createElement("video")
+    video.crossOrigin = "anonymous"
     video.loop = true
     video.muted = true
     video.playsInline = true

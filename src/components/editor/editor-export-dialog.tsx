@@ -55,6 +55,8 @@ import {
   hasImportedCustomShaderCode,
   parseLabProjectFile,
 } from "@/lib/editor/project-file"
+import { requestAutosave } from "@/lib/editor/autosave/bus"
+import { withAutosaveSuppressed } from "@/lib/editor/autosave/suppress"
 import {
   buildShaderExportConfig,
   validateShaderExportSupport,
@@ -64,6 +66,7 @@ import {
   type AudioAnalysisStatus,
   selectAudioModulationInput,
 } from "@/store/audio-store"
+import { useDraftStore } from "@/store/draft-store"
 import {
   useAssetStore,
   useAudioStore,
@@ -851,10 +854,13 @@ export function EditorExportDialog({
         return
       }
 
-      const result = applyLabProjectFile(
-        projectFile,
-        useAssetStore.getState().assets
-      )
+      const result = withAutosaveSuppressed(() => {
+        useDraftStore.getState().clearActiveDraft()
+
+        return applyLabProjectFile(projectFile, useAssetStore.getState().assets)
+      })
+
+      requestAutosave()
 
       const relinkNotes: string[] = []
 
@@ -1706,7 +1712,7 @@ function ProjectTabContent({
             event.preventDefault()
             onImportBrowse()
           }}
-          variant="active"
+          selected
         >
           <FileIcon height={20} width={20} />
         </IconButton>
@@ -1804,7 +1810,7 @@ function PillButton({
   return (
     <button
       className={cn(
-        "inline-flex min-h-7 cursor-pointer items-center justify-center rounded-[var(--ds-radius-control)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-[10px] leading-none transition-[background-color,border-color,color] duration-160 ease-[var(--ease-out-cubic)] hover:not-disabled:bg-white/8 hover:not-disabled:border-[var(--ds-border-hover)] disabled:cursor-not-allowed disabled:opacity-42",
+        "inline-flex min-h-7 cursor-pointer items-center justify-center rounded-[var(--ds-radius-control)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-[10px] leading-none transition-[background-color,border-color,color] duration-160 ease-[var(--ease-out-cubic)] hover:not-disabled:bg-[var(--ds-color-surface-active)] hover:not-disabled:border-[var(--ds-border-hover)] disabled:cursor-not-allowed disabled:opacity-42",
         active &&
           "bg-[var(--ds-color-surface-active)] border-[var(--ds-border-active)]"
       )}

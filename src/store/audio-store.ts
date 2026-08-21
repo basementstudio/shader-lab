@@ -19,6 +19,7 @@ import {
   patchAudioLink,
 } from "@/lib/editor/audio/links"
 import type { AudioSpectrogram } from "@/lib/editor/audio/spectrogram"
+import { getDefaultProjectAudio } from "@/lib/editor/default-project"
 import {
   AUDIO_BAND_IDS,
   type AudioBandConfig,
@@ -129,14 +130,16 @@ export function selectAudioModulationInput(
   }
 }
 
+const DEFAULT_PROJECT_AUDIO = getDefaultProjectAudio()
+
 export const useAudioStore = create<AudioStore>((set, get) => ({
   analysisProgress: 0,
-  bands: createDefaultAudioBands(),
+  bands: DEFAULT_PROJECT_AUDIO.bands,
   envelopes: null,
   error: null,
-  links: [],
-  offsetSeconds: 0,
-  source: null,
+  links: DEFAULT_PROJECT_AUDIO.links,
+  offsetSeconds: DEFAULT_PROJECT_AUDIO.offsetSeconds,
+  source: DEFAULT_PROJECT_AUDIO.source,
   spectrogram: null,
   status: "idle",
 

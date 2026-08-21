@@ -77,3 +77,7 @@ SESSIONS.md
 PACKAGE_PLAN.md
 packages/shader-lab-mcp/dist/
 packages/shader-lab-mcp/.xmcp/
+
+# drizzle migrations and schema snapshots
+drizzle/
+

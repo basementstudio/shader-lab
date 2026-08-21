@@ -6,6 +6,11 @@ import type { RenderableLayerPass } from "@/renderer/contracts"
 import { CustomShaderPass } from "@/renderer/custom-shader-pass"
 import { FluidPass } from "@/renderer/fluid-pass"
 import { GradientPass } from "@/renderer/gradient-pass"
+import {
+  describeCameraFailure,
+  describeMediaLoadFailure,
+  setLayerMediaError,
+} from "@/renderer/layer-media-error"
 import { LivePass } from "@/renderer/live-pass"
 import { MagnifyLensPass } from "@/renderer/magnify-lens-pass"
 import { MediaPass } from "@/renderer/media-pass"
@@ -509,9 +514,14 @@ export class PipelineManager {
             width: asset.width,
           })
           .then(() => {
+            setLayerMediaError(pass.layerId, null)
             this.markDirty()
           })
           .catch(() => {
+            setLayerMediaError(
+              pass.layerId,
+              describeMediaLoadFailure(asset.fileName)
+            )
             this.markDirty()
           })
           .finally(() => {
@@ -536,9 +546,11 @@ export class PipelineManager {
         void pass
           .startCamera(facingMode)
           .then(() => {
+            setLayerMediaError(pass.layerId, null)
             this.markDirty()
           })
-          .catch(() => {
+          .catch((cause: unknown) => {
+            setLayerMediaError(pass.layerId, describeCameraFailure(cause))
             this.markDirty()
           })
       }

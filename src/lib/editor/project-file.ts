@@ -14,11 +14,13 @@ import {
   CUSTOM_EFFECT_STARTER,
   CUSTOM_SHADER_STARTER,
 } from "@/lib/editor/custom-shader/shared"
+import { collectRemoteAssets } from "@/lib/editor/remote-asset"
 import type {
   EditorAsset,
   EditorAudioSnapshot,
   EditorLayer,
   LayerParameterValues,
+  PresetAssetReference,
   ProjectPresetConfig,
   SceneConfig,
   Size,
@@ -41,19 +43,103 @@ export interface LabProjectFile extends ProjectPresetConfig {
   sceneConfig?: SceneConfig
 }
 
+function toAssetReference(asset: EditorAsset): PresetAssetReference {
+  const reference: PresetAssetReference = {
+    fileName: asset.fileName,
+    id: asset.id,
+    kind: asset.kind,
+  }
+
+  if (asset.source !== "remote") {
+    return reference
+  }
+
+  return {
+    ...reference,
+    duration: asset.duration,
+    height: asset.height,
+    mimeType: asset.mimeType,
+    sizeBytes: asset.sizeBytes,
+    url: asset.url,
+    width: asset.width,
+  }
+}
+
+export function collectReferencedAssetIds(input: {
+  audioSource: EditorAudioSnapshot["source"]
+  layers: readonly EditorLayer[]
+}): Set<string> {
+  const referenced = new Set<string>()
+
+  for (const layer of input.layers) {
+    if (layer.assetId) {
+      referenced.add(layer.assetId)
+    }
+  }
+
+  if (input.audioSource?.kind === "asset") {
+    referenced.add(input.audioSource.assetId)
+  }
+
+  return referenced
+}
+
+export function buildPublishableProjectFile(
+  file: LabProjectFile
+): LabProjectFile {
+  const audioSource = file.audio?.source ?? null
+  const audioLayerId =
+    audioSource?.kind === "video-layer" ? audioSource.layerId : null
+  const layers = file.layers.filter(
+    (layer) => layer.visible || layer.id === audioLayerId
+  )
+
+  if (layers.length === file.layers.length) {
+    return file
+  }
+
+  const keptIds = new Set(layers.map((layer) => layer.id))
+  const referenced = collectReferencedAssetIds({ audioSource, layers })
+
+  return {
+    ...file,
+    assets: file.assets.filter((asset) => referenced.has(asset.id)),
+    ...(file.audio
+      ? {
+          audio: {
+            ...file.audio,
+            links: file.audio.links.filter((link) => keptIds.has(link.layerId)),
+          },
+        }
+      : {}),
+    layers,
+    selectedLayerId:
+      file.selectedLayerId && keptIds.has(file.selectedLayerId)
+        ? file.selectedLayerId
+        : null,
+    timeline: {
+      ...file.timeline,
+      tracks: file.timeline.tracks.filter((track) => keptIds.has(track.layerId)),
+    },
+  }
+}
+
 export function buildLabProjectFile(): LabProjectFile {
   const assets = useAssetStore.getState().assets
   const editorState = useEditorStore.getState()
   const layerState = useLayerStore.getState()
   const timelineState = useTimelineStore.getState()
+  const audio = structuredClone(useAudioStore.getState().getSnapshot())
+  const referenced = collectReferencedAssetIds({
+    audioSource: audio.source,
+    layers: layerState.layers,
+  })
 
   return {
-    assets: assets.map((asset) => ({
-      fileName: asset.fileName,
-      id: asset.id,
-      kind: asset.kind,
-    })),
-    audio: structuredClone(useAudioStore.getState().getSnapshot()),
+    assets: assets
+      .filter((asset) => referenced.has(asset.id))
+      .map(toAssetReference),
+    audio,
     composition: structuredClone(editorState.outputSize),
     exportedAt: new Date().toISOString(),
     format: "shader-lab",
@@ -184,9 +270,16 @@ const timelineTrackSchema = z.looseObject({
 })
 
 const assetReferenceSchema = z.looseObject({
+  duration: z.number().nullable().optional(),
   fileName: z.string(),
+  height: z.number().nullable().optional(),
   id: z.string(),
   kind: z.string(),
+  mimeType: z.string().optional(),
+  sha256: z.string().optional(),
+  sizeBytes: z.number().int().nonnegative().optional(),
+  url: z.string().optional(),
+  width: z.number().nullable().optional(),
 })
 
 const audioBandConfigSchema = z.looseObject({
@@ -214,7 +307,7 @@ const projectAudioSchema = z.looseObject({
   source: z.looseObject({ kind: z.string() }).nullable().optional(),
 })
 
-export const CURRENT_PROJECT_FILE_VERSION = 5
+export const CURRENT_PROJECT_FILE_VERSION = 6
 
 const labProjectFileSchema = z.looseObject({
   assets: z.array(assetReferenceSchema),
@@ -268,6 +361,10 @@ const PARSE_ISSUE_MESSAGES: {
     matches: (path) => path[0] === "audio",
     message: "Project file has an unreadable audio configuration.",
   },
+  {
+    matches: (path) => path[0] === "assets",
+    message: "Project file has an unreadable asset list.",
+  },
 ]
 
 function toParseError(issues: readonly z.core.$ZodIssue[]): Error {
@@ -280,15 +377,7 @@ function toParseError(issues: readonly z.core.$ZodIssue[]): Error {
   return new Error("The selected file is not a valid Shader Lab project.")
 }
 
-export function parseLabProjectFile(input: string): LabProjectFile {
-  let parsed: unknown
-
-  try {
-    parsed = JSON.parse(input)
-  } catch {
-    throw new Error("The selected file is not valid JSON.")
-  }
-
+export function parseLabProjectFileValue(parsed: unknown): LabProjectFile {
   if (!(parsed && typeof parsed === "object")) {
     throw new Error("The selected file is not a valid Shader Lab project.")
   }
@@ -300,6 +389,18 @@ export function parseLabProjectFile(input: string): LabProjectFile {
   }
 
   return structuredClone(result.data) as unknown as LabProjectFile
+}
+
+export function parseLabProjectFile(input: string): LabProjectFile {
+  let parsed: unknown
+
+  try {
+    parsed = JSON.parse(input)
+  } catch {
+    throw new Error("The selected file is not valid JSON.")
+  }
+
+  return parseLabProjectFileValue(parsed)
 }
 
 const CUSTOM_SHADER_STARTER_SOURCES = new Set<string>([
@@ -345,7 +446,19 @@ export function applyLabProjectFile(
   projectFile: LabProjectFile,
   currentAssets: EditorAsset[]
 ): { missingAssetCount: number; missingAudioSource: boolean } {
-  const assetIds = new Set(currentAssets.map((asset) => asset.id))
+  const existingIds = new Set(currentAssets.map((asset) => asset.id))
+  const remoteAssets = collectRemoteAssets(projectFile.assets, existingIds)
+
+  if (remoteAssets.length > 0) {
+    useAssetStore
+      .getState()
+      .replaceAssets([...currentAssets, ...remoteAssets])
+  }
+
+  const assetIds = new Set([
+    ...existingIds,
+    ...remoteAssets.map((asset) => asset.id),
+  ])
   const assetRefById = new Map(
     projectFile.assets.map((asset) => [asset.id, asset])
   )
@@ -447,10 +560,12 @@ export function migrateLayerParams(
     params.fontWeight = LEGACY_ASCII_FONT_WEIGHTS[params.fontWeight] ?? 400
   }
 
-  // v5 flipped blob-tracking `sensitivity` so higher means more sensitive;
-  // before that it was fed straight in as a luma threshold.
+  // v6 flipped blob-tracking `sensitivity` so higher means more sensitive;
+  // before that it was fed straight in as a luma threshold. The flip landed on
+  // main as v5 while this branch had already published scenes stamped 5 for an
+  // unrelated change, so it has to reach those too.
   if (
-    version < 5 &&
+    version < 6 &&
     layer.type === "blob-tracking" &&
     typeof params.sensitivity === "number"
   ) {

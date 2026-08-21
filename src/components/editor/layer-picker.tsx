@@ -25,6 +25,12 @@ import { createPortal } from "react-dom"
 import { GlassPanel } from "@/components/ui/glass-panel"
 import { IconButton } from "@/components/ui/icon-button"
 import { cn } from "@/lib/cn"
+import {
+  getLayerCatalogEntry,
+  getLayerLabel,
+  type LayerCatalogCategory,
+  type LayerCatalogEntry,
+} from "@/lib/editor/config/layer-catalog"
 
 export type AddLayerAction =
   | "ascii"
@@ -60,7 +66,7 @@ export type AddLayerAction =
   | "video"
   | "voxel"
 
-type LayerPickerCategory = "all" | "core" | "distort"
+type LayerPickerCategory = "all" | LayerCatalogCategory
 
 type SourceItem = {
   icon: ElementType
@@ -68,11 +74,7 @@ type SourceItem = {
   value: AddLayerAction
 }
 
-type EffectItem = {
-  category: Exclude<LayerPickerCategory, "all">
-  description?: string
-  label: string
-  previewSrc?: string
+type EffectItem = LayerCatalogEntry & {
   value: AddLayerAction
 }
 
@@ -90,199 +92,56 @@ const CATEGORY_OPTIONS: readonly {
   { label: "Distort", value: "distort" },
 ] as const
 
-const SOURCE_ITEMS: readonly SourceItem[] = [
-  { icon: ImageIcon, label: "Image", value: "image" },
-  { icon: VideoIcon, label: "Video", value: "video" },
-  { icon: CameraIcon, label: "Camera", value: "live" },
-  { icon: TextIcon, label: "Text", value: "text" },
-  { icon: CursorArrowIcon, label: "Fluid", value: "fluid" },
-  { icon: CursorArrowIcon, label: "Pixel Trail", value: "pixel-trail" },
-  { icon: CursorArrowIcon, label: "Magnify Lens", value: "magnify-lens" },
-  { icon: MagicWandIcon, label: "Mesh Gradient", value: "gradient" },
-  { icon: CodeIcon, label: "Custom Shader", value: "custom-shader" },
+const SOURCE_ICONS: readonly { icon: ElementType; value: AddLayerAction }[] = [
+  { icon: ImageIcon, value: "image" },
+  { icon: VideoIcon, value: "video" },
+  { icon: CameraIcon, value: "live" },
+  { icon: TextIcon, value: "text" },
+  { icon: CursorArrowIcon, value: "fluid" },
+  { icon: CursorArrowIcon, value: "pixel-trail" },
+  { icon: CursorArrowIcon, value: "magnify-lens" },
+  { icon: MagicWandIcon, value: "gradient" },
+  { icon: CodeIcon, value: "custom-shader" },
 ] as const
 
-const EFFECT_ITEMS: readonly EffectItem[] = [
-  {
-    category: "core",
-    description:
-      "Turns the image into text glyphs for a classic terminal look.",
-    label: "ASCII",
-    previewSrc: "/examples/ascii.webp",
-    value: "ascii",
-  },
-  {
-    category: "core",
-    description: "Adds smeared glow and fluid bleed for neon ink-like edges.",
-    label: "Ink",
-    previewSrc: "/examples/ink.webp",
-    value: "ink",
-  },
-  {
-    category: "core",
-    description: "Maps the source into repeatable woven and graphic textures.",
-    label: "Pattern",
-    previewSrc: "/examples/pattern.webp",
-    value: "pattern",
-  },
-  {
-    category: "core",
-    description: "Adds scanlines, phosphor bloom, and display-era noise.",
-    label: "CRT",
-    previewSrc: "/examples/crt.webp",
-    value: "crt",
-  },
-  {
-    category: "core",
-    description: "Reduces color resolution into ordered or textured dithering.",
-    label: "Dithering",
-    previewSrc: "/examples/dithering.webp",
-    value: "dithering",
-  },
-  {
-    category: "core",
-    description:
-      "Converts the frame into graphic dot screens and print textures.",
-    label: "Halftone",
-    previewSrc: "/examples/halftone.webp",
-    value: "halftone",
-  },
-  {
-    category: "core",
-    description: "Breaks the image into a glowing particle matrix.",
-    label: "Particle Grid",
-    previewSrc: "/examples/particle-grid.webp",
-    value: "particle-grid",
-  },
-  {
-    category: "core",
-    description:
-      "Groups neighboring pixels into larger blocks for a low-res look.",
-    label: "Pixelation",
-    previewSrc: "/examples/pixelation.webp",
-    value: "pixelation",
-  },
-  {
-    category: "core",
-    description:
-      "Quantizes the frame into isometric cubes; depth raises columns by luminance.",
-    label: "Voxel",
-    previewSrc: "/examples/voxel.webp",
-    value: "voxel",
-  },
-  {
-    category: "core",
-    description:
-      "Compresses tones into fewer steps while keeping the image graphic.",
-    label: "Posterize",
-    previewSrc: "/examples/posterize.webp",
-    value: "posterize",
-  },
-  {
-    category: "core",
-    description:
-      "Turns the frame into stark black and white with controllable cutoff and grain.",
-    label: "Threshold",
-    previewSrc: "/examples/threshold.webp",
-    value: "threshold",
-  },
-  {
-    category: "core",
-    description:
-      "Adds a standalone highlight bloom pass to the incoming frame.",
-    label: "Bloom",
-    value: "bloom",
-    // previewSrc: "/examples/bloom.webp",
-  },
-  {
-    category: "core",
-    description:
-      "Pen-plotter aesthetic with hatching, crosshatching, and ink simulation.",
-    label: "Plotter",
-    previewSrc: "/examples/plotter.webp",
-    value: "plotter",
-  },
-  {
-    category: "distort",
-    description:
-      "Tracks moving regions and frames them with CCTV-style shapes, labels, and an inner effect.",
-    label: "Blob Tracking",
-    previewSrc: "/examples/blob-tracking.webp",
-    value: "blob-tracking",
-  },
-  {
-    category: "distort",
-    description:
-      "Renders luma-gated scanlines and bends them around a pull or push attractor.",
-    label: "Circuit Bent",
-    previewSrc: "/examples/circuit-bent.webp",
-    value: "circuit-bent",
-  },
-  {
-    category: "distort",
-    description:
-      "Smears pixels linearly or radially for motion, focus, or depth.",
-    label: "Directional Blur",
-    previewSrc: "/examples/directional-blur.webp",
-    value: "directional-blur",
-  },
-  {
-    category: "distort",
-    description:
-      "Sorts neighboring pixels into streaks based on luma or color.",
-    label: "Pixel Sorting",
-    previewSrc: "/examples/pixel-sorting.webp",
-    value: "pixel-sorting",
-  },
-  {
-    category: "distort",
-    description:
-      "Offsets horizontal slices into blocky glitch bands and streaks.",
-    label: "Slice",
-    previewSrc: "/examples/slice.webp",
-    value: "slice",
-  },
-  {
-    category: "distort",
-    description:
-      "Extracts contrast edges and turns them into graphic outlines.",
-    label: "Edge Detect",
-    previewSrc: "/examples/edge-detect.webp",
-    value: "edge-detect",
-  },
-  {
-    category: "distort",
-    description:
-      "Pushes pixels along luminance to create warped displacement fields.",
-    label: "Displacement Map",
-    previewSrc: "/examples/displacement-map.webp",
-    value: "displacement-map",
-  },
-  {
-    category: "distort",
-    description:
-      "Offsets color channels for fringing and lens-separation effects.",
-    label: "Chromatic Aberration",
-    previewSrc: "/examples/chromatic-aberration.webp",
-    value: "chromatic-aberration",
-  },
-  {
-    category: "distort",
-    description:
-      "Blur that ramps from sharp to soft across a controllable range.",
-    label: "Progressive Blur",
-    previewSrc: "/examples/progressive-blur.webp",
-    value: "smear",
-  },
-  {
-    category: "distort",
-    description:
-      "Ribbed lenticular glass distortion with subtle chromatic split.",
-    label: "Fluted Glass",
-    previewSrc: "/examples/fluted-glass.webp",
-    value: "fluted-glass",
-  },
+const SOURCE_ITEMS: readonly SourceItem[] = SOURCE_ICONS.map(
+  ({ icon, value }) => ({
+    icon,
+    label: getLayerLabel(value),
+    value,
+  })
+)
+
+const EFFECT_ORDER: readonly AddLayerAction[] = [
+  "ascii",
+  "ink",
+  "pattern",
+  "crt",
+  "dithering",
+  "halftone",
+  "particle-grid",
+  "pixelation",
+  "voxel",
+  "posterize",
+  "threshold",
+  "bloom",
+  "plotter",
+  "blob-tracking",
+  "circuit-bent",
+  "directional-blur",
+  "pixel-sorting",
+  "slice",
+  "edge-detect",
+  "displacement-map",
+  "chromatic-aberration",
+  "smear",
+  "fluted-glass",
 ] as const
+
+const EFFECT_ITEMS: readonly EffectItem[] = EFFECT_ORDER.map((value) => ({
+  ...getLayerCatalogEntry(value),
+  value,
+}))
 
 function LayerPickerInfoButton({
   description,

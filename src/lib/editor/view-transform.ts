@@ -56,3 +56,33 @@ export function applyZoomAtPoint(
     zoom: nextZoom,
   }
 }
+
+export const MOBILE_VIEWPORT_MAX_WIDTH = 900
+export const MOBILE_CANVAS_BOTTOM_INSET = 200
+const FIT_PADDING = 16
+
+export function computeFitZoom(input: {
+  compositionHeight: number
+  compositionWidth: number
+  insetBottom?: number
+  viewportHeight: number
+  viewportWidth: number
+}): number | null {
+  const { compositionHeight, compositionWidth } = input
+
+  if (compositionWidth <= 0 || compositionHeight <= 0) {
+    return null
+  }
+
+  const width = input.viewportWidth - FIT_PADDING * 2
+  const height =
+    input.viewportHeight - (input.insetBottom ?? 0) - FIT_PADDING * 2
+
+  if (width <= 0 || height <= 0) {
+    return null
+  }
+
+  return clampZoom(
+    Math.min(width / compositionWidth, height / compositionHeight)
+  )
+}

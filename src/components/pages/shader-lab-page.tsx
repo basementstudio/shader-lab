@@ -1,4 +1,6 @@
 import { AgentBridgeMount } from "@/components/editor/agent-bridge-mount"
+import { AutosaveMount } from "@/components/editor/autosave-mount"
+import { DraftSaveMount } from "@/components/editor/draft-save-mount"
 import { EditorCanvasViewport } from "@/components/editor/editor-canvas-viewport"
 import { MobileEditorDock } from "@/components/editor/mobile-editor-dock"
 import { EditorShortcuts } from "@/components/editor/editor-shortcuts"
@@ -7,17 +9,23 @@ import { EditorTopBar } from "@/components/editor/editor-topbar"
 import { LayerSidebar } from "@/components/editor/layer-sidebar"
 import { PropertiesSidebar } from "@/components/editor/properties-sidebar"
 
-export function ShaderLabPage() {
+export function ShaderLabPage({
+  communityEnabled,
+}: {
+  communityEnabled: boolean
+}) {
   return (
     <main
       id="main-content"
       className="relative h-screen w-screen overflow-hidden bg-[var(--ds-color-canvas)]"
     >
       <AgentBridgeMount />
+      <AutosaveMount />
+      <DraftSaveMount />
       <EditorShortcuts />
       <EditorCanvasViewport />
       <EditorTimelineOverlay />
-      <EditorTopBar />
+      <EditorTopBar communityEnabled={communityEnabled} />
       <LayerSidebar />
       <PropertiesSidebar />
       <MobileEditorDock />

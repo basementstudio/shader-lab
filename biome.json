@@ -159,6 +159,16 @@
       }
     },
     {
+      "includes": ["**/opengraph-image.tsx", "**/twitter-image.tsx"],
+      "linter": {
+        "rules": {
+          "performance": {
+            "noImgElement": "off"
+          }
+        }
+      }
+    },
+    {
       "includes": ["**/*.tsx", "**/*.jsx"],
       "linter": {
         "rules": {

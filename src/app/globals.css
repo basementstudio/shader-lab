@@ -2,9 +2,12 @@
 
 @theme {
   --color-canvas: #080808;
-  --color-surface-active: rgb(255 255 255 / 0.08);
-  --color-surface-control: rgb(255 255 255 / 0.06);
-  --color-surface-subtle: rgb(255 255 255 / 0.04);
+  --color-surface-active: rgb(255 255 255 / 0.12);
+  --color-surface-control: rgb(255 255 255 / 0.08);
+  --color-surface-overlay: rgb(18 18 22 / 0.72);
+  --color-surface-overlay-strong: rgb(18 18 22 / 0.88);
+  --color-surface-selected: rgb(255 255 255 / 0.16);
+  --color-surface-subtle: rgb(255 255 255 / 0.08);
   --color-surface-disabled: rgb(255 255 255 / 0.03);
   --color-text-primary: rgb(255 255 255 / 0.9);
   --color-text-secondary: rgb(255 255 255 / 0.5);
@@ -12,7 +15,7 @@
   --color-text-muted: rgb(255 255 255 / 0.25);
   --color-text-disabled: rgb(255 255 255 / 0.16);
   --color-text-on-light: rgb(0 0 0 / 0.9);
-  --color-border-divider: rgb(255 255 255 / 0.07);
+  --color-border-divider: rgb(255 255 255 / 0.08);
   --color-border-active: rgb(255 255 255 / 0.14);
 }
 
@@ -24,6 +27,28 @@
 
     100% {
       transform: translateX(360%);
+    }
+  }
+
+  @keyframes loader-bounce {
+    0% {
+      transform: translateX(0%);
+    }
+
+    100% {
+      transform: translateX(163%);
+    }
+  }
+
+  @keyframes agent-signal-ring {
+    0% {
+      opacity: 0.55;
+      transform: scale(1);
+    }
+
+    100% {
+      opacity: 0;
+      transform: scale(2.8);
     }
   }
 
@@ -72,9 +97,12 @@
     --ds-color-canvas: #080808;
     --ds-color-glass-panel: rgb(18 18 22 / 0.55);
     --ds-color-glass-pill: rgb(18 18 22 / 0.5);
-    --ds-color-surface-active: rgb(255 255 255 / 0.08);
-    --ds-color-surface-control: rgb(255 255 255 / 0.06);
-    --ds-color-surface-subtle: rgb(255 255 255 / 0.04);
+    --ds-color-surface-active: rgb(255 255 255 / 0.12);
+    --ds-color-surface-control: rgb(255 255 255 / 0.08);
+    --ds-color-surface-overlay: rgb(18 18 22 / 0.72);
+    --ds-color-surface-overlay-strong: rgb(18 18 22 / 0.88);
+    --ds-color-surface-selected: rgb(255 255 255 / 0.16);
+    --ds-color-surface-subtle: rgb(255 255 255 / 0.08);
     --ds-color-surface-disabled: rgb(255 255 255 / 0.03);
     --ds-color-text-primary: rgb(255 255 255 / 0.9);
     --ds-color-text-secondary: rgb(255 255 255 / 0.5);
@@ -82,9 +110,9 @@
     --ds-color-text-muted: rgb(255 255 255 / 0.25);
     --ds-color-text-disabled: rgb(255 255 255 / 0.16);
     --ds-color-text-on-light: rgb(0 0 0 / 0.9);
-    --ds-border-panel: rgb(255 255 255 / 0.1);
-    --ds-border-panel-strong: rgb(255 255 255 / 0.14);
-    --ds-border-divider: rgb(255 255 255 / 0.07);
+    --ds-border-panel: rgb(255 255 255 / 0.16);
+    --ds-border-panel-strong: rgb(255 255 255 / 0.2);
+    --ds-border-divider: rgb(255 255 255 / 0.08);
     --ds-border-subtle: rgb(255 255 255 / 0.04);
     --ds-border-hover: rgb(255 255 255 / 0.12);
     --ds-border-active: rgb(255 255 255 / 0.14);
@@ -105,6 +133,8 @@
     --ds-space-5: 20px;
     --ds-space-6: 24px;
     --ds-space-8: 32px;
+    --ds-space-10: 40px;
+    --ds-space-16: 64px;
     --ds-blur-glass: blur(24px);
     --ds-shadow-panel-dark: 0 8px 32px rgb(0 0 0 / 0.4);
     --ds-shadow-pill-dark: 0 4px 20px rgb(0 0 0 / 0.35);

@@ -72,31 +72,39 @@ export class MediaPass extends PassNode {
     this.releaseCurrentMedia()
     this.loadedSignature = nextSignature
 
-    if (source.kind === "image") {
-      const texture = await loadImageTexture(source)
+    try {
+      if (source.kind === "image") {
+        const texture = await loadImageTexture(source)
 
-      if (loadNonce !== this.mediaLoadNonce) {
-        texture.dispose()
+        if (loadNonce !== this.mediaLoadNonce) {
+          texture.dispose()
+          return
+        }
+
+        this.currentTexture = texture
+        this.setTextureAspect(texture)
         return
       }
 
-      this.currentTexture = texture
-      this.setTextureAspect(texture)
-      return
+      const handle = await createVideoTexture(source.url)
+
+      if (loadNonce !== this.mediaLoadNonce) {
+        handle.dispose()
+        return
+      }
+
+      this.currentTexture = handle.texture
+      this.videoHandle = handle
+      this.videoTexture = handle.texture
+      void handle.setFrozen(this.previewFrozen)
+      this.setTextureAspect(handle.texture)
+    } catch (cause) {
+      if (loadNonce === this.mediaLoadNonce) {
+        this.loadedSignature = null
+      }
+
+      throw cause
     }
-
-    const handle = await createVideoTexture(source.url)
-
-    if (loadNonce !== this.mediaLoadNonce) {
-      handle.dispose()
-      return
-    }
-
-    this.currentTexture = handle.texture
-    this.videoHandle = handle
-    this.videoTexture = handle.texture
-    void handle.setFrozen(this.previewFrozen)
-    this.setTextureAspect(handle.texture)
   }
 
   clearMedia(): void {

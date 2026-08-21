@@ -13,6 +13,7 @@ import {
   TrashIcon,
 } from "@radix-ui/react-icons"
 import { Reorder, useDragControls } from "motion/react"
+import Image from "next/image"
 import {
   type ChangeEvent,
   memo,
@@ -47,7 +48,7 @@ import type { AssetKind, EditorAsset, EditorLayer } from "@/types/editor"
 type LayerAction = "delete" | "reset"
 
 const thumbnailBaseClassName =
-  "relative size-7 overflow-hidden rounded-[var(--ds-radius-thumb)] border border-white/6"
+  "relative size-7 overflow-hidden rounded-[var(--ds-radius-thumb)] border border-[var(--ds-border-divider)]"
 
 function LayerThumbnail({
   asset,
@@ -56,7 +57,8 @@ function LayerThumbnail({
   asset: EditorAsset | null
   layer: EditorLayer
 }) {
-  const hasPreview = asset?.kind === "image" || asset?.kind === "video"
+  const previewUrl = asset?.kind === "image" ? asset.url : null
+  const isLocalPreview = previewUrl?.startsWith("blob:") ?? false
   let PlaceholderIcon = ImageIcon
   if (layer.type === "pattern") {
     PlaceholderIcon = TransparencyGridIcon
@@ -70,15 +72,27 @@ function LayerThumbnail({
     <div
       className={cn(
         thumbnailBaseClassName,
-        hasPreview
+        previewUrl
           ? "bg-center bg-cover"
           : "flex items-center justify-center bg-[var(--ds-color-surface-subtle)] text-[var(--ds-color-text-muted)]"
       )}
       style={
-        hasPreview ? { backgroundImage: `url("${asset.url}")` } : undefined
+        isLocalPreview && previewUrl
+          ? { backgroundImage: `url("${previewUrl}")` }
+          : undefined
       }
     >
-      {hasPreview ? null : (
+      {previewUrl && !isLocalPreview ? (
+        <Image
+          alt=""
+          className="object-cover"
+          fill
+          sizes="28px"
+          src={previewUrl}
+        />
+      ) : null}
+
+      {previewUrl ? null : (
         <PlaceholderIcon aria-hidden="true" height={14} width={14} />
       )}
     </div>

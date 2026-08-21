@@ -1,4 +1,9 @@
 import { create } from "zustand"
+import {
+  forgetStoredAssets,
+  persistAssetBlob,
+} from "@/lib/editor/autosave/assets"
+import { getDefaultProjectAssets } from "@/lib/editor/default-project"
 import { inferFileAssetKind, isAudioFileName } from "@/lib/editor/media-file"
 import type { AssetKind, EditorAsset } from "@/types/editor"
 
@@ -65,7 +70,7 @@ function validateFile(file: File): AssetKind {
 
   if (file.size > MAX_SIZE_BYTES) {
     throw new Error(
-      `File is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum size is 100 MB.`
+      `File is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum size is ${MAX_SIZE_BYTES / 1024 / 1024} MB.`
     )
   }
 
@@ -152,7 +157,7 @@ function loadAudioMetadata(url: string): Promise<{ duration: number }> {
 }
 
 export const useAssetStore = create<AssetStore>((set, get) => ({
-  assets: [],
+  assets: getDefaultProjectAssets(),
 
   async loadAsset(file) {
     const kind = validateFile(file)
@@ -165,6 +170,7 @@ export const useAssetStore = create<AssetStore>((set, get) => ({
       kind,
       mimeType: file.type,
       sizeBytes: file.size,
+      source: "local" as const,
       status: "ready" as const,
       url,
     }
@@ -207,6 +213,8 @@ export const useAssetStore = create<AssetStore>((set, get) => ({
       }
     }
 
+    await persistAssetBlob(asset, file)
+
     set((state) => ({
       assets: [...state.assets, asset],
     }))
@@ -217,9 +225,11 @@ export const useAssetStore = create<AssetStore>((set, get) => ({
   removeAsset: (id) => {
     const asset = get().assets.find((entry) => entry.id === id)
 
-    if (asset) {
+    if (asset?.source === "local") {
       URL.revokeObjectURL(asset.url)
     }
+
+    void forgetStoredAssets([id])
 
     set((state) => ({
       assets: state.assets.filter((entry) => entry.id !== id),
@@ -234,7 +244,7 @@ export const useAssetStore = create<AssetStore>((set, get) => ({
     const retained = new Set(assets.map((asset) => asset.url))
 
     for (const asset of get().assets) {
-      if (!retained.has(asset.url)) {
+      if (asset.source === "local" && !retained.has(asset.url)) {
         URL.revokeObjectURL(asset.url)
       }
     }

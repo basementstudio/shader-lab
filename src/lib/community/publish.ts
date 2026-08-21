@@ -3,6 +3,13 @@ import { customAlphabet } from "nanoid"
 import { getDatabase } from "@/lib/db"
 import { scenes, uploadQuota } from "@/lib/db/schema"
 import { slugifyHandle } from "@/lib/community/handle"
+import {
+  censorProjectFile,
+  censorText,
+  describeBlockedLanguage,
+  findProfanityInProjectFile,
+  hasProfanity,
+} from "@/lib/community/language"
 import { keyFromPublicUrl, scenePrefixOf } from "@/lib/community/r2"
 import {
   DEFAULT_DRAFT_TITLE,
@@ -144,29 +151,45 @@ export function dayBucket(now: Date): string {
 }
 
 export interface PublishValidation {
+  body: string
   hasCustomShader: boolean
   layerTypes: string[]
   projectFile: LabProjectFile
 }
 
-function parseScenePayload(raw: string): LabProjectFile {
+function parseScenePayload(raw: string): {
+  body: string
+  projectFile: LabProjectFile
+  profanityLocation: string | null
+} {
   if (raw.length > MAX_LAB_BYTES) {
     throw new Error("This scene is too large.")
   }
 
-  const projectFile = parseLabProjectFile(raw)
+  const parsed = parseLabProjectFile(raw)
 
-  for (const asset of projectFile.assets) {
+  for (const asset of parsed.assets) {
     if (asset.url && !isAllowedAssetOrigin(asset.url)) {
       throw new Error(`"${asset.fileName}" points at an untrusted host.`)
     }
   }
 
-  return projectFile
+  const profanityLocation = findProfanityInProjectFile(parsed)
+  const censored = censorProjectFile(parsed)
+
+  return {
+    body: censored.changed ? JSON.stringify(censored.projectFile) : raw,
+    projectFile: censored.projectFile,
+    profanityLocation,
+  }
 }
 
-function describeScene(projectFile: LabProjectFile): PublishValidation {
+function describeScene(
+  projectFile: LabProjectFile,
+  body: string
+): PublishValidation {
   return {
+    body,
     hasCustomShader: hasImportedCustomShaderCode(projectFile),
     layerTypes: [...new Set(projectFile.layers.map((layer) => layer.type))],
     projectFile,
@@ -174,16 +197,23 @@ function describeScene(projectFile: LabProjectFile): PublishValidation {
 }
 
 export function validateDraftPayload(raw: string): PublishValidation {
-  const projectFile = parseScenePayload(raw)
+  const { body, projectFile } = parseScenePayload(raw)
 
-  return describeScene({
-    ...projectFile,
-    assets: projectFile.assets.filter((asset) => asset.url),
-  })
+  return describeScene(
+    {
+      ...projectFile,
+      assets: projectFile.assets.filter((asset) => asset.url),
+    },
+    body
+  )
 }
 
 export function validateProjectFilePayload(raw: string): PublishValidation {
-  const projectFile = parseScenePayload(raw)
+  const { body, projectFile, profanityLocation } = parseScenePayload(raw)
+
+  if (profanityLocation) {
+    throw new Error(describeBlockedLanguage(profanityLocation))
+  }
 
   if (projectFile.layers.length === 0) {
     throw new Error("A scene needs at least one visible layer.")
@@ -197,7 +227,7 @@ export function validateProjectFilePayload(raw: string): PublishValidation {
     }
   }
 
-  return describeScene(projectFile)
+  return describeScene(projectFile, body)
 }
 
 export function normalizeTitle(value: unknown): string {
@@ -207,14 +237,20 @@ export function normalizeTitle(value: unknown): string {
     throw new Error("A title is required.")
   }
 
-  return title.slice(0, MAX_TITLE_LENGTH)
+  const capped = title.slice(0, MAX_TITLE_LENGTH)
+
+  if (hasProfanity(capped)) {
+    throw new Error(describeBlockedLanguage("the title"))
+  }
+
+  return capped
 }
 
 export function normalizeDraftTitle(value: unknown): string {
   const title = typeof value === "string" ? value.trim() : ""
 
   return title.length > 0
-    ? title.slice(0, MAX_TITLE_LENGTH)
+    ? censorText(title.slice(0, MAX_TITLE_LENGTH))
     : DEFAULT_DRAFT_TITLE
 }
 
@@ -285,9 +321,17 @@ export async function collectAllowedScenePrefixes(input: {
 export function normalizeDescription(value: unknown): string | null {
   const description = typeof value === "string" ? value.trim() : ""
 
-  return description.length > 0
-    ? description.slice(0, MAX_DESCRIPTION_LENGTH)
-    : null
+  if (description.length === 0) {
+    return null
+  }
+
+  const capped = description.slice(0, MAX_DESCRIPTION_LENGTH)
+
+  if (hasProfanity(capped)) {
+    throw new Error(describeBlockedLanguage("the description"))
+  }
+
+  return capped
 }
 
 export interface QuotaCheck {

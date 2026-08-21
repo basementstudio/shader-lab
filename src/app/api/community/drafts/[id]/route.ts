@@ -141,7 +141,7 @@ export async function PUT(
 
   try {
     await putObject({
-      body: raw,
+      body: validated.body,
       contentType: "application/json",
       key: labKey,
     })

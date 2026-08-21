@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test"
-import { isUniqueViolation } from "@/lib/community/profile"
+import {
+  isUniqueViolation,
+  MAX_DISPLAY_NAME_LENGTH,
+  normalizeDisplayName,
+} from "@/lib/community/profile"
 
 function pgError(code: string) {
   return Object.assign(new Error("insert failed"), { code })
@@ -48,5 +52,49 @@ describe("isUniqueViolation", () => {
     looped.cause = looped
 
     expect(isUniqueViolation(looped)).toBe(false)
+  })
+})
+
+describe("normalizeDisplayName", () => {
+  test("masks a slur an identity provider handed us", () => {
+    expect(normalizeDisplayName("Fuck Face")).toBe("**** Face")
+  })
+
+  test("trims and caps a name that arrives unbounded", () => {
+    expect(normalizeDisplayName(`  ${"n".repeat(400)}  `)).toHaveLength(
+      MAX_DISPLAY_NAME_LENGTH
+    )
+  })
+
+  test("returns null for anything that is not a usable name", () => {
+    for (const value of ["", "   ", null, undefined, 42, {}]) {
+      expect(normalizeDisplayName(value)).toBeNull()
+    }
+  })
+
+  test("leaves an ordinary name alone", () => {
+    expect(normalizeDisplayName("Tobi Moccagatta")).toBe("Tobi Moccagatta")
+  })
+})
+
+describe("normalizeDisplayName on a stored value", () => {
+  test("masks a legacy name that predates moderation", () => {
+    expect(normalizeDisplayName("Fuck Face")).toBe("**** Face")
+  })
+
+  test("is idempotent, so a healed row stops rewriting itself", () => {
+    const once = normalizeDisplayName("Fuck Face")
+
+    expect(normalizeDisplayName(once)).toBe(once)
+  })
+
+  test("leaves a clean stored name identical, so no pointless write", () => {
+    const stored = "Tobi Moccagatta"
+
+    expect(normalizeDisplayName(stored)).toBe(stored)
+  })
+
+  test("a null stored name stays null rather than becoming a write", () => {
+    expect(normalizeDisplayName(null)).toBeNull()
   })
 })

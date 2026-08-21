@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test"
 import {
   buildHandleCandidates,
   deriveHandleSeed,
+  describeHandleInput,
   HANDLE_MAX_LENGTH,
   isLookupableHandle,
   isReservedHandle,
@@ -157,5 +158,41 @@ describe("buildHandleCandidates", () => {
     expect(candidates).not.toContain("admin")
     expect(candidates.length).toBeGreaterThan(0)
     expect(candidates[0]).toBe("admin-2")
+  })
+})
+
+describe("handles and bad language", () => {
+  test("isValidHandle turns down a handle that reads as a slur", () => {
+    for (const handle of ["fuck-you", "shitposter", "fu-ck"]) {
+      expect(isValidHandle(handle)).toBe(false)
+    }
+  })
+
+  test("describeHandleInput says why, instead of failing the shape check", () => {
+    const result = describeHandleInput("fuckyou")
+
+    expect(result).toEqual({
+      reason: "That handle reads as language we do not allow.",
+    })
+  })
+
+  test("a seed derived from a name falls back rather than minting a slur", () => {
+    expect(deriveHandleSeed({ email: null, name: "Fuck Face" })).toBe("maker")
+  })
+
+  test("a bad name falls through to the email before giving up", () => {
+    expect(
+      deriveHandleSeed({ email: "renderfan@example.com", name: "Fuck Face" })
+    ).toBe("renderfan")
+  })
+
+  test("candidates are never empty, so signup cannot deadlock on a bad name", () => {
+    const candidates = buildHandleCandidates({ email: null, name: "Fuck Face" })
+
+    expect(candidates.length).toBeGreaterThan(0)
+
+    for (const candidate of candidates) {
+      expect(isValidHandle(candidate)).toBe(true)
+    }
   })
 })

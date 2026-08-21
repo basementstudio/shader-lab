@@ -14,7 +14,7 @@ import {
   getPublicProfileScenes,
   resolveHandleRedirect,
 } from "@/lib/community/public-profiles"
-import { profilePagePath } from "@/lib/community/scene-links"
+import { COMMUNITY_PATH, profilePagePath } from "@/lib/community/scene-links"
 import type { PublicProfile } from "@/lib/community/profiles"
 
 type PageProps = { params: Promise<{ handle: string }> }
@@ -104,7 +104,7 @@ async function ProfileRoute({ params }: PageProps) {
   return (
     <main className="mx-auto flex w-full max-w-[1180px] flex-col gap-[var(--ds-space-6)] px-4 py-10 sm:px-6">
       <div className="flex flex-col gap-[var(--ds-space-3)]">
-        <ButtonLink className="w-fit px-0" href="/community" size="compact" variant="ghost">
+        <ButtonLink className="w-fit px-0" href={COMMUNITY_PATH as Route} size="compact" variant="ghost">
           All scenes
         </ButtonLink>
 

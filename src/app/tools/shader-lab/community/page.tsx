@@ -6,6 +6,7 @@ import { Typography } from "@/components/ui/typography"
 import { APP_BASE_URL } from "@/lib/app"
 import { isCommunityEnabled } from "@/lib/community/config"
 import { getPublicScenes } from "@/lib/community/public-scenes"
+import { COMMUNITY_PATH } from "@/lib/community/scene-links"
 
 const TITLE = "Made by the community"
 
@@ -16,13 +17,13 @@ const DESCRIPTION =
   "Scenes made with Shader Lab by the community. Open any one of them and remix it in your browser."
 
 export const metadata: Metadata = {
-  alternates: { canonical: "/community" },
+  alternates: { canonical: COMMUNITY_PATH },
   description: DESCRIPTION,
   openGraph: {
     description: DESCRIPTION,
     title: "Community",
     type: "website",
-    url: `${APP_BASE_URL}/community`,
+    url: `${APP_BASE_URL}${COMMUNITY_PATH}`,
   },
   title: "Community",
 }

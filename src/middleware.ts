@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getAuth, getAuthConfig } from "@/lib/auth/server"
 import { authTrace, neonCookieNames, setCookieNames } from "@/lib/auth/trace"
+import { COMMUNITY_PATH } from "@/lib/community/scene-links"
 
 export default async function middleware(
   request: NextRequest
@@ -20,7 +21,7 @@ export default async function middleware(
     return NextResponse.next()
   }
 
-  const response = await getAuth().middleware({ loginUrl: "/community" })(
+  const response = await getAuth().middleware({ loginUrl: COMMUNITY_PATH })(
     request
   )
 

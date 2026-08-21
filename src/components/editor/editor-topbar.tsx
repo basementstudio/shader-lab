@@ -656,44 +656,108 @@ export function EditorTopBar({
       {mobileActionsOpen ? (
         <div className="pointer-events-none fixed right-0 bottom-[88px] left-0 z-45 flex justify-center px-3 min-[900px]:hidden">
           <GlassPanel
-            className="pointer-events-auto flex min-h-11 w-full max-w-[420px] flex-wrap items-center justify-between gap-2 p-2.5"
+            className="pointer-events-auto flex w-full max-w-[420px] flex-col gap-1.5 p-1.5"
             variant="panel"
           >
-            <div className="flex w-full items-center justify-between gap-2">
-              <div className="inline-flex items-center gap-1.5">
-                <IconButton
-                  aria-label="Undo"
-                  className="h-7 w-7 disabled:opacity-45"
-                  disabled={!canUndo}
-                  onClick={handleUndo}
-                  tooltip="Revert"
-                  uiSound="none"
-                  variant="default"
-                >
-                  <ResetIcon height={18} width={18} />
-                </IconButton>
-                <IconButton
-                  aria-label="Redo"
-                  className="h-7 w-7 disabled:opacity-45"
-                  disabled={!canRedo}
-                  onClick={handleRedo}
-                  uiSound="none"
-                  variant="default"
-                >
-                  <ResetIcon className="scale-x-[-1]" height={18} width={18} />
-                </IconButton>
-              </div>
+            <div className="grid grid-cols-5 gap-1.5">
+              <IconButton
+                aria-label="Undo"
+                className="size-full min-h-11 disabled:opacity-45"
+                disabled={!canUndo}
+                onClick={handleUndo}
+                tooltip="Revert"
+                uiSound="none"
+                variant="default"
+              >
+                <ResetIcon height={18} width={18} />
+              </IconButton>
+              <IconButton
+                aria-label="Redo"
+                className="size-full min-h-11 disabled:opacity-45"
+                disabled={!canRedo}
+                onClick={handleRedo}
+                uiSound="none"
+                variant="default"
+              >
+                <ResetIcon className="scale-x-[-1]" height={18} width={18} />
+              </IconButton>
+              <IconButton
+                aria-label="Zoom out"
+                className="size-full min-h-11 disabled:opacity-45"
+                onClick={() => applyZoomStep("out")}
+                variant="default"
+              >
+                <ZoomOutIcon height={18} width={18} />
+              </IconButton>
+              <IconButton
+                aria-label="Reset view"
+                className="size-full min-h-11"
+                onClick={() => {
+                  resetView()
+                  playUISound("action.reset")
+                }}
+                tooltipDisabled={!hasResettableView}
+                uiSound="none"
+                variant="outline"
+              >
+                <Typography as="span" tone="inherit" variant="monoSm">
+                  {Math.round(zoom * 100)}%
+                </Typography>
+              </IconButton>
+              <IconButton
+                aria-label="Zoom in"
+                className="size-full min-h-11 disabled:opacity-45"
+                onClick={() => applyZoomStep("in")}
+                variant="default"
+              >
+                <ZoomInIcon height={18} width={18} />
+              </IconButton>
+            </div>
 
+            <div className="grid grid-cols-5 gap-1.5">
+              <IconButton
+                aria-label="Export"
+                className="size-full min-h-11 disabled:opacity-45"
+                onClick={() => handleExportDialogOpenChange(true)}
+                tooltip="Download"
+                uiSound="action.export"
+                variant="default"
+              >
+                <DownloadIcon height={18} width={18} />
+              </IconButton>
+              <IconButton
+                aria-label="Interface sounds"
+                aria-pressed={soundEnabled}
+                className="size-full min-h-11"
+                onClick={() => toggleSoundEnabled()}
+                tooltip={soundEnabled ? "Mute sounds" : "Unmute sounds"}
+                uiSound="none"
+                variant="default"
+              >
+                {soundEnabled ? (
+                  <SpeakerLoudIcon height={18} width={18} />
+                ) : (
+                  <SpeakerOffIcon height={18} width={18} />
+                )}
+              </IconButton>
+              <IconButtonLink
+                aria-label="Open Shader Lab on GitHub"
+                className="size-full min-h-11"
+                href={GITHUB_REPO_URL}
+                rel="noreferrer"
+                target="_blank"
+              >
+                <GitHubLogoIcon height={18} width={18} />
+              </IconButtonLink>
               {communityEnabled ? (
-                <span className="relative inline-flex">
+                <span className="relative col-span-2 inline-flex">
                   <ButtonLink
-                    className="h-7 gap-1.5"
+                    className="min-h-11 w-full gap-2"
                     href={"/community" as Route}
                     onClick={() => markCommunitySeen()}
-                    size="compact"
                     variant="secondary"
                   >
-                    <GlobeIcon height={14} width={14} />
+                    <GlobeIcon height={16} width={16} />
                     Community
                   </ButtonLink>
                   {communityUnread ? (
@@ -704,73 +768,6 @@ export function EditorTopBar({
                   ) : null}
                 </span>
               ) : null}
-            </div>
-
-            <div className="flex w-full items-center justify-between gap-2">
-              <div className="inline-flex items-center gap-1.5">
-                <IconButton
-                  aria-label="Zoom out"
-                  className="h-7 w-7 disabled:opacity-45"
-                  onClick={() => applyZoomStep("out")}
-                  variant="default"
-                >
-                  <ZoomOutIcon height={18} width={18} />
-                </IconButton>
-                <IconButton
-                  aria-label="Reset view"
-                  className="min-w-16"
-                  labelled
-                  onClick={() => {
-                    resetView()
-                    playUISound("action.reset")
-                  }}
-                  tooltipDisabled={!hasResettableView}
-                  uiSound="none"
-                  variant="outline"
-                >
-                  <Typography as="span" tone="inherit" variant="monoSm">
-                    {Math.round(zoom * 100)}%
-                  </Typography>
-                </IconButton>
-                <IconButton
-                  aria-label="Zoom in"
-                  className="h-7 w-7 disabled:opacity-45"
-                  onClick={() => applyZoomStep("in")}
-                  variant="default"
-                >
-                  <ZoomInIcon height={18} width={18} />
-                </IconButton>
-              </div>
-
-              <TopbarDivider className="h-5" />
-
-              <div className="inline-flex items-center gap-1.5">
-                <IconButton
-                  aria-label="Export"
-                  className="h-7 w-7 disabled:opacity-45"
-                  onClick={() => handleExportDialogOpenChange(true)}
-                  tooltip="Download"
-                  uiSound="action.export"
-                  variant="default"
-                >
-                  <DownloadIcon height={16} width={16} />
-                </IconButton>
-                <IconButton
-                  aria-label="Interface sounds"
-                  className="h-7 w-7"
-                  onClick={() => toggleSoundEnabled()}
-                  selected={soundEnabled}
-                  tooltip={soundEnabled ? "Mute sounds" : "Unmute sounds"}
-                  uiSound="none"
-                >
-                  {soundEnabled ? (
-                    <SpeakerLoudIcon height={16} width={16} />
-                  ) : (
-                    <SpeakerOffIcon height={16} width={16} />
-                  )}
-                </IconButton>
-                <GitHubStarLink mobile />
-              </div>
             </div>
           </GlassPanel>
         </div>

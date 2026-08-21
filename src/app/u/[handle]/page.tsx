@@ -175,8 +175,10 @@ function GridSkeleton() {
     <div className={SCENE_GRID_CLASS_NAME}>
       {SKELETON_CARDS.map((id) => (
         <div className="flex animate-pulse flex-col gap-[5px]" key={id}>
-          <div className="aspect-[16/10] w-full rounded-[8px] border border-[var(--ds-border-subtle)] bg-[var(--ds-color-surface-subtle)]" />
-          <div className="h-4 w-3/5 rounded-[4px] bg-[var(--ds-color-surface-subtle)]" />
+          <div className="flex flex-col gap-[var(--ds-space-2)]">
+            <div className="aspect-[16/10] w-full rounded-[8px] border border-[var(--ds-border-subtle)] bg-[var(--ds-color-surface-subtle)]" />
+            <div className="h-4 w-3/5 rounded-[4px] bg-[var(--ds-color-surface-subtle)]" />
+          </div>
         </div>
       ))}
     </div>

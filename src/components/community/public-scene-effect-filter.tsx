@@ -20,7 +20,7 @@ export function PublicSceneEffectFilter({
   return (
     <nav
       aria-label="Filter community scenes by effect"
-      className="flex min-w-0 gap-2 overflow-x-auto pb-0.5"
+      className="flex min-w-0 gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
       <Link
         aria-current={effects.length > 0 ? undefined : "page"}

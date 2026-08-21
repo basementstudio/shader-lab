@@ -881,7 +881,7 @@ export function CommunityModal({
                 {selected || selectedHandle || tab !== "explore" ? null : (
                   <fieldset
                     aria-label="Filter community scenes by effect"
-                    className="m-0 flex min-w-0 shrink-0 gap-1.5 overflow-x-auto border-x-0 border-t-0 border-b border-[var(--ds-border-divider)] px-4 py-2"
+                    className="m-0 flex min-w-0 shrink-0 gap-1.5 overflow-x-auto border-x-0 border-t-0 border-b border-[var(--ds-border-divider)] px-4 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                   >
                     <button
                       aria-pressed={effects.length === 0}

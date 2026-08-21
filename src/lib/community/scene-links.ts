@@ -19,3 +19,7 @@ export function sceneSharePath(slug: string): string {
 export function profilePagePath(handle: string): string {
   return `${COMMUNITY_PATH}/u/${handle}`
 }
+
+export function profileDisplayPath(handle: string): string {
+  return profilePagePath(handle).slice(EDITOR_PATH.length)
+}

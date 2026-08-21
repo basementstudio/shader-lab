@@ -15,7 +15,7 @@ import {
   describeHandleInput,
   HANDLE_MAX_LENGTH,
 } from "@/lib/community/handle"
-import { profilePagePath } from "@/lib/community/scene-links"
+import { profileDisplayPath } from "@/lib/community/scene-links"
 
 export interface AccountProfile {
   avatarUrl: string | null
@@ -94,7 +94,9 @@ export function UserSettingsDialog({
   const cooldown = cooldownLabel(profile.canRenameAt)
   const blocked = preview === profile.handle || Boolean(cooldown) || saving
   const canSubmit = Boolean(preview) && !blocked
-  const hint = preview ? `shader-lab${profilePagePath(preview)}` : (reason ?? "")
+  const hint = preview
+    ? `shader-lab${profileDisplayPath(preview)}`
+    : (reason ?? "")
 
   const submit = useCallback(async () => {
     if (!preview) {

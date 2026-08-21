@@ -31,7 +31,6 @@
     "version-canary": "changeset version --snapshot canary",
     "version-packages": "changeset version",
     "start": "next start",
-    "test": "bun test",
     "typecheck": "tsgo --noEmit",
     "typecheck:runtime": "bun run --cwd packages/shader-lab-react typecheck",
     "typecheck:compare": "bun run typecheck:tsc && bun run typecheck",

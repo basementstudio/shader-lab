@@ -6,7 +6,7 @@ import { DeleteSceneControl } from "@/components/community/delete-scene-control"
 import { RemixCredit } from "@/components/community/remix-credit"
 import { ReportControl } from "@/components/community/report-control"
 import { ShareSceneButton } from "@/components/community/share-scene-button"
-import { UpvoteButton } from "@/components/community/upvote-button"
+import { LikeButton } from "@/components/community/like-button"
 import { Button } from "@/components/ui/button"
 import { Typography } from "@/components/ui/typography"
 import { lineageLabel } from "@/lib/community/lineage"
@@ -14,6 +14,7 @@ import type {
   CommunitySceneDetail,
   CommunitySceneSummary,
 } from "@/lib/community/scenes"
+import { SceneTag } from "@/components/community/scene-tag"
 import { getLayerLabel } from "@/lib/editor/config/layer-catalog"
 
 function formatPublishedAt(value: string | null): string {
@@ -35,10 +36,10 @@ export function SceneDetail({
   onOpenAuthor,
   onOpenSlug,
   onRemix,
-  onUpvoteChange,
+  onLikeChange,
   remixing,
   scene,
-  upvoted,
+  liked,
 }: {
   detail: CommunitySceneDetail | null
   isOwn: boolean
@@ -46,10 +47,10 @@ export function SceneDetail({
   onOpenAuthor: (handle: string) => void
   onOpenSlug: (slug: string) => void
   onRemix: (scene: CommunitySceneDetail) => void
-  onUpvoteChange: (next: { count: number; upvoted: boolean }) => void
+  onLikeChange: (next: { count: number; liked: boolean }) => void
   remixing: boolean
   scene: CommunitySceneSummary
-  upvoted: boolean
+  liked: boolean
 }) {
   const description = detail?.description ?? null
   const forkedFrom = detail?.forkedFrom ?? null
@@ -97,22 +98,8 @@ export function SceneDetail({
 
         <div className="flex flex-wrap gap-1.5">
           {scene.layerTypes.map((type) => (
-            <span
-              className="inline-flex min-h-6 items-center rounded-[var(--ds-radius-control)] border border-[var(--ds-border-subtle)] bg-[var(--ds-color-surface-subtle)] px-2"
-              key={type}
-            >
-              <Typography as="span" tone="secondary" variant="monoXs">
-                {getLayerLabel(type)}
-              </Typography>
-            </span>
+            <SceneTag key={type}>{getLayerLabel(type)}</SceneTag>
           ))}
-          {scene.hasCustomShader ? (
-            <span className="inline-flex min-h-6 items-center rounded-[var(--ds-radius-control)] border border-[var(--ds-border-active)] bg-[var(--ds-color-surface-active)] px-2">
-              <Typography as="span" variant="monoXs">
-                Custom shader
-              </Typography>
-            </span>
-          ) : null}
         </div>
 
         {forkedFrom ? (
@@ -123,17 +110,20 @@ export function SceneDetail({
             title={forkedFrom.title}
             type="button"
           >
-            <RemixCredit lineage={forkedFrom} />
+            <RemixCredit
+              lineage={forkedFrom}
+              sceneAuthorHandle={scene.authorHandle}
+            />
           </button>
         ) : null}
 
         <div className="mt-auto flex flex-col gap-[var(--ds-space-2)] pt-[var(--ds-space-3)]">
           <div className="flex items-stretch gap-[var(--ds-space-2)]">
-            <UpvoteButton
+            <LikeButton
               count={scene.likeCount}
-              onChange={onUpvoteChange}
+              onChange={onLikeChange}
               slug={scene.slug}
-              upvoted={upvoted}
+              liked={liked}
             />
 
             <Button

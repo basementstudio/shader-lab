@@ -1,6 +1,7 @@
 "use client"
 
 import { PublicSceneCard } from "@/components/community/public-scene-card"
+import { SCENE_GRID_CLASS_NAME } from "@/components/community/scene-grid"
 import { SceneLoadMore } from "@/components/community/scene-load-more"
 import { Typography } from "@/components/ui/typography"
 import type { CommunitySceneSummary, SceneSort } from "@/lib/community/scenes"
@@ -11,12 +12,14 @@ export function PublicSceneGrid({
   emptyLabel = "No scenes published yet.",
   initialNextCursor,
   initialScenes,
+  showAuthor = true,
   sort = "popular",
 }: {
   author?: string | null
   emptyLabel?: string
   initialNextCursor: string | null
   initialScenes: CommunitySceneSummary[]
+  showAuthor?: boolean
   sort?: SceneSort
 }) {
   const { error, hasMore, loadMore, loading, scenes } = useScenePages({
@@ -29,7 +32,7 @@ export function PublicSceneGrid({
 
   if (shown.length === 0) {
     return (
-      <Typography as="p" tone="tertiary" variant="caption">
+      <Typography as="p" tone="secondary" variant="body">
         {emptyLabel}
       </Typography>
     )
@@ -37,12 +40,13 @@ export function PublicSceneGrid({
 
   return (
     <>
-      <div className="grid grid-cols-2 gap-[var(--ds-space-4)] min-[760px]:grid-cols-4">
+      <div className={SCENE_GRID_CLASS_NAME}>
         {shown.map((scene, index) => (
           <PublicSceneCard
             key={scene.slug}
-            priority={index < 4}
+            priority={index < 3}
             scene={scene}
+            showAuthor={showAuthor}
           />
         ))}
       </div>

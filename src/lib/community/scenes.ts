@@ -5,7 +5,7 @@ import {
   type SceneCursor,
 } from "@/lib/community/scene-cursor"
 import { getDatabase } from "@/lib/db"
-import { profiles, scenes } from "@/lib/db/schema"
+import { likes, profiles, scenes } from "@/lib/db/schema"
 import { normalizeHost } from "@/lib/editor/remote-asset"
 import { readEnv } from "@/lib/read-env"
 import type { LayerType } from "@/types/editor"
@@ -272,6 +272,45 @@ export async function listScenesByAuthor(
     .limit(Math.min(Math.max(limit, 1), 100))
 
   return rows.map((row) => ({ ...toSummary(row), status: row.status }))
+}
+
+export async function getLatestPublishedAt(): Promise<string | null> {
+  const rows = await getDatabase()
+    .select({ publishedAt: scenes.publishedAt })
+    .from(scenes)
+    .where(
+      and(
+        eq(scenes.status, "published"),
+        isNull(scenes.deletedAt),
+        sql`${scenes.publishedAt} is not null`
+      )
+    )
+    .orderBy(desc(scenes.publishedAt))
+    .limit(1)
+
+  return rows[0]?.publishedAt?.toISOString() ?? null
+}
+
+export async function listLikedScenesByUser(
+  userId: string,
+  limit = 60
+): Promise<CommunitySceneSummary[]> {
+  const rows = await getDatabase()
+    .select({ ...summaryColumns, likedAt: likes.createdAt })
+    .from(likes)
+    .innerJoin(scenes, eq(scenes.id, likes.sceneId))
+    .innerJoin(profiles, eq(profiles.userId, scenes.authorId))
+    .where(
+      and(
+        eq(likes.userId, userId),
+        eq(scenes.status, "published"),
+        isNull(scenes.deletedAt)
+      )
+    )
+    .orderBy(desc(likes.createdAt))
+    .limit(Math.min(Math.max(limit, 1), 100))
+
+  return rows.map(toSummary)
 }
 
 export async function resolveForkedFromId(

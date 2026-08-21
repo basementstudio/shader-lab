@@ -14,7 +14,7 @@ export async function POST(
   const session = await getOptionalSession()
 
   if (!session) {
-    return Response.json({ error: "Sign in to upvote." }, { status: 401 })
+    return Response.json({ error: "Sign in to like." }, { status: 401 })
   }
 
   const { slug } = await params
@@ -35,7 +35,7 @@ export async function POST(
     return Response.json(result)
   } catch {
     return Response.json(
-      { error: "Could not record that upvote." },
+      { error: "Could not record that like." },
       { status: 500 }
     )
   }

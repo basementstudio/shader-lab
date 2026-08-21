@@ -1,21 +1,21 @@
 "use client"
 
-import { TriangleDownIcon, TriangleUpIcon } from "@radix-ui/react-icons"
+import { HeartFilledIcon, HeartIcon } from "@radix-ui/react-icons"
 import { useState } from "react"
 import { Typography } from "@/components/ui/typography"
 import { authClient } from "@/lib/auth/client"
 import { cn } from "@/lib/cn"
 
-export function UpvoteButton({
+export function LikeButton({
   count,
+  liked,
   onChange,
   slug,
-  upvoted,
 }: {
   count: number
-  onChange: (next: { count: number; upvoted: boolean }) => void
+  onChange: (next: { count: number; liked: boolean }) => void
   slug: string
-  upvoted: boolean
+  liked: boolean
 }) {
   const { data: session } = authClient.useSession()
   const [pending, setPending] = useState(false)
@@ -29,8 +29,8 @@ export function UpvoteButton({
     setPending(true)
 
     const optimistic = {
-      count: Math.max(count + (upvoted ? -1 : 1), 0),
-      upvoted: !upvoted,
+      count: Math.max(count + (liked ? -1 : 1), 0),
+      liked: !liked,
     }
 
     onChange(optimistic)
@@ -41,7 +41,7 @@ export function UpvoteButton({
       })
 
       if (!res.ok) {
-        onChange({ count, upvoted })
+        onChange({ count, liked })
         return
       }
 
@@ -55,10 +55,10 @@ export function UpvoteButton({
           typeof data.likeCount === "number"
             ? data.likeCount
             : optimistic.count,
-        upvoted: data.liked ?? optimistic.upvoted,
+        liked: data.liked ?? optimistic.liked,
       })
     } catch {
-      onChange({ count, upvoted })
+      onChange({ count, liked })
     } finally {
       setPending(false)
     }
@@ -66,11 +66,11 @@ export function UpvoteButton({
 
   return (
     <button
-      aria-label={upvoted ? "Remove upvote" : "Upvote this scene"}
-      aria-pressed={upvoted}
+      aria-label={liked ? "Remove like" : "Like this scene"}
+      aria-pressed={liked}
       className={cn(
         "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[var(--ds-radius-control)] border px-2.5 transition-[background-color,border-color,color,opacity] duration-160 ease-[var(--ease-out-cubic)]",
-        upvoted
+        liked
           ? "border-[var(--ds-border-active)] bg-[var(--ds-color-surface-active)] text-[var(--ds-color-text-primary)]"
           : "border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] text-[var(--ds-color-text-secondary)]",
         signedIn
@@ -79,13 +79,13 @@ export function UpvoteButton({
       )}
       disabled={!signedIn}
       onClick={() => void toggle()}
-      title={signedIn ? undefined : "Sign in to upvote"}
+      title={signedIn ? undefined : "Sign in to like"}
       type="button"
     >
-      {upvoted ? (
-        <TriangleDownIcon height={12} width={12} />
+      {liked ? (
+        <HeartFilledIcon height={12} width={12} />
       ) : (
-        <TriangleUpIcon height={12} width={12} />
+        <HeartIcon height={12} width={12} />
       )}
       <Typography as="span" variant="monoXs">
         {count}

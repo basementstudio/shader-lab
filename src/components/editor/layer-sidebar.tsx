@@ -48,7 +48,7 @@ import type { AssetKind, EditorAsset, EditorLayer } from "@/types/editor"
 type LayerAction = "delete" | "reset"
 
 const thumbnailBaseClassName =
-  "relative size-7 overflow-hidden rounded-[var(--ds-radius-thumb)] border border-white/6"
+  "relative size-7 overflow-hidden rounded-[var(--ds-radius-thumb)] border border-[var(--ds-border-divider)]"
 
 function LayerThumbnail({
   asset,

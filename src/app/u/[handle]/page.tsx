@@ -1,11 +1,11 @@
 import type { Metadata, Route } from "next"
-import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
 import { Suspense } from "react"
 import { ProfileHeader } from "@/components/community/profile-header"
 import { ProfileOwnerActions } from "@/components/community/profile-owner-actions"
 import { PublicSceneGrid } from "@/components/community/public-scene-grid"
-import { Typography } from "@/components/ui/typography"
+import { SCENE_GRID_CLASS_NAME } from "@/components/community/scene-grid"
+import { ButtonLink } from "@/components/ui/button/link"
 import { APP_BASE_URL } from "@/lib/app"
 import { isCommunityEnabled } from "@/lib/community/config"
 import { isLookupableHandle } from "@/lib/community/handle"
@@ -104,18 +104,14 @@ async function ProfileRoute({ params }: PageProps) {
   return (
     <main className="mx-auto flex w-full max-w-[1180px] flex-col gap-[var(--ds-space-6)] px-4 py-10 sm:px-6">
       <div className="flex flex-col gap-[var(--ds-space-3)]">
-        <Link
-          className="w-fit underline decoration-dotted underline-offset-2"
-          href="/community"
-        >
-          <Typography as="span" tone="tertiary" variant="caption">
-            All scenes
-          </Typography>
-        </Link>
+        <ButtonLink className="w-fit px-0" href="/community" size="compact" variant="ghost">
+          All scenes
+        </ButtonLink>
 
         <ProfileHeader
           action={<ProfileOwnerActions handle={profile.handle} />}
           profile={profile}
+          scale="page"
         />
       </div>
 
@@ -141,6 +137,7 @@ async function ProfileScenes({
       emptyLabel={`${label} has not published a scene yet.`}
       initialNextCursor={page.nextCursor}
       initialScenes={page.scenes}
+      showAuthor={false}
       sort="latest"
     />
   )
@@ -175,11 +172,13 @@ const SKELETON_CARDS = [
 
 function GridSkeleton() {
   return (
-    <div className="grid grid-cols-2 gap-[var(--ds-space-4)] min-[760px]:grid-cols-4">
+    <div className={SCENE_GRID_CLASS_NAME}>
       {SKELETON_CARDS.map((id) => (
         <div className="flex animate-pulse flex-col gap-[5px]" key={id}>
-          <div className="aspect-[16/10] w-full rounded-[8px] border border-[var(--ds-border-subtle)] bg-[var(--ds-color-surface-subtle)]" />
-          <div className="h-4 w-3/5 rounded-[4px] bg-[var(--ds-color-surface-subtle)]" />
+          <div className="flex flex-col gap-[var(--ds-space-2)]">
+            <div className="aspect-[16/10] w-full rounded-[8px] border border-[var(--ds-border-subtle)] bg-[var(--ds-color-surface-subtle)]" />
+            <div className="h-4 w-3/5 rounded-[4px] bg-[var(--ds-color-surface-subtle)]" />
+          </div>
         </div>
       ))}
     </div>

@@ -53,8 +53,8 @@ export function MobileEditorDock() {
               className={cn(
                 "flex min-h-14 cursor-pointer flex-col items-center justify-center gap-1 rounded-[var(--ds-radius-control)] border border-transparent px-2 py-2 text-[var(--ds-color-text-muted)] transition-[background-color,border-color,color,transform] duration-160 ease-[var(--ease-out-cubic)] active:scale-[0.97]",
                 isActive
-                  ? "border-white/10 bg-white/10 text-[var(--ds-color-text-primary)]"
-                  : "hover:border-white/6 hover:bg-white/6 hover:text-[var(--ds-color-text-secondary)]"
+                  ? "border-[var(--ds-border-hover)] bg-[var(--ds-color-surface-selected)] text-[var(--ds-color-text-primary)]"
+                  : "hover:border-[var(--ds-border-hover)] hover:bg-[var(--ds-color-surface-active)] hover:text-[var(--ds-color-text-primary)]"
               )}
               key={panel}
               onClick={() => {

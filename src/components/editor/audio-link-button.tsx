@@ -130,7 +130,7 @@ function AudioLinkTrigger({
             : `Link ${binding.label} to audio`
         }
         className={cn(
-          "inline-flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-[var(--ds-radius-icon)] text-[var(--ds-color-text-muted)] transition-[color,background-color] duration-160 ease-[var(--ease-out-cubic)] hover:bg-white/8 hover:text-[var(--ds-color-text-secondary)] data-[popup-open]:bg-white/8 [&_svg]:h-3 [&_svg]:w-3",
+          "inline-flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-[var(--ds-radius-icon)] text-[var(--ds-color-text-muted)] transition-[color,background-color] duration-160 ease-[var(--ease-out-cubic)] hover:bg-[var(--ds-color-surface-active)] hover:text-[var(--ds-color-text-secondary)] data-[popup-open]:bg-[var(--ds-color-surface-active)] [&_svg]:h-3 [&_svg]:w-3",
           link && "text-[rgb(182_151_255)]"
         )}
         onPointerDown={(event) => {

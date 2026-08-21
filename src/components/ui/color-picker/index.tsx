@@ -335,7 +335,7 @@ export function ColorPicker({
   return (
     <div className={cn("w-[132px]", className)}>
       <button
-        className="grid min-h-8 w-full cursor-pointer grid-cols-[24px_minmax(0,1fr)] items-center gap-2 rounded-[var(--ds-radius-control)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-2 pt-1 pr-2 pb-1 pl-1 text-[var(--ds-color-text-secondary)] transition-[background-color,border-color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:bg-white/8 hover:border-[var(--ds-border-hover)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--ds-border-active)] data-[open]:bg-white/8 data-[open]:border-[var(--ds-border-active)]"
+        className="grid min-h-8 w-full cursor-pointer grid-cols-[24px_minmax(0,1fr)] items-center gap-2 rounded-[var(--ds-radius-control)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-2 pt-1 pr-2 pb-1 pl-1 text-[var(--ds-color-text-secondary)] transition-[background-color,border-color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:bg-[var(--ds-color-surface-active)] hover:border-[var(--ds-border-hover)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--ds-border-active)] data-[open]:bg-white/8 data-[open]:border-[var(--ds-border-active)]"
         data-open={isOpen ? "" : undefined}
         onClick={() => setIsOpen((current) => !current)}
         ref={triggerRef}

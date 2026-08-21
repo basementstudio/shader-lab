@@ -23,6 +23,7 @@ const typographyVariants = cva("m-0", {
       muted: "text-[var(--ds-color-text-muted)]",
       disabled: "text-[var(--ds-color-text-disabled)]",
       onLight: "text-[var(--ds-color-text-on-light)]",
+      inherit: "text-inherit",
     },
     align: {
       left: "text-left",

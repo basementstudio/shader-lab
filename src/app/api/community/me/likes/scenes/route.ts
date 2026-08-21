@@ -1,7 +1,7 @@
 import { connection } from "next/server"
 import { getOptionalSession } from "@/lib/auth/server"
 import { isCommunityEnabled } from "@/lib/community/config"
-import { listLikedSlugs } from "@/lib/community/engagement"
+import { listLikedScenesByUser } from "@/lib/community/scenes"
 
 export async function GET() {
   await connection()
@@ -17,10 +17,12 @@ export async function GET() {
   }
 
   try {
-    return Response.json({ slugs: await listLikedSlugs(session.user.id) })
+    return Response.json({
+      scenes: await listLikedScenesByUser(session.user.id),
+    })
   } catch {
     return Response.json(
-      { error: "Could not load your likes." },
+      { error: "Could not load the scenes you liked." },
       { status: 500 }
     )
   }

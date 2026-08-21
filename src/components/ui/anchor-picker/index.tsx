@@ -40,7 +40,7 @@ export function AnchorPicker({
               aria-label={option.label}
               aria-pressed={isSelected}
               className={cn(
-                "inline-flex h-9 w-full cursor-pointer items-center justify-center rounded-[var(--ds-radius-control)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] transition-[background-color,border-color,box-shadow,transform] duration-160 ease-[var(--ease-out-cubic)] hover:border-[var(--ds-border-hover)] hover:bg-white/8 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--ds-border-active)] active:scale-[0.98]",
+                "inline-flex h-9 w-full cursor-pointer items-center justify-center rounded-[var(--ds-radius-control)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] transition-[background-color,border-color,box-shadow,transform] duration-160 ease-[var(--ease-out-cubic)] hover:border-[var(--ds-border-hover)] hover:bg-[var(--ds-color-surface-active)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--ds-border-active)] active:scale-[0.98]",
                 isSelected &&
                   "border-[var(--ds-border-active)] bg-white/10 shadow-[inset_0_0_0_1px_rgb(255_255_255_/_0.06)]"
               )}

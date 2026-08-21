@@ -11,11 +11,13 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { AuthMenu } from "@/components/community/auth-menu"
 import { DraftsGrid } from "@/components/community/drafts-grid"
+import { EmptyState } from "@/components/community/empty-state"
 import { MyScenesGrid } from "@/components/community/my-scenes-grid"
 import { ProfilePanel } from "@/components/community/profile-panel"
 import { SceneCard } from "@/components/community/scene-card"
 import { SceneDetail } from "@/components/community/scene-detail"
 import { SceneEmptyState } from "@/components/community/scene-empty-state"
+import { isFeaturedIndex } from "@/components/community/scene-grid"
 import { SceneLoadMore } from "@/components/community/scene-load-more"
 import { ShaderConsentDialog } from "@/components/community/shader-consent-dialog"
 import { Button } from "@/components/ui/button"
@@ -60,15 +62,113 @@ const SORT_TABS: readonly { label: string; value: SceneSort }[] = [
 
 const VIEW_TABS: readonly {
   label: string
-  value: "drafts" | "explore" | "mine"
+  value: "drafts" | "explore" | "likes" | "mine"
 }[] = [
   { label: "Explore", value: "explore" },
   { label: "My scenes", value: "mine" },
   { label: "Drafts", value: "drafts" },
+  { label: "Likes", value: "likes" },
 ]
 
 const TAB_CLASS_NAME =
   "inline-flex min-h-7 cursor-pointer items-center justify-center rounded-[var(--ds-radius-control)] border border-transparent px-[10px] leading-none transition-[background-color,border-color,color] duration-160 ease-[var(--ease-out-cubic)] hover:border-[var(--ds-border-subtle)] hover:bg-[var(--ds-color-surface-subtle)]"
+
+function PublishedGlyph() {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      height={28}
+      viewBox="0 0 32 32"
+      width={28}
+    >
+      <rect
+        height={19}
+        rx={2.5}
+        stroke="currentColor"
+        strokeWidth={1.5}
+        width={25}
+        x={3.5}
+        y={6.5}
+      />
+      <path
+        d="M16 20v-8m0 0-3.5 3.5M16 12l3.5 3.5"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={1.5}
+      />
+    </svg>
+  )
+}
+
+function LikesGlyph() {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      height={28}
+      viewBox="0 0 32 32"
+      width={28}
+    >
+      <path
+        d="M16 25.5S5.5 19.4 5.5 13.2A5.7 5.7 0 0 1 16 10a5.7 5.7 0 0 1 10.5 3.2c0 6.2-10.5 12.3-10.5 12.3Z"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={1.5}
+      />
+    </svg>
+  )
+}
+
+function DraftsGlyph() {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      height={28}
+      viewBox="0 0 32 32"
+      width={28}
+    >
+      <path
+        d="M10 7.5h12.5a3 3 0 0 1 3 3V23"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth={1.5}
+      />
+      <rect
+        height={17}
+        rx={2.5}
+        stroke="currentColor"
+        strokeWidth={1.5}
+        width={19}
+        x={4.5}
+        y={11.5}
+      />
+      <path
+        d="M8.5 17.5h9M8.5 22h5.5"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth={1.5}
+      />
+    </svg>
+  )
+}
+
+function DraftSaveHint() {
+  return (
+    <HoverTooltip content={DRAFT_SAVE_HINT} side="bottom">
+      <button
+        aria-label="How saving drafts works"
+        className="inline-flex cursor-help items-center bg-transparent p-0 text-[var(--ds-color-text-muted)] transition-colors duration-160 hover:text-[var(--ds-color-text-secondary)]"
+        type="button"
+      >
+        <InfoCircledIcon height={13} width={13} />
+      </button>
+    </HoverTooltip>
+  )
+}
 
 export function CommunityModal({
   autoOpenSlug,
@@ -86,13 +186,19 @@ export function CommunityModal({
   const reduceMotion = useReducedMotion() ?? false
   const { data: session } = authClient.useSession()
   const [mounted, setMounted] = useState(false)
-  const [tab, setTab] = useState<"drafts" | "explore" | "mine">("explore")
+  const [tab, setTab] = useState<"drafts" | "explore" | "likes" | "mine">(
+    "explore"
+  )
   const [mine, setMine] = useState<AuthoredScene[] | null>(null)
   const [mineFailed, setMineFailed] = useState(false)
   const [drafts, setDrafts] = useState<DraftSummary[] | null>(null)
   const [draftsFailed, setDraftsFailed] = useState(false)
   const [busyDraftId, setBusyDraftId] = useState<string | null>(null)
-  const [upvoted, setUpvoted] = useState<Set<string>>(new Set())
+  const [likedScenes, setLikedScenes] = useState<
+    CommunitySceneSummary[] | null
+  >(null)
+  const [likedScenesFailed, setLikedScenesFailed] = useState(false)
+  const [liked, setLiked] = useState<Set<string>>(new Set())
   const [sort, setSort] = useState<SceneSort>("popular")
   const [search, setSearch] = useState("")
   const [query, setQuery] = useState("")
@@ -139,7 +245,8 @@ export function CommunityModal({
     setTab("explore")
     setMine(null)
     setDrafts(null)
-    setUpvoted(new Set())
+    setLikedScenes(null)
+    setLiked(new Set())
   }, [userId])
 
   useEffect(() => {
@@ -171,7 +278,7 @@ export function CommunityModal({
       .then((res) => res.json())
       .then((data: { slugs?: string[] }) => {
         if (!cancelled) {
-          setUpvoted(new Set(data.slugs ?? []))
+          setLiked(new Set(data.slugs ?? []))
         }
       })
       .catch(() => undefined)
@@ -228,6 +335,34 @@ export function CommunityModal({
 
     void loadDrafts()
   }, [loadDrafts, open, tab, userId])
+
+  useEffect(() => {
+    if (!(open && userId && tab === "likes")) {
+      return
+    }
+
+    let cancelled = false
+
+    setLikedScenesFailed(false)
+
+    fetch("/api/community/me/likes/scenes")
+      .then((res) => res.json() as Promise<{ scenes?: CommunitySceneSummary[] }>)
+      .then((data) => {
+        if (!cancelled) {
+          setLikedScenes(data.scenes ?? [])
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setLikedScenes([])
+          setLikedScenesFailed(true)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [open, tab, userId])
 
   useEffect(() => {
     if (!open) {
@@ -523,13 +658,13 @@ export function CommunityModal({
     [explore]
   )
 
-  const changeUpvote = useCallback(
-    (slug: string, next: { count: number; upvoted: boolean }) => {
+  const changeLike = useCallback(
+    (slug: string, next: { count: number; liked: boolean }) => {
       applyCounts(slug, { likeCount: next.count })
-      setUpvoted((current) => {
+      setLiked((current) => {
         const nextSet = new Set(current)
 
-        if (next.upvoted) {
+        if (next.liked) {
           nextSet.add(slug)
         } else {
           nextSet.delete(slug)
@@ -683,10 +818,12 @@ export function CommunityModal({
                                 </Typography>
                               </button>
                             ))}
-                            <span
-                              aria-hidden="true"
-                              className="mx-1 h-4 w-px shrink-0 bg-[var(--ds-border-divider)]"
-                            />
+                            {tab === "explore" ? (
+                              <span
+                                aria-hidden="true"
+                                className="mx-1 h-4 w-px shrink-0 bg-[var(--ds-border-divider)]"
+                              />
+                            ) : null}
                           </>
                         ) : null}
 
@@ -757,12 +894,12 @@ export function CommunityModal({
                       onOpenAuthor={openProfile}
                       onOpenSlug={openSceneBySlug}
                       onRemix={remix}
-                      onUpvoteChange={(next) =>
-                        changeUpvote(selected.slug, next)
+                      onLikeChange={(next) =>
+                        changeLike(selected.slug, next)
                       }
                       remixing={remixing}
                       scene={selected}
-                      upvoted={upvoted.has(selected.slug)}
+                      liked={liked.has(selected.slug)}
                     />
                   ) : null}
 
@@ -791,31 +928,79 @@ export function CommunityModal({
                       ) : null}
 
                       {mine?.length === 0 ? (
-                        <div className="flex h-full flex-col items-center justify-center gap-[var(--ds-space-3)]">
-                          <Typography
-                            align="center"
-                            as="p"
-                            tone="tertiary"
-                            variant="caption"
-                          >
-                            {mineFailed
-                              ? "Could not load your scenes."
-                              : "You have not published a scene yet."}
-                          </Typography>
-                          {mineFailed ? null : (
-                            <Button
-                              onClick={onRequestPublish}
-                              size="compact"
-                              variant="primary"
-                            >
-                              Publish your scene
-                            </Button>
-                          )}
-                        </div>
+                        <EmptyState
+                          action={
+                            mineFailed ? null : (
+                              <Button
+                                onClick={onRequestPublish}
+                                variant="secondary"
+                              >
+                                Publish your scene
+                              </Button>
+                            )
+                          }
+                          description={
+                            mineFailed
+                              ? "Something went wrong reading your scenes. Try reopening this tab."
+                              : "Anything you publish shows up here, with its likes and remixes."
+                          }
+                          glyph={<PublishedGlyph />}
+                          title={
+                            mineFailed
+                              ? "Could not load your scenes"
+                              : "Nothing published yet"
+                          }
+                        />
                       ) : null}
 
                       {mine && mine.length > 0 ? (
                         <MyScenesGrid onSelect={openScene} scenes={mine} />
+                      ) : null}
+                    </div>
+                  ) : null}
+
+                  {!(selected || selectedHandle) && tab === "likes" ? (
+                    <div className="h-full overflow-y-auto p-4">
+                      {likedScenes === null && !error ? (
+                        <div className="grid grid-cols-2 gap-[var(--ds-space-4)] min-[720px]:grid-cols-4">
+                          {SKELETON_KEYS.slice(0, 4).map((key) => (
+                            <div
+                              className="flex animate-pulse flex-col gap-[var(--ds-space-2)]"
+                              key={key}
+                            >
+                              <div className="aspect-[16/10] w-full rounded-[8px] border border-[var(--ds-border-subtle)] bg-[var(--ds-color-surface-subtle)]" />
+                              <div className="h-[10px] w-3/5 rounded-[3px] bg-[var(--ds-color-surface-subtle)]" />
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+
+                      {likedScenes?.length === 0 ? (
+                        <EmptyState
+                          description={
+                            likedScenesFailed
+                              ? "Something went wrong reading your likes. Try reopening this tab."
+                              : "Hit the heart on any scene and it will be waiting here."
+                          }
+                          glyph={<LikesGlyph />}
+                          title={
+                            likedScenesFailed
+                              ? "Could not load your likes"
+                              : "Nothing liked yet"
+                          }
+                        />
+                      ) : null}
+
+                      {likedScenes && likedScenes.length > 0 ? (
+                        <div className="grid grid-cols-2 gap-[var(--ds-space-4)] min-[720px]:grid-cols-4">
+                          {likedScenes.map((scene) => (
+                            <SceneCard
+                              key={scene.slug}
+                              onSelect={openScene}
+                              scene={scene}
+                            />
+                          ))}
+                        </div>
                       ) : null}
                     </div>
                   ) : null}
@@ -836,63 +1021,23 @@ export function CommunityModal({
                         </div>
                       ) : null}
 
-                      {drafts?.length === 0 ? (
-                        <div className="flex h-full flex-col items-center justify-center gap-[var(--ds-space-3)]">
-                          <Typography
-                            align="center"
-                            as="p"
-                            tone="tertiary"
-                            variant="caption"
-                          >
-                            {draftsFailed
-                              ? "Could not load your drafts."
-                              : "No drafts yet. Save the scene you are working on to keep it here."}
-                          </Typography>
-                          {draftsFailed ? null : (
-                            <>
-                              <Button
-                                disabled={busyDraftId !== null}
-                                onClick={() => void saveAsNewDraft()}
-                                size="compact"
-                                variant="primary"
-                              >
-                                Save current scene
-                              </Button>
-                              <Typography
-                                align="center"
-                                as="p"
-                                className="max-w-[320px]"
-                                tone="muted"
-                                variant="monoXs"
-                              >
-                                {DRAFT_SAVE_HINT}
-                              </Typography>
-                            </>
-                          )}
-                        </div>
-                      ) : null}
-
-                      {drafts && drafts.length > 0 ? (
+                      {drafts && !draftsFailed ? (
                         <div className="mb-[var(--ds-space-4)] flex items-center justify-between gap-[var(--ds-space-3)]">
-                          <span className="inline-flex items-center gap-1.5">
-                            <Typography
-                              as="span"
-                              tone="tertiary"
-                              variant="caption"
-                            >
-                              {drafts.length} of {MAX_DRAFTS_PER_AUTHOR} slots
-                              used
-                            </Typography>
-                            <HoverTooltip content={DRAFT_SAVE_HINT} side="bottom">
-                              <button
-                                aria-label="How saving drafts works"
-                                className="inline-flex cursor-help items-center bg-transparent p-0 text-[var(--ds-color-text-muted)] transition-colors duration-160 hover:text-[var(--ds-color-text-secondary)]"
-                                type="button"
+                          {drafts.length > 0 ? (
+                            <span className="inline-flex items-center gap-1.5">
+                              <Typography
+                                as="span"
+                                tone="tertiary"
+                                variant="caption"
                               >
-                                <InfoCircledIcon height={13} width={13} />
-                              </button>
-                            </HoverTooltip>
-                          </span>
+                                {drafts.length} of {MAX_DRAFTS_PER_AUTHOR} slots
+                                used
+                              </Typography>
+                              <DraftSaveHint />
+                            </span>
+                          ) : (
+                            <span />
+                          )}
                           <Button
                             disabled={
                               busyDraftId !== null ||
@@ -905,6 +1050,17 @@ export function CommunityModal({
                             Save current scene as new draft
                           </Button>
                         </div>
+                      ) : null}
+
+                      {drafts?.length === 0 ? (
+                        <EmptyState
+                          glyph={<DraftsGlyph />}
+                          title={
+                            draftsFailed
+                              ? "Could not load your drafts"
+                              : "No drafts yet"
+                          }
+                        />
                       ) : null}
 
                       {drafts && drafts.length > 0 ? (
@@ -950,8 +1106,13 @@ export function CommunityModal({
 
                       {items && items.length > 0 ? (
                         <div className="grid grid-cols-2 gap-[var(--ds-space-4)] min-[720px]:grid-cols-4">
-                          {items.map((scene) => (
+                          {items.map((scene, index) => (
                             <SceneCard
+                              featured={isFeaturedIndex(index, {
+                                query,
+                                sort,
+                                total: items.length,
+                              })}
                               key={scene.id}
                               onSelect={openScene}
                               scene={scene}

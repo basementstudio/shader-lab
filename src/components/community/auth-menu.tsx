@@ -112,7 +112,7 @@ export function AuthMenu({
     <Popover.Root>
       <Popover.Trigger
         aria-label={user ? "Account" : "Sign in"}
-        className="inline-flex size-7 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] text-[var(--ds-color-text-secondary)] transition-[background-color,border-color,color] duration-160 ease-[var(--ease-out-cubic)] hover:border-[var(--ds-border-hover)] hover:bg-white/8 hover:text-[var(--ds-color-text-primary)]"
+        className="inline-flex size-7 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] text-[var(--ds-color-text-secondary)] transition-[background-color,border-color,color] duration-160 ease-[var(--ease-out-cubic)] hover:border-[var(--ds-border-hover)] hover:bg-[var(--ds-color-surface-active)] hover:text-[var(--ds-color-text-primary)]"
         disabled={isPending}
       >
         {user?.image ? (
@@ -158,7 +158,7 @@ export function AuthMenu({
 
                   {handle && !onViewProfile ? (
                     <Link
-                      className="inline-flex min-h-7 w-full items-center justify-center rounded-[var(--ds-radius-control)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-2 transition-[background-color,border-color] duration-160 ease-[var(--ease-out-cubic)] hover:border-[var(--ds-border-hover)] hover:bg-white/8"
+                      className="inline-flex min-h-7 w-full items-center justify-center rounded-[var(--ds-radius-control)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-2 transition-[background-color,border-color] duration-160 ease-[var(--ease-out-cubic)] hover:border-[var(--ds-border-hover)] hover:bg-[var(--ds-color-surface-active)]"
                       href={profilePagePath(handle) as Route}
                       {...(newTab
                         ? { rel: "noopener noreferrer", target: "_blank" }

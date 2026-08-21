@@ -14,16 +14,18 @@ import {
 } from "@radix-ui/react-icons"
 import { AnimatePresence, motion } from "motion/react"
 import dynamic from "next/dynamic"
-import Link from "next/link"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { AgentConnectPanel } from "@/components/editor/agent-connect-panel"
 import { FloatingDesktopPanel } from "@/components/editor/floating-desktop-panel"
+import { Button } from "@/components/ui/button"
 import { GlassPanel } from "@/components/ui/glass-panel"
 import { IconButton } from "@/components/ui/icon-button"
+import { IconButtonLink } from "@/components/ui/icon-button/link"
 import { HoverTooltip } from "@/components/ui/tooltip"
 import { Typography } from "@/components/ui/typography"
 import { playUISound } from "@/lib/audio/shader-lab-sounds"
 import { cn } from "@/lib/cn"
+import { useCommunityUnread } from "@/lib/community/use-community-unread"
 import {
   applyEditorHistorySnapshot,
   buildEditorHistorySnapshot,
@@ -76,22 +78,30 @@ const EditorExportDialog = dynamic(
 const HISTORY_COMMIT_DEBOUNCE_MS = 220
 const GITHUB_REPO_URL = "https://github.com/basementstudio/shader-lab"
 
+function TopbarDivider({ className }: { className?: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        "block h-4 w-px rounded-full bg-[var(--ds-border-divider)]",
+        className
+      )}
+    />
+  )
+}
+
 function GitHubStarLink({ mobile = false }: { mobile?: boolean }) {
   return (
     <HoverTooltip content="GitHub" side={mobile ? "top" : "bottom"}>
-      <Link
+      <IconButtonLink
         aria-label="Open Shader Lab on GitHub"
-        className={
-          mobile
-            ? "inline-flex size-8 items-center justify-center rounded-[var(--ds-radius-control)] bg-[var(--ds-color-surface-subtle)] text-[var(--ds-color-text-tertiary)] transition-[background-color,color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:bg-white/8 hover:text-[var(--ds-color-text-primary)] active:scale-[0.98]"
-            : "inline-flex h-7 w-7 items-center justify-center rounded-[var(--ds-radius-icon)] bg-[var(--ds-color-surface-subtle)] text-[var(--ds-color-text-tertiary)] transition-[background-color,color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:bg-white/8 hover:text-[var(--ds-color-text-primary)] active:scale-[0.98]"
-        }
+        className={mobile ? "size-8" : "h-7 w-7"}
         href={GITHUB_REPO_URL}
         rel="noreferrer"
         target="_blank"
       >
         <GitHubLogoIcon height={14} width={14} />
-      </Link>
+      </IconButtonLink>
     </HoverTooltip>
   )
 }
@@ -140,6 +150,8 @@ export function EditorTopBar({
   const [publishedSlug, setPublishedSlug] = useState<string | null>(null)
   const [autoOpenSlug, setAutoOpenSlug] = useState<string | null>(null)
   const [hasOpenedCommunity, setHasOpenedCommunity] = useState(false)
+  const { markSeen: markCommunitySeen, unread: communityUnread } =
+    useCommunityUnread(communityEnabled)
 
   useEffect(() => {
     if (!communityEnabled) {
@@ -446,19 +458,20 @@ export function EditorTopBar({
       >
         {({ dragHandleProps }) => (
           <GlassPanel
-            className="flex min-h-11 w-auto items-center justify-between gap-[var(--ds-space-4)] px-[10px] py-2"
+            className="flex min-h-11 w-auto items-center justify-between gap-[var(--ds-space-4)] px-[10px] py-[3px]"
             variant="panel"
           >
-            <div className="inline-flex items-center gap-1.5">
-              <IconButton
-                aria-label="Drag"
-                className="h-7 w-7 cursor-grab text-[var(--ds-color-text-muted)] active:cursor-grabbing"
-                tooltipSide="bottom"
-                variant="ghost"
-                {...dragHandleProps}
-              >
-                <DragHandleDots2Icon height={14} width={14} />
-              </IconButton>
+            <IconButton
+              aria-label="Drag"
+              className="h-7 w-7 cursor-grab text-[var(--ds-color-text-muted)] active:cursor-grabbing"
+              tooltipSide="bottom"
+              variant="ghost"
+              {...dragHandleProps}
+            >
+              <DragHandleDots2Icon height={14} width={14} />
+            </IconButton>
+
+            <div className="inline-flex items-center gap-0.5 rounded-[var(--ds-radius-bar)] border border-white/8 bg-black/25 p-[3px]">
               <IconButton
                 aria-label="Undo"
                 className="h-7 w-7 disabled:opacity-45"
@@ -482,9 +495,9 @@ export function EditorTopBar({
               >
                 <ResetIcon className="scale-x-[-1]" height={18} width={18} />
               </IconButton>
-            </div>
 
-            <div className="inline-flex items-center gap-1.5">
+              <TopbarDivider className="mx-0.5" />
+
               <IconButton
                 aria-label="Zoom out"
                 className="h-7 w-7 disabled:opacity-45"
@@ -495,24 +508,23 @@ export function EditorTopBar({
               >
                 <ZoomOutIcon height={18} width={18} />
               </IconButton>
-              <HoverTooltip
-                content="Reset view"
-                disabled={!hasResettableView}
-                side="bottom"
+              <IconButton
+                aria-label="Reset view"
+                className="min-w-16 max-[899px]:min-w-14"
+                labelled
+                onClick={() => {
+                  resetView()
+                  playUISound("action.reset")
+                }}
+                tooltipDisabled={!hasResettableView}
+                tooltipSide="bottom"
+                uiSound="none"
+                variant="outline"
               >
-                <button
-                  className="inline-flex h-7 min-w-16 cursor-pointer items-center justify-center rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-[10px] transition-[background-color,border-color,color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:bg-white/8 hover:border-[var(--ds-border-hover)] active:scale-[0.98] max-[899px]:min-w-14"
-                  onClick={() => {
-                    resetView()
-                    playUISound("action.reset")
-                  }}
-                  type="button"
-                >
-                  <Typography as="span" tone="secondary" variant="monoSm">
-                    {Math.round(zoom * 100)}%
-                  </Typography>
-                </button>
-              </HoverTooltip>
+                <Typography as="span" tone="inherit" variant="monoSm">
+                  {Math.round(zoom * 100)}%
+                </Typography>
+              </IconButton>
               <IconButton
                 aria-label="Zoom in"
                 className="h-7 w-7 disabled:opacity-45"
@@ -523,10 +535,46 @@ export function EditorTopBar({
               >
                 <ZoomInIcon height={18} width={18} />
               </IconButton>
-              <span
-                aria-hidden="true"
-                className="block h-5 w-px rounded-full bg-[var(--ds-border-divider)]"
-              />
+              <TopbarDivider className="mx-0.5" />
+
+              {rightSidebarVisible ? (
+                <IconButton
+                  aria-label={
+                    sidebarView === "scene"
+                      ? "Layer properties"
+                      : "Scene settings"
+                  }
+                  className="h-7 w-7"
+                  selected={sidebarView === "scene"}
+                  onClick={() => {
+                    toggleSidebarView()
+                    playUISound("action.panelSwitch")
+                  }}
+                  uiSound="none"
+                  variant="default"
+                >
+                  <GearIcon height={16} width={16} />
+                </IconButton>
+              ) : null}
+
+              <IconButton
+                aria-label="Interface sounds"
+                className="h-7 w-7"
+                onClick={() => toggleSoundEnabled()}
+                selected={soundEnabled}
+                tooltip={soundEnabled ? "Mute sounds" : "Unmute sounds"}
+                tooltipSide="bottom"
+                uiSound="none"
+              >
+                {soundEnabled ? (
+                  <SpeakerLoudIcon height={16} width={16} />
+                ) : (
+                  <SpeakerOffIcon height={16} width={16} />
+                )}
+              </IconButton>
+            </div>
+
+            <div className="inline-flex items-center gap-1.5">
               <AnimatePresence initial={false}>
                 {hasMovedFloatingPanels ? (
                   <motion.div
@@ -539,65 +587,25 @@ export function EditorTopBar({
                       ease: [0.32, 0.72, 0, 1],
                     }}
                   >
-                    <HoverTooltip content="Reset layout" side="bottom">
-                      <button
-                        className="inline-flex h-7 cursor-pointer items-center justify-center whitespace-nowrap rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-[10px] transition-[background-color,border-color,color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:bg-white/8 hover:border-[var(--ds-border-hover)] active:scale-[0.98]"
-                        onClick={() => {
-                          resetFloatingPanels()
-                          playUISound("action.reset")
-                        }}
-                        type="button"
-                      >
-                        <Typography
-                          as="span"
-                          tone="secondary"
-                          variant="caption"
-                        >
-                          Reset layout
-                        </Typography>
-                      </button>
-                    </HoverTooltip>
+                    <IconButton
+                      aria-label="Reset layout"
+                      className="whitespace-nowrap"
+                      labelled
+                      onClick={() => {
+                        resetFloatingPanels()
+                        playUISound("action.reset")
+                      }}
+                      tooltipSide="bottom"
+                      uiSound="none"
+                      variant="outline"
+                    >
+                      <Typography as="span" tone="inherit" variant="caption">
+                        Reset layout
+                      </Typography>
+                    </IconButton>
                   </motion.div>
                 ) : null}
               </AnimatePresence>
-              {rightSidebarVisible ? (
-                <IconButton
-                  aria-label={
-                    sidebarView === "scene"
-                      ? "Layer properties"
-                      : "Scene settings"
-                  }
-                  className={cn(
-                    "h-7 w-7",
-                    sidebarView === "scene" && "bg-white/10"
-                  )}
-                  onClick={() => {
-                    toggleSidebarView()
-                    playUISound("action.panelSwitch")
-                  }}
-                  uiSound="none"
-                  variant="default"
-                >
-                  <GearIcon height={16} width={16} />
-                </IconButton>
-              ) : null}
-              <AgentConnectPanel />
-              <IconButton
-                aria-label={soundEnabled ? "Mute interface sounds" : "Unmute interface sounds"}
-                aria-pressed={!soundEnabled}
-                className={cn("h-7 w-7", !soundEnabled && "bg-white/10")}
-                onClick={() => toggleSoundEnabled()}
-                tooltip={soundEnabled ? "Mute sounds" : "Unmute sounds"}
-                tooltipSide="bottom"
-                uiSound="none"
-                variant={!soundEnabled ? "active" : "default"}
-              >
-                {soundEnabled ? (
-                  <SpeakerLoudIcon height={16} width={16} />
-                ) : (
-                  <SpeakerOffIcon height={16} width={16} />
-                )}
-              </IconButton>
               <IconButton
                 aria-label="Export"
                 className="h-7 w-7 disabled:opacity-45"
@@ -609,22 +617,32 @@ export function EditorTopBar({
               >
                 <DownloadIcon height={16} width={16} />
               </IconButton>
+              <TopbarDivider />
               <GitHubStarLink />
+              <AgentConnectPanel />
               {communityEnabled ? (
                 <>
-                  <IconButton
-                    aria-label="Community scenes"
-                    className="h-7 w-7"
-                    onClick={() => {
-                      setHasOpenedCommunity(true)
-                      setCommunityOpen(true)
-                    }}
-                    tooltip="Community scenes"
-                    tooltipSide="bottom"
-                    variant="outline"
-                  >
-                    <GlobeIcon height={16} width={16} />
-                  </IconButton>
+                  <span className="relative inline-flex">
+                    <Button
+                      className="h-7 gap-1.5"
+                      onClick={() => {
+                        setHasOpenedCommunity(true)
+                        setCommunityOpen(true)
+                        markCommunitySeen()
+                      }}
+                      size="compact"
+                      variant="secondary"
+                    >
+                      <GlobeIcon height={14} width={14} />
+                      Community
+                    </Button>
+                    {communityUnread ? (
+                      <span
+                        aria-hidden="true"
+                        className="pointer-events-none absolute -top-0.5 -right-0.5 size-2 rounded-full border border-[var(--ds-color-canvas)] bg-emerald-400"
+                      />
+                    ) : null}
+                  </span>
                   <AuthMenu newTab />
                 </>
               ) : null}
@@ -672,20 +690,22 @@ export function EditorTopBar({
               >
                 <ZoomOutIcon height={18} width={18} />
               </IconButton>
-              <HoverTooltip content="Reset view" disabled={!hasResettableView}>
-                <button
-                  className="inline-flex h-7 min-w-16 cursor-pointer items-center justify-center rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-[10px] transition-[background-color,border-color,color,transform] duration-160 ease-[var(--ease-out-cubic)] hover:bg-white/8 hover:border-[var(--ds-border-hover)] active:scale-[0.98]"
-                  onClick={() => {
-                    resetView()
-                    playUISound("action.reset")
-                  }}
-                  type="button"
-                >
-                  <Typography as="span" tone="secondary" variant="monoSm">
-                    {Math.round(zoom * 100)}%
-                  </Typography>
-                </button>
-              </HoverTooltip>
+              <IconButton
+                aria-label="Reset view"
+                className="min-w-16"
+                labelled
+                onClick={() => {
+                  resetView()
+                  playUISound("action.reset")
+                }}
+                tooltipDisabled={!hasResettableView}
+                uiSound="none"
+                variant="outline"
+              >
+                <Typography as="span" tone="inherit" variant="monoSm">
+                  {Math.round(zoom * 100)}%
+                </Typography>
+              </IconButton>
               <IconButton
                 aria-label="Zoom in"
                 className="h-7 w-7 disabled:opacity-45"
@@ -694,10 +714,7 @@ export function EditorTopBar({
               >
                 <ZoomInIcon height={18} width={18} />
               </IconButton>
-              <span
-                aria-hidden="true"
-                className="mx-1 block h-5 w-px rounded-full bg-[var(--ds-border-divider)]"
-              />
+              <TopbarDivider className="mx-1 h-5" />
               <IconButton
                 aria-label="Export"
                 className="h-7 w-7 disabled:opacity-45"
@@ -709,13 +726,12 @@ export function EditorTopBar({
                 <DownloadIcon height={16} width={16} />
               </IconButton>
               <IconButton
-                aria-label={soundEnabled ? "Mute interface sounds" : "Unmute interface sounds"}
-                aria-pressed={!soundEnabled}
-                className={cn("h-7 w-7", !soundEnabled && "bg-white/10")}
+                aria-label="Interface sounds"
+                className="h-7 w-7"
                 onClick={() => toggleSoundEnabled()}
+                selected={soundEnabled}
                 tooltip={soundEnabled ? "Mute sounds" : "Unmute sounds"}
                 uiSound="none"
-                variant={!soundEnabled ? "active" : "default"}
               >
                 {soundEnabled ? (
                   <SpeakerLoudIcon height={16} width={16} />

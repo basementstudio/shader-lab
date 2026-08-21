@@ -1,6 +1,6 @@
 import localFont from "next/font/local"
 
-const sans = localFont({
+const geistSans = localFont({
   src: [
     {
       path: "../../public/fonts/geist/Geist-Sans-VF.woff2",
@@ -15,7 +15,7 @@ const sans = localFont({
   variable: "--geist-sans",
 })
 
-const mono = localFont({
+const geistMono = localFont({
   src: [
     {
       path: "../../public/fonts/geist/Geist-Mono.woff2",
@@ -233,8 +233,8 @@ const bMecha = localFont({
 })
 
 const fonts = [
-  sans,
-  mono,
+  geistSans,
+  geistMono,
   adhesion,
   blob,
   bsmntGrotesque,

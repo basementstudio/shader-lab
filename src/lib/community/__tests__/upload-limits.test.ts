@@ -36,6 +36,10 @@ describe("maxBytesForMimeType", () => {
   test("the image limit is 4 MB", () => {
     expect(MAX_IMAGE_BYTES).toBe(4 * MB)
   })
+
+  test("the asset limit is 20 MB", () => {
+    expect(MAX_ASSET_BYTES).toBe(20 * MB)
+  })
 })
 
 describe("describeUploadLimit", () => {
@@ -67,14 +71,14 @@ describe("describeUploadLimit", () => {
 
   test("lets a video through at a size that would fail as an image", () => {
     expect(
-      describeUploadLimit({ mimeType: "video/mp4", sizeBytes: 40 * MB })
+      describeUploadLimit({ mimeType: "video/mp4", sizeBytes: 12 * MB })
     ).toBeNull()
   })
 
   test("still caps video at the loose limit", () => {
     expect(
-      describeUploadLimit({ mimeType: "video/mp4", sizeBytes: 101 * MB })
-    ).toBe("Files must be 100 MB or smaller, and One of the files is 101 MB.")
+      describeUploadLimit({ mimeType: "video/mp4", sizeBytes: 21 * MB })
+    ).toBe("Files must be 20 MB or smaller, and One of the files is 21 MB.")
   })
 
   test("rejects an empty or negative length, so a forged presign cannot skip the check", () => {

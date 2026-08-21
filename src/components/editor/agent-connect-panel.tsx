@@ -1,7 +1,7 @@
 "use client"
 
 import { Popover } from "@base-ui/react/popover"
-import { CheckIcon, CopyIcon, Cross2Icon } from "@radix-ui/react-icons"
+import { CheckIcon, CopyIcon } from "@radix-ui/react-icons"
 import { useCallback, useEffect, useState } from "react"
 import { GlassPanel } from "@/components/ui/glass-panel"
 import { IconButton } from "@/components/ui/icon-button"
@@ -17,31 +17,38 @@ const INSTALL_COMMAND =
 
 const STATUS_COPY: Record<
   AgentBridgeStatus,
-  { dot: string; label: string }
+  { dot: string; label: string; tone: string }
 > = {
   connected: {
     dot: "bg-emerald-400",
     label: "Agent connected",
+    tone: "text-emerald-400",
   },
   connecting: {
     dot: "animate-pulse bg-amber-400",
     label: "Waiting for your agent",
+    tone: "text-amber-400",
   },
   failed: {
     dot: "bg-red-400",
     label: "Could not reach your agent",
+    tone: "text-red-400",
   },
   off: {
     dot: "bg-white/25",
     label: "Agent control is off",
+    tone: "text-white/30",
   },
 }
 
-function SignalMark({ busy }: { busy: boolean }) {
+function SignalMark({ busy, tone }: { busy: boolean; tone: string }) {
   return (
     <span
       aria-hidden="true"
-      className="pointer-events-none absolute top-0 right-0 flex size-1.5 items-center justify-center"
+      className={cn(
+        "pointer-events-none absolute top-0 right-0 flex size-1.5 items-center justify-center",
+        tone
+      )}
     >
       {busy ? (
         <>
@@ -49,21 +56,11 @@ function SignalMark({ busy }: { busy: boolean }) {
           <span className="absolute size-1.5 animate-[agent-signal-ring_1.5s_var(--ease-out-cubic)_0.5s_infinite] rounded-full border border-current" />
         </>
       ) : null}
-      <span className="size-1.5 rounded-full bg-current" />
-    </span>
-  )
-}
-
-function FailedMark() {
-  return (
-    <span
-      aria-hidden="true"
-      className="pointer-events-none absolute top-0 right-0 flex size-2 items-center justify-center"
-    >
-      <Cross2Icon
-        className="!size-[11px]"
-        stroke="currentColor"
-        strokeWidth={2.2}
+      <span
+        className={cn(
+          "size-1.5 rounded-full bg-current",
+          busy && "animate-pulse"
+        )}
       />
     </span>
   )
@@ -198,8 +195,7 @@ export function AgentConnectPanel() {
             variant={live ? "ghost" : "default"}
           >
             <XmcpIcon />
-            {live ? <SignalMark busy={busy} /> : null}
-            {status === "failed" ? <FailedMark /> : null}
+            <SignalMark busy={live && busy} tone={copyState.tone} />
           </IconButton>
         }
       />

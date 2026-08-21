@@ -1,5 +1,6 @@
 "use client"
 
+import type { Route } from "next"
 import {
   DownloadIcon,
   DragHandleDots2Icon,
@@ -18,6 +19,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { AgentConnectPanel } from "@/components/editor/agent-connect-panel"
 import { FloatingDesktopPanel } from "@/components/editor/floating-desktop-panel"
 import { Button } from "@/components/ui/button"
+import { ButtonLink } from "@/components/ui/button/link"
 import { GlassPanel } from "@/components/ui/glass-panel"
 import { IconButton } from "@/components/ui/icon-button"
 import { IconButtonLink } from "@/components/ui/icon-button/link"
@@ -657,28 +659,51 @@ export function EditorTopBar({
             className="pointer-events-auto flex min-h-11 w-full max-w-[420px] flex-wrap items-center justify-between gap-2 p-2.5"
             variant="panel"
           >
-            <div className="inline-flex w-full items-center justify-between gap-1.5">
-              <IconButton
-                aria-label="Undo"
-                className="h-7 w-7 disabled:opacity-45"
-                disabled={!canUndo}
-                onClick={handleUndo}
-                tooltip="Revert"
-                uiSound="none"
-                variant="default"
-              >
-                <ResetIcon height={18} width={18} />
-              </IconButton>
-              <IconButton
-                aria-label="Redo"
-                className="h-7 w-7 disabled:opacity-45"
-                disabled={!canRedo}
-                onClick={handleRedo}
-                uiSound="none"
-                variant="default"
-              >
-                <ResetIcon className="scale-x-[-1]" height={18} width={18} />
-              </IconButton>
+            <div className="flex w-full items-center justify-between gap-2">
+              <div className="inline-flex items-center gap-1.5">
+                <IconButton
+                  aria-label="Undo"
+                  className="h-7 w-7 disabled:opacity-45"
+                  disabled={!canUndo}
+                  onClick={handleUndo}
+                  tooltip="Revert"
+                  uiSound="none"
+                  variant="default"
+                >
+                  <ResetIcon height={18} width={18} />
+                </IconButton>
+                <IconButton
+                  aria-label="Redo"
+                  className="h-7 w-7 disabled:opacity-45"
+                  disabled={!canRedo}
+                  onClick={handleRedo}
+                  uiSound="none"
+                  variant="default"
+                >
+                  <ResetIcon className="scale-x-[-1]" height={18} width={18} />
+                </IconButton>
+              </div>
+
+              {communityEnabled ? (
+                <span className="relative inline-flex">
+                  <ButtonLink
+                    className="h-7 gap-1.5"
+                    href={"/community" as Route}
+                    onClick={() => markCommunitySeen()}
+                    size="compact"
+                    variant="secondary"
+                  >
+                    <GlobeIcon height={14} width={14} />
+                    Community
+                  </ButtonLink>
+                  {communityUnread ? (
+                    <span
+                      aria-hidden="true"
+                      className="pointer-events-none absolute -top-0.5 -right-0.5 size-2 rounded-full border border-[var(--ds-color-canvas)] bg-emerald-400"
+                    />
+                  ) : null}
+                </span>
+              ) : null}
             </div>
 
             <div className="inline-flex w-full items-center justify-between gap-1.5">

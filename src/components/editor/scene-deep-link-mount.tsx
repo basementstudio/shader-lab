@@ -138,7 +138,13 @@ export function SceneDeepLinkMount() {
       activeRunSlug = null
     }
 
-    const failsafe = window.setTimeout(finish, PENDING_SCENE_TIMEOUT_MS)
+    /* Once the failsafe reveals the starter, the run is dead: applying the
+     * scene later would clobber whatever the user has started editing. */
+    let timedOut = false
+    const failsafe = window.setTimeout(() => {
+      timedOut = true
+      finish()
+    }, PENDING_SCENE_TIMEOUT_MS)
 
     const fail = () => {
       showOverlayError("That scene is no longer available.")
@@ -151,6 +157,10 @@ export function SceneDeepLinkMount() {
           ? prefetchedScene
           : fetchSceneDetail(slug))
 
+        if (timedOut) {
+          return
+        }
+
         if (!scene) {
           fail()
 
@@ -158,6 +168,10 @@ export function SceneDeepLinkMount() {
         }
 
         const res = await fetch(scene.labUrl)
+
+        if (timedOut) {
+          return
+        }
 
         if (!res.ok) {
           fail()
@@ -167,7 +181,15 @@ export function SceneDeepLinkMount() {
 
         const projectFile = parseLabProjectFile(await res.text())
 
+        if (timedOut) {
+          return
+        }
+
         if (hasImportedCustomShaderCode(projectFile)) {
+          // Everything is loaded; nothing can hang anymore. Reading the
+          // consent dialog may legitimately take longer than the failsafe.
+          window.clearTimeout(failsafe)
+
           const granted = await requestShaderConsent(scene.title)
 
           if (!granted) {
@@ -180,7 +202,9 @@ export function SceneDeepLinkMount() {
         applyRemixedScene(projectFile, scene)
         finish()
       } catch {
-        fail()
+        if (!timedOut) {
+          fail()
+        }
       } finally {
         window.clearTimeout(failsafe)
       }

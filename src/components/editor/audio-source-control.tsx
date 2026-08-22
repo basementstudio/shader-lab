@@ -247,7 +247,7 @@ export function AudioSourceControl({
     let cancelled = false
     let idleHandle: number | null = null
     let timeoutHandle: number | null = null
-    let unsubscribe: (() => void) | null = null
+    const unsubscribers: (() => void)[] = []
 
     const startAnalysis = () => {
       if (cancelled) {
@@ -258,7 +258,7 @@ export function AudioSourceControl({
       void analyze(url)
     }
 
-    const analysisInUse =
+    const analysisInUse = () =>
       useAudioStore.getState().links.length > 0 ||
       showAdvanced ||
       useEditorStore.getState().timelinePanelOpen
@@ -272,11 +272,26 @@ export function AudioSourceControl({
     }
 
     const schedule = () => {
-      if (analysisInUse) {
+      if (analysisInUse()) {
         startAnalysis()
 
         return
       }
+
+      // A consumer can appear while we wait for idle — react right away
+      // instead of leaving it without data until the idle deadline.
+      unsubscribers.push(
+        useAudioStore.subscribe((state) => {
+          if (state.links.length > 0) {
+            startAnalysis()
+          }
+        }),
+        useEditorStore.subscribe((state) => {
+          if (state.timelinePanelOpen) {
+            startAnalysis()
+          }
+        })
+      )
 
       if (idleWindow.requestIdleCallback) {
         idleHandle = idleWindow.requestIdleCallback(startAnalysis, {
@@ -290,18 +305,23 @@ export function AudioSourceControl({
     if (useEditorStore.getState().pendingSceneSlug === null) {
       schedule()
     } else {
-      unsubscribe = useEditorStore.subscribe((state) => {
+      let unsubscribePending: (() => void) | null = null
+      unsubscribePending = useEditorStore.subscribe((state) => {
         if (state.pendingSceneSlug === null) {
-          unsubscribe?.()
-          unsubscribe = null
+          unsubscribePending?.()
+          unsubscribePending = null
           schedule()
         }
       })
+      unsubscribers.push(() => unsubscribePending?.())
     }
 
     return () => {
       cancelled = true
-      unsubscribe?.()
+
+      for (const unsubscribe of unsubscribers) {
+        unsubscribe()
+      }
 
       if (idleHandle !== null) {
         idleWindow.cancelIdleCallback?.(idleHandle)

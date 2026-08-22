@@ -158,8 +158,9 @@ export class PipelineManager {
   private passFailures = new Map<string, PassFailureState>()
   private readonly strictPassFailures: boolean
   private pendingMediaLoads = new Set<string>()
+  // Both keyed by pass key, not layer id: layers of the same type share one
+  // chunk, so they must share one in-flight load and one failure count.
   private pendingPassLoads = new Set<string>()
-  // Keyed by pass key, not layer id: a dead chunk is dead for every layer.
   private failedPassLoads = new Map<string, number>()
   private cachedActivePasses: LayerPassNode[] = []
   private activePassesDirty = true
@@ -664,16 +665,14 @@ export class PipelineManager {
     const factory = getLoadedPassFactory(key)
 
     if (factory) {
-      this.pendingPassLoads.delete(layer.id)
-
       return factory(layer.id, this.renderer)
     }
 
     if (
       (this.failedPassLoads.get(key) ?? 0) < MAX_PASS_FAILURES &&
-      !this.pendingPassLoads.has(layer.id)
+      !this.pendingPassLoads.has(key)
     ) {
-      this.pendingPassLoads.add(layer.id)
+      this.pendingPassLoads.add(key)
 
       loadPassFactory(key)
         .then(() => {
@@ -693,7 +692,7 @@ export class PipelineManager {
           )
         })
         .finally(() => {
-          this.pendingPassLoads.delete(layer.id)
+          this.pendingPassLoads.delete(key)
         })
     }
 

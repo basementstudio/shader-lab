@@ -508,6 +508,8 @@ export function applyLabProjectFile(
     editorStore.updateSceneConfig(DEFAULT_SCENE_CONFIG)
   }
 
+  editorStore.noteSceneReplaced()
+
   return {
     missingAssetCount: nextLayers.filter((layer) =>
       Boolean(layer.assetId && layer.runtimeError)

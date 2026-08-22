@@ -47,6 +47,9 @@ function measureElement(element: HTMLElement): Size {
 // Generous: this only waits on adapter and device acquisition.
 const BOOT_TIMEOUT_MS = 20_000
 
+// Cap on holding the overlay: a wedged resource must not trap the editor.
+const SCENE_REVEAL_TIMEOUT_MS = 8_000
+
 // A persistent GPU fault throws every frame; halt instead of spinning.
 const MAX_CONSECUTIVE_FRAME_FAILURES = 5
 
@@ -109,9 +112,12 @@ export function useEditorRenderer() {
     let frameInFlight = false
     let unregisterFramePump: (() => void) | null = null
     let unsubscribeRenderScale: (() => void) | null = null
+    let unsubscribeSceneRevision: (() => void) | null = null
     let consecutiveFrameFailures = 0
     let loopHalted = false
     let firstFrameMarked = false
+    let sceneRevealed = false
+    let revealDeadline = Number.POSITIVE_INFINITY
     const reportedFrameErrors = new Set<string>()
 
     editorStore.setWebGPUStatus("initializing")
@@ -128,8 +134,7 @@ export function useEditorRenderer() {
           throw new Error("WebGPU is not available in this browser.")
         }
 
-        const { createWebGPURenderer, preloadPassFactories } =
-          await rendererModulePromise
+        const { createWebGPURenderer } = await rendererModulePromise
         const renderer = await createWebGPURenderer(canvasElement)
         boot.mark("renderer-created")
 
@@ -139,14 +144,7 @@ export function useEditorRenderer() {
         }
 
         rendererRef.current = renderer
-        // Device acquisition masks the pass-chunk fetches: the current scene's
-        // pass modules land before the first frame, so nothing pops in.
-        await Promise.all([
-          renderer.initialize(),
-          preloadPassFactories(useLayerStore.getState().layers).catch(
-            () => undefined
-          ),
-        ])
+        await renderer.initialize()
         boot.mark("device-ready")
         Sentry.setContext("gpu", gpuSnapshot())
         editorStore.setLiveRenderer(renderer)
@@ -163,7 +161,7 @@ export function useEditorRenderer() {
         editorStore.setCanvasSize(initialSize.width, initialSize.height)
         renderer.resize(initialSize, getPixelRatio())
         editorStore.setWebGPUStatus("ready")
-        setIsReady(true)
+        revealDeadline = performance.now() + SCENE_REVEAL_TIMEOUT_MS
 
         resizeObserver = new ResizeObserver(([entry]) => {
           if (!entry) {
@@ -193,6 +191,22 @@ export function useEditorRenderer() {
           renderer.resize(useEditorStore.getState().canvasSize, getPixelRatio())
         })
 
+        // A swapped-in scene gets its own loading state: without this the
+        // overlay lifts on the starter scene and the replacement's layers
+        // appear one compile at a time.
+        let lastSceneRevision = useEditorStore.getState().sceneRevision
+        let renderedSceneRevision = lastSceneRevision
+        unsubscribeSceneRevision = useEditorStore.subscribe((state) => {
+          if (state.sceneRevision === lastSceneRevision) {
+            return
+          }
+
+          lastSceneRevision = state.sceneRevision
+          sceneRevealed = false
+          revealDeadline = performance.now() + SCENE_REVEAL_TIMEOUT_MS
+          setIsReady(false)
+        })
+
         const scheduleNextFrame = () => {
           if (isDisposed || loopHalted) {
             return
@@ -205,12 +219,22 @@ export function useEditorRenderer() {
           )
         }
 
+        const revealScene = () => {
+          if (sceneRevealed) {
+            return
+          }
+
+          sceneRevealed = true
+          setIsReady(true)
+        }
+
         const haltLoop = (reason: HaltReason) => {
           if (loopHalted) {
             return
           }
 
           loopHalted = true
+          revealScene()
           // Terminal before the first frame: otherwise the boot deadline still
           // fires a misleading timeout 20s later.
           boot.settleDeadline()
@@ -269,6 +293,18 @@ export function useEditorRenderer() {
             frameInFlight = false
           }
 
+          // Out here, not in runFrame: that body has early exits. The
+          // revisions must agree: a swap can land mid-frame, and that frame
+          // still carries the outgoing scene.
+          if (
+            (firstFrameMarked &&
+              renderedSceneRevision === lastSceneRevision &&
+              !renderer.hasPendingResources()) ||
+            performance.now() >= revealDeadline
+          ) {
+            revealScene()
+          }
+
           scheduleNextFrame()
         }
 
@@ -289,6 +325,7 @@ export function useEditorRenderer() {
           const layerState = useLayerStore.getState()
           const assetState = useAssetStore.getState()
           const editorState = useEditorStore.getState()
+          renderedSceneRevision = editorState.sceneRevision
           const rawDelta = Math.max(0, (now - lastFrameTime) / 1000)
 
           lastFrameTime = now
@@ -385,6 +422,7 @@ export function useEditorRenderer() {
       boot.dispose()
       unregisterFramePump?.()
       unsubscribeRenderScale?.()
+      unsubscribeSceneRevision?.()
 
       if (resizeObserver) {
         resizeObserver.disconnect()

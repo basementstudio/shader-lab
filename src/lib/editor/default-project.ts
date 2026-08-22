@@ -72,6 +72,21 @@ export function getDefaultProjectSelectedLayerId(): string | null {
   return DEFAULT_PROJECT.selectedLayerId
 }
 
+/** Bundled media the first frame waits on. Audio is deferred, so excluded. */
+export function getDefaultProjectPreloadUrls(): string[] {
+  const layerAssetIds = new Set(
+    DEFAULT_PROJECT.layers
+      .map((layer) => layer.assetId)
+      .filter((assetId): assetId is string => assetId !== null)
+  )
+
+  return DEFAULT_PROJECT_ASSETS.filter(
+    (asset) =>
+      layerAssetIds.has(asset.id) &&
+      (asset.kind === "image" || asset.kind === "video")
+  ).map((asset) => asset.url)
+}
+
 export function getDefaultProjectTimeline(): {
   duration: number
   loop: boolean

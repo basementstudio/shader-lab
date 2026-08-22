@@ -6,13 +6,11 @@ export type LayerType = EditorLayer["type"]
 
 export type PassFailureSurface =
   | "build-effect-node"
-  | "pass-module-load"
   | "pass-render"
   | "pipeline-compile"
 
 const FALLBACK_MESSAGE: Record<PassFailureSurface, string> = {
   "build-effect-node": "Custom shader execution failed.",
-  "pass-module-load": "Layer code failed to load.",
   "pass-render": "Layer failed to render.",
   "pipeline-compile": "Shader compilation failed.",
 }

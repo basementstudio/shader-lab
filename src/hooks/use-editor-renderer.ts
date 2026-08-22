@@ -112,6 +112,7 @@ export function useEditorRenderer() {
     let frameInFlight = false
     let unregisterFramePump: (() => void) | null = null
     let unsubscribeRenderScale: (() => void) | null = null
+    let unsubscribeSceneRevision: (() => void) | null = null
     let consecutiveFrameFailures = 0
     let loopHalted = false
     let firstFrameMarked = false
@@ -188,6 +189,22 @@ export function useEditorRenderer() {
 
           lastRenderScale = state.renderScale
           renderer.resize(useEditorStore.getState().canvasSize, getPixelRatio())
+        })
+
+        // A swapped-in scene gets its own loading state: without this the
+        // overlay lifts on the starter scene and the replacement's layers
+        // appear one compile at a time.
+        let lastSceneRevision = useEditorStore.getState().sceneRevision
+        let renderedSceneRevision = lastSceneRevision
+        unsubscribeSceneRevision = useEditorStore.subscribe((state) => {
+          if (state.sceneRevision === lastSceneRevision) {
+            return
+          }
+
+          lastSceneRevision = state.sceneRevision
+          sceneRevealed = false
+          revealDeadline = performance.now() + SCENE_REVEAL_TIMEOUT_MS
+          setIsReady(false)
         })
 
         const scheduleNextFrame = () => {
@@ -276,9 +293,13 @@ export function useEditorRenderer() {
             frameInFlight = false
           }
 
-          // Out here, not in runFrame: that body has early exits.
+          // Out here, not in runFrame: that body has early exits. The
+          // revisions must agree: a swap can land mid-frame, and that frame
+          // still carries the outgoing scene.
           if (
-            (firstFrameMarked && !renderer.hasPendingResources()) ||
+            (firstFrameMarked &&
+              renderedSceneRevision === lastSceneRevision &&
+              !renderer.hasPendingResources()) ||
             performance.now() >= revealDeadline
           ) {
             revealScene()
@@ -304,6 +325,7 @@ export function useEditorRenderer() {
           const layerState = useLayerStore.getState()
           const assetState = useAssetStore.getState()
           const editorState = useEditorStore.getState()
+          renderedSceneRevision = editorState.sceneRevision
           const rawDelta = Math.max(0, (now - lastFrameTime) / 1000)
 
           lastFrameTime = now
@@ -400,6 +422,7 @@ export function useEditorRenderer() {
       boot.dispose()
       unregisterFramePump?.()
       unsubscribeRenderScale?.()
+      unsubscribeSceneRevision?.()
 
       if (resizeObserver) {
         resizeObserver.disconnect()

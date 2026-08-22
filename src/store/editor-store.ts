@@ -39,6 +39,8 @@ export interface EditorStoreState extends EditorStateSnapshot {
   liveCanvas: HTMLCanvasElement | null
   mobilePanel: MobileEditorPanel
   pendingSceneSlug: string | null
+  // Bumped on a wholesale scene swap, so the renderer re-gates its reveal.
+  sceneRevision: number
   startupPreviewDismissed: boolean
 }
 
@@ -53,6 +55,7 @@ export interface EditorStoreActions {
   focusFloatingPanel: (
     panel: "layers" | "properties" | "timeline" | "topbar"
   ) => void
+  noteSceneReplaced: () => void
   openTimelinePanel: () => void
   resetFloatingPanels: () => void
   resetView: () => void
@@ -134,7 +137,12 @@ export const useEditorStore = create<EditorStore>((set) => ({
   webgpuStatus: "idle",
   zoom: 1,
   pendingSceneSlug: null,
+  sceneRevision: 0,
   startupPreviewDismissed: false,
+
+  noteSceneReplaced: () => {
+    set((state) => ({ sceneRevision: state.sceneRevision + 1 }))
+  },
 
   clearPendingScene: () => {
     set((state) =>

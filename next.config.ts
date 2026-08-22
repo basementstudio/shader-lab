@@ -127,6 +127,16 @@ const nextConfig: NextConfig = {
   },
   headers: async () => [
     {
+      // Fixed filenames, so a SWR window rather than `immutable`.
+      source: "/:dir(scenes|examples|textures|assets)/:path*",
+      headers: [
+        {
+          key: "Cache-Control",
+          value: "public, max-age=604800, stale-while-revalidate=2592000",
+        },
+      ],
+    },
+    {
       source: "/(.*)",
       headers: [
         {

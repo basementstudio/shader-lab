@@ -7,18 +7,18 @@
       "id": "efb4eebe-d991-44c8-8f08-8fac18281a9b",
       "kind": "video",
       "mimeType": "video/mp4",
-      "sizeBytes": 934807,
+      "sizeBytes": 629868,
       "url": "/scenes/default/aura.mp4",
       "width": 578
     },
     {
-      "duration": 137.153333,
+      "duration": 59.996,
       "fileName": "aura.ogg",
       "height": null,
       "id": "f4a5f106-8d90-46a2-b86f-b68a7a1cd5fb",
       "kind": "audio",
       "mimeType": "audio/ogg",
-      "sizeBytes": 2455774,
+      "sizeBytes": 779577,
       "url": "/scenes/default/aura.ogg",
       "width": null
     }
@@ -68,42 +68,6 @@
   "exportedAt": "2026-08-14T15:16:56.006Z",
   "format": "shader-lab",
   "layers": [
-    {
-      "assetId": null,
-      "blendMode": "screen",
-      "compositeMode": "filter",
-      "expanded": true,
-      "hue": 0,
-      "id": "01b00205-9b82-4a90-8010-7a215ee65bcb",
-      "kind": "effect",
-      "locked": false,
-      "maskConfig": {
-        "invert": false,
-        "mode": "multiply",
-        "source": "luminance"
-      },
-      "name": "Dithering 2",
-      "opacity": 0.12,
-      "params": {
-        "algorithm": "bayer-4x4",
-        "animateDither": false,
-        "chromaticSplit": false,
-        "colorMode": "source",
-        "ditherSpeed": 1,
-        "dotScale": 1,
-        "highlightColor": "#f5f2e8",
-        "levels": 9,
-        "monoColor": "#f5f5f0",
-        "pixelSize": 2,
-        "preset": "custom",
-        "shadowColor": "#101010",
-        "spread": 0.15
-      },
-      "runtimeError": null,
-      "saturation": 1,
-      "type": "dithering",
-      "visible": true
-    },
     {
       "assetId": null,
       "blendMode": "normal",
@@ -501,7 +465,7 @@
   },
   "selectedLayerId": "cd60ee67-6fbe-41f2-9281-547a12823cc1",
   "timeline": {
-    "duration": 137.153333,
+    "duration": 59.996,
     "loop": true,
     "tracks": []
   },

@@ -37,10 +37,6 @@ import {
   getHistorySnapshotSignature,
 } from "@/lib/editor/history"
 import { isRestoringAutosave } from "@/lib/editor/autosave/suppress"
-import {
-  clearRequestedSceneSlug,
-  getRequestedSceneSlug,
-} from "@/lib/editor/requested-scene-slug"
 import { applyZoomAtPoint, getNextZoomStep } from "@/lib/editor/view-transform"
 import {
   registerHistoryShortcuts,
@@ -152,27 +148,9 @@ export function EditorTopBar({
   const [publishOpen, setPublishOpen] = useState(false)
   const [hasOpenedPublish, setHasOpenedPublish] = useState(false)
   const [publishedSlug, setPublishedSlug] = useState<string | null>(null)
-  const [autoOpenSlug, setAutoOpenSlug] = useState<string | null>(null)
   const [hasOpenedCommunity, setHasOpenedCommunity] = useState(false)
   const { markSeen: markCommunitySeen, unread: communityUnread } =
     useCommunityUnread(communityEnabled)
-
-  useEffect(() => {
-    if (!communityEnabled) {
-      return
-    }
-
-    const requested = getRequestedSceneSlug()
-
-    if (!requested) {
-      return
-    }
-
-    setAutoOpenSlug(requested)
-    setHasOpenedCommunity(true)
-
-    clearRequestedSceneSlug()
-  }, [communityEnabled])
 
   const handleExportDialogOpenChange = useCallback((open: boolean) => {
     if (open) {
@@ -790,7 +768,6 @@ export function EditorTopBar({
 
       {hasOpenedCommunity ? (
         <CommunityModal
-          autoOpenSlug={autoOpenSlug}
           focusSlug={publishedSlug}
           onOpenChange={(next) => {
             setCommunityOpen(next)

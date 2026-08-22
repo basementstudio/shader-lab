@@ -1,10 +1,7 @@
 "use client"
 
 import { useEffect } from "react"
-import {
-  isAgentBridgeEnabled,
-  startAgentBridgeClient,
-} from "@/lib/agent-bridge/client"
+import { isAgentBridgeEnabled } from "@/lib/agent-bridge/enabled"
 import { useAgentBridgeStore } from "@/store/agent-bridge-store"
 
 export function AgentBridgeMount() {
@@ -35,13 +32,25 @@ export function AgentBridgeMount() {
       return
     }
 
-    const stop = startAgentBridgeClient({
-      onBusyChange: setBusy,
-      onStatusChange: setStatus,
+    /* The bridge client pulls the renderer + export graph; only load it
+     * for the opt-in agent sessions that actually connect. */
+    let cancelled = false
+    let stop: (() => void) | null = null
+
+    void import("@/lib/agent-bridge/client").then((mod) => {
+      if (cancelled) {
+        return
+      }
+
+      stop = mod.startAgentBridgeClient({
+        onBusyChange: setBusy,
+        onStatusChange: setStatus,
+      })
     })
 
     return () => {
-      stop()
+      cancelled = true
+      stop?.()
       setStatus("off")
     }
   }, [enabled, setBusy, setStatus])

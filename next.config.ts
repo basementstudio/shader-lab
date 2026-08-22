@@ -106,12 +106,9 @@ const nextConfig: NextConfig = {
   experimental: {
     browserDebugInfoInTerminal: true,
     optimizePackageImports: [
-      "@react-three/drei",
-      "@react-three/fiber",
-      "gsap",
+      "@radix-ui/react-icons",
+      "motion",
       "three",
-      "postprocessing",
-      "lenis",
       "zustand",
     ],
   },
@@ -198,6 +195,14 @@ export default withSentryConfig(NextApp, {
   silent: !process.env.VERCEL,
   widenClientFileUpload: true,
   tunnelRoute: "/monitoring",
+  // Replay is never initialized in instrumentation-client.ts; strip its
+  // dead weight (and debug logging) from the shipped SDK.
+  bundleSizeOptimizations: {
+    excludeDebugStatements: true,
+    excludeReplayShadowDom: true,
+    excludeReplayIframe: true,
+    excludeReplayWorker: true,
+  },
   sourcemaps: { disable: !canPublishSentryArtifacts },
   release: {
     create: canPublishSentryArtifacts,

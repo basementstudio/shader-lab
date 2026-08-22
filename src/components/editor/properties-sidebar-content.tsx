@@ -20,7 +20,6 @@ import {
   startFluidInteractionRecording,
   stopFluidInteractionRecording,
 } from "@/lib/editor/fluid-interaction-recorder"
-import { formatCustomShaderSource } from "@/renderer/custom-shader-runtime"
 import { useLayerStore } from "@/store/layer-store"
 import { useTimelineStore } from "@/store/timeline-store"
 import type {
@@ -203,10 +202,14 @@ function CustomShaderSection({
             aria-label="Format sketch source"
             className="shrink-0"
             onClick={() => {
-              void formatCustomShaderSource({
-                fileName: "custom-shader.ts",
-                sourceCode: draftSource,
-              })
+              /* custom-shader-runtime pulls three/tsl; load it on demand. */
+              void import("@/renderer/custom-shader-runtime")
+                .then(({ formatCustomShaderSource }) =>
+                  formatCustomShaderSource({
+                    fileName: "custom-shader.ts",
+                    sourceCode: draftSource,
+                  })
+                )
                 .then((formatted) => {
                   setDraftSource(formatted)
                   setFormatError(null)

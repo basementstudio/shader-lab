@@ -9,7 +9,7 @@ import {
 } from "@/lib/community/cache-tags"
 import { isCommunityEnabled } from "@/lib/community/config"
 import { removeScene } from "@/lib/community/moderation"
-import { getPublishedScene } from "@/lib/community/scenes"
+import { getPublicScene } from "@/lib/community/public-scenes"
 
 export async function GET(
   _request: Request,
@@ -22,7 +22,7 @@ export async function GET(
   const { slug } = await params
 
   try {
-    const scene = await getPublishedScene(slug)
+    const scene = await getPublicScene(slug)
 
     if (!scene) {
       return Response.json({ error: "Scene not found." }, { status: 404 })

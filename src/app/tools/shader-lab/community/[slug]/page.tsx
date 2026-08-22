@@ -1,10 +1,9 @@
 import type { Metadata, Route } from "next"
 import Image from "next/image"
 import Link from "next/link"
-import { notFound } from "next/navigation"
+import { notFound, redirect } from "next/navigation"
 import { Suspense } from "react"
 import { AuthorAvatar } from "@/components/community/author-avatar"
-import { OpenInEditor } from "@/components/community/open-in-editor"
 import { PublicSceneCard } from "@/components/community/public-scene-card"
 import { RemixCredit } from "@/components/community/remix-credit"
 import { SCENE_GRID_CLASS_NAME } from "@/components/community/scene-grid"
@@ -93,7 +92,7 @@ export default function CommunityScenePage({
 
 async function SceneRoute({ params, searchParams }: RouteProps) {
   if ((await searchParams)[OPEN_IN_EDITOR_PARAM] === "1") {
-    return <OpenInEditor slug={(await params).slug} />
+    redirect(editorSceneHref((await params).slug) as Route)
   }
 
   return (

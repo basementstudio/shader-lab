@@ -25,13 +25,10 @@ import {
   clampZoom,
   getWheelZoomFactor,
 } from "@/lib/editor/view-transform"
-import { getRequestedSceneSlug } from "@/lib/editor/requested-scene-slug"
 import { useAssetStore } from "@/store/asset-store"
 import { useEditorStore } from "@/store/editor-store"
 import { useLayerStore } from "@/store/layer-store"
 import { useTimelineStore } from "@/store/timeline-store"
-
-const PENDING_SCENE_TIMEOUT_MS = 20_000
 
 export function EditorCanvasViewport() {
   const { canvasRef, fallbackMessage, isReady, viewportRef } =
@@ -49,26 +46,9 @@ export function EditorCanvasViewport() {
   )
   const panOffset = useEditorStore((state) => state.panOffset)
   const pendingSceneSlug = useEditorStore((state) => state.pendingSceneSlug)
-  const setPendingScene = useEditorStore((state) => state.setPendingScene)
   const zoom = useEditorStore((state) => state.zoom)
   const sceneConfig = useEditorStore((state) => state.sceneConfig)
   const canvasSize = useEditorStore((state) => state.canvasSize)
-
-  useEffect(() => {
-    const requested = getRequestedSceneSlug()
-
-    if (!requested) {
-      return
-    }
-
-    setPendingScene(requested)
-
-    const failsafe = window.setTimeout(() => {
-      useEditorStore.getState().clearPendingScene()
-    }, PENDING_SCENE_TIMEOUT_MS)
-
-    return () => window.clearTimeout(failsafe)
-  }, [setPendingScene])
 
   const compositionOverlay = useMemo(() => {
     if (canvasSize.width === 0 || canvasSize.height === 0) return null

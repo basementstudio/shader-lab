@@ -13,18 +13,6 @@ import {
 const RECONNECT_DELAY_MS = 3000
 const MIN_ACTIVITY_MS = 520
 
-export function isAgentBridgeEnabled(): boolean {
-  if (typeof window === "undefined") {
-    return false
-  }
-
-  if (process.env.NEXT_PUBLIC_AGENT_BRIDGE === "1") {
-    return true
-  }
-
-  return new URLSearchParams(window.location.search).get("agent") === "1"
-}
-
 function buildBridgeUrl(): string {
   const query = new URLSearchParams(window.location.search)
   const port = query.get("agentPort") ?? String(AGENT_BRIDGE_DEFAULT_PORT)

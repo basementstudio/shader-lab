@@ -7,11 +7,8 @@ import { isPreviewRenderLocked } from "@/lib/editor/preview-render-lock"
 import { RendererBootTrace } from "@/lib/renderer-boot"
 import { gpuSnapshot } from "@/lib/webgpu-diagnostics"
 import { buildRendererFrame, type EditorRenderer } from "@/renderer/contracts"
-import {
-  browserSupportsWebGPU,
-  createWebGPURenderer,
-} from "@/renderer/create-webgpu-renderer"
 import { errorFingerprint } from "@/renderer/pass-failure"
+import { browserSupportsWebGPU } from "@/renderer/webgpu-support"
 import { useAssetStore } from "@/store/asset-store"
 import { selectAudioModulationInput, useAudioStore } from "@/store/audio-store"
 import { useEditorStore } from "@/store/editor-store"
@@ -19,6 +16,13 @@ import { useLayerStore } from "@/store/layer-store"
 import { useMetricsStore } from "@/store/metrics-store"
 import { useTimelineStore } from "@/store/timeline-store"
 import type { Size } from "@/types/editor"
+
+/* three/webgpu and the pass graph live in their own chunk. Kick the fetch
+ * off at module-evaluation time so it downloads while React is still
+ * hydrating, instead of waiting for the mount effect. */
+const rendererModulePromise = browserSupportsWebGPU()
+  ? import("@/renderer/create-webgpu-renderer")
+  : null
 
 function getPixelRatio(): number {
   if (typeof window === "undefined") {
@@ -120,6 +124,12 @@ export function useEditorRenderer() {
 
     async function initializeRenderer() {
       try {
+        if (!rendererModulePromise) {
+          throw new Error("WebGPU is not available in this browser.")
+        }
+
+        const { createWebGPURenderer, preloadPassFactories } =
+          await rendererModulePromise
         const renderer = await createWebGPURenderer(canvasElement)
         boot.mark("renderer-created")
 
@@ -129,7 +139,14 @@ export function useEditorRenderer() {
         }
 
         rendererRef.current = renderer
-        await renderer.initialize()
+        // Device acquisition masks the pass-chunk fetches: the current scene's
+        // pass modules land before the first frame, so nothing pops in.
+        await Promise.all([
+          renderer.initialize(),
+          preloadPassFactories(useLayerStore.getState().layers).catch(
+            () => undefined
+          ),
+        ])
         boot.mark("device-ready")
         Sentry.setContext("gpu", gpuSnapshot())
         editorStore.setLiveRenderer(renderer)

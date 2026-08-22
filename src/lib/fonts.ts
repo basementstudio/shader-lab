@@ -48,7 +48,7 @@ const adhesion = localFont({
   adjustFontFallback: "Arial",
   display: "swap",
   fallback: ["Arial", "sans-serif"],
-  preload: true,
+  preload: false,
   variable: "--adhesion",
 })
 
@@ -63,7 +63,7 @@ const blob = localFont({
   adjustFontFallback: "Arial",
   display: "swap",
   fallback: ["Arial", "sans-serif"],
-  preload: true,
+  preload: false,
   variable: "--blob",
 })
 
@@ -78,7 +78,7 @@ const bsmntGrotesque = localFont({
   adjustFontFallback: "Arial",
   display: "swap",
   fallback: ["Arial", "sans-serif"],
-  preload: true,
+  preload: false,
   variable: "--bsmnt-grotesque",
 })
 
@@ -93,7 +93,7 @@ const bunker = localFont({
   adjustFontFallback: "Arial",
   display: "swap",
   fallback: ["Arial", "sans-serif"],
-  preload: true,
+  preload: false,
   variable: "--bunker",
 })
 
@@ -108,7 +108,7 @@ const caniche = localFont({
   adjustFontFallback: "Arial",
   display: "swap",
   fallback: ["Arial", "sans-serif"],
-  preload: true,
+  preload: false,
   variable: "--caniche",
 })
 
@@ -123,7 +123,7 @@ const carpenter = localFont({
   adjustFontFallback: "Times New Roman",
   display: "swap",
   fallback: ["Georgia", "serif"],
-  preload: true,
+  preload: false,
   variable: "--carpenter",
 })
 
@@ -138,7 +138,7 @@ const curia = localFont({
   adjustFontFallback: "Times New Roman",
   display: "swap",
   fallback: ["Georgia", "serif"],
-  preload: true,
+  preload: false,
   variable: "--curia",
 })
 
@@ -168,7 +168,7 @@ const ffflauta = localFont({
   adjustFontFallback: "Arial",
   display: "swap",
   fallback: ["Arial", "sans-serif"],
-  preload: true,
+  preload: false,
   variable: "--ffflauta",
 })
 
@@ -183,7 +183,7 @@ const numero = localFont({
   adjustFontFallback: "Arial",
   display: "swap",
   fallback: ["Arial", "sans-serif"],
-  preload: true,
+  preload: false,
   variable: "--numero",
 })
 
@@ -198,7 +198,7 @@ const xer0 = localFont({
   adjustFontFallback: "Arial",
   display: "swap",
   fallback: ["Arial", "sans-serif"],
-  preload: true,
+  preload: false,
   variable: "--xer0",
 })
 
@@ -213,7 +213,7 @@ const trovador = localFont({
   adjustFontFallback: "Times New Roman",
   display: "swap",
   fallback: ["Georgia", "serif"],
-  preload: true,
+  preload: false,
   variable: "--trovador",
 })
 
@@ -228,7 +228,7 @@ const bMecha = localFont({
   adjustFontFallback: "Arial",
   display: "swap",
   fallback: ["Arial", "sans-serif"],
-  preload: true,
+  preload: false,
   variable: "--b-mecha",
 })
 

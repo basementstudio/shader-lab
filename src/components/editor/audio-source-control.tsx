@@ -9,7 +9,12 @@ import { cn } from "@/lib/cn"
 import { MIN_RELEASE_MS } from "@/lib/editor/audio/bands"
 import { AUDIO_FILE_ACCEPT } from "@/lib/editor/media-file"
 import { getSeedableMediaDuration } from "@/lib/editor/timeline-duration"
-import { useAssetStore, useAudioStore, useTimelineStore } from "@/store"
+import {
+  useAssetStore,
+  useAudioStore,
+  useEditorStore,
+  useTimelineStore,
+} from "@/store"
 import { AUDIO_BAND_IDS, type AudioBandId } from "@/types/editor"
 import { IconButton } from "@/components/ui/icon-button"
 import {
@@ -228,11 +233,105 @@ export function AudioSourceControl({
       ? (assets.find((asset) => asset.id === source.assetId) ?? null)
       : null
 
+  /* Analyzing decodes + FFTs the whole file (the default project's ogg is
+   * ~2.5MB), so only do it eagerly when something consumes the result:
+   * audio-linked params, the spectrum popover, or the timeline panel.
+   * Otherwise wait for idle so it stays off the first-load critical path,
+   * and hold off while a deep-linked scene is about to replace the source. */
   useEffect(() => {
-    if (status === "missing-source" && sourceAsset) {
-      void analyze(sourceAsset.url)
+    if (!(status === "missing-source" && sourceAsset)) {
+      return
     }
-  }, [analyze, sourceAsset, status])
+
+    const url = sourceAsset.url
+    let cancelled = false
+    let idleHandle: number | null = null
+    let timeoutHandle: number | null = null
+    const unsubscribers: (() => void)[] = []
+
+    const startAnalysis = () => {
+      if (cancelled) {
+        return
+      }
+
+      cancelled = true
+      void analyze(url)
+    }
+
+    const analysisInUse = () =>
+      useAudioStore.getState().links.length > 0 ||
+      showAdvanced ||
+      useEditorStore.getState().timelinePanelOpen
+
+    const idleWindow = window as typeof window & {
+      cancelIdleCallback?: (handle: number) => void
+      requestIdleCallback?: (
+        cb: () => void,
+        opts?: { timeout?: number }
+      ) => number
+    }
+
+    const schedule = () => {
+      if (analysisInUse()) {
+        startAnalysis()
+
+        return
+      }
+
+      // A consumer can appear while we wait for idle — react right away
+      // instead of leaving it without data until the idle deadline.
+      unsubscribers.push(
+        useAudioStore.subscribe((state) => {
+          if (state.links.length > 0) {
+            startAnalysis()
+          }
+        }),
+        useEditorStore.subscribe((state) => {
+          if (state.timelinePanelOpen) {
+            startAnalysis()
+          }
+        })
+      )
+
+      if (idleWindow.requestIdleCallback) {
+        idleHandle = idleWindow.requestIdleCallback(startAnalysis, {
+          timeout: 15_000,
+        })
+      } else {
+        timeoutHandle = window.setTimeout(startAnalysis, 3_000)
+      }
+    }
+
+    if (useEditorStore.getState().pendingSceneSlug === null) {
+      schedule()
+    } else {
+      let unsubscribePending: (() => void) | null = null
+      unsubscribePending = useEditorStore.subscribe((state) => {
+        if (state.pendingSceneSlug === null) {
+          unsubscribePending?.()
+          unsubscribePending = null
+          schedule()
+        }
+      })
+      unsubscribers.push(() => unsubscribePending?.())
+    }
+
+    return () => {
+      cancelled = true
+
+      for (const unsubscribe of unsubscribers) {
+        unsubscribe()
+      }
+
+      if (idleHandle !== null) {
+        idleWindow.cancelIdleCallback?.(idleHandle)
+      }
+
+      if (timeoutHandle !== null) {
+        window.clearTimeout(timeoutHandle)
+      }
+    }
+  }, [analyze, showAdvanced, sourceAsset, status])
 
   const handleFiles = async (files: FileList | null) => {
     const file = files?.item(0)

@@ -27,8 +27,8 @@ import { HoverTooltip } from "@/components/ui/tooltip"
 import { Typography } from "@/components/ui/typography"
 import { authClient } from "@/lib/auth/client"
 import { cn } from "@/lib/cn"
+import { applyRemixedScene } from "@/lib/community/apply-remixed-scene"
 import { COMMUNITY_EFFECT_TYPES } from "@/lib/community/scene-effect-filter"
-import { scenePagePath } from "@/lib/community/scene-links"
 import type {
   AuthoredScene,
   CommunitySceneDetail,
@@ -49,7 +49,6 @@ import {
 } from "@/lib/editor/project-file"
 import { useAssetStore } from "@/store/asset-store"
 import { useDraftStore } from "@/store/draft-store"
-import { useEditorStore } from "@/store/editor-store"
 import { useRemixOriginStore } from "@/store/remix-origin-store"
 import type { EffectLayerType } from "@/types/editor"
 
@@ -173,13 +172,11 @@ function DraftSaveHint() {
 }
 
 export function CommunityModal({
-  autoOpenSlug,
   focusSlug,
   onOpenChange,
   onRequestPublish,
   open,
 }: {
-  autoOpenSlug?: string | null
   focusSlug?: string | null
   onOpenChange: (open: boolean) => void
   onRequestPublish: () => void
@@ -219,7 +216,6 @@ export function CommunityModal({
   const [error, setError] = useState<string | null>(null)
   const [consentTitle, setConsentTitle] = useState<string | null>(null)
   const consentResolver = useRef<((granted: boolean) => void) | null>(null)
-  const autoOpened = useRef(false)
 
   useEffect(() => {
     setMounted(true)
@@ -563,7 +559,7 @@ export function CommunityModal({
   )
 
   const remix = useCallback(
-    async (scene: CommunitySceneDetail, options?: { auto?: boolean }) => {
+    async (scene: CommunitySceneDetail) => {
       setRemixing(true)
       setError(null)
 
@@ -580,28 +576,11 @@ export function CommunityModal({
           const granted = await requestShaderConsent(scene.title)
 
           if (!granted) {
-            if (options?.auto) {
-              window.location.replace(scenePagePath(scene.slug))
-            }
-
             return
           }
         }
 
-        withAutosaveSuppressed(() => {
-          applyLabProjectFile(projectFile, useAssetStore.getState().assets)
-          useRemixOriginStore.getState().setRemixOrigin({
-            slug: scene.slug,
-            title: scene.title,
-          })
-          useDraftStore.getState().clearActiveDraft()
-        })
-
-        requestAutosave()
-
-        void fetch(`/api/community/scenes/${scene.slug}/remix`, {
-          method: "POST",
-        }).catch(() => undefined)
+        applyRemixedScene(projectFile, scene)
 
         onOpenChange(false)
         setSelected(null)
@@ -610,42 +589,12 @@ export function CommunityModal({
         setError(
           cause instanceof Error ? cause.message : "Could not load that scene."
         )
-
-        if (options?.auto) {
-          onOpenChange(true)
-        }
       } finally {
         setRemixing(false)
       }
     },
     [onOpenChange, requestShaderConsent]
   )
-
-  useEffect(() => {
-    if (!autoOpenSlug || autoOpened.current) {
-      return
-    }
-
-    autoOpened.current = true
-
-    void (async () => {
-      const scene = await fetch(`/api/community/scenes/${autoOpenSlug}`)
-        .then((res) => res.json() as Promise<{ scene?: CommunitySceneDetail }>)
-        .then((data) => data.scene ?? null)
-        .catch(() => null)
-
-      if (scene) {
-        await remix(scene, { auto: true })
-
-        return
-      }
-
-      setError("That scene is no longer available.")
-      onOpenChange(true)
-    })().finally(() => {
-      useEditorStore.getState().clearPendingScene()
-    })
-  }, [autoOpenSlug, onOpenChange, remix])
 
   const ownedSlugs = new Set((mine ?? []).map((entry) => entry.slug))
 

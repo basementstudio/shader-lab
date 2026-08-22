@@ -3,17 +3,15 @@ import * as THREE from "three/webgpu"
 import { isSvgMediaSource } from "@/lib/editor/media-file"
 import { parameterValuesSignature } from "@/lib/editor/parameter-schema"
 import type { RenderableLayerPass } from "@/renderer/contracts"
-import { CustomShaderPass } from "@/renderer/custom-shader-pass"
-import { FluidPass } from "@/renderer/fluid-pass"
-import { GradientPass } from "@/renderer/gradient-pass"
+import type { FluidPass } from "@/renderer/fluid-pass"
 import {
   describeCameraFailure,
   describeMediaLoadFailure,
   setLayerMediaError,
 } from "@/renderer/layer-media-error"
-import { LivePass } from "@/renderer/live-pass"
-import { MagnifyLensPass } from "@/renderer/magnify-lens-pass"
-import { MediaPass } from "@/renderer/media-pass"
+import type { LivePass } from "@/renderer/live-pass"
+import type { MagnifyLensPass } from "@/renderer/magnify-lens-pass"
+import type { MediaPass } from "@/renderer/media-pass"
 import {
   errorFingerprint,
   type LayerType,
@@ -22,13 +20,34 @@ import {
   reportPassFailure,
 } from "@/renderer/pass-failure"
 import type { PassNode } from "@/renderer/pass-node"
-import { createPassNode } from "@/renderer/pass-node-factory"
-import { PixelTrailPass } from "@/renderer/pixel-trail-pass"
+import {
+  getLoadedPassFactory,
+  loadPassFactory,
+  passKeyForLayer,
+} from "@/renderer/pass-node-factory"
+import type { PixelTrailPass } from "@/renderer/pixel-trail-pass"
 import { ScenePostProcess } from "@/renderer/scene-post-process"
-import { TextPass } from "@/renderer/text-pass"
 import type { EditorLayer, SceneConfig, Size } from "@/types/editor"
 
-type LayerPassNode = FluidPass | LivePass | MediaPass | PassNode
+type LayerPassNode = PassNode
+
+/* Structural checks instead of instanceof: the pass classes are lazily
+ * loaded, so this module must not import their implementations. */
+function isMediaPass(pass: LayerPassNode): pass is MediaPass {
+  return typeof (pass as MediaPass).setMedia === "function"
+}
+
+function isLivePass(pass: LayerPassNode): pass is LivePass {
+  return typeof (pass as LivePass).startCamera === "function"
+}
+
+function supportsFluidInteraction(
+  pass: LayerPassNode
+): pass is FluidPass | MagnifyLensPass | PixelTrailPass {
+  return (
+    typeof (pass as FluidPass).updateFluidInteractionEvents === "function"
+  )
+}
 
 // Editing the layer re-enables a dropped pass. See pass-failure.ts.
 const MAX_PASS_FAILURES = 3
@@ -139,6 +158,10 @@ export class PipelineManager {
   private passFailures = new Map<string, PassFailureState>()
   private readonly strictPassFailures: boolean
   private pendingMediaLoads = new Set<string>()
+  // Both keyed by pass key, not layer id: layers of the same type share one
+  // chunk, so they must share one in-flight load and one failure count.
+  private pendingPassLoads = new Set<string>()
+  private failedPassLoads = new Map<string, number>()
   private cachedActivePasses: LayerPassNode[] = []
   private activePassesDirty = true
   private dirty = true
@@ -235,7 +258,16 @@ export class PipelineManager {
       this.layerTypes.set(layerId, renderableLayer.layer.type)
 
       if (!pass) {
-        pass = this.createPass(renderableLayer.layer)
+        const created = this.createPass(renderableLayer.layer)
+
+        if (!created) {
+          // Module still loading; retried on a later frame — deliberately
+          // before layerSignatures is set, so applyLayerState and the
+          // compile schedule run intact once the factory lands.
+          continue
+        }
+
+        pass = created
         pass.resize(this.width, this.height)
         pass.updateLogicalSize(this.logicalWidth, this.logicalHeight)
         this.passMap.set(layerId, pass)
@@ -363,7 +395,7 @@ export class PipelineManager {
 
   setPreviewFrozen(frozen: boolean): void {
     for (const pass of this.passMap.values()) {
-      if (pass instanceof MediaPass) {
+      if (isMediaPass(pass)) {
         pass.setPreviewFrozen(frozen)
       }
     }
@@ -443,6 +475,10 @@ export class PipelineManager {
     return this.pendingMediaLoads.size > 0
   }
 
+  hasPendingPassLoads(): boolean {
+    return this.pendingPassLoads.size > 0
+  }
+
   async prepareForExportFrame(time: number, loop: boolean): Promise<void> {
     const activePasses = this.passes.filter(
       (pass) => pass.enabled && !this.compilingPasses.has(pass.layerId)
@@ -484,18 +520,14 @@ export class PipelineManager {
       renderableLayer.layer.saturation
     )
     pass.updateParams(renderableLayer.params)
-    if (
-      pass instanceof FluidPass ||
-      pass instanceof PixelTrailPass ||
-      pass instanceof MagnifyLensPass
-    ) {
+    if (supportsFluidInteraction(pass)) {
       pass.updateFluidInteractionEvents(
         renderableLayer.layer.fluidInteractionEvents ?? []
       )
     }
     pass.flushColorNode()
 
-    if (pass instanceof MediaPass) {
+    if (isMediaPass(pass)) {
       const asset = renderableLayer.asset
       if (asset?.kind === "image" || asset?.kind === "video") {
         this.pendingMediaLoads.add(pass.layerId)
@@ -533,7 +565,7 @@ export class PipelineManager {
       }
     }
 
-    if (pass instanceof LivePass) {
+    if (isLivePass(pass)) {
       const facingMode =
         typeof renderableLayer.params.facingMode === "string"
           ? renderableLayer.params.facingMode
@@ -622,46 +654,48 @@ export class PipelineManager {
       })
   }
 
-  private createPass(layer: EditorLayer): LayerPassNode {
-    if (layer.kind === "effect") {
-      return createPassNode(layer.id, layer.type)
+  // Returns null while the pass module is still loading.
+  private createPass(layer: EditorLayer): LayerPassNode | null {
+    const key = passKeyForLayer(layer)
+
+    if (key === null) {
+      throw new Error(`Unsupported layer type in current scope: ${layer.type}`)
+    }
+
+    const factory = getLoadedPassFactory(key)
+
+    if (factory) {
+      return factory(layer.id, this.renderer)
     }
 
     if (
-      layer.kind === "source" &&
-      (layer.type === "image" || layer.type === "video")
+      (this.failedPassLoads.get(key) ?? 0) < MAX_PASS_FAILURES &&
+      !this.pendingPassLoads.has(key)
     ) {
-      return new MediaPass(layer.id)
+      this.pendingPassLoads.add(key)
+
+      loadPassFactory(key)
+        .then(() => {
+          this.failedPassLoads.delete(key)
+          this.markDirty()
+        })
+        .catch((error: unknown) => {
+          this.failedPassLoads.set(
+            key,
+            (this.failedPassLoads.get(key) ?? 0) + 1
+          )
+          reportPassFailure(
+            this.layerTypes.get(layer.id),
+            layer.id,
+            "pass-module-load",
+            error
+          )
+        })
+        .finally(() => {
+          this.pendingPassLoads.delete(key)
+        })
     }
 
-    if (layer.kind === "source" && layer.type === "gradient") {
-      return new GradientPass(layer.id)
-    }
-
-    if (layer.kind === "source" && layer.type === "fluid") {
-      return new FluidPass(layer.id, this.renderer)
-    }
-
-    if (layer.kind === "source" && layer.type === "pixel-trail") {
-      return new PixelTrailPass(layer.id, this.renderer)
-    }
-
-    if (layer.kind === "source" && layer.type === "magnify-lens") {
-      return new MagnifyLensPass(layer.id, this.renderer)
-    }
-
-    if (layer.kind === "source" && layer.type === "text") {
-      return new TextPass(layer.id)
-    }
-
-    if (layer.kind === "source" && layer.type === "custom-shader") {
-      return new CustomShaderPass(layer.id)
-    }
-
-    if (layer.kind === "source" && layer.type === "live") {
-      return new LivePass(layer.id)
-    }
-
-    throw new Error(`Unsupported layer type in current scope: ${layer.type}`)
+    return null
   }
 }

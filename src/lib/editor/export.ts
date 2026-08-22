@@ -16,9 +16,10 @@ import {
 import { acquirePreviewRenderLock } from "@/lib/editor/preview-render-lock"
 import { buildRendererFrame } from "@/renderer/contracts"
 import {
-  browserSupportsWebGPU,
   createWebGPURenderer,
+  preloadPassFactories,
 } from "@/renderer/create-webgpu-renderer"
+import { browserSupportsWebGPU } from "@/renderer/webgpu-support"
 import type {
   EditorAsset,
   EditorLayer,
@@ -741,6 +742,10 @@ async function prewarmExportFrame(
     time: number
   }
 ): Promise<void> {
+  // Strict exports must never render a partial frame: every pass module has
+  // to be present before the first bootstrap render. Throws on a dead chunk.
+  await preloadPassFactories(projectState.layers)
+
   await renderFrameToCanvas(renderer, canvas, projectState, {
     ...options,
     bootstrapPasses: true,

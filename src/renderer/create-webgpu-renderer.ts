@@ -3,11 +3,11 @@ import * as THREE from "three/webgpu"
 import { recordDeviceDiagnostics } from "@/lib/webgpu-diagnostics"
 import type { EditorRenderer, RendererFrame } from "@/renderer/contracts"
 import { PipelineManager } from "@/renderer/pipeline-manager"
+import { browserSupportsWebGPU } from "@/renderer/webgpu-support"
 import type { Size } from "@/types/editor"
 
-export function browserSupportsWebGPU(): boolean {
-  return typeof navigator !== "undefined" && "gpu" in navigator
-}
+export { browserSupportsWebGPU }
+export { preloadPassFactories } from "@/renderer/pass-node-factory"
 
 type GpuQueueLike = { onSubmittedWorkDone: () => Promise<unknown> }
 type GpuDeviceLike = { destroy?: () => void; queue?: GpuQueueLike }
@@ -136,7 +136,8 @@ export async function createWebGPURenderer(
     hasPendingResources() {
       return (
         (pipeline?.hasPendingCompilations() ?? false) ||
-        (pipeline?.hasPendingMediaLoads() ?? false)
+        (pipeline?.hasPendingMediaLoads() ?? false) ||
+        (pipeline?.hasPendingPassLoads() ?? false)
       )
     },
 

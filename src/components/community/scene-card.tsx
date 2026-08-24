@@ -28,20 +28,15 @@ export function SceneCard({
   return (
     <div
       className={cn(
-        "group relative flex w-full flex-col gap-[var(--ds-space-2)] rounded-[10px] text-left",
+        "flex w-full flex-col gap-[var(--ds-space-2)] rounded-[10px] text-left",
         featured && "col-span-2 row-span-2 h-full"
       )}
     >
-      <button
-        aria-label={`View ${scene.title}`}
-        className="absolute inset-0 z-[1] cursor-pointer rounded-[10px] focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--ds-border-active)] focus-visible:outline-offset-2"
-        onClick={() => onSelect(scene)}
-        type="button"
-      />
-
+      {/* Hover, click and focus all live on the thumbnail; the title and
+          author row below stays inert. */}
       <div
         className={cn(
-          "relative w-full overflow-hidden rounded-[8px] border border-[var(--ds-border-subtle)] bg-[var(--ds-color-surface-subtle)] transition-[border-color] duration-160 ease-[var(--ease-out-cubic)] group-hover:border-[var(--ds-border-hover)]",
+          "group relative w-full overflow-hidden rounded-[8px] border border-[var(--ds-border-subtle)] bg-[var(--ds-color-surface-subtle)] transition-[border-color] duration-160 ease-[var(--ease-out-cubic)] hover:border-[var(--ds-border-hover)] has-[:focus-visible]:outline has-[:focus-visible]:outline-1 has-[:focus-visible]:outline-[var(--ds-border-active)] has-[:focus-visible]:outline-offset-2",
           featured ? "min-h-0 flex-1" : "aspect-[16/10]"
         )}
       >
@@ -59,7 +54,14 @@ export function SceneCard({
           />
         ) : null}
 
-        <div className="pointer-events-none absolute top-1.5 right-1.5 inline-flex items-center gap-1.5 rounded-[var(--ds-radius-control)] border border-white/10 bg-[rgb(8_9_12_/_0.68)] px-1.5 py-[3px] backdrop-blur-[8px]">
+        <button
+          aria-label={`View ${scene.title}`}
+          className="absolute inset-0 z-[1] cursor-pointer focus-visible:outline-none"
+          onClick={() => onSelect(scene)}
+          type="button"
+        />
+
+        <div className="pointer-events-none absolute top-1.5 right-1.5 z-[2] inline-flex items-center gap-1.5 rounded-[var(--ds-radius-control)] border border-white/10 bg-[rgb(8_9_12_/_0.68)] px-1.5 py-[3px] backdrop-blur-[8px]">
           <span className="inline-flex items-center gap-1">
             <span className="text-[var(--ds-color-text-secondary)]">
               <HeartIcon height={11} width={11} />
@@ -109,7 +111,7 @@ export function SceneCard({
       <div className="flex min-w-0 flex-col gap-[5px] px-[2px]">
         <Typography
           as="span"
-          className="overflow-hidden text-ellipsis whitespace-nowrap transition-colors duration-160 group-hover:text-white"
+          className="overflow-hidden text-ellipsis whitespace-nowrap"
           variant="label"
         >
           {scene.title}

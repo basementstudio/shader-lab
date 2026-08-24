@@ -1,5 +1,20 @@
 # @basementstudio/shader-lab
 
+## 3.0.1
+
+### Patch Changes
+
+- e6efb83: Retry a media load that failed instead of giving up for good. `MediaPass`
+  recorded the signature of the media it was about to load before awaiting the
+  load, so a failure left that signature committed and every later call with the
+  same source hit the "already loaded" early return. One transient failure — a
+  flaky network, a CORS response that arrived wrong once — disabled that layer's
+  image or video for the rest of the session, with an empty layer and no error to
+  explain it. The signature is now committed only after the load succeeds.
+- e6efb83: Set `crossOrigin="anonymous"` on video textures so media served from a CDN can be
+  uploaded as a WebGPU texture without tainting the canvas. Previously a
+  cross-origin video would render but break any subsequent canvas readback.
+
 ## 3.0.0
 
 ### Major Changes

@@ -1,7 +1,7 @@
 {
   "name": "@basementstudio/shader-lab-mcp",
   "description": "MCP server that drives the Shader Lab editor: layer control and custom shader authoring. Built with xmcp.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -9,11 +9,21 @@
     "directory": "packages/shader-lab-mcp"
   },
   "homepage": "https://github.com/basementstudio/shader-lab/tree/main/packages/shader-lab-mcp#readme",
-  "keywords": ["mcp", "shader", "webgpu", "tsl", "three", "shader-lab"],
+  "keywords": [
+    "mcp",
+    "shader",
+    "webgpu",
+    "tsl",
+    "three",
+    "shader-lab"
+  ],
   "bin": {
     "shader-lab-mcp": "dist/stdio.js"
   },
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "publishConfig": {
     "access": "public"
   },

@@ -593,6 +593,10 @@ export function CommunityModal({
 
   const remixFromSummary = useCallback(
     async (summary: CommunitySceneSummary) => {
+      if (remixing) {
+        return
+      }
+
       setRemixing(true)
       setError(null)
 
@@ -612,7 +616,7 @@ export function CommunityModal({
         setRemixing(false)
       }
     },
-    [remix]
+    [remix, remixing]
   )
 
   const ownedSlugs = new Set((mine ?? []).map((entry) => entry.slug))

@@ -233,11 +233,6 @@ export function AudioSourceControl({
       ? (assets.find((asset) => asset.id === source.assetId) ?? null)
       : null
 
-  /* Analyzing decodes + FFTs the whole file (the default project's ogg is
-   * ~2.5MB), so only do it eagerly when something consumes the result:
-   * audio-linked params, the spectrum popover, or the timeline panel.
-   * Otherwise wait for idle so it stays off the first-load critical path,
-   * and hold off while a deep-linked scene is about to replace the source. */
   useEffect(() => {
     if (!(status === "missing-source" && sourceAsset)) {
       return
@@ -278,8 +273,6 @@ export function AudioSourceControl({
         return
       }
 
-      // A consumer can appear while we wait for idle — react right away
-      // instead of leaving it without data until the idle deadline.
       unsubscribers.push(
         useAudioStore.subscribe((state) => {
           if (state.links.length > 0) {
@@ -383,19 +376,153 @@ export function AudioSourceControl({
       : "Load audio"
   })()
 
-  if (!active && status !== "analyzing") {
-    return (
-      <div className="inline-flex items-center gap-1">
-        <input
-          accept={AUDIO_FILE_ACCEPT}
-          className="hidden"
-          onChange={(event) => {
-            void handleFiles(event.target.files)
-            event.target.value = ""
-          }}
-          ref={fileInputRef}
-          type="file"
-        />
+  const hasAnalysis = active || status === "analyzing"
+
+  return (
+    <div className="inline-flex items-center gap-1">
+      <input
+        accept={AUDIO_FILE_ACCEPT}
+        className="hidden"
+        onChange={(event) => {
+          void handleFiles(event.target.files)
+          event.target.value = ""
+        }}
+        ref={fileInputRef}
+        type="file"
+      />
+
+      {hasAnalysis ? (
+        <Popover.Root modal={false}>
+          <Popover.Trigger
+            aria-label={triggerLabel}
+            className={cn(
+              "inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-[8px] text-[var(--ds-color-text-secondary)] transition-[background-color,border-color,color] duration-160 ease-[var(--ease-out-cubic)] hover:border-[var(--ds-border-hover)] hover:bg-[var(--ds-color-surface-active)] data-[popup-open]:border-[var(--ds-border-hover)] data-[popup-open]:bg-[var(--ds-color-surface-active)] data-[popup-open]:text-[var(--ds-color-text-primary)]",
+              active && "bg-[var(--ds-color-surface-selected)] text-[var(--ds-color-text-primary)]"
+            )}
+          >
+            <MusicNoteIcon />
+            <span
+              aria-hidden="true"
+              className="h-1.5 w-1.5 shrink-0 rounded-full bg-current"
+              ref={levelDotRef}
+            />
+            {status === "analyzing" ? (
+              <Typography as="span" tone="secondary" variant="caption">
+                {Math.round(analysisProgress * 100)}%
+              </Typography>
+            ) : null}
+          </Popover.Trigger>
+
+          <Popover.Portal>
+            <Popover.Positioner
+              align="start"
+              className="z-50 outline-none"
+              collisionPadding={12}
+              side="top"
+              sideOffset={10}
+            >
+              <Popover.Popup className="max-h-[min(420px,var(--available-height))] w-[320px] overflow-y-auto overscroll-contain rounded-[16px] border border-[var(--ds-border-panel)] bg-[rgb(18_18_22_/_0.88)] p-3 shadow-[var(--ds-shadow-panel-dark)] backdrop-blur-[28px] transition-[opacity,transform] duration-160 ease-[var(--ease-out-cubic)] data-[closed]:opacity-0 data-[ending-style]:scale-[0.96] data-[ending-style]:opacity-0 data-[starting-style]:scale-[0.96] data-[starting-style]:opacity-0">
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <Typography as="span" variant="label">
+                      Audio Source
+                    </Typography>
+                    {source ? (
+                      <IconButton
+                        aria-label="Remove audio source"
+                        className="h-6 w-6"
+                        onClick={clearSource}
+                        variant="ghost"
+                      >
+                        <TrashIcon height={12} width={12} />
+                      </IconButton>
+                    ) : null}
+                  </div>
+
+                  <button
+                    className="inline-flex h-8 cursor-pointer items-center justify-center rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-3 text-[var(--ds-color-text-secondary)] transition-[background-color,border-color] duration-160 ease-[var(--ease-out-cubic)] hover:border-[var(--ds-border-hover)] hover:bg-[var(--ds-color-surface-active)]"
+                    onClick={() => fileInputRef.current?.click()}
+                    type="button"
+                  >
+                    <Typography as="span" tone="secondary" variant="caption">
+                      {sourceAsset ? "Replace audio file…" : "Load audio file…"}
+                    </Typography>
+                  </button>
+
+                  {sourceAsset ? (
+                    <Typography as="span" tone="muted" variant="caption">
+                      {sourceAsset.fileName}
+                      {sourceAsset.duration
+                        ? ` · ${sourceAsset.duration.toFixed(1)}s`
+                        : ""}
+                    </Typography>
+                  ) : null}
+
+                  {loadError ?? error ? (
+                    <Typography
+                      as="span"
+                      className="text-[rgb(255_138_138)]"
+                      variant="caption"
+                    >
+                      {loadError ?? error}
+                    </Typography>
+                  ) : null}
+
+                  {status === "ready" ? (
+                    <>
+                      <AudioSpectrumDisplay />
+                      <BandMeters />
+
+                      {silentBands && silentBands.length > 0 ? (
+                        <Typography as="span" tone="muted" variant="caption">
+                          No energy detected in:{" "}
+                          {silentBands
+                            .map((bandId) => BAND_LABELS[bandId])
+                            .join(", ")}
+                        </Typography>
+                      ) : null}
+
+                      <LabeledField label="Offset (s)">
+                        {(id) => (
+                          <NumberInput
+                            className={numberInputControlClassName}
+                            onPointerDown={(event) => {
+                              event.currentTarget.focus()
+                            }}
+                            id={id}
+                            onChange={setOffsetSeconds}
+                            step={0.1}
+                            value={offsetSeconds}
+                          />
+                        )}
+                      </LabeledField>
+
+                      <button
+                        className="flex cursor-pointer items-center justify-between border-t border-[var(--ds-border-divider)] pt-2 text-left"
+                        onClick={() => setShowAdvanced((open) => !open)}
+                        type="button"
+                      >
+                        <Typography as="span" tone="secondary" variant="caption">
+                          Advanced
+                        </Typography>
+                        <Typography as="span" tone="muted" variant="caption">
+                          {showAdvanced ? "Hide" : "Show"}
+                        </Typography>
+                      </button>
+
+                      {showAdvanced
+                        ? AUDIO_BAND_IDS.map((bandId) => (
+                            <AdvancedBandEditor bandId={bandId} key={bandId} />
+                          ))
+                        : null}
+                    </>
+                  ) : null}
+                </div>
+              </Popover.Popup>
+            </Popover.Positioner>
+          </Popover.Portal>
+        </Popover.Root>
+      ) : (
         <IconButton
           aria-label={triggerLabel}
           className={cn(
@@ -407,153 +534,7 @@ export function AudioSourceControl({
         >
           <MusicNoteIcon />
         </IconButton>
-      </div>
-    )
-  }
-
-  return (
-    <div className="inline-flex items-center gap-1">
-      <Popover.Root modal={false}>
-        <Popover.Trigger
-          aria-label={triggerLabel}
-          className={cn(
-            "inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-[8px] text-[var(--ds-color-text-secondary)] transition-[background-color,border-color,color] duration-160 ease-[var(--ease-out-cubic)] hover:border-[var(--ds-border-hover)] hover:bg-[var(--ds-color-surface-active)] data-[popup-open]:border-[var(--ds-border-hover)] data-[popup-open]:bg-[var(--ds-color-surface-active)] data-[popup-open]:text-[var(--ds-color-text-primary)]",
-            active && "bg-[var(--ds-color-surface-selected)] text-[var(--ds-color-text-primary)]"
-          )}
-        >
-          <MusicNoteIcon />
-          <span
-            aria-hidden="true"
-            className="h-1.5 w-1.5 shrink-0 rounded-full bg-current"
-            ref={levelDotRef}
-          />
-          {status === "analyzing" ? (
-            <Typography as="span" tone="secondary" variant="caption">
-              {Math.round(analysisProgress * 100)}%
-            </Typography>
-          ) : null}
-        </Popover.Trigger>
-
-        <Popover.Portal>
-          <Popover.Positioner
-            align="start"
-            className="z-50 outline-none"
-            collisionPadding={12}
-            side="top"
-            sideOffset={10}
-          >
-            <Popover.Popup className="max-h-[min(420px,var(--available-height))] w-[320px] overflow-y-auto overscroll-contain rounded-[16px] border border-[var(--ds-border-panel)] bg-[rgb(18_18_22_/_0.88)] p-3 shadow-[var(--ds-shadow-panel-dark)] backdrop-blur-[28px] transition-[opacity,transform] duration-160 ease-[var(--ease-out-cubic)] data-[closed]:opacity-0 data-[ending-style]:scale-[0.96] data-[ending-style]:opacity-0 data-[starting-style]:scale-[0.96] data-[starting-style]:opacity-0">
-              <div className="flex flex-col gap-3">
-                <div className="flex items-center justify-between gap-2">
-                  <Typography as="span" variant="label">
-                    Audio Source
-                  </Typography>
-                  {source ? (
-                    <IconButton
-                      aria-label="Remove audio source"
-                      className="h-6 w-6"
-                      onClick={clearSource}
-                      variant="ghost"
-                    >
-                      <TrashIcon height={12} width={12} />
-                    </IconButton>
-                  ) : null}
-                </div>
-
-                <input
-                  accept={AUDIO_FILE_ACCEPT}
-                  className="hidden"
-                  onChange={(event) => {
-                    void handleFiles(event.target.files)
-                    event.target.value = ""
-                  }}
-                  ref={fileInputRef}
-                  type="file"
-                />
-
-                <button
-                  className="inline-flex h-8 cursor-pointer items-center justify-center rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-3 text-[var(--ds-color-text-secondary)] transition-[background-color,border-color] duration-160 ease-[var(--ease-out-cubic)] hover:border-[var(--ds-border-hover)] hover:bg-[var(--ds-color-surface-active)]"
-                  onClick={() => fileInputRef.current?.click()}
-                  type="button"
-                >
-                  <Typography as="span" tone="secondary" variant="caption">
-                    {sourceAsset ? "Replace audio file…" : "Load audio file…"}
-                  </Typography>
-                </button>
-
-                {sourceAsset ? (
-                  <Typography as="span" tone="muted" variant="caption">
-                    {sourceAsset.fileName}
-                    {sourceAsset.duration
-                      ? ` · ${sourceAsset.duration.toFixed(1)}s`
-                      : ""}
-                  </Typography>
-                ) : null}
-
-                {loadError ?? error ? (
-                  <Typography
-                    as="span"
-                    className="text-[rgb(255_138_138)]"
-                    variant="caption"
-                  >
-                    {loadError ?? error}
-                  </Typography>
-                ) : null}
-
-                {status === "ready" ? (
-                  <>
-                    <AudioSpectrumDisplay />
-                    <BandMeters />
-
-                    {silentBands && silentBands.length > 0 ? (
-                      <Typography as="span" tone="muted" variant="caption">
-                        No energy detected in:{" "}
-                        {silentBands
-                          .map((bandId) => BAND_LABELS[bandId])
-                          .join(", ")}
-                      </Typography>
-                    ) : null}
-
-                    <LabeledField label="Offset (s)">
-                      {(id) => (
-                        <NumberInput
-                          className={numberInputControlClassName}
-                          onPointerDown={(event) => {
-                            event.currentTarget.focus()
-                          }}
-                          id={id}
-                          onChange={setOffsetSeconds}
-                          step={0.1}
-                          value={offsetSeconds}
-                        />
-                      )}
-                    </LabeledField>
-
-                    <button
-                      className="flex cursor-pointer items-center justify-between border-t border-[var(--ds-border-divider)] pt-2 text-left"
-                      onClick={() => setShowAdvanced((open) => !open)}
-                      type="button"
-                    >
-                      <Typography as="span" tone="secondary" variant="caption">
-                        Advanced
-                      </Typography>
-                      <Typography as="span" tone="muted" variant="caption">
-                        {showAdvanced ? "Hide" : "Show"}
-                      </Typography>
-                    </button>
-
-                    {showAdvanced
-                      ? AUDIO_BAND_IDS.map((bandId) => (
-                          <AdvancedBandEditor bandId={bandId} key={bandId} />
-                        ))
-                      : null}
-                  </>
-                ) : null}
-              </div>
-            </Popover.Popup>
-          </Popover.Positioner>
-        </Popover.Portal>
-      </Popover.Root>
+      )}
 
       <IconButton
         aria-label={monitorEnabled ? "Mute audio" : "Unmute audio"}

@@ -3,7 +3,6 @@ import type { Metadata, Route } from "next"
 import Image from "next/image"
 import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
-import type { ReactNode } from "react"
 import { Suspense } from "react"
 import { AuthorAvatar } from "@/components/community/author-avatar"
 import { PublicSceneCard } from "@/components/community/public-scene-card"
@@ -31,7 +30,7 @@ import {
 import { getPublicProfileScenes } from "@/lib/community/public-profiles"
 import { getPublicScene } from "@/lib/community/public-scenes"
 import { getLayerLabel } from "@/lib/editor/config/layer-catalog"
-import { pluralize } from "@/lib/plural"
+import { countLabel } from "@/lib/plural"
 
 type PageProps = { params: Promise<{ slug: string }> }
 
@@ -175,6 +174,42 @@ async function SceneBody({ params }: PageProps) {
             hasCameraLayer={scene.layerTypes.includes("live")}
             labUrl={scene.labUrl}
           />
+
+          <span className="sr-only">
+            {`${countLabel(scene.likeCount, "like")}, ${countLabel(scene.remixCount, "remix")}`}
+          </span>
+
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute right-4 bottom-4 z-[2] inline-flex items-center gap-[var(--ds-space-3)] rounded-[var(--ds-radius-control)] border border-white/10 bg-[rgb(8_9_12_/_0.62)] px-4 py-2.5 backdrop-blur-[10px]"
+          >
+            <span className="inline-flex items-center gap-2 text-[var(--ds-color-text-secondary)]">
+              <HeartIcon height={16} width={16} />
+              <Typography
+                as="span"
+                className="text-[18px] leading-none tabular-nums"
+                variant="monoMd"
+              >
+                {scene.likeCount}
+              </Typography>
+            </span>
+
+            <span
+              aria-hidden="true"
+              className="h-4 w-px bg-[var(--ds-border-divider)]"
+            />
+
+            <span className="inline-flex items-center gap-2 text-[var(--ds-color-text-secondary)]">
+              <ShuffleIcon height={16} width={16} />
+              <Typography
+                as="span"
+                className="text-[18px] leading-none tabular-nums"
+                variant="monoMd"
+              >
+                {scene.remixCount}
+              </Typography>
+            </span>
+          </div>
         </figure>
       </div>
 
@@ -263,18 +298,6 @@ async function SceneBody({ params }: PageProps) {
               title={scene.title}
             />
           </div>
-          <dl className="m-0 flex items-stretch gap-[var(--ds-space-2)]">
-            <SceneStat
-              icon={<HeartIcon height={13} width={13} />}
-              label={pluralize(scene.likeCount, "like")}
-              value={scene.likeCount}
-            />
-            <SceneStat
-              icon={<ShuffleIcon height={13} width={13} />}
-              label={pluralize(scene.remixCount, "remix")}
-              value={scene.remixCount}
-            />
-          </dl>
         </div>
       </div>
 
@@ -286,32 +309,6 @@ async function SceneBody({ params }: PageProps) {
         />
       </Suspense>
     </main>
-  )
-}
-
-function SceneStat({
-  icon,
-  label,
-  value,
-}: {
-  icon: ReactNode
-  label: string
-  value: number
-}) {
-  return (
-    <div className="flex min-w-[84px] flex-1 flex-col gap-0.5 rounded-[var(--ds-radius-control)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-3 py-2">
-      <dt className="flex items-center gap-1.5 text-[var(--ds-color-text-tertiary)]">
-        {icon}
-        <Typography as="span" tone="tertiary" variant="overline">
-          {label}
-        </Typography>
-      </dt>
-      <dd className="m-0">
-        <Typography as="span" className="tabular-nums" variant="heading">
-          {value.toLocaleString("en-US")}
-        </Typography>
-      </dd>
-    </div>
   )
 }
 

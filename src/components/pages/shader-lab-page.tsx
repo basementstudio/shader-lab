@@ -8,7 +8,6 @@ import { EditorShortcuts } from "@/components/editor/editor-shortcuts"
 import { EditorTimelineOverlay } from "@/components/editor/editor-timeline-overlay"
 import { EditorTopBar } from "@/components/editor/editor-topbar"
 import { LayerSidebar } from "@/components/editor/layer-sidebar"
-import { MadeByBasement } from "@/components/editor/made-by-basement"
 import { PropertiesSidebar } from "@/components/editor/properties-sidebar"
 import {
   SCENE_LOADING_OVERLAY_ID,
@@ -101,9 +100,6 @@ export function ShaderLabPage({
       </Suspense>
       <Suspense fallback={null}>
         <MobileEditorDock />
-      </Suspense>
-      <Suspense fallback={null}>
-        <MadeByBasement />
       </Suspense>
       {communityEnabled ? (
         <>

@@ -9,28 +9,21 @@ import { RemixCredit } from "@/components/community/remix-credit"
 import { ReportControl } from "@/components/community/report-control"
 import { LikeButton } from "@/components/community/like-button"
 import { Button } from "@/components/ui/button"
-import { ButtonLink } from "@/components/ui/button/link"
 import { Typography } from "@/components/ui/typography"
 import { lineageLabel } from "@/lib/community/lineage"
 import { getCommunitySceneEffects } from "@/lib/community/scene-effect-filter"
 import { ShareOnXButton } from "@/components/community/share-on-x-button"
 import {
-  communityEffectPath,
-  scenePagePath,
-  sceneSharePath,
-} from "@/lib/community/scene-links"
+  ShareSceneButton,
+  sceneShareUrl,
+} from "@/components/community/share-scene-button"
+import { communityEffectPath } from "@/lib/community/scene-links"
 import type {
   CommunitySceneDetail,
   CommunitySceneSummary,
 } from "@/lib/community/scenes"
 import { SceneTag } from "@/components/community/scene-tag"
 import { getLayerLabel } from "@/lib/editor/config/layer-catalog"
-
-function sceneShareUrl(slug: string): string {
-  const origin = typeof window === "undefined" ? "" : window.location.origin
-
-  return `${origin}${sceneSharePath(slug)}`
-}
 
 function formatPublishedAt(value: string | null): string {
   if (!value) {
@@ -150,16 +143,6 @@ export function SceneDetail({
               liked={liked}
             />
 
-            <ButtonLink
-              className="flex-1"
-              href={scenePagePath(scene.slug) as Route}
-              rel="noreferrer"
-              target="_blank"
-              variant="secondary"
-            >
-              Open scene
-            </ButtonLink>
-
             <Button
               className="flex-1"
               disabled={remixing || !detail}
@@ -178,8 +161,9 @@ export function SceneDetail({
               </Typography>
             </Button>
 
+            <ShareSceneButton slug={scene.slug} />
+
             <ShareOnXButton
-              className="h-auto"
               shareUrl={sceneShareUrl(scene.slug)}
               title={scene.title}
             />

@@ -1,3 +1,4 @@
+import { ArrowLeftIcon } from "@radix-ui/react-icons"
 import type { Metadata, Route } from "next"
 import Image from "next/image"
 import Link from "next/link"
@@ -10,6 +11,7 @@ import { SCENE_GRID_CLASS_NAME } from "@/components/community/scene-grid"
 import { SceneTag } from "@/components/community/scene-tag"
 import { SceneViewer } from "@/components/community/scene-viewer"
 import { ShareOnXButton } from "@/components/community/share-on-x-button"
+import { ShareSceneButton } from "@/components/community/share-scene-button"
 import { ButtonLink } from "@/components/ui/button/link"
 import { Typography } from "@/components/ui/typography"
 import { APP_BASE_URL } from "@/lib/app"
@@ -152,6 +154,7 @@ async function SceneBody({ params }: PageProps) {
           size="compact"
           variant="ghost"
         >
+          <ArrowLeftIcon height={14} width={14} />
           All scenes
         </ButtonLink>
 
@@ -251,10 +254,10 @@ async function SceneBody({ params }: PageProps) {
               href={editorSceneHref(scene.slug) as Route}
               variant="primary"
             >
-              Remix in Shader Lab
+              Remix Scene
             </ButtonLink>
+            <ShareSceneButton slug={scene.slug} />
             <ShareOnXButton
-              className="h-auto"
               shareUrl={`${APP_BASE_URL}${sceneSharePath(scene.slug)}`}
               title={scene.title}
             />

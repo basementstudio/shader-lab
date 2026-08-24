@@ -42,7 +42,7 @@ export function ShareOnXButton({
     <HoverTooltip content="Share on X" side="top">
       <IconButtonLink
         aria-label="Share on X"
-        className={cn(className)}
+        className={cn("aspect-square h-auto w-auto shrink-0", className)}
         href={`https://x.com/intent/post?${params.toString()}` as Route}
         rel="noreferrer"
         target="_blank"

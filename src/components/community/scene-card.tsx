@@ -1,14 +1,11 @@
 "use client"
 
 import { HeartIcon, ShuffleIcon } from "@radix-ui/react-icons"
-import type { Route } from "next"
 import Image from "next/image"
 import { AuthorAvatar } from "@/components/community/author-avatar"
-import { Button } from "@/components/ui/button"
-import { ButtonLink } from "@/components/ui/button/link"
+import { IconButton } from "@/components/ui/icon-button"
 import { Typography } from "@/components/ui/typography"
 import { cn } from "@/lib/cn"
-import { scenePagePath } from "@/lib/community/scene-links"
 import type { CommunitySceneSummary } from "@/lib/community/scenes"
 
 const CARD_CTA_CLASSES =
@@ -83,29 +80,20 @@ export function SceneCard({
           </span>
         </div>
 
-        <div className="pointer-events-none absolute inset-0 z-[2] flex items-center justify-center gap-2 opacity-0 transition-opacity duration-160 ease-[var(--ease-out-cubic)] group-focus-within:opacity-100 group-hover:opacity-100">
-          <ButtonLink
-            className={CARD_CTA_CLASSES}
-            href={scenePagePath(scene.slug) as Route}
-            rel="noreferrer"
-            size="compact"
-            target="_blank"
-            variant="secondary"
-          >
-            Open scene
-          </ButtonLink>
-          {onRemix ? (
-            <Button
+        {onRemix ? (
+          <div className="pointer-events-none absolute right-1.5 bottom-1.5 z-[2] opacity-0 transition-opacity duration-160 ease-[var(--ease-out-cubic)] group-focus-within:opacity-100 group-hover:opacity-100">
+            <IconButton
+              aria-label={`Remix ${scene.title}`}
               className={CARD_CTA_CLASSES}
               onClick={() => onRemix(scene)}
-              size="compact"
+              tooltip="Remix scene"
+              tooltipSide="left"
               uiSound="action.addLayer"
-              variant="secondary"
             >
-              Remix
-            </Button>
-          ) : null}
-        </div>
+              <ShuffleIcon height={13} width={13} />
+            </IconButton>
+          </div>
+        ) : null}
       </div>
 
       <div className="flex min-w-0 flex-col gap-[5px] px-[2px]">

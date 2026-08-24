@@ -1,5 +1,6 @@
 import { requestAutosave } from "@/lib/editor/autosave/bus"
 import { withAutosaveSuppressed } from "@/lib/editor/autosave/suppress"
+import { armRemixDraft } from "@/lib/editor/remix-draft"
 import {
   applyLabProjectFile,
   type LabProjectFile,
@@ -7,6 +8,16 @@ import {
 import { useAssetStore } from "@/store/asset-store"
 import { useDraftStore } from "@/store/draft-store"
 import { useRemixOriginStore } from "@/store/remix-origin-store"
+
+function remixDraftTitle(title: string): string {
+  const trimmed = title.trim()
+
+  if (trimmed.length === 0) {
+    return "Remix"
+  }
+
+  return /\bremix$/i.test(trimmed) ? trimmed : `${trimmed} remix`
+}
 
 export function applyRemixedScene(
   projectFile: LabProjectFile,
@@ -26,4 +37,6 @@ export function applyRemixedScene(
   void fetch(`/api/community/scenes/${scene.slug}/remix`, {
     method: "POST",
   }).catch(() => undefined)
+
+  armRemixDraft({ title: remixDraftTitle(scene.title) })
 }

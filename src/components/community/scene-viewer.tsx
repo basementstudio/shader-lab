@@ -84,6 +84,7 @@ export function SceneViewer({
       let visibilityObserver: IntersectionObserver | null = null
       let onVisibilityChange: (() => void) | null = null
       let paused = false
+      let framePending: Promise<void> | null = null
 
       disposeRef.current = () => {
         disposed = true
@@ -129,7 +130,21 @@ export function SceneViewer({
             document.removeEventListener("visibilitychange", onVisibilityChange)
           }
 
-          renderer.dispose()
+          const teardown = () => {
+            try {
+              renderer.dispose()
+            } catch {
+              return
+            }
+          }
+
+          if (framePending) {
+            framePending.then(teardown, teardown)
+
+            return
+          }
+
+          teardown()
         }
 
         await renderer.initialize()
@@ -231,7 +246,9 @@ export function SceneViewer({
           }
 
           animationFrame = window.requestAnimationFrame((nextNow) => {
-            void renderFrame(nextNow)
+            framePending = renderFrame(nextNow).finally(() => {
+              framePending = null
+            })
           })
         }
 
@@ -248,7 +265,9 @@ export function SceneViewer({
           }
 
           animationFrame = window.requestAnimationFrame((nextNow) => {
-            void renderFrame(nextNow)
+            framePending = renderFrame(nextNow).finally(() => {
+              framePending = null
+            })
           })
         }
 

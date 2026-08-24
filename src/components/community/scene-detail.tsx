@@ -202,7 +202,7 @@ export function SceneDetail({
               <IconButtonLink
                 aria-label="Share on X"
                 className="h-auto"
-                href={shareOnXHref(scene)}
+                href={shareOnXHref(scene) as Route}
                 rel="noreferrer"
                 target="_blank"
                 variant="outline"

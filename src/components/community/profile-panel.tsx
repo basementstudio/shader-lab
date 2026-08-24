@@ -17,10 +17,12 @@ const SKELETON_KEYS = ["a", "b", "c", "d"] as const
 
 export function ProfilePanel({
   handle,
+  onRemix,
   onRenamed,
   onSelect,
 }: {
   handle: string
+  onRemix?: (scene: CommunitySceneSummary) => void
   onRenamed: (handle: string) => void
   onSelect: (scene: CommunitySceneSummary) => void
 }) {
@@ -134,7 +136,12 @@ export function ProfilePanel({
       {scenes && scenes.length > 0 ? (
         <div className="grid grid-cols-2 gap-[var(--ds-space-4)] min-[720px]:grid-cols-4">
           {scenes.map((scene) => (
-            <SceneCard key={scene.id} onSelect={onSelect} scene={scene} />
+            <SceneCard
+              key={scene.id}
+              onRemix={onRemix}
+              onSelect={onSelect}
+              scene={scene}
+            />
           ))}
         </div>
       ) : null}

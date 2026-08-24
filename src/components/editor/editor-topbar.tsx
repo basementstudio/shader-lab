@@ -62,12 +62,23 @@ const AuthMenu = dynamic(
   { ssr: false }
 )
 
+const loadCommunityModal = () => import("@/components/community/community-modal")
+
+/* Shown while the community-modal chunk is downloading so the backdrop
+ * appears on the first frame after click. Matches the modal's own scrim,
+ * which mounts fully opaque (AnimatePresence initial={false}). */
+function CommunityModalLoadingScrim() {
+  return (
+    <div
+      aria-hidden="true"
+      className="fixed inset-0 z-90 bg-[rgb(4_5_7_/_0.56)]"
+    />
+  )
+}
+
 const CommunityModal = dynamic(
-  () =>
-    import("@/components/community/community-modal").then(
-      (mod) => mod.CommunityModal
-    ),
-  { ssr: false }
+  () => loadCommunityModal().then((mod) => mod.CommunityModal),
+  { loading: CommunityModalLoadingScrim, ssr: false }
 )
 
 const EditorExportDialog = dynamic(
@@ -612,6 +623,8 @@ export function EditorTopBar({
                         setCommunityOpen(true)
                         markCommunitySeen()
                       }}
+                      onFocus={() => void loadCommunityModal()}
+                      onPointerEnter={() => void loadCommunityModal()}
                       size="compact"
                       variant="secondary"
                     >

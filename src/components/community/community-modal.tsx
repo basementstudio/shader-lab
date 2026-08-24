@@ -184,7 +184,6 @@ export function CommunityModal({
 }) {
   const reduceMotion = useReducedMotion() ?? false
   const { data: session } = authClient.useSession()
-  const [mounted, setMounted] = useState(false)
   const [tab, setTab] = useState<"drafts" | "explore" | "likes" | "mine">(
     "explore"
   )
@@ -216,10 +215,6 @@ export function CommunityModal({
   const [error, setError] = useState<string | null>(null)
   const [consentTitle, setConsentTitle] = useState<string | null>(null)
   const consentResolver = useRef<((granted: boolean) => void) | null>(null)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
 
   useEffect(() => {
     if (!open) {
@@ -596,6 +591,30 @@ export function CommunityModal({
     [onOpenChange, requestShaderConsent]
   )
 
+  const remixFromSummary = useCallback(
+    async (summary: CommunitySceneSummary) => {
+      setRemixing(true)
+      setError(null)
+
+      try {
+        const res = await fetch(`/api/community/scenes/${summary.slug}`)
+        const data = (await res.json()) as { scene?: CommunitySceneDetail }
+
+        if (!data.scene) {
+          setError("That scene is no longer available.")
+          return
+        }
+
+        await remix(data.scene)
+      } catch {
+        setError("Could not load that scene.")
+      } finally {
+        setRemixing(false)
+      }
+    },
+    [remix]
+  )
+
   const ownedSlugs = new Set((mine ?? []).map((entry) => entry.slug))
 
   const applyCounts = useCallback(
@@ -640,10 +659,6 @@ export function CommunityModal({
     },
     [explore]
   )
-
-  if (!mounted) {
-    return null
-  }
 
   return createPortal(
     <>
@@ -932,6 +947,7 @@ export function CommunityModal({
                   {!selected && selectedHandle ? (
                     <ProfilePanel
                       handle={selectedHandle}
+                      onRemix={remixFromSummary}
                       onRenamed={setSelectedHandle}
                       onSelect={openScene}
                     />
@@ -980,7 +996,11 @@ export function CommunityModal({
                       ) : null}
 
                       {mine && mine.length > 0 ? (
-                        <MyScenesGrid onSelect={openScene} scenes={mine} />
+                        <MyScenesGrid
+                          onRemix={remixFromSummary}
+                          onSelect={openScene}
+                          scenes={mine}
+                        />
                       ) : null}
                     </div>
                   ) : null}
@@ -1022,6 +1042,7 @@ export function CommunityModal({
                           {likedScenes.map((scene) => (
                             <SceneCard
                               key={scene.slug}
+                              onRemix={remixFromSummary}
                               onSelect={openScene}
                               scene={scene}
                             />
@@ -1145,6 +1166,7 @@ export function CommunityModal({
                                 total: items.length,
                               })}
                               key={scene.id}
+                              onRemix={remixFromSummary}
                               onSelect={openScene}
                               scene={scene}
                             />

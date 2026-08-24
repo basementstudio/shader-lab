@@ -7,19 +7,50 @@ import { AuthorAvatar } from "@/components/community/author-avatar"
 import { DeleteSceneControl } from "@/components/community/delete-scene-control"
 import { RemixCredit } from "@/components/community/remix-credit"
 import { ReportControl } from "@/components/community/report-control"
-import { ShareSceneButton } from "@/components/community/share-scene-button"
 import { LikeButton } from "@/components/community/like-button"
 import { Button } from "@/components/ui/button"
+import { ButtonLink } from "@/components/ui/button/link"
 import { Typography } from "@/components/ui/typography"
 import { lineageLabel } from "@/lib/community/lineage"
 import { getCommunitySceneEffects } from "@/lib/community/scene-effect-filter"
-import { communityEffectPath } from "@/lib/community/scene-links"
+import { HoverTooltip } from "@/components/ui/tooltip"
+import { IconButtonLink } from "@/components/ui/icon-button/link"
+import {
+  communityEffectPath,
+  scenePagePath,
+  sceneSharePath,
+} from "@/lib/community/scene-links"
 import type {
   CommunitySceneDetail,
   CommunitySceneSummary,
 } from "@/lib/community/scenes"
 import { SceneTag } from "@/components/community/scene-tag"
 import { getLayerLabel } from "@/lib/editor/config/layer-catalog"
+
+function XLogoIcon({ height = 12, width = 12 }: { height?: number; width?: number }) {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="currentColor"
+      height={height}
+      viewBox="0 0 24 24"
+      width={width}
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+    </svg>
+  )
+}
+
+function shareOnXHref(scene: CommunitySceneSummary): string {
+  const origin = typeof window === "undefined" ? "" : window.location.origin
+  const params = new URLSearchParams({
+    text: `${scene.title} — Shader Lab`,
+    url: `${origin}${sceneSharePath(scene.slug)}`,
+  })
+
+  return `https://x.com/intent/post?${params.toString()}`
+}
 
 function formatPublishedAt(value: string | null): string {
   if (!value) {
@@ -139,25 +170,46 @@ export function SceneDetail({
               liked={liked}
             />
 
+            <ButtonLink
+              className="flex-1"
+              href={scenePagePath(scene.slug) as Route}
+              rel="noreferrer"
+              target="_blank"
+              variant="secondary"
+            >
+              Open scene
+            </ButtonLink>
+
             <Button
               className="flex-1"
               disabled={remixing || !detail}
               onClick={() => detail && onRemix(detail)}
               uiSound="action.addLayer"
-              variant="primary"
+              variant="secondary"
             >
-              {remixing ? "Loading scene…" : "Remix this scene"}
+              {remixing ? "Loading scene…" : "Remix scene"}
               <Typography
                 as="span"
-                className="rounded-[4px] bg-black/12 px-1.5 py-[1px]"
-                tone="onLight"
+                className="rounded-[4px] bg-white/10 px-1.5 py-[1px]"
+                tone="secondary"
                 variant="monoXs"
               >
                 {scene.remixCount}
               </Typography>
             </Button>
 
-            <ShareSceneButton slug={scene.slug} />
+            <HoverTooltip content="Share on X" side="top">
+              <IconButtonLink
+                aria-label="Share on X"
+                className="h-auto"
+                href={shareOnXHref(scene)}
+                rel="noreferrer"
+                target="_blank"
+                variant="outline"
+              >
+                <XLogoIcon />
+              </IconButtonLink>
+            </HoverTooltip>
           </div>
 
           {isOwn ? (

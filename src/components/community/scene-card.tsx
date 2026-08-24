@@ -1,30 +1,44 @@
 "use client"
 
 import { HeartIcon, ShuffleIcon } from "@radix-ui/react-icons"
+import type { Route } from "next"
 import Image from "next/image"
 import { AuthorAvatar } from "@/components/community/author-avatar"
+import { Button } from "@/components/ui/button"
+import { ButtonLink } from "@/components/ui/button/link"
 import { Typography } from "@/components/ui/typography"
 import { cn } from "@/lib/cn"
+import { scenePagePath } from "@/lib/community/scene-links"
 import type { CommunitySceneSummary } from "@/lib/community/scenes"
+
+const CARD_CTA_CLASSES =
+  "pointer-events-none border border-white/10 bg-[rgb(8_9_12_/_0.68)] backdrop-blur-[8px] group-hover:pointer-events-auto group-focus-within:pointer-events-auto"
 
 export function SceneCard({
   featured = false,
+  onRemix,
   onSelect,
   scene,
 }: {
   featured?: boolean
+  onRemix?: ((scene: CommunitySceneSummary) => void) | undefined
   onSelect: (scene: CommunitySceneSummary) => void
   scene: CommunitySceneSummary
 }) {
   return (
-    <button
+    <div
       className={cn(
-        "group flex w-full cursor-pointer flex-col gap-[var(--ds-space-2)] rounded-[10px] text-left focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--ds-border-active)] focus-visible:outline-offset-2",
+        "group relative flex w-full flex-col gap-[var(--ds-space-2)] rounded-[10px] text-left",
         featured && "col-span-2 row-span-2 h-full"
       )}
-      onClick={() => onSelect(scene)}
-      type="button"
     >
+      <button
+        aria-label={`View ${scene.title}`}
+        className="absolute inset-0 z-[1] cursor-pointer rounded-[10px] focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--ds-border-active)] focus-visible:outline-offset-2"
+        onClick={() => onSelect(scene)}
+        type="button"
+      />
+
       <div
         className={cn(
           "relative w-full overflow-hidden rounded-[8px] border border-[var(--ds-border-subtle)] bg-[var(--ds-color-surface-subtle)] transition-[border-color] duration-160 ease-[var(--ease-out-cubic)] group-hover:border-[var(--ds-border-hover)]",
@@ -66,6 +80,30 @@ export function SceneCard({
             </Typography>
           </span>
         </div>
+
+        <div className="pointer-events-none absolute inset-0 z-[2] flex items-center justify-center gap-2 opacity-0 transition-opacity duration-160 ease-[var(--ease-out-cubic)] group-focus-within:opacity-100 group-hover:opacity-100">
+          <ButtonLink
+            className={CARD_CTA_CLASSES}
+            href={scenePagePath(scene.slug) as Route}
+            rel="noreferrer"
+            size="compact"
+            target="_blank"
+            variant="secondary"
+          >
+            Open scene
+          </ButtonLink>
+          {onRemix ? (
+            <Button
+              className={CARD_CTA_CLASSES}
+              onClick={() => onRemix(scene)}
+              size="compact"
+              uiSound="action.addLayer"
+              variant="secondary"
+            >
+              Remix
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       <div className="flex min-w-0 flex-col gap-[5px] px-[2px]">
@@ -92,6 +130,6 @@ export function SceneCard({
           </Typography>
         </span>
       </div>
-    </button>
+    </div>
   )
 }

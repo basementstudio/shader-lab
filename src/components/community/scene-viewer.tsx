@@ -235,8 +235,25 @@ export function SceneViewer({
     return null
   }
 
+  const loading =
+    supported && !revealed && (requiresActivation ? activated : true)
+
   return (
     <div className="absolute inset-0" ref={containerRef}>
+      {/* Covers the static poster with the app's loader while the scene
+          spins up; the canvas fades in above it. */}
+      <div
+        aria-hidden="true"
+        className={cn(
+          "absolute inset-0 flex items-center justify-center bg-[#050507] transition-opacity duration-300 ease-out",
+          loading ? "opacity-100" : "pointer-events-none opacity-0"
+        )}
+      >
+        <div className="relative h-[3px] w-[min(220px,32vw)] overflow-hidden rounded-full bg-white/12">
+          <div className="absolute inset-y-0 left-0 w-[38%] animate-[loader-bounce_0.9s_cubic-bezier(0.65,0,0.35,1)_infinite_alternate] rounded-full bg-white/72 shadow-[0_0_18px_rgba(255,255,255,0.18)]" />
+        </div>
+      </div>
+
       <canvas
         aria-hidden={!revealed}
         className={cn(

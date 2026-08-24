@@ -1,5 +1,6 @@
 import type { Route } from "next"
 import Link from "next/link"
+import { EdgeFadeScroller } from "@/components/community/edge-fade-scroller"
 import { Typography } from "@/components/ui/typography"
 import { cn } from "@/lib/cn"
 import { COMMUNITY_EFFECT_TYPES } from "@/lib/community/scene-effect-filter"
@@ -18,9 +19,11 @@ export function PublicSceneEffectFilter({
   const selected = new Set(effects)
 
   return (
-    <nav
-      aria-label="Filter community scenes by effect"
-      className="flex min-w-0 gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+    <EdgeFadeScroller
+      arrows
+      className="gap-2 py-0.5"
+      element="nav"
+      label="Filter community scenes by effect"
     >
       <Link
         aria-current={effects.length > 0 ? undefined : "page"}
@@ -63,6 +66,6 @@ export function PublicSceneEffectFilter({
           </Link>
         )
       })}
-    </nav>
+    </EdgeFadeScroller>
   )
 }

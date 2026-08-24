@@ -19,6 +19,17 @@ const MAX_CONSECUTIVE_FRAME_FAILURES = 5
 // keep the live view from ever appearing.
 const REVEAL_TIMEOUT_MS = 8_000
 
+function isOnScreen(element: HTMLElement): boolean {
+  const bounds = element.getBoundingClientRect()
+
+  return (
+    bounds.bottom > 0 &&
+    bounds.right > 0 &&
+    bounds.top < window.innerHeight &&
+    bounds.left < window.innerWidth
+  )
+}
+
 function measureElement(element: HTMLElement): Size {
   const bounds = element.getBoundingClientRect()
 
@@ -70,6 +81,9 @@ export function SceneViewer({
       let disposed = false
       let animationFrame: number | null = null
       let resizeObserver: ResizeObserver | null = null
+      let visibilityObserver: IntersectionObserver | null = null
+      let onVisibilityChange: (() => void) | null = null
+      let paused = false
 
       disposeRef.current = () => {
         disposed = true
@@ -79,6 +93,11 @@ export function SceneViewer({
         }
 
         resizeObserver?.disconnect()
+        visibilityObserver?.disconnect()
+
+        if (onVisibilityChange) {
+          document.removeEventListener("visibilitychange", onVisibilityChange)
+        }
       }
 
       try {
@@ -104,6 +123,12 @@ export function SceneViewer({
           }
 
           resizeObserver?.disconnect()
+          visibilityObserver?.disconnect()
+
+          if (onVisibilityChange) {
+            document.removeEventListener("visibilitychange", onVisibilityChange)
+          }
+
           renderer.dispose()
         }
 
@@ -199,14 +224,77 @@ export function SceneViewer({
             setRevealed(true)
           }
 
+          if (paused) {
+            animationFrame = null
+
+            return
+          }
+
           animationFrame = window.requestAnimationFrame((nextNow) => {
             void renderFrame(nextNow)
           })
         }
 
-        animationFrame = window.requestAnimationFrame((nextNow) => {
-          void renderFrame(nextNow)
-        })
+        const resume = () => {
+          if (disposed || paused || animationFrame !== null) {
+            return
+          }
+
+          lastFrameTime = performance.now()
+          if (paused) {
+            animationFrame = null
+
+            return
+          }
+
+          animationFrame = window.requestAnimationFrame((nextNow) => {
+            void renderFrame(nextNow)
+          })
+        }
+
+        const suspend = () => {
+          if (animationFrame !== null) {
+            window.cancelAnimationFrame(animationFrame)
+            animationFrame = null
+          }
+        }
+
+        const setPaused = (next: boolean) => {
+          if (paused === next) {
+            return
+          }
+
+          paused = next
+
+          if (paused) {
+            suspend()
+
+            return
+          }
+
+          resume()
+        }
+
+        visibilityObserver = new IntersectionObserver(
+          ([entry]) => {
+            setPaused(
+              !entry?.isIntersecting || document.visibilityState === "hidden"
+            )
+          },
+          { threshold: 0 }
+        )
+
+        visibilityObserver.observe(container)
+
+        onVisibilityChange = () => {
+          setPaused(
+            document.visibilityState === "hidden" || !isOnScreen(container)
+          )
+        }
+
+        document.addEventListener("visibilitychange", onVisibilityChange)
+
+        resume()
       } catch {
         setFailed(true)
       }

@@ -33,7 +33,7 @@ export const metadata: Metadata = {
       {
         alt: APP_DEFAULT_TITLE,
         height: 630,
-        url: "/opengraph-image.png",
+        url: "/opengraph-image.jpg",
         width: 1200,
       },
     ],
@@ -60,7 +60,7 @@ export const metadata: Metadata = {
       {
         alt: APP_DEFAULT_TITLE,
         height: 630,
-        url: "/twitter-image.png",
+        url: "/twitter-image.jpg",
         width: 1200,
       },
     ],

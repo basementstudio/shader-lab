@@ -4,12 +4,16 @@ import Link from "next/link"
 import { Typography } from "@/components/ui/typography"
 import { useEditorStore } from "@/store"
 
-function BasementWordmark() {
+export function BasementWordmark({
+  height = 10,
+}: {
+  height?: number
+}) {
   return (
     <svg
       aria-hidden="true"
       fill="currentColor"
-      height={10}
+      height={height}
       viewBox="0 0 107 15"
       xmlns="http://www.w3.org/2000/svg"
     >

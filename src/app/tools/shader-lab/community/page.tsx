@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { Suspense } from "react"
 import { CommunityHero } from "@/components/community/community-hero"
+import { SCENES_ANCHOR_ID } from "@/components/community/scenes-anchor"
 import { PublicSceneGrid } from "@/components/community/public-scene-grid"
 import { PublicSceneEffectFilter } from "@/components/community/public-scene-effect-filter"
 import { Typography } from "@/components/ui/typography"
@@ -13,9 +14,6 @@ import { COMMUNITY_PATH } from "@/lib/community/scene-links"
 import { getLayerLabel } from "@/lib/editor/config/layer-catalog"
 
 const TITLE = "Made by the community"
-
-const TAGLINE =
-  "Every scene runs in your browser. Open one, change anything, make it yours."
 
 const DESCRIPTION =
   "Scenes made with Shader Lab by the community. Open any one of them and remix it in your browser."
@@ -42,23 +40,30 @@ export default function CommunityPage({ searchParams }: PageProps) {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-[1180px] flex-col gap-[var(--ds-space-16)] px-4 py-10 sm:px-6">
+    <>
       <Suspense
-        fallback={<CommunityHero hero={null} tagline={TAGLINE} title={TITLE} />}
+        fallback={
+          <CommunityHero hero={null} title={TITLE} />
+        }
       >
         <CommunityHeroSection />
       </Suspense>
 
-      <Suspense fallback={<CommunityScenesSkeleton />}>
-        <CommunityScenes searchParams={searchParams} />
-      </Suspense>
-    </main>
+      <main
+        className="mx-auto flex w-full max-w-[1180px] flex-col gap-[var(--ds-space-16)] px-4 pt-[var(--ds-space-10)] pb-16 sm:px-6"
+        id={SCENES_ANCHOR_ID}
+      >
+        <Suspense fallback={<CommunityScenesSkeleton />}>
+          <CommunityScenes searchParams={searchParams} />
+        </Suspense>
+      </main>
+    </>
   )
 }
 
 async function CommunityHeroSection() {
   return (
-    <CommunityHero hero={await getHeroScene()} tagline={TAGLINE} title={TITLE} />
+    <CommunityHero hero={await getHeroScene()} title={TITLE} />
   )
 }
 

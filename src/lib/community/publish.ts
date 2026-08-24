@@ -1,7 +1,7 @@
-import { and, eq, isNull, sql } from "drizzle-orm"
+import { and, eq, inArray, isNull, sql } from "drizzle-orm"
 import { customAlphabet } from "nanoid"
 import { getDatabase } from "@/lib/db"
-import { scenes, uploadQuota } from "@/lib/db/schema"
+import { sceneAssets, scenes, uploadQuota } from "@/lib/db/schema"
 import { slugifyHandle } from "@/lib/community/handle"
 import {
   censorProjectFile,
@@ -289,12 +289,33 @@ export function findAssetOutsideScenePrefixes(
   return null
 }
 
+async function readAncestorAssetPrefixes(
+  ancestorIds: readonly string[]
+): Promise<string[]> {
+  if (ancestorIds.length === 0) {
+    return []
+  }
+
+  const rows = await getDatabase()
+    .select({ url: sceneAssets.url })
+    .from(sceneAssets)
+    .where(inArray(sceneAssets.sceneId, [...ancestorIds]))
+
+  return rows.flatMap((row) => {
+    const key = keyFromPublicUrl(row.url)
+    const prefix = key ? scenePrefixOf(key) : null
+
+    return prefix ? [prefix] : []
+  })
+}
+
 export async function collectAllowedScenePrefixes(input: {
   forkedFromId: string | null
   sceneId: string
 }): Promise<Set<string>> {
   const db = getDatabase()
   const prefixes = new Set([scenePrefixFor(input.sceneId)])
+  const ancestorIds: string[] = []
   let ancestorId = input.forkedFromId
 
   for (let hop = 0; ancestorId && hop < MAX_FORK_LINEAGE_HOPS; hop += 1) {
@@ -305,6 +326,7 @@ export async function collectAllowedScenePrefixes(input: {
     }
 
     prefixes.add(prefix)
+    ancestorIds.push(ancestorId)
 
     const rows = await db
       .select({ forkedFromId: scenes.forkedFromId })
@@ -313,6 +335,10 @@ export async function collectAllowedScenePrefixes(input: {
       .limit(1)
 
     ancestorId = rows[0]?.forkedFromId ?? null
+  }
+
+  for (const prefix of await readAncestorAssetPrefixes(ancestorIds)) {
+    prefixes.add(prefix)
   }
 
   return prefixes

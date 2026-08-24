@@ -43,7 +43,7 @@ import {
   MAX_DURATION,
   MIN_DURATION,
 } from "@/lib/editor/timeline-duration"
-import { useAudioStore, useEditorStore, useLayerStore, useTimelineStore } from "@/store"
+import { useAudioStore, useEditorStore, useLayerStore, useSoundStore, useTimelineStore } from "@/store"
 import { useAssetStore } from "@/store/asset-store"
 import { isParamVisible } from "./properties-sidebar-utils"
 import {
@@ -603,8 +603,9 @@ export function EditorTimelineOverlay() {
     [assets, layers]
   )
 
-  const [monitorEnabled, setMonitorEnabled] = useState(true)
-  useAudioMonitor(monitorEnabled)
+  const audioEnabled = useSoundStore((state) => state.enabled)
+  const toggleAudioEnabled = useSoundStore((state) => state.toggleEnabled)
+  useAudioMonitor(audioEnabled)
 
   const layerTracks = useMemo(
     () =>
@@ -1329,13 +1330,13 @@ export function EditorTimelineOverlay() {
                 expanded={timelinePanelOpen}
                 isPlaying={isPlaying}
                 loop={loop}
-                monitorEnabled={monitorEnabled}
+                monitorEnabled={audioEnabled}
                 onDurationChange={setDuration}
                 onStop={stop}
                 onToggleAutoKey={toggleTimelineAutoKey}
                 onToggleExpanded={toggleTimelinePanel}
                 onToggleLoop={() => setLoop(!loop)}
-                onToggleMonitor={() => setMonitorEnabled((enabled) => !enabled)}
+                onToggleMonitor={toggleAudioEnabled}
                 onTogglePlaying={togglePlaying}
               />
             </div>

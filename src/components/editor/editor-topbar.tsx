@@ -550,21 +550,6 @@ export function EditorTopBar({
                 </IconButton>
               ) : null}
 
-              <IconButton
-                aria-label="Interface sounds"
-                className="h-7 w-7"
-                onClick={() => toggleSoundEnabled()}
-                selected={soundEnabled}
-                tooltip={soundEnabled ? "Mute sounds" : "Unmute sounds"}
-                tooltipSide="bottom"
-                uiSound="none"
-              >
-                {soundEnabled ? (
-                  <SpeakerLoudIcon height={16} width={16} />
-                ) : (
-                  <SpeakerOffIcon height={16} width={16} />
-                )}
-              </IconButton>
             </div>
 
             <div className="inline-flex items-center gap-1.5">

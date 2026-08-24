@@ -13,8 +13,7 @@ import { ButtonLink } from "@/components/ui/button/link"
 import { Typography } from "@/components/ui/typography"
 import { lineageLabel } from "@/lib/community/lineage"
 import { getCommunitySceneEffects } from "@/lib/community/scene-effect-filter"
-import { HoverTooltip } from "@/components/ui/tooltip"
-import { IconButtonLink } from "@/components/ui/icon-button/link"
+import { ShareOnXButton } from "@/components/community/share-on-x-button"
 import {
   communityEffectPath,
   scenePagePath,
@@ -27,29 +26,10 @@ import type {
 import { SceneTag } from "@/components/community/scene-tag"
 import { getLayerLabel } from "@/lib/editor/config/layer-catalog"
 
-function XLogoIcon({ height = 12, width = 12 }: { height?: number; width?: number }) {
-  return (
-    <svg
-      aria-hidden="true"
-      fill="currentColor"
-      height={height}
-      viewBox="0 0 24 24"
-      width={width}
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-    </svg>
-  )
-}
-
-function shareOnXHref(scene: CommunitySceneSummary): string {
+function sceneShareUrl(slug: string): string {
   const origin = typeof window === "undefined" ? "" : window.location.origin
-  const params = new URLSearchParams({
-    text: `${scene.title} — Shader Lab`,
-    url: `${origin}${sceneSharePath(scene.slug)}`,
-  })
 
-  return `https://x.com/intent/post?${params.toString()}`
+  return `${origin}${sceneSharePath(slug)}`
 }
 
 function formatPublishedAt(value: string | null): string {
@@ -198,18 +178,11 @@ export function SceneDetail({
               </Typography>
             </Button>
 
-            <HoverTooltip content="Share on X" side="top">
-              <IconButtonLink
-                aria-label="Share on X"
-                className="h-auto"
-                href={shareOnXHref(scene) as Route}
-                rel="noreferrer"
-                target="_blank"
-                variant="outline"
-              >
-                <XLogoIcon />
-              </IconButtonLink>
-            </HoverTooltip>
+            <ShareOnXButton
+              className="h-auto"
+              shareUrl={sceneShareUrl(scene.slug)}
+              title={scene.title}
+            />
           </div>
 
           {isOwn ? (

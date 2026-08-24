@@ -9,6 +9,7 @@ import { RemixCredit } from "@/components/community/remix-credit"
 import { SCENE_GRID_CLASS_NAME } from "@/components/community/scene-grid"
 import { SceneTag } from "@/components/community/scene-tag"
 import { SceneViewer } from "@/components/community/scene-viewer"
+import { ShareOnXButton } from "@/components/community/share-on-x-button"
 import { ButtonLink } from "@/components/ui/button/link"
 import { Typography } from "@/components/ui/typography"
 import { APP_BASE_URL } from "@/lib/app"
@@ -22,6 +23,7 @@ import {
   OPEN_IN_EDITOR_PARAM,
   profilePagePath,
   scenePagePath,
+  sceneSharePath,
 } from "@/lib/community/scene-links"
 import { getPublicProfileScenes } from "@/lib/community/public-profiles"
 import { getPublicScene } from "@/lib/community/public-scenes"
@@ -243,13 +245,20 @@ async function SceneBody({ params }: PageProps) {
         </div>
 
         <div className="flex shrink-0 flex-col gap-[var(--ds-space-3)] min-[860px]:items-end">
-          <ButtonLink
-            className="w-full min-[860px]:w-auto"
-            href={editorSceneHref(scene.slug) as Route}
-            variant="primary"
-          >
-            Remix in Shader Lab
-          </ButtonLink>
+          <div className="flex w-full items-stretch gap-[var(--ds-space-2)] min-[860px]:w-auto">
+            <ButtonLink
+              className="flex-1"
+              href={editorSceneHref(scene.slug) as Route}
+              variant="primary"
+            >
+              Remix in Shader Lab
+            </ButtonLink>
+            <ShareOnXButton
+              className="h-auto"
+              shareUrl={`${APP_BASE_URL}${sceneSharePath(scene.slug)}`}
+              title={scene.title}
+            />
+          </div>
           <Typography as="span" tone="secondary" variant="monoSm">
             {countLabel(scene.likeCount, "like")} ·{" "}
             {countLabel(scene.remixCount, "remix")}

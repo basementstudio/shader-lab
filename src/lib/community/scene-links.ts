@@ -29,7 +29,7 @@ export function communityEffectsPath(effects: readonly string[]): string {
 }
 
 export function sceneSharePath(slug: string): string {
-  return `${scenePagePath(slug)}?${OPEN_IN_EDITOR_PARAM}=1`
+  return scenePagePath(slug)
 }
 
 export function profilePagePath(handle: string): string {

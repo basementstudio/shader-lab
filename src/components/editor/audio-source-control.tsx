@@ -557,11 +557,7 @@ export function AudioSourceControl({
 
       <IconButton
         aria-label={monitorEnabled ? "Mute audio" : "Unmute audio"}
-        className={cn(
-          "h-7 w-7",
-
-        )}
-        disabled={status !== "ready"}
+        className="h-7 w-7"
         onClick={onToggleMonitor}
         selected={monitorEnabled}
       >

@@ -34,11 +34,9 @@ function measureElement(element: HTMLElement): Size {
  * poster simply stays. */
 export function SceneViewer({
   hasCameraLayer,
-  hasCustomShader,
   labUrl,
 }: {
   hasCameraLayer: boolean
-  hasCustomShader: boolean
   labUrl: string
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -50,9 +48,9 @@ export function SceneViewer({
   const [revealed, setRevealed] = useState(false)
   const [failed, setFailed] = useState(false)
 
-  // Scenes that run untrusted shader code or ask for the camera never
-  // start on their own — the visitor opts in.
-  const requiresActivation = hasCameraLayer || hasCustomShader
+  // Scenes that ask for the camera never start on their own — the
+  // permission prompt needs a visitor gesture.
+  const requiresActivation = hasCameraLayer
 
   const start = useCallback(() => {
     if (startedRef.current) {
@@ -266,9 +264,7 @@ export function SceneViewer({
             tone="secondary"
             variant="monoXs"
           >
-            {hasCameraLayer
-              ? "Run scene — uses your camera"
-              : "Run scene — includes custom shader code"}
+            Run scene — uses your camera
           </Typography>
         </button>
       ) : null}

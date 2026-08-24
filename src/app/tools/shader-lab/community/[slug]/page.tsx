@@ -167,7 +167,6 @@ async function SceneBody({ params }: PageProps) {
 
           <SceneViewer
             hasCameraLayer={scene.layerTypes.includes("live")}
-            hasCustomShader={scene.hasCustomShader}
             labUrl={scene.labUrl}
           />
         </figure>

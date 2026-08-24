@@ -8,6 +8,7 @@ import { PublicSceneCard } from "@/components/community/public-scene-card"
 import { RemixCredit } from "@/components/community/remix-credit"
 import { SCENE_GRID_CLASS_NAME } from "@/components/community/scene-grid"
 import { SceneTag } from "@/components/community/scene-tag"
+import { SceneViewer } from "@/components/community/scene-viewer"
 import { ButtonLink } from "@/components/ui/button/link"
 import { Typography } from "@/components/ui/typography"
 import { APP_BASE_URL } from "@/lib/app"
@@ -163,6 +164,12 @@ async function SceneBody({ params }: PageProps) {
               src={scene.thumbnailUrl}
             />
           ) : null}
+
+          <SceneViewer
+            hasCameraLayer={scene.layerTypes.includes("live")}
+            hasCustomShader={scene.hasCustomShader}
+            labUrl={scene.labUrl}
+          />
         </figure>
       </div>
 

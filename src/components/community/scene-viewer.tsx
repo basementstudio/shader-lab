@@ -228,6 +228,8 @@ export function SceneViewer({
 
     return () => {
       disposeRef.current?.()
+      disposeRef.current = null
+      startedRef.current = false
     }
   }, [requiresActivation, start])
 

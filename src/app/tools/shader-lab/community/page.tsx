@@ -1,13 +1,13 @@
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { Suspense } from "react"
+import { CommunityHero } from "@/components/community/community-hero"
 import { PublicSceneGrid } from "@/components/community/public-scene-grid"
 import { PublicSceneEffectFilter } from "@/components/community/public-scene-effect-filter"
-import { ButtonLink } from "@/components/ui/button/link"
 import { Typography } from "@/components/ui/typography"
 import { APP_BASE_URL } from "@/lib/app"
 import { isCommunityEnabled } from "@/lib/community/config"
-import { getPublicScenes } from "@/lib/community/public-scenes"
+import { getHeroScene, getPublicScenes } from "@/lib/community/public-scenes"
 import { getCommunityEffectSelection } from "@/lib/community/scene-effect-filter"
 import { COMMUNITY_PATH } from "@/lib/community/scene-links"
 import { getLayerLabel } from "@/lib/editor/config/layer-catalog"
@@ -43,31 +43,22 @@ export default function CommunityPage({ searchParams }: PageProps) {
 
   return (
     <main className="mx-auto flex w-full max-w-[1180px] flex-col gap-[var(--ds-space-16)] px-4 py-10 sm:px-6">
-      <header className="flex flex-col items-start gap-[var(--ds-space-5)] pt-[var(--ds-space-4)]">
-        <Typography
-          as="h1"
-          className="max-w-[640px] text-balance"
-          variant="display"
-        >
-          {TITLE}
-        </Typography>
-        <Typography
-          as="p"
-          className="max-w-[400px] text-pretty"
-          tone="secondary"
-          variant="title"
-        >
-          {TAGLINE}
-        </Typography>
-        <ButtonLink href="/tools/shader-lab" variant="primary">
-          Open the editor
-        </ButtonLink>
-      </header>
+      <Suspense
+        fallback={<CommunityHero hero={null} tagline={TAGLINE} title={TITLE} />}
+      >
+        <CommunityHeroSection />
+      </Suspense>
 
       <Suspense fallback={<CommunityScenesSkeleton />}>
         <CommunityScenes searchParams={searchParams} />
       </Suspense>
     </main>
+  )
+}
+
+async function CommunityHeroSection() {
+  return (
+    <CommunityHero hero={await getHeroScene()} tagline={TAGLINE} title={TITLE} />
   )
 }
 

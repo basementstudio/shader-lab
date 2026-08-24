@@ -1,4 +1,4 @@
-import { cacheTag } from "next/cache"
+import { cacheLife, cacheTag } from "next/cache"
 import {
   authorTag,
   COMMUNITY_FEED_TAG,
@@ -12,6 +12,7 @@ import {
 import {
   type CommunitySceneDetail,
   type CommunitySceneSummary,
+  findHeroSceneSlug,
   getPublishedSceneWithAuthor,
   listPublishedScenes,
 } from "@/lib/community/scenes"
@@ -41,6 +42,42 @@ export async function getPublicScenes(
     })
   } catch {
     return { nextCursor: null, scenes: [] }
+  }
+}
+
+export interface HeroScene {
+  detail: CommunitySceneDetail
+  recentLikes: number
+}
+
+export async function getHeroScene(): Promise<HeroScene | null> {
+  "use cache"
+
+  cacheLife("hours")
+  cacheTag(COMMUNITY_FEED_TAG)
+
+  if (!isCommunityEnabled()) {
+    return null
+  }
+
+  try {
+    const pick = await findHeroSceneSlug()
+
+    if (!pick) {
+      return null
+    }
+
+    const authored = await getPublishedSceneWithAuthor(pick.slug)
+
+    if (!authored) {
+      return null
+    }
+
+    cacheTag(sceneTag(pick.slug))
+
+    return { detail: authored.detail, recentLikes: pick.recentLikes }
+  } catch {
+    return null
   }
 }
 

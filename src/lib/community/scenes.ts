@@ -434,6 +434,49 @@ export async function listDraftsByAuthor(
   }))
 }
 
+export const HERO_LIKE_WINDOW_HOURS = 24
+
+export async function findHeroSceneSlug(
+  now = new Date()
+): Promise<{ slug: string; recentLikes: number } | null> {
+  const since = new Date(now.getTime() - HERO_LIKE_WINDOW_HOURS * 3_600_000)
+
+  const trending = await getDatabase()
+    .select({
+      recentLikes: sql<number>`count(${likes.userId})::int`,
+      slug: scenes.slug,
+    })
+    .from(scenes)
+    .innerJoin(
+      likes,
+      and(eq(likes.sceneId, scenes.id), sql`${likes.createdAt} >= ${since}`)
+    )
+    .where(and(eq(scenes.status, "published"), isNull(scenes.deletedAt)))
+    .groupBy(scenes.slug, scenes.likeCount, scenes.publishedAt, scenes.id)
+    .orderBy(
+      desc(sql`count(${likes.userId})`),
+      desc(scenes.likeCount),
+      desc(scenes.publishedAt),
+      desc(scenes.id)
+    )
+    .limit(1)
+
+  const top = trending[0]
+
+  if (top) {
+    return { recentLikes: top.recentLikes, slug: top.slug }
+  }
+
+  const fallback = await getDatabase()
+    .select({ slug: scenes.slug })
+    .from(scenes)
+    .where(and(eq(scenes.status, "published"), isNull(scenes.deletedAt)))
+    .orderBy(...buildOrderBy("popular"))
+    .limit(1)
+
+  return fallback[0] ? { recentLikes: 0, slug: fallback[0].slug } : null
+}
+
 export interface AuthoredSceneDetail {
   authorId: string
   detail: CommunitySceneDetail

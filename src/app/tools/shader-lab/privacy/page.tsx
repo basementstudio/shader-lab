@@ -1,11 +1,12 @@
 import type { Metadata } from "next"
+import Link from "next/link"
 import { Typography } from "@/components/ui/typography"
 import { APP_BASE_URL } from "@/lib/app"
-import { PRIVACY_PATH } from "@/lib/community/scene-links"
+import { EDITOR_PATH, PRIVACY_PATH } from "@/lib/community/scene-links"
 
 const LAST_UPDATED = "August 25, 2026"
 
-const CONTACT_EMAIL = "tobias@basement.studio"
+const CONTACT_EMAIL = "dev@basement.studio"
 
 const DESCRIPTION =
   "What Shader Lab stores when you sign in or publish a scene, who processes it, and how to have it deleted."
@@ -124,46 +125,75 @@ const SECTIONS: Section[] = [
   },
 ]
 
+function EmailText({ text }: { text: string }) {
+  const [before, after] = text.split(CONTACT_EMAIL)
+
+  if (after === undefined) {
+    return text
+  }
+
+  return (
+    <>
+      {before}
+      <Link
+        className="text-[var(--ds-color-text-primary)] underline decoration-[var(--ds-border-panel)] underline-offset-[3px] transition-colors hover:decoration-[var(--ds-color-text-primary)]"
+        href={`mailto:${CONTACT_EMAIL}`}
+      >
+        {CONTACT_EMAIL}
+      </Link>
+      {after}
+    </>
+  )
+}
+
 export default function PrivacyPolicyPage() {
   return (
-    <main className="mx-auto flex w-full max-w-[720px] flex-col gap-[var(--ds-space-10)] px-4 py-10 sm:px-6">
-      <header className="flex flex-col items-start gap-[var(--ds-space-4)] pt-[var(--ds-space-4)]">
+    <main className="mx-auto w-full max-w-[70ch] px-5 py-[var(--ds-space-16)] sm:px-6">
+      <header className="flex flex-col items-start gap-[var(--ds-space-4)]">
+        <Link
+          className="text-[var(--ds-color-text-tertiary)] transition-colors hover:text-[var(--ds-color-text-primary)] type-mono-xs"
+          href={EDITOR_PATH}
+        >
+          ← Shader Lab
+        </Link>
         <Typography as="h1" variant="display">
           Privacy Policy
         </Typography>
-        <Typography as="p" tone="tertiary" variant="caption">
+        <Typography as="p" tone="tertiary" variant="monoXs">
           Last updated {LAST_UPDATED}
         </Typography>
       </header>
 
-      <div className="flex flex-col gap-[var(--ds-space-9)]">
+      <hr className="my-[var(--ds-space-10)] border-0 border-[var(--ds-border-divider)] border-t" />
+
+      <div className="flex flex-col gap-[var(--ds-space-10)]">
         {SECTIONS.map((section) => (
           <section
             className="flex flex-col gap-[var(--ds-space-4)]"
             key={section.heading}
           >
-            <Typography as="h2" variant="title">
+            <Typography as="h2" variant="heading">
               {section.heading}
             </Typography>
 
             {section.body?.map((paragraph) => (
               <Typography
                 as="p"
-                className="text-pretty"
+                className="text-pretty leading-[1.65]"
                 key={paragraph}
                 tone="secondary"
                 variant="body"
               >
-                {paragraph}
+                <EmailText text={paragraph} />
               </Typography>
             ))}
 
             {section.items ? (
-              <ul className="flex list-disc flex-col gap-[var(--ds-space-3)] pl-[var(--ds-space-5)]">
+              <ul className="list-disc space-y-[var(--ds-space-4)] pl-[var(--ds-space-5)]">
                 {section.items.map((item) => (
                   <Typography
                     as="li"
-                    className="text-pretty"
+                    className="text-pretty leading-[1.65] marker:text-[var(--ds-color-text-muted)]"
                     key={item}
                     tone="secondary"
                     variant="body"

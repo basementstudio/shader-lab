@@ -8,9 +8,11 @@ import type {
 } from "@/lib/community/scenes"
 
 export function MyScenesGrid({
+  onRemix,
   onSelect,
   scenes,
 }: {
+  onRemix?: (scene: CommunitySceneSummary) => void
   onSelect: (scene: CommunitySceneSummary) => void
   scenes: AuthoredScene[]
 }) {
@@ -18,7 +20,11 @@ export function MyScenesGrid({
     <div className="grid grid-cols-2 gap-[var(--ds-space-4)] min-[720px]:grid-cols-4">
       {scenes.map((scene) => (
         <div className="relative" key={scene.slug}>
-          <SceneCard onSelect={onSelect} scene={scene} />
+          <SceneCard
+            onRemix={scene.status === "published" ? onRemix : undefined}
+            onSelect={onSelect}
+            scene={scene}
+          />
 
           {scene.status === "published" ? null : (
             <div className="pointer-events-none absolute top-1.5 left-1.5 rounded-[var(--ds-radius-control)] border border-white/10 bg-[rgb(8_9_12_/_0.68)] px-1.5 py-[3px] backdrop-blur-[8px]">

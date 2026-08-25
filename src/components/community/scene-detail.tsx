@@ -7,12 +7,16 @@ import { AuthorAvatar } from "@/components/community/author-avatar"
 import { DeleteSceneControl } from "@/components/community/delete-scene-control"
 import { RemixCredit } from "@/components/community/remix-credit"
 import { ReportControl } from "@/components/community/report-control"
-import { ShareSceneButton } from "@/components/community/share-scene-button"
 import { LikeButton } from "@/components/community/like-button"
 import { Button } from "@/components/ui/button"
 import { Typography } from "@/components/ui/typography"
 import { lineageLabel } from "@/lib/community/lineage"
 import { getCommunitySceneEffects } from "@/lib/community/scene-effect-filter"
+import { ShareOnXButton } from "@/components/community/share-on-x-button"
+import {
+  ShareSceneButton,
+  sceneShareUrl,
+} from "@/components/community/share-scene-button"
 import { communityEffectPath } from "@/lib/community/scene-links"
 import type {
   CommunitySceneDetail,
@@ -144,13 +148,13 @@ export function SceneDetail({
               disabled={remixing || !detail}
               onClick={() => detail && onRemix(detail)}
               uiSound="action.addLayer"
-              variant="primary"
+              variant="secondary"
             >
-              {remixing ? "Loading scene…" : "Remix this scene"}
+              {remixing ? "Loading scene…" : "Remix scene"}
               <Typography
                 as="span"
-                className="rounded-[4px] bg-black/12 px-1.5 py-[1px]"
-                tone="onLight"
+                className="rounded-[4px] bg-white/10 px-1.5 py-[1px]"
+                tone="secondary"
                 variant="monoXs"
               >
                 {scene.remixCount}
@@ -158,6 +162,11 @@ export function SceneDetail({
             </Button>
 
             <ShareSceneButton slug={scene.slug} />
+
+            <ShareOnXButton
+              shareUrl={sceneShareUrl(scene.slug)}
+              title={scene.title}
+            />
           </div>
 
           {isOwn ? (

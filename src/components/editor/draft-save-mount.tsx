@@ -12,7 +12,14 @@ import { DEFAULT_DRAFT_TITLE } from "@/lib/community/upload-limits"
 import {
   type DraftSaveRequest,
   registerDraftSaver,
+  requestDraftSave,
 } from "@/lib/editor/draft-save-bus"
+import {
+  disarmRemixDraft,
+  readArmedRemixDraft,
+  REMIX_DRAFT_SETTLE_MS,
+} from "@/lib/editor/remix-draft"
+import { useHistoryStore } from "@/store"
 
 const SAVED_PILL_MS = 2500
 const MESSAGE_PILL_MS = 6000
@@ -20,6 +27,22 @@ const MESSAGE_PILL_MS = 6000
 interface Notice {
   message: string
   tone: "error" | "notice" | "progress" | "success"
+}
+
+function describeSaveStart(request: DraftSaveRequest): string {
+  if (request.auto) {
+    return "Saving this remix as a draft…"
+  }
+
+  return request.asNewDraft ? "Saving a new draft…" : "Saving draft…"
+}
+
+function describeSaved(request: DraftSaveRequest, created: boolean): string {
+  if (request.auto) {
+    return "Remix saved as a draft"
+  }
+
+  return created ? "New draft saved" : "Draft saved"
 }
 
 export function DraftSaveMount() {
@@ -33,6 +56,10 @@ export function DraftSaveMount() {
   const save = useCallback(
     async (request: DraftSaveRequest) => {
       if (!signedIn) {
+        if (request.auto) {
+          return
+        }
+
         setNotice({
           message: "Sign in to save this draft to your account.",
           tone: "notice",
@@ -47,7 +74,7 @@ export function DraftSaveMount() {
 
       savingRef.current = true
       setNotice({
-        message: request.asNewDraft ? "Saving a new draft…" : "Saving draft…",
+        message: describeSaveStart(request),
         tone: "progress",
       })
 
@@ -55,8 +82,12 @@ export function DraftSaveMount() {
         const { saveDraft } = await import("@/lib/community/publish-client")
         const result = await saveDraft({
           asNewDraft: Boolean(request.asNewDraft),
+          ...(request.title === undefined ? {} : { title: request.title }),
+          ...(request.withThumbnail === undefined
+            ? {}
+            : { withThumbnail: request.withThumbnail }),
         })
-        const saved = result.created ? "New draft saved" : "Draft saved"
+        const saved = describeSaved(request, result.created)
 
         setNotice(
           result.skipped.length > 0
@@ -73,13 +104,17 @@ export function DraftSaveMount() {
               }
         )
       } catch (cause) {
-        setNotice({
-          message:
-            cause instanceof Error
-              ? cause.message
-              : "Could not save this draft.",
-          tone: "error",
-        })
+        const message =
+          cause instanceof Error ? cause.message : "Could not save this draft."
+
+        setNotice(
+          request.auto
+            ? {
+                message: `${message} This scene stays in this browser.`,
+                tone: "notice",
+              }
+            : { message, tone: "error" }
+        )
       } finally {
         savingRef.current = false
       }
@@ -92,6 +127,38 @@ export function DraftSaveMount() {
 
     return () => registerDraftSaver(null)
   }, [save])
+
+  useEffect(() => {
+    let seen = useHistoryStore.getState().past.length
+
+    return useHistoryStore.subscribe((state) => {
+      const grew = state.past.length > seen
+
+      seen = state.past.length
+
+      if (!grew) {
+        return
+      }
+
+      const pending = readArmedRemixDraft()
+
+      if (!(pending && signedIn)) {
+        return
+      }
+
+      if (Date.now() - pending.armedAt < REMIX_DRAFT_SETTLE_MS) {
+        return
+      }
+
+      disarmRemixDraft()
+      requestDraftSave({
+        asNewDraft: true,
+        auto: true,
+        title: pending.title,
+        withThumbnail: true,
+      })
+    })
+  }, [signedIn])
 
   useEffect(() => {
     if (!notice || notice.tone === "progress") {

@@ -10,6 +10,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { AuthMenu } from "@/components/community/auth-menu"
+import { EdgeFadeScroller } from "@/components/community/edge-fade-scroller"
 import { DraftsGrid } from "@/components/community/drafts-grid"
 import { EmptyState } from "@/components/community/empty-state"
 import { MyScenesGrid } from "@/components/community/my-scenes-grid"
@@ -184,7 +185,6 @@ export function CommunityModal({
 }) {
   const reduceMotion = useReducedMotion() ?? false
   const { data: session } = authClient.useSession()
-  const [mounted, setMounted] = useState(false)
   const [tab, setTab] = useState<"drafts" | "explore" | "likes" | "mine">(
     "explore"
   )
@@ -216,10 +216,6 @@ export function CommunityModal({
   const [error, setError] = useState<string | null>(null)
   const [consentTitle, setConsentTitle] = useState<string | null>(null)
   const consentResolver = useRef<((granted: boolean) => void) | null>(null)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
 
   useEffect(() => {
     if (!open) {
@@ -596,6 +592,34 @@ export function CommunityModal({
     [onOpenChange, requestShaderConsent]
   )
 
+  const remixFromSummary = useCallback(
+    async (summary: CommunitySceneSummary) => {
+      if (remixing) {
+        return
+      }
+
+      setRemixing(true)
+      setError(null)
+
+      try {
+        const res = await fetch(`/api/community/scenes/${summary.slug}`)
+        const data = (await res.json()) as { scene?: CommunitySceneDetail }
+
+        if (!data.scene) {
+          setError("That scene is no longer available.")
+          return
+        }
+
+        await remix(data.scene)
+      } catch {
+        setError("Could not load that scene.")
+      } finally {
+        setRemixing(false)
+      }
+    },
+    [remix, remixing]
+  )
+
   const ownedSlugs = new Set((mine ?? []).map((entry) => entry.slug))
 
   const applyCounts = useCallback(
@@ -640,10 +664,6 @@ export function CommunityModal({
     },
     [explore]
   )
-
-  if (!mounted) {
-    return null
-  }
 
   return createPortal(
     <>
@@ -817,7 +837,7 @@ export function CommunityModal({
                       </span>
                       <input
                         aria-label="Search scenes"
-                        className="w-[150px] min-w-0 border-0 bg-transparent font-[var(--ds-font-sans)] text-[11px] text-[var(--ds-color-text-primary)] outline-none placeholder:text-[var(--ds-color-text-disabled)]"
+                        className="w-[150px] min-w-0 border-0 bg-transparent font-[var(--ds-font-sans)] text-[12px] text-[var(--ds-color-text-primary)] leading-4 outline-none placeholder:text-[var(--ds-color-text-muted)]"
                         onChange={(event) => setSearch(event.target.value)}
                         placeholder="Search scenes"
                         type="search"
@@ -828,10 +848,12 @@ export function CommunityModal({
                 </div>
 
                 {selected || selectedHandle || tab !== "explore" ? null : (
-                  <fieldset
-                    aria-label="Filter community scenes by effect"
-                    className="m-0 flex min-w-0 shrink-0 gap-1.5 overflow-x-auto border-x-0 border-t-0 border-b border-[var(--ds-border-divider)] px-4 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-                  >
+                  <div className="shrink-0 border-[var(--ds-border-divider)] border-b px-4 py-2">
+                    <EdgeFadeScroller
+                      className="gap-1.5"
+                      element="fieldset"
+                      label="Filter community scenes by effect"
+                    >
                     <button
                       aria-pressed={effects.length === 0}
                       className={cn(
@@ -890,7 +912,8 @@ export function CommunityModal({
                         </Typography>
                       </button>
                     ))}
-                  </fieldset>
+                    </EdgeFadeScroller>
+                  </div>
                 )}
 
                 {error ? (
@@ -932,6 +955,7 @@ export function CommunityModal({
                   {!selected && selectedHandle ? (
                     <ProfilePanel
                       handle={selectedHandle}
+                      onRemix={remixFromSummary}
                       onRenamed={setSelectedHandle}
                       onSelect={openScene}
                     />
@@ -980,7 +1004,11 @@ export function CommunityModal({
                       ) : null}
 
                       {mine && mine.length > 0 ? (
-                        <MyScenesGrid onSelect={openScene} scenes={mine} />
+                        <MyScenesGrid
+                          onRemix={remixFromSummary}
+                          onSelect={openScene}
+                          scenes={mine}
+                        />
                       ) : null}
                     </div>
                   ) : null}
@@ -1022,6 +1050,7 @@ export function CommunityModal({
                           {likedScenes.map((scene) => (
                             <SceneCard
                               key={scene.slug}
+                              onRemix={remixFromSummary}
                               onSelect={openScene}
                               scene={scene}
                             />
@@ -1145,6 +1174,7 @@ export function CommunityModal({
                                 total: items.length,
                               })}
                               key={scene.id}
+                              onRemix={remixFromSummary}
                               onSelect={openScene}
                               scene={scene}
                             />

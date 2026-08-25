@@ -24,6 +24,7 @@ import type {
   ProjectPresetConfig,
   SceneConfig,
   Size,
+  TimelineStateSnapshot,
 } from "@/types/editor"
 import {
   AUDIO_BAND_IDS,
@@ -519,6 +520,50 @@ export function applyLabProjectFile(
       assetIds,
       nextLayers
     ),
+  }
+}
+
+export interface ViewerProjectState {
+  assets: EditorAsset[]
+  composition: Size
+  layers: EditorLayer[]
+  sceneConfig: SceneConfig
+  timeline: TimelineStateSnapshot
+}
+
+/* A plain snapshot of a lab file for read-only playback (public scene
+ * pages). Mirrors applyLabProjectFile without touching the editor's
+ * global stores. */
+export function buildViewerProjectState(
+  projectFile: LabProjectFile
+): ViewerProjectState {
+  const assets = collectRemoteAssets(projectFile.assets, new Set())
+  const assetIds = new Set(assets.map((asset) => asset.id))
+  const assetRefById = new Map(
+    projectFile.assets.map((asset) => [asset.id, asset])
+  )
+  const layers = projectFile.layers.map((layer) =>
+    hydrateImportedLayer(layer, assetIds, assetRefById, projectFile.version)
+  )
+
+  return {
+    assets,
+    composition: projectFile.composition,
+    layers,
+    sceneConfig:
+      projectFile.version >= 2 && projectFile.sceneConfig
+        ? normalizeSceneConfig(projectFile.sceneConfig as Partial<SceneConfig>)
+        : DEFAULT_SCENE_CONFIG,
+    timeline: {
+      currentTime: 0,
+      duration: projectFile.timeline.duration,
+      isPlaying: true,
+      loop: projectFile.timeline.loop,
+      selectedKeyframeId: null,
+      selectedKeyframeIds: [],
+      selectedTrackId: null,
+      tracks: projectFile.timeline.tracks,
+    },
   }
 }
 

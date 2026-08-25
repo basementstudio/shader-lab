@@ -71,7 +71,7 @@ export function ShareSceneButton({ slug }: { slug: string }) {
   return (
     <IconButton
       aria-label={label}
-      className="h-8 w-8 shrink-0"
+      className="aspect-square h-auto w-auto shrink-0"
       onClick={() => void copy()}
       title={label}
       variant="outline"

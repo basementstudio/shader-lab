@@ -1,3 +1,4 @@
+import { ArrowLeftIcon, HeartIcon, ShuffleIcon } from "@radix-ui/react-icons"
 import type { Metadata, Route } from "next"
 import Image from "next/image"
 import Link from "next/link"
@@ -8,6 +9,9 @@ import { PublicSceneCard } from "@/components/community/public-scene-card"
 import { RemixCredit } from "@/components/community/remix-credit"
 import { SCENE_GRID_CLASS_NAME } from "@/components/community/scene-grid"
 import { SceneTag } from "@/components/community/scene-tag"
+import { SceneViewer } from "@/components/community/scene-viewer"
+import { ShareOnXButton } from "@/components/community/share-on-x-button"
+import { ShareSceneButton } from "@/components/community/share-scene-button"
 import { ButtonLink } from "@/components/ui/button/link"
 import { Typography } from "@/components/ui/typography"
 import { APP_BASE_URL } from "@/lib/app"
@@ -21,6 +25,7 @@ import {
   OPEN_IN_EDITOR_PARAM,
   profilePagePath,
   scenePagePath,
+  sceneSharePath,
 } from "@/lib/community/scene-links"
 import { getPublicProfileScenes } from "@/lib/community/public-profiles"
 import { getPublicScene } from "@/lib/community/public-scenes"
@@ -149,6 +154,7 @@ async function SceneBody({ params }: PageProps) {
           size="compact"
           variant="ghost"
         >
+          <ArrowLeftIcon height={14} width={14} />
           All scenes
         </ButtonLink>
 
@@ -163,6 +169,47 @@ async function SceneBody({ params }: PageProps) {
               src={scene.thumbnailUrl}
             />
           ) : null}
+
+          <SceneViewer
+            hasCameraLayer={scene.layerTypes.includes("live")}
+            labUrl={scene.labUrl}
+          />
+
+          <span className="sr-only">
+            {`${countLabel(scene.likeCount, "like")}, ${countLabel(scene.remixCount, "remix")}`}
+          </span>
+
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute right-4 bottom-4 z-[2] inline-flex items-center gap-[var(--ds-space-3)] rounded-[var(--ds-radius-control)] border border-white/10 bg-[rgb(8_9_12_/_0.62)] px-4 py-2.5 backdrop-blur-[10px]"
+          >
+            <span className="inline-flex items-center gap-2 text-[var(--ds-color-text-secondary)]">
+              <HeartIcon height={16} width={16} />
+              <Typography
+                as="span"
+                className="text-[18px] leading-none tabular-nums"
+                variant="monoMd"
+              >
+                {scene.likeCount}
+              </Typography>
+            </span>
+
+            <span
+              aria-hidden="true"
+              className="h-4 w-px bg-[var(--ds-border-divider)]"
+            />
+
+            <span className="inline-flex items-center gap-2 text-[var(--ds-color-text-secondary)]">
+              <ShuffleIcon height={16} width={16} />
+              <Typography
+                as="span"
+                className="text-[18px] leading-none tabular-nums"
+                variant="monoMd"
+              >
+                {scene.remixCount}
+              </Typography>
+            </span>
+          </div>
         </figure>
       </div>
 
@@ -237,17 +284,20 @@ async function SceneBody({ params }: PageProps) {
         </div>
 
         <div className="flex shrink-0 flex-col gap-[var(--ds-space-3)] min-[860px]:items-end">
-          <ButtonLink
-            className="w-full min-[860px]:w-auto"
-            href={editorSceneHref(scene.slug) as Route}
-            variant="primary"
-          >
-            Remix in Shader Lab
-          </ButtonLink>
-          <Typography as="span" tone="secondary" variant="monoSm">
-            {countLabel(scene.likeCount, "like")} ·{" "}
-            {countLabel(scene.remixCount, "remix")}
-          </Typography>
+          <div className="flex w-full items-stretch gap-[var(--ds-space-2)] min-[860px]:w-auto">
+            <ButtonLink
+              className="flex-1"
+              href={editorSceneHref(scene.slug) as Route}
+              variant="primary"
+            >
+              Remix Scene
+            </ButtonLink>
+            <ShareSceneButton slug={scene.slug} />
+            <ShareOnXButton
+              shareUrl={`${APP_BASE_URL}${sceneSharePath(scene.slug)}`}
+              title={scene.title}
+            />
+          </div>
         </div>
       </div>
 

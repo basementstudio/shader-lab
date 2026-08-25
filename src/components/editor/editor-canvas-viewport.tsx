@@ -10,6 +10,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react"
+import { MadeByBasement } from "@/components/editor/made-by-basement"
 import { useMobileCanvasFit } from "@/components/editor/use-mobile-canvas-fit"
 import { useEditorRenderer } from "@/hooks/use-editor-renderer"
 import { getCompositionFrame } from "@/lib/editor/composition"
@@ -396,6 +397,12 @@ export function EditorCanvasViewport() {
             </p>
           </div>
         </div>
+      ) : null}
+
+      {/* Rides the same signal as the boot overlay below: the credit only
+          appears once the full UI is revealed, never on the loading screen. */}
+      {fallbackMessage || (isReady && !pendingSceneSlug) ? (
+        <MadeByBasement />
       ) : null}
 
       {/* Guarded: otherwise this sweeps forever on a dead renderer. */}

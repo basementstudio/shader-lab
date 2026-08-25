@@ -69,7 +69,7 @@ export function LikeButton({
       aria-label={liked ? "Remove like" : "Like this scene"}
       aria-pressed={liked}
       className={cn(
-        "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[var(--ds-radius-control)] border px-2.5 transition-[background-color,border-color,color,opacity] duration-160 ease-[var(--ease-out-cubic)]",
+        "inline-flex h-auto min-h-8 shrink-0 items-center gap-1.5 rounded-[var(--ds-radius-control)] border px-2.5 transition-[background-color,border-color,color,opacity] duration-160 ease-[var(--ease-out-cubic)]",
         liked
           ? "border-[var(--ds-border-active)] bg-[var(--ds-color-surface-active)] text-[var(--ds-color-text-primary)]"
           : "border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] text-[var(--ds-color-text-secondary)]",

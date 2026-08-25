@@ -46,6 +46,7 @@ import {
   releasedInteractiveEdit,
   timelineChanged,
 } from "@/lib/editor/autosave/triggers"
+import { disarmRemixDraft } from "@/lib/editor/remix-draft"
 import { getDefaultProjectFile } from "@/lib/editor/default-project"
 import {
   applyLabProjectFile,
@@ -387,6 +388,7 @@ export function AutosaveMount() {
       )
       useRemixOriginStore.getState().clearRemixOrigin()
       useDraftStore.getState().clearActiveDraft()
+      disarmRemixDraft()
     })
 
     signatureRef.current = null

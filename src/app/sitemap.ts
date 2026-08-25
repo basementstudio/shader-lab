@@ -6,6 +6,7 @@ import { listAllPublishedScenesForSitemap } from "@/lib/community/public-scenes"
 import {
   COMMUNITY_PATH,
   EDITOR_PATH,
+  PRIVACY_PATH,
   profilePagePath,
   scenePagePath,
 } from "@/lib/community/scene-links"
@@ -17,6 +18,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: new Date(),
       changeFrequency: "daily",
       priority: 1,
+    },
+    {
+      url: `${APP_BASE_URL}${PRIVACY_PATH}`,
+      lastModified: new Date(),
+      changeFrequency: "yearly",
+      priority: 0.1,
     },
   ]
 

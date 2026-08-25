@@ -4,6 +4,8 @@ export const EDITOR_PATH = "/tools/shader-lab"
 
 export const COMMUNITY_PATH = `${EDITOR_PATH}/community`
 
+export const PRIVACY_PATH = `${EDITOR_PATH}/privacy`
+
 export function editorSceneHref(slug: string): string {
   return `${EDITOR_PATH}?scene=${encodeURIComponent(slug)}`
 }

@@ -33,7 +33,7 @@ const SECTIONS: Section[] = [
   {
     body: [
       "Shader Lab is a browser-based tool for creating, stacking and animating shaders, built and operated by basement.studio. This policy covers the editor and the community gallery.",
-      "You can use the editor without an account. Scenes you never publish stay in your browser. Everything below applies only once you sign in or publish something.",
+      "You can use the editor without an account. While you do, your work stays on your machine: the editor autosaves into your browser's own IndexedDB storage and sends us nothing. Everything below applies once you sign in and save or publish something.",
     ],
     heading: "The short version",
   },
@@ -53,8 +53,11 @@ const SECTIONS: Section[] = [
     heading: "Your profile",
   },
   {
-    body: ["Publishing a scene stores:"],
-    heading: "What you publish",
+    body: [
+      "Saving a draft to your account and publishing a scene both send that scene to us. A draft is private — it stays out of the gallery until you publish it — but it lives on our servers either way, not only in your browser.",
+      "Either one stores:",
+    ],
+    heading: "Scenes you save or publish",
     items: [
       "The scene itself: title, description, layer setup, composition size and duration.",
       "Any file you added to it: audio, 3D models, images and video. These are stored on Cloudflare and served publicly.",
@@ -76,7 +79,7 @@ const SECTIONS: Section[] = [
       "Vercel Analytics and Speed Insights, for page views and performance. Aggregate, and not used to track you across other sites.",
       "Sentry, in production only, for crashes and errors. A report can include the page you were on, your browser, and — server side — local variable values from the stack trace.",
       "We do not run Sentry Session Replay. We never record your screen, your pointer or your keystrokes.",
-      "Vercel BotID on the publish, like, remix and report endpoints, to keep automated abuse out.",
+      "Vercel BotID on every endpoint that writes something — saving a draft, publishing, deleting a scene, liking, remixing, reporting and changing your handle — to keep automated abuse out.",
     ],
   },
   {

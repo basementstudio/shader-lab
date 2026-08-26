@@ -34,6 +34,7 @@ export function PublicSceneEffectFilter({
             : "border-[var(--ds-border-active)] bg-[var(--ds-color-surface-active)] text-[var(--ds-color-text-primary)]"
         )}
         href={COMMUNITY_PATH as Route}
+        scroll={false}
       >
         <Typography as="span" variant="label">
           All
@@ -59,6 +60,7 @@ export function PublicSceneEffectFilter({
             )}
             href={communityEffectsPath(nextEffects) as Route}
             key={effectType}
+            scroll={false}
           >
             <Typography as="span" variant="label">
               {getLayerLabel(effectType)}

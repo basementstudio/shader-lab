@@ -170,14 +170,7 @@ export class CrtPass extends PassNode {
       node.value = historyTexture
     }
 
-    this.lastRenderer = renderer
-    this.lastOutputTarget = outputTarget
-    this.beforeRender(time, delta)
-
-    this.renderBloomCompositor(renderer, outputTarget)
-
-    renderer.setRenderTarget(outputTarget)
-    renderer.render(this.scene, this.camera)
+    super.render(renderer, inputTexture, outputTarget, time, delta)
 
     this.captureHistory(renderer, outputTarget)
   }

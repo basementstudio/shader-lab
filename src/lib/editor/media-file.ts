@@ -37,6 +37,19 @@ export function isAudioFileName(fileName: string | null | undefined): boolean {
   return AUDIO_FILE_EXTENSIONS.some((extension) => lower.endsWith(extension))
 }
 
+export function getAssetAccept(kind: AssetKind): string {
+  switch (kind) {
+    case "image":
+      return "image/png,image/jpeg,image/webp,image/gif,image/svg+xml,.svg"
+    case "video":
+      return "video/mp4,video/webm,video/quicktime,.mov"
+    case "model":
+      return ".glb,.gltf,.obj,model/gltf-binary,model/gltf+json,model/obj,application/octet-stream"
+    case "audio":
+      return AUDIO_FILE_ACCEPT
+  }
+}
+
 export function inferFileAssetKind(file: File): AssetKind | null {
   const mimeType = file.type.toLowerCase()
   const fileName = file.name.toLowerCase()

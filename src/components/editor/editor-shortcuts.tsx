@@ -3,6 +3,7 @@
 import { useEffect, useEffectEvent } from "react"
 import { playUISound } from "@/lib/audio/shader-lab-sounds"
 import { requestDraftSave } from "@/lib/editor/draft-save-bus"
+import { duplicateLayers } from "@/lib/editor/duplicate-layers"
 import { isEditableTarget } from "@/lib/editor/is-editable-target"
 import { useEditorStore } from "@/store/editor-store"
 import { useLayerStore } from "@/store/layer-store"
@@ -54,6 +55,18 @@ export function EditorShortcuts() {
         enterImmersiveCanvas()
         playUISound("action.hideUI")
       }
+
+      return
+    }
+
+    if (
+      (event.metaKey || event.ctrlKey) &&
+      !event.altKey &&
+      event.key.toLowerCase() === "d" &&
+      selectedLayerIds.length > 0
+    ) {
+      event.preventDefault()
+      duplicateLayers(selectedLayerIds)
 
       return
     }

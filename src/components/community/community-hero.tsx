@@ -1,24 +1,58 @@
-import { HeartIcon } from "@radix-ui/react-icons"
-import type { Route } from "next"
-import Link from "next/link"
-import { AuthorAvatar } from "@/components/community/author-avatar"
-import { HeroBackdrop } from "@/components/community/hero-backdrop"
-import { BasementWordmark } from "@/components/editor/made-by-basement"
-import { Typography } from "@/components/ui/typography"
-import type { HeroScene } from "@/lib/community/public-scenes"
-import { scenePagePath } from "@/lib/community/scene-links"
+import { HeartIcon } from "@radix-ui/react-icons";
+import type { Route } from "next";
+import Link from "next/link";
+import { AuthorAvatar } from "@/components/community/author-avatar";
+import { HeroBackdrop } from "@/components/community/hero-backdrop";
+import { BasementWordmark } from "@/components/editor/made-by-basement";
+import { ButtonLink } from "@/components/ui/button/link";
+import { Typography } from "@/components/ui/typography";
+import type { HeroScene } from "@/lib/community/public-scenes";
+import { EDITOR_PATH, scenePagePath } from "@/lib/community/scene-links";
 
 export function CommunityHero({
   hero,
   title,
 }: {
-  hero: HeroScene | null
-  title: string
+  hero: HeroScene | null;
+  title: string;
 }) {
-  const detail = hero?.detail ?? null
+  const detail = hero?.detail ?? null;
 
   return (
     <section className="relative flex min-h-[84svh] flex-col justify-end overflow-hidden px-4 pt-[var(--ds-space-16)] pb-[var(--ds-space-6)] sm:px-6 sm:pb-[var(--ds-space-8)]">
+      {detail ? (
+        <Link
+          className="z-10 absolute top-8 right-8 inline-flex min-w-0 items-center gap-2 rounded-[var(--ds-radius-control)] border border-[var(--ds-border-divider)] bg-[rgb(8_9_12_/_0.68)] px-2.5 py-1.5 backdrop-blur-[8px] transition-colors duration-160 ease-[var(--ease-out-cubic)] hover:border-[var(--ds-border-hover)]"
+          href={scenePagePath(detail.slug) as Route}
+        >
+          <Typography as="span" tone="tertiary" variant="monoXs">
+            {hero && hero.recentLikes > 0 ? "Most liked today" : "Most liked"}
+          </Typography>
+          <span
+            aria-hidden="true"
+            className="h-2.5 w-px bg-[var(--ds-border-divider)]"
+          />
+          <AuthorAvatar
+            avatarUrl={detail.authorAvatarUrl}
+            name={detail.authorName ?? detail.authorHandle}
+            size={16}
+          />
+          <Typography
+            as="span"
+            className="overflow-hidden text-ellipsis whitespace-nowrap"
+            variant="caption"
+          >
+            {detail.title}
+          </Typography>
+          <span className="inline-flex items-center gap-1 text-[var(--ds-color-text-tertiary)]">
+            <HeartIcon height={11} width={11} />
+            <Typography as="span" tone="tertiary" variant="monoXs">
+              {detail.likeCount}
+            </Typography>
+          </span>
+        </Link>
+      ) : null}
+
       {detail ? (
         <HeroBackdrop
           hasCameraLayer={detail.layerTypes.includes("live")}
@@ -28,51 +62,27 @@ export function CommunityHero({
       ) : null}
 
       <div className="relative z-[1] flex flex-wrap items-end justify-between gap-[var(--ds-space-4)]">
-        <div className="flex flex-col items-start gap-[var(--ds-space-4)]">
-          <span className="text-[var(--ds-color-text-secondary)] ml-2">
-            <BasementWordmark height={12} />
-          </span>
-
-          <h1 className="type-display m-0 text-balance text-left text-[clamp(44px,8.5vw,80px)] leading-[0.85] tracking-[-0.04em]">
-            Made By <br/> The Community
-          </h1>
-        </div>
-
-        {detail ? (
-          <Link
-            className="inline-flex min-w-0 items-center gap-2 rounded-[var(--ds-radius-control)] border border-[var(--ds-border-divider)] bg-[rgb(8_9_12_/_0.68)] px-2.5 py-1.5 backdrop-blur-[8px] transition-colors duration-160 ease-[var(--ease-out-cubic)] hover:border-[var(--ds-border-hover)]"
-            href={scenePagePath(detail.slug) as Route}
-          >
-            <Typography as="span" tone="tertiary" variant="monoXs">
-              {hero && hero.recentLikes > 0 ? "Most liked today" : "Most liked"}
-            </Typography>
-            <span
-              aria-hidden="true"
-              className="h-2.5 w-px bg-[var(--ds-border-divider)]"
-            />
-            <AuthorAvatar
-              avatarUrl={detail.authorAvatarUrl}
-              name={detail.authorName ?? detail.authorHandle}
-              size={16}
-            />
-            <Typography
-              as="span"
-              className="overflow-hidden text-ellipsis whitespace-nowrap"
-              variant="caption"
-            >
-              {detail.title}
-            </Typography>
-            <span className="inline-flex items-center gap-1 text-[var(--ds-color-text-tertiary)]">
-              <HeartIcon height={11} width={11} />
-              <Typography as="span" tone="tertiary" variant="monoXs">
-                {detail.likeCount}
-              </Typography>
+        <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8 w-full">
+          <div className="flex flex-col items-start gap-[var(--ds-space-4)]">
+            <span className="text-[var(--ds-color-text-secondary)] ml-2">
+              <BasementWordmark height={12} />
             </span>
-          </Link>
-        ) : null}
+
+            <h1 className="type-display m-0 text-balance text-left text-[clamp(44px,8.5vw,80px)] leading-[0.85] tracking-[-0.04em]">
+              Made By <br /> The Community
+            </h1>
+          </div>
+          <ButtonLink
+            className="ml-2"
+            href={EDITOR_PATH as Route}
+            variant="primary"
+          >
+            Open Shader Lab
+          </ButtonLink>
+        </div>
+        <span className="sr-only">{title}</span>
       </div>
 
-      <span className="sr-only">{title}</span>
     </section>
-  )
+  );
 }

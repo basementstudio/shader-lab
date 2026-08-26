@@ -1,6 +1,7 @@
 import { subscribeToCustomShaderCompiles } from "@/lib/agent-bridge/compile-events"
 import { pumpAgentFrame } from "@/lib/agent-bridge/frame-pump"
 import { getLayerDefinition, getLayerDefinitions } from "@/lib/editor/config/layer-registry"
+import { duplicateLayers } from "@/lib/editor/duplicate-layers"
 import { isParameterAnimatable } from "@/lib/editor/parameter-schema"
 import { getSeedableMediaDuration } from "@/lib/editor/timeline-duration"
 import { useEditorStore } from "@/store/editor-store"
@@ -659,7 +660,7 @@ const COMMAND_HANDLERS: Record<string, CommandHandler> = {
 
   duplicate_layer: (payload) => {
     const layer = requireLayer(requireString(payload, "id"))
-    const newId = useLayerStore.getState().duplicateLayer(layer.id)
+    const [newId] = duplicateLayers([layer.id])
 
     if (!newId) {
       throw new AgentCommandError(`Could not duplicate layer \`${layer.id}\`.`)

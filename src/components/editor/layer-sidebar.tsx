@@ -37,7 +37,8 @@ import { HoverTooltip } from "@/components/ui/tooltip"
 import { Typography } from "@/components/ui/typography"
 import { playUISound } from "@/lib/audio/shader-lab-sounds"
 import { cn } from "@/lib/cn"
-import { AUDIO_FILE_ACCEPT, inferFileAssetKind } from "@/lib/editor/media-file"
+import { duplicateLayers } from "@/lib/editor/duplicate-layers"
+import { getAssetAccept, inferFileAssetKind } from "@/lib/editor/media-file"
 import { getSeedableMediaDuration } from "@/lib/editor/timeline-duration"
 import { useAssetStore } from "@/store/asset-store"
 import { useEditorStore } from "@/store/editor-store"
@@ -45,7 +46,7 @@ import { useLayerStore } from "@/store/layer-store"
 import { useTimelineStore } from "@/store/timeline-store"
 import type { AssetKind, EditorAsset, EditorLayer } from "@/types/editor"
 
-type LayerAction = "delete" | "reset"
+type LayerAction = "delete" | "duplicate" | "reset"
 
 const thumbnailBaseClassName =
   "relative size-7 overflow-hidden rounded-[var(--ds-radius-thumb)] border border-[var(--ds-border-divider)]"
@@ -111,19 +112,6 @@ function getExpectedAssetKind(layer: EditorLayer): AssetKind | null {
   return null
 }
 
-function getAcceptForAssetKind(kind: AssetKind): string {
-  switch (kind) {
-    case "image":
-      return "image/png,image/jpeg,image/webp,image/gif,image/svg+xml,.svg"
-    case "video":
-      return "video/mp4,video/webm,video/quicktime,.mov"
-    case "model":
-      return ".glb,.gltf,.obj,model/gltf-binary,model/gltf+json,model/obj,application/octet-stream"
-    case "audio":
-      return AUDIO_FILE_ACCEPT
-  }
-}
-
 function inferSelectedFileKind(file: File): AssetKind | null {
   return inferFileAssetKind(file)
 }
@@ -145,6 +133,7 @@ type LayerListItemProps = {
 }
 
 const LAYER_ACTION_OPTIONS = [
+  { label: "Duplicate layer", value: "duplicate" },
   { label: "Reset properties", value: "reset" },
   { label: "Delete layer", value: "delete" },
 ] as const satisfies readonly {
@@ -550,6 +539,8 @@ export function LayerSidebar() {
     if (action === "delete") {
       removeLayers(targetLayerIds)
       playUISound("action.deleteLayer")
+    } else if (action === "duplicate") {
+      duplicateLayers(targetLayerIds)
     } else {
       targetLayerIds.forEach((targetLayerId) => {
         resetLayerParams(targetLayerId)
@@ -642,7 +633,7 @@ export function LayerSidebar() {
     }
 
     if (relinkInputRef.current) {
-      relinkInputRef.current.accept = getAcceptForAssetKind(expectedKind)
+      relinkInputRef.current.accept = getAssetAccept(expectedKind)
       relinkInputRef.current.click()
     }
   }

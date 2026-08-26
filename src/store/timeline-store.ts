@@ -62,6 +62,7 @@ export interface TimelineStoreActions {
   ) => void
   advance: (delta: number) => void
   clearLayerTracks: (layerId: string) => void
+  duplicateLayerTracks: (sourceLayerId: string, targetLayerId: string) => void
   getTrackForBinding: (
     layerId: string,
     binding: AnimatedPropertyBinding,
@@ -926,6 +927,34 @@ export const useTimelineStore = create<TimelineStore>((set, get) => ({
         }),
         tracks: nextTracks,
       }
+    })
+  },
+
+  duplicateLayerTracks: (sourceLayerId, targetLayerId) => {
+    set((state) => {
+      const sourceTracks = state.tracks.filter(
+        (track) => track.layerId === sourceLayerId,
+      )
+
+      if (sourceTracks.length === 0) {
+        return state
+      }
+
+      const duplicatedTracks = sourceTracks.map((track) => {
+        const clone = cloneTrack(track)
+
+        return {
+          ...clone,
+          id: crypto.randomUUID(),
+          keyframes: clone.keyframes.map((keyframe) => ({
+            ...keyframe,
+            id: crypto.randomUUID(),
+          })),
+          layerId: targetLayerId,
+        }
+      })
+
+      return { tracks: [...state.tracks, ...duplicatedTracks] }
     })
   },
 

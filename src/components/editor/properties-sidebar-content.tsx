@@ -258,6 +258,7 @@ export function SelectedLayerPropertiesContent({
   layerRuntimeError,
   layerSubtitle,
   layerType,
+  onReplaceImage,
   onToggleParamGroup,
   onTimelineKeyframe,
   opacity,
@@ -289,6 +290,7 @@ export function SelectedLayerPropertiesContent({
   layerRuntimeError: string | null
   layerSubtitle: string
   layerType: LayerType
+  onReplaceImage: () => void
   onToggleParamGroup: (groupId: string) => void
   onTimelineKeyframe: (
     binding: AnimatedPropertyBinding,
@@ -687,6 +689,31 @@ export function SelectedLayerPropertiesContent({
             updateLayerParam={updateLayerParam}
             values={values}
           />
+        ) : null}
+
+        {layerType === "image" ? (
+          <section className="flex flex-col gap-3 border-t border-[var(--ds-border-divider)] px-4 pt-[14px] pb-4 first:border-t-0">
+            <Typography
+              className="uppercase"
+              tone="secondary"
+              variant="overline"
+            >
+              Source
+            </Typography>
+            <div className="flex items-center justify-between gap-3">
+              <Typography tone="muted" variant="caption">
+                Swap in a different image and keep this layer's settings.
+              </Typography>
+              <Button
+                onClick={onReplaceImage}
+                size="compact"
+                uiSound="action.relinkAsset"
+                variant="secondary"
+              >
+                Replace
+              </Button>
+            </div>
+          </section>
         ) : null}
 
         {layerType === "gradient" ? (

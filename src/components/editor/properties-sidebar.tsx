@@ -2,6 +2,7 @@
 
 import { DragHandleDots2Icon } from "@radix-ui/react-icons"
 import { AnimatePresence, motion, useReducedMotion } from "motion/react"
+import type { ChangeEvent } from "react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { FloatingDesktopPanel } from "@/components/editor/floating-desktop-panel"
 import { GlassPanel } from "@/components/ui/glass-panel"
@@ -10,7 +11,11 @@ import { IconButton } from "@/components/ui/icon-button"
 import { Typography } from "@/components/ui/typography"
 import { cn } from "@/lib/cn"
 import { getLayerDefinition } from "@/lib/editor/config/layer-registry"
-import { isSvgMediaSource } from "@/lib/editor/media-file"
+import {
+  getAssetAccept,
+  inferFileAssetKind,
+  isSvgMediaSource,
+} from "@/lib/editor/media-file"
 import { evaluateTimelineForLayers } from "@/lib/editor/timeline/evaluate"
 import { useAssetStore } from "@/store/asset-store"
 import { useEditorStore } from "@/store/editor-store"
@@ -50,6 +55,8 @@ export function PropertiesSidebar() {
   }>({ params: {} })
   const [panelHeight, setPanelHeight] = useState<number | null>(null)
   const viewResizeObserverRef = useRef<ResizeObserver | null>(null)
+  const replaceImageInputRef = useRef<HTMLInputElement | null>(null)
+  const replaceImageLayerIdRef = useRef<string | null>(null)
   const rightSidebarVisible = useEditorStore((state) => state.sidebars.right)
   const mobilePanel = useEditorStore((state) => state.mobilePanel)
   const sidebarView = useEditorStore((state) => state.sidebarView)
@@ -78,9 +85,15 @@ export function PropertiesSidebar() {
   )
   const setLayerSaturation = useLayerStore((state) => state.setLayerSaturation)
   const updateLayerParam = useLayerStore((state) => state.updateLayerParam)
+  const setLayerAsset = useLayerStore((state) => state.setLayerAsset)
+  const setLayerRuntimeError = useLayerStore(
+    (state) => state.setLayerRuntimeError
+  )
   const timelineTracks = useTimelineStore((state) => state.tracks)
   const upsertKeyframe = useTimelineStore((state) => state.upsertKeyframe)
   const assets = useAssetStore((state) => state.assets)
+  const loadAsset = useAssetStore((state) => state.loadAsset)
+  const removeAsset = useAssetStore((state) => state.removeAsset)
   const activeGestureDepthRef = useRef(0)
   const activeGestureTimeRef = useRef<number | null>(null)
   const mobilePanelVisible =
@@ -513,6 +526,55 @@ export function PropertiesSidebar() {
     [handleTimelineAwareParamChange, selectedLayerId]
   )
 
+  const handleReplaceImagePick = useCallback(() => {
+    if (!selectedLayerId) {
+      return
+    }
+
+    replaceImageLayerIdRef.current = selectedLayerId
+    replaceImageInputRef.current?.click()
+  }, [selectedLayerId])
+
+  const handleReplaceImageChange = useCallback(
+    async (event: ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0]
+      const layerId = replaceImageLayerIdRef.current
+
+      event.currentTarget.value = ""
+      replaceImageLayerIdRef.current = null
+
+      if (!(file && layerId)) {
+        return
+      }
+
+      if (inferFileAssetKind(file) !== "image") {
+        setLayerRuntimeError(layerId, "Expected an image file.")
+
+        return
+      }
+
+      try {
+        const asset = await loadAsset(file)
+
+        if (asset.kind !== "image") {
+          removeAsset(asset.id)
+          setLayerRuntimeError(layerId, "Expected an image file.")
+
+          return
+        }
+
+        setLayerAsset(layerId, asset.id)
+        setLayerRuntimeError(layerId, null)
+      } catch (error) {
+        setLayerRuntimeError(
+          layerId,
+          error instanceof Error ? error.message : "Failed to replace image."
+        )
+      }
+    },
+    [loadAsset, removeAsset, setLayerAsset, setLayerRuntimeError]
+  )
+
   const selectedLayerContentProps = selectedLayer
     ? {
         blendMode: selectedLayer.blendMode,
@@ -535,6 +597,7 @@ export function PropertiesSidebar() {
             ? selectedLayer.params.sourceFileName
             : ""),
         layerType: selectedLayer.type,
+        onReplaceImage: handleReplaceImagePick,
         onToggleParamGroup: handleToggleParamGroup,
         onTimelineKeyframe: handleTimelineKeyframe,
         opacity: displayedLayerState?.opacity ?? selectedLayer.opacity,
@@ -607,6 +670,14 @@ export function PropertiesSidebar() {
 
   return (
     <>
+      <input
+        accept={getAssetAccept("image")}
+        className="hidden"
+        onChange={handleReplaceImageChange}
+        ref={replaceImageInputRef}
+        type="file"
+      />
+
       <aside
         className={cn(
           "pointer-events-none fixed right-3 bottom-[88px] left-3 z-45 translate-y-0 transition-[opacity,translate] duration-[220ms,260ms] ease-[ease-out,cubic-bezier(0.22,1,0.36,1)] min-[900px]:hidden",

@@ -1,9 +1,10 @@
 import type { MetadataRoute } from "next"
-import { APP_BASE_URL } from "@/lib/app"
+import { APP_BASE_URL, isProductionDeployment } from "@/lib/app"
 import { isCommunityEnabled } from "@/lib/community/config"
 import { listAllProfilesForSitemap } from "@/lib/community/public-profiles"
 import { listAllPublishedScenesForSitemap } from "@/lib/community/public-scenes"
 import {
+  ABOUT_PATH,
   COMMUNITY_PATH,
   EDITOR_PATH,
   PRIVACY_PATH,
@@ -12,12 +13,22 @@ import {
 } from "@/lib/community/scene-links"
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  if (!isProductionDeployment()) {
+    return []
+  }
+
   const entries: MetadataRoute.Sitemap = [
     {
       url: `${APP_BASE_URL}${EDITOR_PATH}`,
       lastModified: new Date(),
       changeFrequency: "daily",
       priority: 1,
+    },
+    {
+      url: `${APP_BASE_URL}${ABOUT_PATH}`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.7,
     },
     {
       url: `${APP_BASE_URL}${PRIVACY_PATH}`,

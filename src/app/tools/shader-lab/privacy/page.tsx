@@ -2,7 +2,11 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { Typography } from "@/components/ui/typography"
 import { APP_BASE_URL } from "@/lib/app"
-import { EDITOR_PATH, PRIVACY_PATH } from "@/lib/community/scene-links"
+import {
+  ABOUT_PATH,
+  EDITOR_PATH,
+  PRIVACY_PATH,
+} from "@/lib/community/scene-links"
 
 const LAST_UPDATED = "August 25, 2026"
 
@@ -153,12 +157,20 @@ export default function PrivacyPolicyPage() {
   return (
     <main className="mx-auto w-full max-w-[70ch] px-5 py-[var(--ds-space-16)] sm:px-6">
       <header className="flex flex-col items-start gap-[var(--ds-space-4)]">
-        <Link
-          className="text-[var(--ds-color-text-tertiary)] transition-colors hover:text-[var(--ds-color-text-primary)] type-mono-xs"
-          href={EDITOR_PATH}
-        >
-          ← Shader Lab
-        </Link>
+        <nav className="flex flex-wrap gap-[var(--ds-space-4)]">
+          <Link
+            className="text-[var(--ds-color-text-tertiary)] transition-colors hover:text-[var(--ds-color-text-primary)] type-mono-xs"
+            href={EDITOR_PATH}
+          >
+            ← Shader Lab
+          </Link>
+          <Link
+            className="text-[var(--ds-color-text-tertiary)] transition-colors hover:text-[var(--ds-color-text-primary)] type-mono-xs"
+            href={ABOUT_PATH}
+          >
+            About
+          </Link>
+        </nav>
         <Typography as="h1" variant="display">
           Privacy Policy
         </Typography>

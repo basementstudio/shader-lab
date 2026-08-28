@@ -78,6 +78,10 @@ export function ShaderLabPage({
       id="main-content"
       className="relative h-screen w-screen overflow-hidden bg-[var(--ds-color-canvas)]"
     >
+      {/* The editor chrome has no heading element; prose lives on /about. */}
+      <h1 className="sr-only">
+        Shader Lab — browser-based WebGPU shader editor
+      </h1>
       <StarterMediaPreload />
       <AgentBridgeMount />
       <AutosaveMount />

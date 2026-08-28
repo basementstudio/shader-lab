@@ -21,6 +21,7 @@ import { getCommunitySceneEffects } from "@/lib/community/scene-effect-filter"
 import {
   COMMUNITY_PATH,
   communityEffectPath,
+  EDITOR_PATH,
   editorSceneHref,
   OPEN_IN_EDITOR_PARAM,
   profilePagePath,
@@ -31,6 +32,9 @@ import { getPublicProfileScenes } from "@/lib/community/public-profiles"
 import { getPublicScene } from "@/lib/community/public-scenes"
 import { getLayerLabel } from "@/lib/editor/config/layer-catalog"
 import { countLabel } from "@/lib/plural"
+import { PageJsonLd } from "@/lib/structured-data/page-json-ld"
+import { generateBreadcrumbSchema } from "@/lib/structured-data/schemas/breadcrumb"
+import { generateSceneSchema } from "@/lib/structured-data/schemas/scene"
 
 type PageProps = { params: Promise<{ slug: string }> }
 
@@ -147,6 +151,23 @@ async function SceneBody({ params }: PageProps) {
 
   return (
     <main className="mx-auto flex w-full max-w-[1180px] flex-col gap-[var(--ds-space-10)] px-4 py-10 sm:px-6">
+      <PageJsonLd
+        nodes={[
+          generateSceneSchema(
+            scene,
+            describe({
+              authorName,
+              description: scene.description,
+              title: scene.title,
+            })
+          ),
+          generateBreadcrumbSchema([
+            { name: "Shader Lab", path: EDITOR_PATH },
+            { name: "Community", path: COMMUNITY_PATH },
+            { name: scene.title, path: scenePagePath(scene.slug) },
+          ]),
+        ]}
+      />
       <div className="flex flex-col gap-[var(--ds-space-6)]">
         <ButtonLink
           className="w-fit px-0"

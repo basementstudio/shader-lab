@@ -6,6 +6,8 @@ export const COMMUNITY_PATH = `${EDITOR_PATH}/community`
 
 export const PRIVACY_PATH = `${EDITOR_PATH}/privacy`
 
+export const ABOUT_PATH = `${EDITOR_PATH}/about`
+
 export function editorSceneHref(slug: string): string {
   return `${EDITOR_PATH}?scene=${encodeURIComponent(slug)}`
 }

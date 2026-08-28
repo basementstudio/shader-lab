@@ -1,61 +1,38 @@
-import type { Metadata } from "next";
-import { ShaderLabPage } from "@/components/pages/shader-lab-page";
-import {
-  APP_BASE_URL,
-  APP_DEFAULT_TITLE,
-  APP_DESCRIPTION,
-  APP_NAME,
-  APP_TITLE_TEMPLATE,
-} from "@/lib/app";
-import { isCommunityEnabled } from "@/lib/community/config";
+import type { Metadata } from "next"
+import { ShaderLabPage } from "@/components/pages/shader-lab-page"
+import { APP_BASE_URL } from "@/lib/app"
+import { isCommunityEnabled } from "@/lib/community/config"
+import { EDITOR_PATH } from "@/lib/community/scene-links"
+import { PageJsonLd } from "@/lib/structured-data/page-json-ld"
+import { generateWebSiteSchema } from "@/lib/structured-data/schemas/organization"
+import { generateWebApplicationSchema } from "@/lib/structured-data/schemas/web-application"
 
-const shaderLabPath = "/tools/shader-lab";
+const DESCRIPTION =
+  "Create, stack, and animate shader effects on images, video, text, and 3D models — free, in your browser, powered by WebGPU. Export video, publish to the community gallery, and remix any published scene."
 
 export const metadata: Metadata = {
   alternates: {
-    canonical: shaderLabPath,
+    canonical: EDITOR_PATH,
   },
+  description: DESCRIPTION,
   openGraph: {
-    description: APP_DESCRIPTION,
-    images: [
-      {
-        alt: APP_DEFAULT_TITLE,
-        height: 630,
-        url: "/opengraph-image.jpg",
-        width: 1200,
-      },
-    ],
-    locale: "en_US",
-    siteName: APP_NAME,
-    title: {
-      default: APP_DEFAULT_TITLE,
-      template: APP_TITLE_TEMPLATE,
-    },
+    description: DESCRIPTION,
     type: "website",
-    url: `${APP_BASE_URL}${shaderLabPath}`,
-  },
-  title: {
-    default: APP_DEFAULT_TITLE,
-    template: APP_TITLE_TEMPLATE,
+    url: `${APP_BASE_URL}${EDITOR_PATH}`,
   },
   twitter: {
     card: "summary_large_image",
-    description: APP_DESCRIPTION,
-    images: [
-      {
-        alt: APP_DEFAULT_TITLE,
-        height: 630,
-        url: "/twitter-image.jpg",
-        width: 1200,
-      },
-    ],
-    title: {
-      default: APP_DEFAULT_TITLE,
-      template: APP_TITLE_TEMPLATE,
-    },
+    description: DESCRIPTION,
   },
-};
+}
 
 export default function ShaderLabRoute() {
-  return <ShaderLabPage communityEnabled={isCommunityEnabled()} />;
+  return (
+    <>
+      <PageJsonLd
+        nodes={[generateWebSiteSchema(), generateWebApplicationSchema()]}
+      />
+      <ShaderLabPage communityEnabled={isCommunityEnabled()} />
+    </>
+  )
 }

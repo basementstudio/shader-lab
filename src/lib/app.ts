@@ -28,7 +28,13 @@ function resolveAppBaseUrl() {
 
 export const APP_BASE_URL = resolveAppBaseUrl()
 
-/** Preview and development deployments must never be indexed or listed. */
+/**
+ * Preview and development deployments must never be indexed or listed. An
+ * unset VERCEL_ENV counts as production on purpose: it only occurs off-Vercel
+ * (local `next start`, CI), where treating the build as production lets the
+ * real robots/sitemap/metadata output be verified. Every actual Vercel
+ * deployment — previews included — has VERCEL_ENV set.
+ */
 export function isProductionDeployment(): boolean {
   const vercelEnv = process.env.VERCEL_ENV
 

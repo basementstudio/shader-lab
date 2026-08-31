@@ -68,7 +68,7 @@ function communityMarkdown(
     return NextResponse.next()
   }
 
-  if ((request.headers.get("accept") ?? "").includes("text/markdown")) {
+  if (prefersMarkdown(request.headers.get("accept") ?? "")) {
     return rewriteToSceneMarkdown(request, slug)
   }
 
@@ -81,6 +81,45 @@ function communityMarkdown(
   response.headers.set("Vary", "Accept")
 
   return response
+}
+
+/**
+ * True when the request positively prefers markdown: `text/markdown` listed
+ * with a nonzero q that `text/html` doesn't outrank. A bare substring check
+ * would serve markdown to `Accept: text/html, text/markdown;q=0`.
+ */
+function prefersMarkdown(accept: string): boolean {
+  let markdownQ = 0
+  let htmlQ = 0
+
+  for (const part of accept.split(",")) {
+    const [type, ...params] = part.trim().split(";")
+    const mediaType = type?.trim().toLowerCase()
+
+    if (mediaType !== "text/markdown" && mediaType !== "text/html") {
+      continue
+    }
+
+    let q = 1
+
+    for (const param of params) {
+      const [key, value] = param.trim().split("=")
+
+      if (key?.trim().toLowerCase() === "q") {
+        const parsed = Number.parseFloat(value ?? "")
+
+        q = Number.isNaN(parsed) ? 1 : parsed
+      }
+    }
+
+    if (mediaType === "text/markdown") {
+      markdownQ = Math.max(markdownQ, q)
+    } else {
+      htmlQ = Math.max(htmlQ, q)
+    }
+  }
+
+  return markdownQ > 0 && markdownQ >= htmlQ
 }
 
 function rewriteToSceneMarkdown(

@@ -122,7 +122,9 @@ const nextConfig: NextConfig = {
     minimumCacheTTL: 60 * 60 * 24 * 30, // 30 days
     qualities: [90],
     formats: ["image/avif", "image/webp"],
-    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+    // Capped at 2560: the 3840 candidate produced multi-MB srcset entries on
+    // full-bleed imagery (community hero) for no visible gain.
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 2560],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
   headers: async () => [

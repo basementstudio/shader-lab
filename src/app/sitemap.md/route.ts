@@ -1,4 +1,5 @@
 import { markdownResponse } from "@/lib/aeo/md-response"
+import { mdText } from "@/lib/aeo/md-text"
 import { APP_BASE_URL } from "@/lib/app"
 import { isCommunityEnabled } from "@/lib/community/config"
 import { listAllProfilesForSitemap } from "@/lib/community/public-profiles"
@@ -44,7 +45,8 @@ export async function GET() {
       sections.push(
         `## Scenes\n\nEach scene also has a markdown twin at \`<url>.md\`.\n\n${scenes
           .map(
-            (scene) => `- [${scene.title}](${base}${scenePagePath(scene.slug)})`
+            (scene) =>
+              `- [${mdText(scene.title)}](${base}${scenePagePath(scene.slug)})`
           )
           .join("\n")}`
       )

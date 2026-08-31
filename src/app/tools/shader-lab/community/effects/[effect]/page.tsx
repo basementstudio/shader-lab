@@ -73,11 +73,32 @@ export async function generateMetadata({
   }
 }
 
-export default async function EffectPage({ params }: PageProps) {
+// Sync wrapper: with cacheComponents, `params` must be awaited inside a
+// Suspense boundary or the PPR shell prerender fails the build.
+export default function EffectPage({ params }: PageProps) {
   if (!isCommunityEnabled()) {
     notFound()
   }
 
+  return (
+    <Suspense fallback={<EffectSkeleton />}>
+      <EffectRoute params={params} />
+    </Suspense>
+  )
+}
+
+function EffectSkeleton() {
+  return (
+    <main className="mx-auto flex w-full max-w-[1180px] animate-pulse flex-col gap-[var(--ds-space-6)] px-4 py-10 sm:px-6">
+      <div className="h-7 w-24 rounded-[4px] bg-[var(--ds-color-surface-subtle)]" />
+      <div className="h-12 w-2/5 rounded-[4px] bg-[var(--ds-color-surface-subtle)]" />
+      <div className="h-5 w-3/5 rounded-[4px] bg-[var(--ds-color-surface-subtle)]" />
+      <div className="aspect-[16/10] w-full max-w-[720px] rounded-[12px] border border-[var(--ds-border-subtle)] bg-[var(--ds-color-surface-subtle)]" />
+    </main>
+  )
+}
+
+async function EffectRoute({ params }: PageProps) {
   const { effect } = await params
 
   if (!isCommunityEffectType(effect)) {

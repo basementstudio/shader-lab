@@ -64,7 +64,8 @@ function communityMarkdown(
   const htmlMatch = SCENE_HTML_REGEX.exec(pathname)
   const slug = htmlMatch?.[1]
 
-  if (!slug || slug === "u") {
+  // `u` and `effects` are route segments (profiles, effect pages), not slugs.
+  if (!slug || slug === "u" || slug === "effects") {
     return NextResponse.next()
   }
 

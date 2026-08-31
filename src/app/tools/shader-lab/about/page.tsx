@@ -8,8 +8,8 @@ import { COMMUNITY_EFFECT_TYPES } from "@/lib/community/scene-effect-filter"
 import {
   ABOUT_PATH,
   COMMUNITY_PATH,
-  communityEffectPath,
   EDITOR_PATH,
+  effectPagePath,
   PRIVACY_PATH,
 } from "@/lib/community/scene-links"
 import { LAYER_CATALOG } from "@/lib/editor/config/layer-catalog"
@@ -202,7 +202,7 @@ export default function AboutPage() {
                     {communityEnabled ? (
                       <Link
                         className="transition-opacity duration-160 hover:opacity-75"
-                        href={communityEffectPath(type) as Route}
+                        href={effectPagePath(type) as Route}
                       >
                         {entry.label}
                       </Link>

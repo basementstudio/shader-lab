@@ -20,9 +20,9 @@ import { lineageLabel } from "@/lib/community/lineage"
 import { getCommunitySceneEffects } from "@/lib/community/scene-effect-filter"
 import {
   COMMUNITY_PATH,
-  communityEffectPath,
   EDITOR_PATH,
   editorSceneHref,
+  effectPagePath,
   OPEN_IN_EDITOR_PARAM,
   profilePagePath,
   scenePagePath,
@@ -293,7 +293,7 @@ async function SceneBody({ params }: PageProps) {
                 {effects.map((effect) => (
                   <Link
                     className="rounded-[var(--ds-radius-control)] transition-opacity duration-160 hover:opacity-75"
-                    href={communityEffectPath(effect) as Route}
+                    href={effectPagePath(effect) as Route}
                     key={effect}
                   >
                     <SceneTag>{getLayerLabel(effect)}</SceneTag>

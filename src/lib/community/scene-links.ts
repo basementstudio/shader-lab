@@ -16,6 +16,13 @@ export function scenePagePath(slug: string): string {
   return `${COMMUNITY_PATH}/${slug}`
 }
 
+export const EFFECTS_PATH = `${COMMUNITY_PATH}/effects`
+
+/** Canonical landing page for one effect — crawlable twin of the ?effect= filter. */
+export function effectPagePath(effect: string): string {
+  return `${EFFECTS_PATH}/${effect}`
+}
+
 export function communityEffectPath(effect: string): string {
   return communityEffectsPath([effect])
 }

@@ -1,12 +1,16 @@
 import { NextResponse } from "next/server"
 import { APP_BASE_URL } from "@/lib/app"
 import { isCommunityEnabled } from "@/lib/community/config"
+import { COMMUNITY_EFFECT_TYPES } from "@/lib/community/scene-effect-filter"
 import {
   ABOUT_PATH,
   COMMUNITY_PATH,
   EDITOR_PATH,
+  EFFECTS_PATH,
+  effectPagePath,
   PRIVACY_PATH,
 } from "@/lib/community/scene-links"
+import { getLayerCatalogEntry } from "@/lib/editor/config/layer-catalog"
 import {
   getEffectNames,
   PRODUCT_FACTS,
@@ -27,6 +31,7 @@ export function GET() {
     ...(communityEnabled
       ? [
           `- [Community](${base}${COMMUNITY_PATH}): Gallery of published scenes — every one can be opened and remixed. Filterable by effect via ?effect=<name>.`,
+          `- [Effects index](${base}${EFFECTS_PATH}): One landing page per effect, each with a description, example image, and the community scenes using it.`,
         ]
       : []),
     `- [Privacy policy](${base}${PRIVACY_PATH}): What Shader Lab stores, who processes it, and how to have it deleted.`,
@@ -42,7 +47,15 @@ ${keyPages.join("\n")}
 
 ## Effects
 
-${getEffectNames().join(", ")}.
+${
+  communityEnabled
+    ? COMMUNITY_EFFECT_TYPES.map((effect) => {
+        const entry = getLayerCatalogEntry(effect)
+
+        return `- [${entry.label}](${base}${effectPagePath(effect)})${entry.description ? `: ${entry.description}` : ""}`
+      }).join("\n")
+    : `${getEffectNames().join(", ")}.`
+}
 
 ## Packages
 

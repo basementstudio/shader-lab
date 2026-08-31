@@ -4,14 +4,18 @@ import { APP_BASE_URL } from "@/lib/app"
 import { isCommunityEnabled } from "@/lib/community/config"
 import { listAllProfilesForSitemap } from "@/lib/community/public-profiles"
 import { listAllPublishedScenesForSitemap } from "@/lib/community/public-scenes"
+import { COMMUNITY_EFFECT_TYPES } from "@/lib/community/scene-effect-filter"
 import {
   ABOUT_PATH,
   COMMUNITY_PATH,
   EDITOR_PATH,
+  EFFECTS_PATH,
+  effectPagePath,
   PRIVACY_PATH,
   profilePagePath,
   scenePagePath,
 } from "@/lib/community/scene-links"
+import { getLayerLabel } from "@/lib/editor/config/layer-catalog"
 
 /** Markdown content index for AI agents — the `.md` twin of sitemap.xml. */
 export async function GET() {
@@ -39,7 +43,15 @@ export async function GET() {
 
     sections.push(`## Community
 
-- [Gallery](${base}${COMMUNITY_PATH})`)
+- [Gallery](${base}${COMMUNITY_PATH})
+- [Effects index](${base}${EFFECTS_PATH})`)
+
+    sections.push(
+      `## Effect pages\n\n${COMMUNITY_EFFECT_TYPES.map(
+        (effect) =>
+          `- [${getLayerLabel(effect)}](${base}${effectPagePath(effect)})`
+      ).join("\n")}`
+    )
 
     if (scenes.length > 0) {
       sections.push(

@@ -6,6 +6,7 @@ import {
   APP_DESCRIPTION,
   APP_NAME,
   APP_TITLE_TEMPLATE,
+  isProductionDeployment,
 } from "@/lib/app"
 import { cn } from "@/lib/cn"
 import { fontsVariable } from "@/lib/fonts"
@@ -18,9 +19,6 @@ export const metadata: Metadata = {
     capable: true,
     statusBarStyle: "default",
     title: APP_DEFAULT_TITLE,
-  },
-  alternates: {
-    canonical: "/tools/shader-lab",
   },
   applicationName: APP_NAME,
   authors: [{ name: "basement.studio", url: "https://basement.studio" }],
@@ -44,11 +42,15 @@ export const metadata: Metadata = {
       template: APP_TITLE_TEMPLATE,
     },
     type: "website",
-    url: `${APP_BASE_URL}/tools/shader-lab`,
+    url: APP_BASE_URL,
   },
   other: {
     "fb:app_id": process.env.NEXT_PUBLIC_FACEBOOK_APP_ID || "",
   },
+  // robots.txt alone can't deindex an already-discovered preview URL.
+  ...(isProductionDeployment()
+    ? {}
+    : { robots: { follow: false, index: false } }),
   title: {
     default: APP_DEFAULT_TITLE,
     template: APP_TITLE_TEMPLATE,

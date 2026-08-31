@@ -88,6 +88,7 @@ const SITEMAP_MAX_SCENES = 10_000
 export interface SitemapScene {
   publishedAt: string | null
   slug: string
+  title: string
 }
 
 export async function listAllPublishedScenesForSitemap(): Promise<
@@ -116,6 +117,7 @@ export async function listAllPublishedScenesForSitemap(): Promise<
         collected.push({
           publishedAt: scene.publishedAt,
           slug: scene.slug,
+          title: scene.title,
         })
       }
 

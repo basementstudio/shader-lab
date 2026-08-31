@@ -6,12 +6,21 @@ export const COMMUNITY_PATH = `${EDITOR_PATH}/community`
 
 export const PRIVACY_PATH = `${EDITOR_PATH}/privacy`
 
+export const ABOUT_PATH = `${EDITOR_PATH}/about`
+
 export function editorSceneHref(slug: string): string {
   return `${EDITOR_PATH}?scene=${encodeURIComponent(slug)}`
 }
 
 export function scenePagePath(slug: string): string {
   return `${COMMUNITY_PATH}/${slug}`
+}
+
+export const EFFECTS_PATH = `${COMMUNITY_PATH}/effects`
+
+/** Canonical landing page for one effect — crawlable twin of the ?effect= filter. */
+export function effectPagePath(effect: string): string {
+  return `${EFFECTS_PATH}/${effect}`
 }
 
 export function communityEffectPath(effect: string): string {

@@ -10,8 +10,15 @@ import { APP_BASE_URL } from "@/lib/app"
 import { isCommunityEnabled } from "@/lib/community/config"
 import { getHeroScene, getPublicScenes } from "@/lib/community/public-scenes"
 import { getCommunityEffectSelection } from "@/lib/community/scene-effect-filter"
-import { COMMUNITY_PATH } from "@/lib/community/scene-links"
+import {
+  COMMUNITY_PATH,
+  EDITOR_PATH,
+  scenePagePath,
+} from "@/lib/community/scene-links"
 import { getLayerLabel } from "@/lib/editor/config/layer-catalog"
+import { PageJsonLd } from "@/lib/structured-data/page-json-ld"
+import { generateBreadcrumbSchema } from "@/lib/structured-data/schemas/breadcrumb"
+import { generateCollectionPageSchema } from "@/lib/structured-data/schemas/collection"
 
 const TITLE = "Made by the community"
 
@@ -41,11 +48,7 @@ export default function CommunityPage({ searchParams }: PageProps) {
 
   return (
     <>
-      <Suspense
-        fallback={
-          <CommunityHero hero={null} title={TITLE} />
-        }
-      >
+      <Suspense fallback={<CommunityHero hero={null} title={TITLE} />}>
         <CommunityHeroSection />
       </Suspense>
 
@@ -62,9 +65,7 @@ export default function CommunityPage({ searchParams }: PageProps) {
 }
 
 async function CommunityHeroSection() {
-  return (
-    <CommunityHero hero={await getHeroScene()} title={TITLE} />
-  )
+  return <CommunityHero hero={await getHeroScene()} title={TITLE} />
 }
 
 async function CommunityScenes({ searchParams }: PageProps) {
@@ -80,6 +81,23 @@ async function CommunityScenes({ searchParams }: PageProps) {
 
   return (
     <section className="flex flex-col gap-[var(--ds-space-6)]">
+      <PageJsonLd
+        nodes={[
+          generateCollectionPageSchema({
+            description: DESCRIPTION,
+            items: page.scenes.map((scene) => ({
+              name: scene.title,
+              path: scenePagePath(scene.slug),
+            })),
+            name: TITLE,
+            path: COMMUNITY_PATH,
+          }),
+          generateBreadcrumbSchema([
+            { name: "Shader Lab", path: EDITOR_PATH },
+            { name: "Community", path: COMMUNITY_PATH },
+          ]),
+        ]}
+      />
       <div className="flex items-center gap-2">
         <Typography as="span" tone="tertiary" variant="overline">
           Effect

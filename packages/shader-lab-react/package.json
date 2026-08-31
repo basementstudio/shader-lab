@@ -2,6 +2,7 @@
   "name": "@basementstudio/shader-lab",
   "version": "3.0.1",
   "description": "Portable React runtime for Shader Lab exports.",
+  "author": "Tobi Moccagatta (https://github.com/git-chad)",
   "type": "module",
   "sideEffects": false,
   "main": "./dist/src/index.js",
@@ -21,6 +22,18 @@
     "type": "git",
     "url": "https://github.com/basementstudio/shader-lab"
   },
+  "homepage": "https://eng.basement.studio/tools/shader-lab",
+  "keywords": [
+    "shader",
+    "shaders",
+    "webgpu",
+    "tsl",
+    "three",
+    "threejs",
+    "react",
+    "shader-lab",
+    "creative-coding"
+  ],
   "publishConfig": {
     "access": "public"
   },

@@ -3,6 +3,7 @@
   "description": "MCP server that drives the Shader Lab editor: layer control and custom shader authoring. Built with xmcp.",
   "version": "0.1.1",
   "license": "MIT",
+  "author": "Tobi Moccagatta (https://github.com/git-chad)",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/basementstudio/shader-lab.git",

@@ -669,3 +669,4 @@ export const sketch = Fn(() => {
 
 - Website: [basement.studio](https://basement.studio/)
 - npm: [@basementstudio/shader-lab](https://www.npmjs.com/package/@basementstudio/shader-lab)
+- Author: [Tobi Moccagatta](https://github.com/git-chad)

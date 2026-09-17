@@ -40,6 +40,14 @@ Supported effect layers include ASCII, blob tracking, CRT, directional blur, dit
 
 The blob-tracking layer detects moving (or bright) regions of the content below and frames them with CCTV-style shapes, labels, connecting lines, and trails. One inner effect can render inside the detected shapes via `params.innerEffectType` (any pass-backed effect type) and `params.innerEffectParams` (a JSON string of that effect's parameter overrides; see the `ShaderLabBlobInnerEffect` type). Set `params.outputMode` to `"mask"` to emit white-on-black fills for use with `compositeMode: "mask"`.
 
+## Isolated groups
+
+Exported configs can include layers with `kind: "group"`, `type: "group"`, and `params: {}`. Children reference the group's ID through `parentId`. The flat array uses top-first, depth-first order: group first, then all of its descendants, then the next sibling. Missing or null `parentId` places a layer at the scene root. IDs must be unique and nesting is limited to eight groups.
+
+For example, the order `[title, portraitGroup, halftone, photo, background]` with `halftone.parentId` and `photo.parentId` set to `portraitGroup.id` confines halftone to the photo. Each group starts transparent, processes its contents, and then applies its own opacity and blend mode to the result. Hiding a group hides its whole subtree without changing child visibility. Group opacity/visibility can use ordinary layer timeline tracks.
+
+Groups use `compositeMode: "filter"`, `hue: 0`, and `saturation: 1`; coverage masks and group color adjustments are not exposed in this iteration. Group targets currently cost about 32 MiB per group at 1080p. Existing flat configs continue to work without any new fields.
+
 ## Fonts
 
 The ASCII and text layers resolve font families at runtime by reading CSS

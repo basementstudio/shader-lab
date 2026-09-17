@@ -11,6 +11,7 @@ import type {
   ShaderLabTimelineTrack,
 } from "@basementstudio/shader-lab"
 import { CUSTOM_SHADER_INTERNAL_KEYS } from "@/lib/editor/custom-shader/shared"
+import { validateLayerHierarchy } from "@/renderer/layer-hierarchy"
 import type {
   EditorAsset,
   EditorLayer,
@@ -19,6 +20,7 @@ import type {
 } from "@/types/editor"
 
 const SUPPORTED_SHADER_EXPORT_LAYER_TYPES = new Set<LayerType>([
+  "group",
   "image",
   "video",
   "gradient",
@@ -58,6 +60,7 @@ const UNSUPPORTED_SHADER_EXPORT_LAYER_TYPES = new Set<LayerType>([
 
 type SupportedShaderExportLayerType = Extract<
   LayerType,
+  | "group"
   | "ascii"
   | "bloom"
   | "circuit-bent"
@@ -168,6 +171,7 @@ export function validateShaderExportSupport(
 export function buildShaderExportConfig(
   input: BuildShaderExportConfigInput
 ): ShaderLabConfig {
+  validateLayerHierarchy(input.layers)
   const issues = validateShaderExportSupport(input.layers, input.assets)
 
   if (issues.length > 0) {
@@ -208,6 +212,7 @@ function toShaderLabLayerConfig(
       : undefined
   const assetSource = toShaderLabAssetSource(supportedLayer, asset)
   const baseLayer: ShaderLabLayerConfig = {
+    ...(supportedLayer.parentId ? { parentId: supportedLayer.parentId } : {}),
     blendMode: supportedLayer.blendMode as ShaderLabBlendMode,
     compositeMode: supportedLayer.compositeMode as ShaderLabCompositeMode,
     maskConfig: supportedLayer.maskConfig,
@@ -236,7 +241,11 @@ function toShaderLabLayerConfig(
 function assertSupportedShaderExportLayer(
   layer: EditorLayer
 ): SupportedShaderExportLayer {
-  if (layer.kind !== "effect" && layer.kind !== "source") {
+  if (
+    layer.kind !== "effect" &&
+    layer.kind !== "source" &&
+    layer.kind !== "group"
+  ) {
     throw new Error(
       `Layer "${layer.name}" uses unsupported kind "${layer.kind}".`
     )

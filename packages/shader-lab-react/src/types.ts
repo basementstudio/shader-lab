@@ -5,7 +5,7 @@ export type ShaderLabParameterValue =
   | [number, number]
   | [number, number, number]
 
-export type ShaderLabLayerKind = "effect" | "source"
+export type ShaderLabLayerKind = "effect" | "source" | "group"
 
 export type ShaderLabSourceLayerType =
   | "custom-shader"
@@ -44,6 +44,7 @@ export type ShaderLabEffectLayerType =
   | "voxel"
 
 export type ShaderLabLayerType =
+  | "group"
   | ShaderLabEffectLayerType
   | ShaderLabSourceLayerType
 
@@ -156,6 +157,8 @@ export interface ShaderLabTimelineConfig {
 }
 
 export interface ShaderLabLayerConfig {
+  /** Parent group ID. Layers are stored in top-first, depth-first order. */
+  parentId?: string | null
   asset?: ShaderLabAssetSource
   blendMode: ShaderLabBlendMode
   compositeMode: ShaderLabCompositeMode

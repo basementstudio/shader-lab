@@ -17,7 +17,7 @@ export type ColorCurve = _ColorCurve
 export type ColorCurveChannelId = _ColorCurveChannelId
 export type SceneColorCurves = _SceneColorCurves
 
-export const LAYER_KINDS = ["source", "effect", "model"] as const
+export const LAYER_KINDS = ["source", "effect", "model", "group"] as const
 export type LayerKind = (typeof LAYER_KINDS)[number]
 
 export const SOURCE_LAYER_TYPES = [
@@ -64,7 +64,11 @@ export type EffectLayerType = (typeof EFFECT_LAYER_TYPES)[number]
 export const MODEL_LAYER_TYPES = ["model"] as const
 export type ModelLayerType = (typeof MODEL_LAYER_TYPES)[number]
 
-export type LayerType = SourceLayerType | EffectLayerType | ModelLayerType
+export type LayerType =
+  | SourceLayerType
+  | EffectLayerType
+  | ModelLayerType
+  | "group"
 
 export const BLEND_MODES = [
   "normal",
@@ -257,6 +261,7 @@ export const DEFAULT_MASK_CONFIG: MaskConfig = {
 }
 
 export interface BaseLayer {
+  parentId?: string | null
   assetId: string | null
   blendMode: BlendMode
   compositeMode: LayerCompositeMode
@@ -291,7 +296,12 @@ export interface ModelLayer extends BaseLayer {
   type: "model"
 }
 
-export type EditorLayer = SourceLayer | EffectLayer | ModelLayer
+export interface GroupLayer extends BaseLayer {
+  kind: "group"
+  type: "group"
+}
+
+export type EditorLayer = SourceLayer | EffectLayer | ModelLayer | GroupLayer
 
 export type AssetStatus = "idle" | "loading" | "ready" | "error"
 
@@ -519,6 +529,7 @@ export interface EditorStateSnapshot {
 }
 
 export interface EditorHistorySnapshot {
+  selectedLayerIds?: string[]
   audio: EditorAudioSnapshot
   hoveredLayerId: string | null
   layers: EditorLayer[]

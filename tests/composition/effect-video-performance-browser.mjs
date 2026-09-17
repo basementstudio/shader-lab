@@ -7,7 +7,7 @@ import { paintCellSegment } from "@/lib/editor/paint/cell-paint-brush"
 import * as THREE from "three/webgpu"
 import { DisplacedRingsPass } from "@/renderer/displaced-rings-pass"
 import { PhotographicCellsPass } from "@/renderer/photographic-cells-pass"
-window.run = async () => {
+window.run = async ({ scatterOnly = false } = {}) => {
   const renderer = new THREE.WebGPURenderer({ antialias: false })
   await renderer.init()
   renderer.toneMapping = THREE.NoToneMapping
@@ -63,19 +63,31 @@ window.run = async () => {
       pass.updateLogicalSize(width, height)
       rings.resize(width, height)
       rings.updateLogicalSize(width, height)
-      for (const scenario of [
-        "rings",
-        "cells-random",
-        "cells-light",
-        "cells-paint",
-        "combined",
-        "combined-paint",
-      ]) {
-        const selection = scenario === "cells-light" ? "light" : "random"
+      for (const scenario of scatterOnly
+        ? [
+            "cells-random",
+            "cells-random-scatter",
+            "cells-light",
+            "cells-light-scatter",
+            "cells-paint",
+            "cells-paint-scatter",
+          ]
+        : [
+            "rings",
+            "cells-random",
+            "cells-light",
+            "cells-paint",
+            "combined",
+            "combined-paint",
+          ]) {
+        const selection = scenario.startsWith("cells-light")
+          ? "light"
+          : "random"
         pass.updateParams({
           mode: scenario.includes("paint") ? "paint" : "regions",
           paintMask,
           selection,
+          edgeScatter: scenario.endsWith("-scatter") ? 0.65 : 0,
           regionSize: 0.35,
           size: 0.04,
           threshold: 0.5,
@@ -87,9 +99,16 @@ window.run = async () => {
         })
         const times = []
         for (let frame = 0; frame < 7; frame++) {
-          await new Promise((resolve) =>
-            video.requestVideoFrameCallback(resolve)
-          )
+          await new Promise((resolve, reject) => {
+            const timeout = setTimeout(
+              () => reject(new Error("Video frame timed out")),
+              8000
+            )
+            video.requestVideoFrameCallback(() => {
+              clearTimeout(timeout)
+              resolve()
+            })
+          })
           const start = performance.now()
           context.drawImage(video, 0, 0)
           input.needsUpdate = true

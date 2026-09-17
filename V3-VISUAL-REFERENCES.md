@@ -39,11 +39,23 @@ The user considers the first layer useful enough; the Gap/outline inflation has 
 - The white poster combines broad flowing color regions, small stepped edge fragments, fine dots, and delicate technical marks. Large randomly selected rectangular cells alone do not reproduce that appearance.
 - Approved next direction: automatic connected regions and integrated None / Perimeter / Every Cell outlines first, followed by a Paint selection mode with Reveal / Erase, Brush Size, Clear, and undo. Preserve photographic detail and share geometry/outline behavior between automatic and painted selection.
 - Region Size controls the broad patches; Cell Size controls their stepped boundaries. Painting should remain useful independently of automatic selection, without implying subject detection.
-- Evaluate Edge Scatter later. Try existing halftone and color layers for the fine dot treatment before adding more controls. The detailed sequence and acceptance criteria are in roadmap section 3.3.1; A+B (automatic regions and outline modes) is implemented and visually accepted by the user; Paint is implemented and visually accepted by the user; the later refinements remain planned.
-- Use these images for side-by-side visual review before marking the cell family complete. The current smooth field produces stepped patches and perimeter contours, but does not isolate a chosen subject. Directed painting is implemented and accepted; curation of the fine dot/color treatment remains a follow-up.
+- Edge Scatter and two editable halftone/color/photo studies are implemented, pending user review. The existing halftone supplies the fine dots; no separate dot controls were needed in Cells. The detailed sequence and acceptance criteria are in roadmap section 3.3.1; A+B (automatic regions and outline modes) is implemented and visually accepted by the user; Paint is implemented and visually accepted by the user; D is implemented and awaits user visual feedback.
+- Use these images for side-by-side visual review before marking the cell family complete. The current smooth field produces stepped patches and perimeter contours, but does not isolate a chosen subject. Directed painting is implemented and accepted; fine dot/color curation is now demonstrated in the editable studies below, awaiting user review.
 
 For every shader slice, note the reference filenames used, which visible qualities it achieves, and which remain follow-up work. Keep the experimental editorial, analog photographic, and acid-graphics direction visible in actual renders.
 
 ## Threshold palette
 
 Reference 01 (Lovedance red/blue) was opened for the custom Threshold palette slice. Actual blue/pink and blue/red photo renders demonstrate strong two-color separation while retaining the existing noisy boundary and softness controls. Black/white defaults remain unchanged. This supplies a palette tool for later compositions; it does not deliver the reference’s lighting, geometric collage or typography. User visual acceptance is pending; see [the focused test](tests/composition/THRESHOLD-COLORS-MANUAL-QA.md).
+
+
+## Edge Scatter and editable editorial studies
+
+References 05 and 11 were reopened full-size. Before/after renders of existing and scattered boundaries were compared, then the color palette, dot scale and composition were refined in actual renderer exports. [Color Field and Painted Flora](public/examples/v3/README.md) are editable .lab files with committed preview PNGs. They use existing app photography and original SVG marks, never the reference images.
+
+- Color Field demonstrates broad blue/ochre/violet/teal regions, much finer source-color dots, small edge fragments, white space, and separate type/registration marks. Existing Halftone below Cells inside the isolated group supplies the texture.
+- Painted Flora demonstrates full photographic interiors, a directed stepped silhouette, a fine pink perimeter, and independent text/technical lines. Paint remains editable; Scatter changes the edge without overwriting strokes.
+- One new Edge Scatter control, default 0, uses bounded seeded selection offsets in Regions/Paint. No extra pass, target, readback or source samples. Random/Paint stay fixed over dynamic sources; tonal regions still react to changing imagery. High scatter can break narrow details.
+- This is reference-driven progress, not a reproduction or final V3 visual completion. The richer analog finish, fine typography (current minimum 48px), final visual acceptance, sustained native-GPU performance, and encoded video export remain open.
+
+The user authorized this next slice while away, without waiting for manual acceptance of Threshold #162. No PRs have been merged.

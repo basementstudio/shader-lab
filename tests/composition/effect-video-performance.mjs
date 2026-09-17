@@ -29,10 +29,16 @@ try {
   page.on("pageerror", console.error)
   await page.goto(server.url.href)
   await page.waitForFunction(() => window.run)
-  const result = await page.evaluate(() => window.run())
+  const scatterOnly = process.argv.includes("--scatter")
+  const result = await page.evaluate(
+    (scatterOnly) => window.run({ scatterOnly }),
+    scatterOnly
+  )
   console.log(JSON.stringify(result, null, 2))
   await Bun.write(
-    ".context/effect-video-performance.json",
+    scatterOnly
+      ? ".context/scatter-video-performance.json"
+      : ".context/effect-video-performance.json",
     JSON.stringify(result, null, 2)
   )
 } finally {

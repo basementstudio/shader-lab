@@ -160,7 +160,7 @@ Esto no cierra la fase 3: quedan la curaduría visual con las referencias comple
 
 **Objetivo visual:** abrir y comparar `11-puente-recortes-geometricos.png` y `05-recortes-celdas-color.png` antes de decidir apariencia o valores iniciales. En el puente, conservar fotografía reconocible dentro de una silueta conectada con escalones y un contorno fino de color. En el afiche blanco, formar regiones amplias de color con bordes celulares, pequeños fragmentos alrededor y una trama mucho más fina que las celdas.
 
-**Estado de A+B:** Regions utiliza un campo espacial coherente con semilla o tonos interpolados de la imagen; Region Size controla los parches y Cell Size los escalones. Outline ofrece None / Perimeter / Every Cell, con contornos alrededor de huecos y sin aristas internas a Gap 0, incluidas filas irregulares. Los valores iniciales nuevos favorecen regiones conectadas; hidratación y runtime conservan la apariencia de configuraciones anteriores. Se revisaron renders fotográficos sobre blanco y una combinación exploratoria con halftone. Pintura, Edge Scatter y cierre del tratamiento del afiche siguen pendientes. Ver [prueba manual, cobertura y límites de rendimiento](tests/composition/PHOTOGRAPHIC-CELLS-MANUAL-QA.md).
+**Estado de A+B:** Regions utiliza un campo espacial coherente con semilla o tonos interpolados de la imagen; Region Size controla los parches y Cell Size los escalones. Outline ofrece None / Perimeter / Every Cell, con contornos alrededor de huecos y sin aristas internas a Gap 0, incluidas filas irregulares. Los valores iniciales nuevos favorecen regiones conectadas; hidratación y runtime conservan la apariencia de configuraciones anteriores. Se revisaron renders fotográficos sobre blanco y una combinación exploratoria con halftone. Paint ya está aceptado; Edge Scatter y estudios editables del afiche están implementados y pendientes de feedback visual, como se detalla en C y D. Ver [prueba manual, cobertura y límites de rendimiento](tests/composition/PHOTOGRAPHIC-CELLS-MANUAL-QA.md).
 
 **A. Regiones automáticas — primera entrega**
 
@@ -189,7 +189,15 @@ Implementación: Layout Paint entra automáticamente a edición; Done permite sa
 - Incluir la selección pintada en el archivo de proyecto y en la configuración/recursos exportados al runtime. Vista previa, PNG y render de video deben reproducirla sin depender del estado temporal del editor.
 - Esta herramienta es un modo de revelado propio de Photographic Cells. No reactiva el trabajo pospuesto de máscaras geométricas genéricas ni exige la revisión de Blob Tracking.
 
-**D. Refinamientos visuales a evaluar después**
+**D. Refinamientos visuales — implementados, pendientes de feedback visual del usuario**
+
+Se abrieron las referencias 05 y 11 y se compararon renders reales. Se incorporó **Edge Scatter** (0–1, inicial 0) para Regions y Paint: fragmenta el perímetro mediante un desplazamiento acotado del punto de selección, sin mover la geometría ni el detalle de la fotografía. Reutiliza Seed; no modifica la pintura guardada. Cero conserva el resultado anterior, y Individual Cells lo ignora. Sin pases, texturas ni muestras de fuente adicionales; no depende del tiempo. Detalles pintados muy estrechos pueden fragmentarse con valores altos.
+
+[Dos estudios editables](public/examples/v3/README.md) muestran campos de color con trama fina y revelado fotográfico dirigido, con tipografía y marcas SVG separadas. Cells se aplica después del Halftone existente dentro del grupo: los puntos son mucho más pequeños que las celdas y respetan su cobertura. No hizo falta añadir más controles de trama a Cells. Las referencias no se incluyen como assets; se utiliza fotografía existente de la app y linework original.
+
+La curaduría demuestra esas cualidades, no cierra toda la dirección artística ni reproduce los afiches. Sigue pendiente la aceptación del usuario, el acabado analógico más rico y la validación nativa de rendimiento/exportación temporal de 7.2. El mínimo tipográfico actual de 48px limita anotaciones finas; retomar el ajuste acotado de 2.3. La curaduría también confirma que el canvas sigue el viewport: las escenas importadas se reencuadran según la ventana. Registrar un artboard de tamaño estable como decisión de composición antes de presentar estas escenas como plantillas de afiches fijos. [Prueba manual, compatibilidad y límites](tests/composition/CELL-SCATTER-MANUAL-QA.md).
+
+**Criterios de exploración utilizados:**
 
 - **Edge Scatter:** probar un único control que fragmente celdas cerca del perímetro, preservando las regiones principales. Comparar con los pequeños cuadrados alrededor de las manchas del afiche blanco antes de decidir su incorporación.
 - **Puntos finos:** probar primero una composición con la capa de halftone existente, manteniendo una escala de trama menor que Cell Size. Evaluar el orden y el alcance del grupo para que la trama respete la región revelada. Añadir controles propios solo si esa combinación no alcanza un resultado útil.

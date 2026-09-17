@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - main
+      - git-chad/shader-lab-v3-plan
   push:
     branches:
       - main

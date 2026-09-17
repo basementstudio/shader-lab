@@ -1,3 +1,4 @@
+import { buildCompositionTree } from "./layer-hierarchy"
 import {
   applyAudioModulation,
   type AudioModulationInput,
@@ -106,44 +107,45 @@ export function buildRendererFrame(
     evaluatedLayers.map((state) => [state.layerId, state])
   )
 
-  const layers = input.layers
-    .filter((layer) => layer.visible)
-    .map((layer) => {
-      const evaluation = evaluatedById.get(layer.id)
-      const params = evaluation
-        ? { ...getCachedClone(layer.params), ...evaluation.params }
-        : getCachedClone(layer.params)
+  const layers = input.layers.map((layer) => {
+    const evaluation = evaluatedById.get(layer.id)
+    const params = evaluation
+      ? { ...getCachedClone(layer.params), ...evaluation.params }
+      : getCachedClone(layer.params)
 
-      return {
-        asset: layer.assetId ? (assetById.get(layer.assetId) ?? null) : null,
-        layer: {
-          ...layer,
-          hue:
-            typeof evaluation?.properties.hue === "number"
-              ? evaluation.properties.hue
-              : layer.hue,
-          opacity:
-            typeof evaluation?.properties.opacity === "number"
-              ? evaluation.properties.opacity
-              : layer.opacity,
-          saturation:
-            typeof evaluation?.properties.saturation === "number"
-              ? evaluation.properties.saturation
-              : layer.saturation,
-          visible:
-            typeof evaluation?.properties.visible === "boolean"
-              ? evaluation.properties.visible
-              : layer.visible,
-        },
-        params,
-      }
-    })
-    .filter((entry) => entry.layer.visible)
+    return {
+      asset: layer.assetId ? (assetById.get(layer.assetId) ?? null) : null,
+      layer: {
+        ...layer,
+        hue:
+          typeof evaluation?.properties.hue === "number"
+            ? evaluation.properties.hue
+            : layer.hue,
+        opacity:
+          typeof evaluation?.properties.opacity === "number"
+            ? evaluation.properties.opacity
+            : layer.opacity,
+        saturation:
+          typeof evaluation?.properties.saturation === "number"
+            ? evaluation.properties.saturation
+            : layer.saturation,
+        visible:
+          typeof evaluation?.properties.visible === "boolean"
+            ? evaluation.properties.visible
+            : layer.visible,
+      },
+      params,
+    }
+  })
 
+  const entryById = new Map(layers.map((entry) => [entry.layer.id, entry]))
   return {
     clock: createProjectClock(input.timeline, input.delta, input.clockTime),
     cropAspectRatio: input.cropAspectRatio ?? null,
-    layers,
+    layers: buildCompositionTree(
+      layers.map((entry) => entry.layer),
+      (layer) => entryById.get(layer.id)!
+    ),
     logicalSize: input.logicalSize ?? input.viewportSize,
     outputSize: input.outputSize,
     pixelRatio: input.pixelRatio,

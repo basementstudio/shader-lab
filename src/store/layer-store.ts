@@ -1,3 +1,11 @@
+import {
+  insertGroup,
+  moveLayerToGroup,
+  reorderSiblingLayers,
+  subtreeLayers,
+  visibleLayerRows,
+} from "@/lib/editor/layer-groups"
+import { validateLayerHierarchy } from "@/renderer/layer-hierarchy"
 import { create } from "zustand"
 import { getLayerDefinition } from "@/lib/editor/config/layer-registry"
 import {
@@ -16,6 +24,8 @@ import {
 } from "@/lib/editor/parameter-schema"
 import { normalizeTextFontWeight } from "@/lib/editor/text-fonts"
 import { useEditorStore } from "@/store/editor-store"
+import { useAudioStore } from "@/store/audio-store"
+import { useTimelineStore } from "@/store/timeline-store"
 import type {
   BlendMode,
   EditorLayer,
@@ -38,6 +48,10 @@ export interface LayerStoreState {
 }
 
 export interface LayerStoreActions {
+  groupLayers: (ids: string[]) => string | null
+  ungroupLayer: (id: string) => void
+  moveLayer: (id: string, parentId: string | null) => void
+  reorderSiblings: (parentId: string | null, ids: string[]) => void
   addLayer: (type: LayerType, insertIndex?: number) => string
   duplicateLayer: (id: string) => string | null
   getLayerById: (id: string) => EditorLayer | null
@@ -485,6 +499,20 @@ function getSelectionAfterRemoval(
   return getNeighborSelection(layers, Math.min(...removedIndices))
 }
 
+function pruneRemovedLayerDependencies(layers: EditorLayer[]): void {
+  useTimelineStore.getState().pruneTracks(layers)
+  const ids = new Set(layers.map((layer) => layer.id))
+  const audio = useAudioStore.getState().getSnapshot()
+  const links = audio.links.filter((link) => ids.has(link.layerId))
+  const source =
+    audio.source?.kind === "video-layer" && !ids.has(audio.source.layerId)
+      ? null
+      : audio.source
+  if (links.length !== audio.links.length || source !== audio.source) {
+    useAudioStore.getState().restoreSnapshot({ ...audio, links, source })
+  }
+}
+
 export const useLayerStore = create<LayerStore>((set, get) => ({
   hoveredLayerId: null,
   layers: getDefaultProjectLayers(),
@@ -502,15 +530,26 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
     set((state) => {
       const layers = [...state.layers]
 
-      if (
-        insertIndex === undefined ||
-        insertIndex < 0 ||
-        insertIndex > layers.length
-      ) {
-        layers.unshift(nextLayer)
-      } else {
-        layers.splice(insertIndex, 0, nextLayer)
+      const selected = state.layers.find(
+        (layer) => layer.id === state.selectedLayerId
+      )
+      let index = insertIndex
+      if (index === undefined && selected?.kind === "group") {
+        nextLayer.parentId = selected.id
+        index = state.layers.indexOf(selected) + 1
+        layers[state.layers.indexOf(selected)] = { ...selected, expanded: true }
+      } else if (index === undefined && selected?.parentId) {
+        nextLayer.parentId = selected.parentId
+        index = state.layers.indexOf(selected)
+      } else if (index !== undefined && layers[index]?.parentId) {
+        nextLayer.parentId = layers[index]!.parentId ?? null
       }
+      layers.splice(
+        Math.max(0, Math.min(index ?? 0, layers.length)),
+        0,
+        nextLayer
+      )
+      validateLayerHierarchy(layers)
 
       return {
         layers,
@@ -530,7 +569,11 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
   },
 
   removeLayers: (ids) => {
-    const idSet = new Set(ids)
+    const idSet = new Set(
+      ids.flatMap((id) =>
+        subtreeLayers(get().layers, id).map((layer) => layer.id)
+      )
+    )
 
     if (idSet.size === 0) {
       return
@@ -577,6 +620,7 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
             : state.selectionAnchorId,
       }
     })
+    pruneRemovedLayerDependencies(get().layers)
   },
 
   duplicateLayer: (id) => {
@@ -586,48 +630,99 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
       return null
     }
 
-    const duplicatedLayer = cloneLayer(sourceLayer)
-
+    const originals = subtreeLayers(get().layers, id)
+    const clones = originals.map(cloneLayer)
+    const mapping = new Map(
+      originals.map((layer, i) => [layer.id, clones[i]!.id])
+    )
+    const duplicated = clones.map((layer, i) => ({
+      ...layer,
+      name: i === 0 ? layer.name : originals[i]!.name,
+      parentId: layer.parentId
+        ? (mapping.get(layer.parentId) ?? layer.parentId)
+        : null,
+    }))
+    const duplicatedId = duplicated[0]!.id
     set((state) => {
-      const sourceIndex = state.layers.findIndex((layer) => layer.id === id)
       const layers = [...state.layers]
-
-      layers.splice(sourceIndex + 1, 0, duplicatedLayer)
-
+      const sourceIndex = layers.findIndex((layer) => layer.id === id)
+      layers.splice(sourceIndex + originals.length, 0, ...duplicated)
       return {
         layers,
-        selectedLayerIds: [duplicatedLayer.id],
-        selectedLayerId: duplicatedLayer.id,
-        selectionAnchorId: duplicatedLayer.id,
+        selectedLayerIds: [duplicatedId],
+        selectedLayerId: duplicatedId,
+        selectionAnchorId: duplicatedId,
       }
     })
+    return duplicatedId
+  },
 
-    return duplicatedLayer.id
+  groupLayers: (ids) => {
+    if (!ids.length) return get().addLayer("group", 0)
+    const group = createLayer("group", countLayersOfType(get().layers, "group"))
+    const layers = insertGroup(get().layers, ids, group)
+    if (!layers) return null
+    set({
+      layers,
+      selectedLayerId: group.id,
+      selectedLayerIds: [group.id],
+      selectionAnchorId: group.id,
+    })
+    return group.id
+  },
+
+  ungroupLayer: (id) => {
+    const group = get().layers.find(
+      (layer) => layer.id === id && layer.kind === "group"
+    )
+    if (!group || group.locked) return
+    const children = get()
+      .layers.filter((layer) => layer.parentId === id)
+      .map((layer) => layer.id)
+    const layers = get()
+      .layers.filter((layer) => layer.id !== id)
+      .map((layer) =>
+        layer.parentId === id
+          ? { ...layer, parentId: group.parentId ?? null }
+          : layer
+      )
+    get().replaceState(
+      layers,
+      children[0] ?? group.parentId ?? null,
+      null,
+      children
+    )
+    pruneRemovedLayerDependencies(layers)
+  },
+
+  moveLayer: (id, parentId) => {
+    const layers = moveLayerToGroup(get().layers, id, parentId)
+    if (layers) set({ layers })
+  },
+
+  reorderSiblings: (parentId, ids) => {
+    set((state) => ({
+      layers: reorderSiblingLayers(state.layers, parentId, ids),
+    }))
   },
 
   reorderLayers: (fromIndex, toIndex) => {
-    set((state) => {
-      if (
-        fromIndex < 0 ||
-        toIndex < 0 ||
-        fromIndex >= state.layers.length ||
-        toIndex >= state.layers.length ||
-        fromIndex === toIndex
-      ) {
-        return state
-      }
-
-      const layers = [...state.layers]
-      const [movedLayer] = layers.splice(fromIndex, 1)
-
-      if (!movedLayer) {
-        return state
-      }
-
-      layers.splice(toIndex, 0, movedLayer)
-
-      return { layers }
-    })
+    const layers = get().layers
+    const source = layers[fromIndex]
+    const target = layers[toIndex]
+    if (
+      !(source && target) ||
+      (source.parentId ?? null) !== (target.parentId ?? null)
+    )
+      return
+    const siblings = layers
+      .filter((layer) => (layer.parentId ?? null) === (source.parentId ?? null))
+      .map((layer) => layer.id)
+    const from = siblings.indexOf(source.id)
+    const to = siblings.indexOf(target.id)
+    siblings.splice(from, 1)
+    siblings.splice(to, 0, source.id)
+    get().reorderSiblings(source.parentId ?? null, siblings)
   },
 
   selectLayer: (selectedLayerId) => {
@@ -646,7 +741,8 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
     const { additive = false, range = false } = options
 
     set((state) => {
-      const targetIndex = state.layers.findIndex(
+      const rows = visibleLayerRows(state.layers)
+      const targetIndex = rows.findIndex(
         (layer) => layer.id === selectedLayerId
       )
 
@@ -657,9 +753,7 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
       if (range) {
         const anchorId =
           state.selectionAnchorId ?? state.selectedLayerId ?? selectedLayerId
-        const anchorIndex = state.layers.findIndex(
-          (layer) => layer.id === anchorId
-        )
+        const anchorIndex = rows.findIndex((layer) => layer.id === anchorId)
 
         if (anchorIndex === -1) {
           return {
@@ -669,7 +763,7 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
           }
         }
 
-        const rangeIds = state.layers
+        const rangeIds = rows
           .slice(
             Math.min(anchorIndex, targetIndex),
             Math.max(anchorIndex, targetIndex) + 1
@@ -759,10 +853,19 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
   },
 
   setLayerExpanded: (id, expanded) => {
+    const hiddenIds = new Set(
+      subtreeLayers(get().layers, id)
+        .slice(1)
+        .map((layer) => layer.id)
+    )
     set((state) => ({
       layers: state.layers.map((layer) =>
         layer.id === id ? { ...layer, expanded } : layer
       ),
+      ...(!expanded &&
+      state.selectedLayerIds.some((selected) => hiddenIds.has(selected))
+        ? { selectedLayerId: id, selectedLayerIds: [id], selectionAnchorId: id }
+        : {}),
     }))
   },
 
@@ -851,7 +954,9 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
   setLayerCompositeMode: (id, compositeMode) => {
     set((state) => ({
       layers: state.layers.map((layer) =>
-        layer.id === id ? { ...layer, compositeMode } : layer
+        layer.id === id && layer.kind !== "group"
+          ? { ...layer, compositeMode }
+          : layer
       ),
     }))
   },
@@ -1013,6 +1118,7 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
     hoveredLayerId = null,
     selectedLayerIds = []
   ) => {
+    validateLayerHierarchy(layers)
     const normalizedSelectedLayerIds = (selectedLayerIds ?? []).filter((id) =>
       layers.some((layer) => layer.id === id)
     )
@@ -1058,6 +1164,6 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
   },
 
   getRenderableLayers: () => {
-    return get().layers.filter((layer) => layer.visible)
+    return get().layers
   },
 }))

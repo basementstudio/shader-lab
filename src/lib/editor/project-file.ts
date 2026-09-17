@@ -1,3 +1,4 @@
+import { validateLayerHierarchy } from "@/renderer/layer-hierarchy"
 import { z } from "zod"
 import { useAssetStore } from "@/store/asset-store"
 import { useAudioStore } from "@/store/audio-store"
@@ -120,7 +121,9 @@ export function buildPublishableProjectFile(
         : null,
     timeline: {
       ...file.timeline,
-      tracks: file.timeline.tracks.filter((track) => keptIds.has(track.layerId)),
+      tracks: file.timeline.tracks.filter((track) =>
+        keptIds.has(track.layerId)
+      ),
     },
   }
 }
@@ -221,6 +224,7 @@ const maskConfigSchema = z.looseObject({
 })
 
 const baseLayerShape = {
+  parentId: z.string().nullable().optional(),
   assetId: z.string().nullable(),
   blendMode: z.enum(BLEND_MODES),
   compositeMode: z.enum(LAYER_COMPOSITE_MODES),
@@ -239,6 +243,12 @@ const baseLayerShape = {
 }
 
 const layerSchema = z.discriminatedUnion("kind", [
+  z.looseObject({
+    ...baseLayerShape,
+    kind: z.literal("group"),
+    type: z.literal("group"),
+    compositeMode: z.literal("filter"),
+  }),
   z.looseObject({
     ...baseLayerShape,
     kind: z.literal("effect"),
@@ -308,7 +318,7 @@ const projectAudioSchema = z.looseObject({
   source: z.looseObject({ kind: z.string() }).nullable().optional(),
 })
 
-export const CURRENT_PROJECT_FILE_VERSION = 6
+export const CURRENT_PROJECT_FILE_VERSION = 7
 
 const labProjectFileSchema = z.looseObject({
   assets: z.array(assetReferenceSchema),
@@ -389,6 +399,13 @@ export function parseLabProjectFileValue(parsed: unknown): LabProjectFile {
     throw toParseError(result.error.issues)
   }
 
+  validateLayerHierarchy(result.data.layers)
+  if (
+    result.data.version < 7 &&
+    result.data.layers.some((layer) => layer.kind === "group" || layer.parentId)
+  ) {
+    throw new Error("Groups require project version 7 or later.")
+  }
   return structuredClone(result.data) as unknown as LabProjectFile
 }
 
@@ -447,13 +464,12 @@ export function applyLabProjectFile(
   projectFile: LabProjectFile,
   currentAssets: EditorAsset[]
 ): { missingAssetCount: number; missingAudioSource: boolean } {
+  validateLayerHierarchy(projectFile.layers)
   const existingIds = new Set(currentAssets.map((asset) => asset.id))
   const remoteAssets = collectRemoteAssets(projectFile.assets, existingIds)
 
   if (remoteAssets.length > 0) {
-    useAssetStore
-      .getState()
-      .replaceAssets([...currentAssets, ...remoteAssets])
+    useAssetStore.getState().replaceAssets([...currentAssets, ...remoteAssets])
   }
 
   const assetIds = new Set([
@@ -574,7 +590,7 @@ function normalizeSceneConfig(sceneConfig: Partial<SceneConfig>): SceneConfig {
     typeof sceneConfig.quantizeEnabled === "boolean"
       ? sceneConfig.quantizeEnabled
       : typeof sceneConfig.quantizeLevels === "number" &&
-          sceneConfig.quantizeLevels !== DEFAULT_SCENE_CONFIG.quantizeLevels
+        sceneConfig.quantizeLevels !== DEFAULT_SCENE_CONFIG.quantizeLevels
 
   return {
     ...DEFAULT_SCENE_CONFIG,

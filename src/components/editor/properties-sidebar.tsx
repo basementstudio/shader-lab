@@ -425,7 +425,8 @@ export function PropertiesSidebar() {
         upsertKeyframe({
           binding,
           layerId: selectedLayer.id,
-          time: activeGestureTimeRef.current ??
+          time:
+            activeGestureTimeRef.current ??
             useTimelineStore.getState().currentTime,
           value,
         })
@@ -465,7 +466,8 @@ export function PropertiesSidebar() {
         upsertKeyframe({
           binding,
           layerId: selectedLayer.id,
-          time: activeGestureTimeRef.current ??
+          time:
+            activeGestureTimeRef.current ??
             useTimelineStore.getState().currentTime,
           value,
         })
@@ -689,7 +691,9 @@ export function PropertiesSidebar() {
           className="pointer-events-none invisible absolute top-0 left-0 -z-1 w-full"
         >
           <div className="w-full" ref={bindMeasuredView}>
-            <MeasuringLayoutProvider>{renderInvisibleContent()}</MeasuringLayoutProvider>
+            <MeasuringLayoutProvider>
+              {renderInvisibleContent()}
+            </MeasuringLayoutProvider>
           </div>
         </div>
 
@@ -720,7 +724,9 @@ export function PropertiesSidebar() {
         className="pointer-events-none invisible absolute top-0 left-0 -z-1 hidden w-full min-[900px]:block"
       >
         <div className="w-full" ref={bindMeasuredView}>
-          <MeasuringLayoutProvider>{renderInvisibleContent()}</MeasuringLayoutProvider>
+          <MeasuringLayoutProvider>
+            {renderInvisibleContent()}
+          </MeasuringLayoutProvider>
         </div>
       </div>
 
@@ -738,14 +744,14 @@ export function PropertiesSidebar() {
               initial={false}
               {...(panelHeight === null
                 ? {}
-                : { animate: { height: panelHeight } })}
+                : { animate: { height: panelHeight + 40 } })}
               transition={heightTransition}
             >
               <GlassPanel
                 className="flex h-full min-h-0 flex-col gap-0 p-0"
                 variant="panel"
               >
-                <div className="flex items-center justify-start gap-2 border-b border-[var(--ds-border-divider)] px-3 py-1.5">
+                <div className="flex h-10 shrink-0 items-center justify-start gap-2 border-b border-[var(--ds-border-divider)] px-3">
                   <div className="inline-flex items-center gap-2">
                     <IconButton
                       aria-label="Move properties panel"

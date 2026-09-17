@@ -57,12 +57,12 @@ const PublishDialog = dynamic(
 )
 
 const AuthMenu = dynamic(
-  () =>
-    import("@/components/community/auth-menu").then((mod) => mod.AuthMenu),
+  () => import("@/components/community/auth-menu").then((mod) => mod.AuthMenu),
   { ssr: false }
 )
 
-const loadCommunityModal = () => import("@/components/community/community-modal")
+const loadCommunityModal = () =>
+  import("@/components/community/community-modal")
 
 /* Shown while the community-modal chunk is downloading so the backdrop
  * appears on the first frame after click. Matches the modal's own scrim,
@@ -215,7 +215,6 @@ export function EditorTopBar({
         pendingBaseSnapshotRef.current = committedSnapshotRef.current
       }
 
-
       if (interactiveEditDepth > 0) {
         return
       }
@@ -288,6 +287,14 @@ export function EditorTopBar({
         }
 
         if (state.layers === previousState.layers) {
+          // Selection alone is not an undo step, but the next group operation
+          // should restore the selection the user actually grouped.
+          if (
+            !pendingBaseSnapshotRef.current &&
+            state.selectedLayerIds !== previousState.selectedLayerIds
+          ) {
+            syncHistorySnapshotRefs()
+          }
           return
         }
 
@@ -352,55 +359,53 @@ export function EditorTopBar({
       }
     )
 
-    const unsubscribeAudio = useAudioStore.subscribe(
-      (state, previousState) => {
-        if (applyingHistoryRef.current || isRestoringAutosave()) {
-          syncHistorySnapshotRefs()
-          return
-        }
-
-        if (
-          state.bands === previousState.bands &&
-          state.links === previousState.links &&
-          state.offsetSeconds === previousState.offsetSeconds &&
-          state.source === previousState.source
-        ) {
-          return
-        }
-
-        const layerState = useLayerStore.getState()
-        const timelineState = useTimelineStore.getState()
-        const previousSnapshot = buildEditorHistorySnapshotFromState(
-          layerState,
-          timelineState,
-          {
-            bands: previousState.bands,
-            links: previousState.links,
-            offsetSeconds: previousState.offsetSeconds,
-            source: previousState.source,
-          }
-        )
-        const nextSnapshot = buildEditorHistorySnapshotFromState(
-          layerState,
-          timelineState,
-          {
-            bands: state.bands,
-            links: state.links,
-            offsetSeconds: state.offsetSeconds,
-            source: state.source,
-          }
-        )
-
-        if (
-          getHistorySnapshotSignature(previousSnapshot) ===
-          getHistorySnapshotSignature(nextSnapshot)
-        ) {
-          return
-        }
-
-        scheduleHistoryCommit(nextSnapshot)
+    const unsubscribeAudio = useAudioStore.subscribe((state, previousState) => {
+      if (applyingHistoryRef.current || isRestoringAutosave()) {
+        syncHistorySnapshotRefs()
+        return
       }
-    )
+
+      if (
+        state.bands === previousState.bands &&
+        state.links === previousState.links &&
+        state.offsetSeconds === previousState.offsetSeconds &&
+        state.source === previousState.source
+      ) {
+        return
+      }
+
+      const layerState = useLayerStore.getState()
+      const timelineState = useTimelineStore.getState()
+      const previousSnapshot = buildEditorHistorySnapshotFromState(
+        layerState,
+        timelineState,
+        {
+          bands: previousState.bands,
+          links: previousState.links,
+          offsetSeconds: previousState.offsetSeconds,
+          source: previousState.source,
+        }
+      )
+      const nextSnapshot = buildEditorHistorySnapshotFromState(
+        layerState,
+        timelineState,
+        {
+          bands: state.bands,
+          links: state.links,
+          offsetSeconds: state.offsetSeconds,
+          source: state.source,
+        }
+      )
+
+      if (
+        getHistorySnapshotSignature(previousSnapshot) ===
+        getHistorySnapshotSignature(nextSnapshot)
+      ) {
+        return
+      }
+
+      scheduleHistoryCommit(nextSnapshot)
+    })
 
     return () => {
       unregisterShortcuts()
@@ -549,7 +554,6 @@ export function EditorTopBar({
                   <GearIcon height={16} width={16} />
                 </IconButton>
               ) : null}
-
             </div>
 
             <div className="inline-flex items-center gap-1.5">

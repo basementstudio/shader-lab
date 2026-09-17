@@ -2,7 +2,7 @@ import { PhotographicCellsPass as RuntimeCells } from "@runtime/renderer/photogr
 import { buildRendererFrame as runtimeFrame } from "@runtime/renderer/contracts"
 import { createHeadlessRenderer } from "@runtime/renderer/create-headless-renderer"
 import * as THREE from "three/webgpu"
-import { texture } from "three/tsl"
+import { float, texture, uv, vec2 } from "three/tsl"
 import { PhotographicCellsPass } from "@/renderer/photographic-cells-pass"
 import { createLayer } from "@/lib/editor/layers"
 import {
@@ -299,6 +299,299 @@ async function gpuChecks() {
           previous = inside
         }
         assert(bands === 8, `Rectangular canvas stretched cells: ${bands}`)
+        target.setSize(128, 128)
+        const shapeData = new Float32Array(128 * 128 * 4)
+        for (let y = 0; y < 128; y++)
+          for (let x = 0; x < 128; x++) {
+            const col = Math.floor(x / 16)
+            const row = Math.floor(y / 16)
+            const selected =
+              (row >= 1 &&
+                row <= 4 &&
+                col >= 1 &&
+                col <= 6 &&
+                !(row >= 2 && row <= 3 && col >= 3 && col <= 4)) ||
+              (row >= 5 && row <= 6 && col >= 1 && col <= 2)
+            const tone = selected ? 0.8 : 0.1
+            shapeData.set([tone, tone, tone, 0.6], (y * 128 + x) * 4)
+          }
+        const shape = new THREE.DataTexture(
+          shapeData,
+          128,
+          128,
+          THREE.RGBAFormat,
+          THREE.FloatType
+        )
+        shape.needsUpdate = true
+        try {
+          const contour = {
+            ...identity,
+            size: 0.125,
+            threshold: 0.5,
+            outline: 0.15,
+            outlineColor: "#00ff00",
+            outlineMode: "perimeter",
+          }
+          const silhouette = await paint("perimeter-hole", contour, shape)
+          close(
+            at(silhouette, 32, 24),
+            [0.8, 0.8, 0.8, 0.6],
+            "Shared edge must disappear"
+          )
+          close(at(silhouette, 17, 24), [0, 1, 0, 0.6], "Outer perimeter")
+          close(at(silhouette, 46, 40), [0, 1, 0, 0.6], "Inner hole perimeter")
+          close(
+            at(silhouette, 64, 40),
+            [0, 0, 0, 0],
+            "Hole remains transparent"
+          )
+          close(
+            at(silhouette, 80, 80),
+            [0, 0, 0, 0],
+            "Concave silhouette remains cut out"
+          )
+          const individual = await paint(
+            "perimeter-every-cell",
+            { ...contour, outlineMode: "every-cell" },
+            shape
+          )
+          assert(
+            at(individual, 32, 24)[1] > 0.95,
+            "Every Cell lost internal edges"
+          )
+          const noOutline = await paint(
+            "perimeter-none",
+            { ...contour, outlineMode: "none" },
+            shape
+          )
+          close(
+            at(noOutline, 17, 24),
+            [0.8, 0.8, 0.8, 0.6],
+            "None retained an outline"
+          )
+          const full = await paint(
+            "perimeter-all-irregular",
+            { ...contour, threshold: 0, irregularity: 1, cellAspect: 0.25 },
+            solid
+          )
+          for (let y = 12; y < 116; y++)
+            for (let x = 12; x < 116; x++)
+              close(at(full, x, y), color, "Irregular row introduced a seam")
+          // Compare irregular contours against the independently rendered coverage:
+          // any pixel sufficiently far from a cutout must retain its source color.
+          const staggered = { ...contour, irregularity: 1, cellAspect: 0.65 }
+          const staggeredFill = await paint(
+            "perimeter-irregular-fill",
+            { ...staggered, outlineMode: "none" },
+            shape
+          )
+          const staggeredOutline = await paint(
+            "perimeter-irregular",
+            staggered,
+            shape
+          )
+          let inspected = 0
+          let edgePixels = 0
+          for (let y = 6; y < 122; y++)
+            for (let x = 6; x < 122; x++) {
+              const before = at(staggeredFill, x, y)
+              const after = at(staggeredOutline, x, y)
+              close(
+                [after[3]],
+                [before[3]],
+                "Outline changed irregular coverage"
+              )
+              if (before[3] < 0.5) continue
+              if (after[1] - before[1] > 0.1) edgePixels++
+              let boundary = false
+              for (let dy = -5; dy <= 5 && !boundary; dy++)
+                for (let dx = -5; dx <= 5; dx++)
+                  if (at(staggeredFill, x + dx, y + dy)[3] < 0.5) {
+                    boundary = true
+                    break
+                  }
+              if (!boundary) {
+                close(after, before, "Irregular internal edge survived")
+                inspected++
+              }
+            }
+          assert(
+            inspected > 100 && edgePixels > 100,
+            "Irregular contour fixture is inconclusive"
+          )
+          close(
+            await paint("perimeter-gaps", { ...contour, gap: 0.25 }, shape),
+            await paint(
+              "cell-gaps",
+              { ...contour, gap: 0.25, outlineMode: "every-cell" },
+              shape
+            ),
+            "Separated cells must outline actual gaps"
+          )
+          const kept = await paint(
+            "perimeter-keep",
+            { ...contour, output: "keep-image" },
+            shape
+          )
+          close(
+            at(kept, 64, 40),
+            [0.1, 0.1, 0.1, 0.6],
+            "Keep Image lost hole interior"
+          )
+          close(
+            at(kept, 32, 24),
+            [0.8, 0.8, 0.8, 0.6],
+            "Keep Image added shared edge"
+          )
+          const transparent = await paint(
+            "perimeter-transparent",
+            { ...contour, threshold: 0 },
+            photo
+          )
+          close(
+            at(transparent, 1, 1),
+            [0, 0, 0, 0],
+            "Perimeter manufactured photo coverage"
+          )
+          // A soft contour on tiny cells can reach beyond the immediately
+          // neighboring row/column. Compare with a straight-boundary oracle.
+          for (let y = 0; y < 128; y++)
+            for (let x = 0; x < 128; x++) {
+              const tone = x < 64 ? 0.8 : 0.1
+              shapeData.set([tone, tone, tone, 0.6], (y * 128 + x) * 4)
+            }
+          shape.needsUpdate = true
+          const broad = await paint(
+            "perimeter-soft-small-cells",
+            { ...contour, size: 0.015, outline: 0.5, softness: 0.025 },
+            shape
+          )
+          const t = (0.015 * 128 * 0.5 - 2.5 + 0.025 * 128) / (2 * 0.025 * 128)
+          const ink = t * t * (3 - 2 * t)
+          close(
+            at(broad, 61, 64),
+            [0.8 * (1 - ink), 0.8 + 0.2 * ink, 0.8 * (1 - ink), 0.6],
+            "Soft contour missed a boundary beyond its immediate neighbors"
+          )
+        } finally {
+          shape.dispose()
+        }
+        const regions = {
+          ...identity,
+          mode: "regions",
+          selection: "random",
+          threshold: 0.5,
+          regionSize: 0.4,
+          size: 0.03125,
+          seed: 31,
+          outlineMode: "none",
+        }
+        const patches = await paint("regions", regions)
+        const changes = (pixels) => {
+          let count = 0
+          for (let y = 1; y < 128; y++)
+            for (let x = 1; x < 128; x++) {
+              const a = at(pixels, x, y)[3] > 0.3
+              if (a !== at(pixels, x - 1, y)[3] > 0.3) count++
+              if (a !== at(pixels, x, y - 1)[3] > 0.3) count++
+            }
+          return count
+        }
+        const independent = await paint("regions-independent", {
+          ...regions,
+          mode: "cells",
+        })
+        assert(
+          changes(patches) < changes(independent) * 0.3 && changes(patches) > 0,
+          "Regions did not join cells into broad patches"
+        )
+        close(
+          await paint("regions-repeat", regions),
+          patches,
+          "Region seed must remain stable",
+          0
+        )
+        const smaller = await paint("regions-size", {
+          ...regions,
+          regionSize: 0.08,
+        })
+        assert(
+          changes(smaller) > changes(patches) * 1.5,
+          "Region Size did not control patch scale"
+        )
+        const coarse = await paint("regions-cell-size", {
+          ...regions,
+          size: 0.0625,
+        })
+        let changed = 0
+        for (let i = 3; i < patches.length; i += 4)
+          if (Math.abs(coarse[i] - patches[i]) > 0.1) changed++
+        assert(
+          changed > 0 && changed < 128 * 128 * 0.12,
+          "Cell Size replaced the region field"
+        )
+        const inverse = await paint("regions-invert", {
+          ...regions,
+          invert: true,
+        })
+        for (let i = 3; i < patches.length; i += 4)
+          close([patches[i] + inverse[i]], [0.6], "Region complement")
+        assert(
+          (await paint("regions-seed", { ...regions, seed: 4 })).some(
+            (v, i) => Math.abs(v - patches[i]) > 0.1
+          ),
+          "Region seed did not change patches"
+        )
+        const lightRegions = await paint(
+          "regions-light",
+          { ...regions, selection: "light", threshold: 0.35 },
+          photo
+        )
+        const darkRegions = await paint(
+          "regions-dark",
+          { ...regions, selection: "dark", threshold: 0.65 },
+          photo
+        )
+        assert(
+          lightRegions.some((v, i) => i % 4 === 3 && v > 0.5) &&
+            darkRegions.some((v, i) => i % 4 === 3 && v > 0.5),
+          "Image-guided regions lost source tones"
+        )
+        close(
+          await paint("regions-all", { ...regions, threshold: 0 }),
+          await paint("regions-identity", identity),
+          "Region threshold zero"
+        )
+        assert(
+          (
+            await paint("regions-empty", {
+              ...regions,
+              threshold: 1,
+              outlineMode: "perimeter",
+              outline: 0.1,
+            })
+          ).every((v) => v === 0),
+          "Empty region retained contour"
+        )
+        await paint(
+          "regions-extremes",
+          {
+            ...regions,
+            size: 0.015,
+            regionSize: 2,
+            irregularity: 1,
+            cellAspect: 4,
+            softness: 0.025,
+            outlineMode: "perimeter",
+            outline: 0.5,
+          },
+          photo
+        )
+        await paint("regions-invalid", {
+          ...regions,
+          regionSize: Number.NaN,
+          size: Number.POSITIVE_INFINITY,
+        })
       } finally {
         pass.dispose()
         target.setSize(64, 64)
@@ -333,7 +626,7 @@ function solid(id, color) {
   }
 }
 
-async function runtimeCheck(config) {
+async function runtimeCheck(config, expectedImage) {
   const renderer = new THREE.WebGPURenderer({ antialias: false })
   await renderer.init()
   const compiling = []
@@ -362,22 +655,34 @@ async function runtimeCheck(config) {
     const frame = runtimeFrame(config, 0, 0, 1, config.composition)
     headless.render(frame)
     while (compiling.length) await Promise.all(compiling.splice(0))
-    material.colorNode = texture(headless.render(frame))
+    material.colorNode = texture(
+      headless.render(frame),
+      vec2(uv().x, float(1).sub(uv().y))
+    )
     renderer.setRenderTarget(target)
     renderer.render(scene, new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1))
     const pixels = Array.from(
       await renderer.readRenderTargetPixelsAsync(target, 0, 0, 128, 96)
     )
-    close(
-      pixels.slice((48 * 128 + 64) * 4, (48 * 128 + 64) * 4 + 4),
-      [0, 0, 1, 1],
-      "Runtime group gaps"
-    )
-    close(
-      pixels.slice((72 * 128 + 88) * 4, (72 * 128 + 88) * 4 + 4),
-      [1, 0, 0, 1],
-      "Runtime photo cells"
-    )
+    if (expectedImage) {
+      close(
+        pixels,
+        Array.from(expectedImage.data, (value) => value / 255),
+        "Exported runtime connected-region coverage",
+        0.005
+      )
+    } else {
+      close(
+        pixels.slice((48 * 128 + 64) * 4, (48 * 128 + 64) * 4 + 4),
+        [0, 0, 1, 1],
+        "Runtime group gaps"
+      )
+      close(
+        pixels.slice((72 * 128 + 88) * 4, (72 * 128 + 88) * 4 + 4),
+        [1, 0, 0, 1],
+        "Runtime photo cells"
+      )
+    }
   } finally {
     headless.dispose()
     target.dispose()
@@ -395,7 +700,15 @@ export async function checkPhotographicCells(renderProject) {
     ...createLayer("photographic-cells"),
     id: "cells",
     parentId: group.id,
-    params: { ...identity, size: 0.5, gap: 0.5 },
+    params: {
+      ...identity,
+      size: 0.5,
+      gap: 0.5,
+      mode: "regions",
+      regionSize: 0.35,
+      outlineMode: "perimeter",
+      outline: 0.025,
+    },
   }
   const project = {
     format: "shader-lab",
@@ -413,12 +726,24 @@ export async function checkPhotographicCells(renderProject) {
     timeline: { duration: 1, loop: true, tracks: [] },
   }
   applyLabProjectFile(parseLabProjectFileValue(project), [])
+  assert(
+    useLayerStore.getState().getLayerById(cells.id).params.mode === "regions",
+    "Hydration lost Regions mode"
+  )
   const before = buildEditorHistorySnapshot()
   useLayerStore.getState().updateLayerParam(cells.id, "threshold", 1)
+  useLayerStore.getState().updateLayerParam(cells.id, "mode", "cells")
+  useLayerStore.getState().updateLayerParam(cells.id, "outlineMode", "none")
   applyEditorHistorySnapshot(before)
   assert(
     useLayerStore.getState().getLayerById(cells.id).params.threshold === 0,
     "History lost cell settings"
+  )
+  assert(
+    useLayerStore.getState().getLayerById(cells.id).params.mode === "regions" &&
+      useLayerStore.getState().getLayerById(cells.id).params.outlineMode ===
+        "perimeter",
+    "History lost region modes"
   )
   const saved = buildLabProjectFile()
   useLayerStore.getState().replaceState([])
@@ -427,6 +752,11 @@ export async function checkPhotographicCells(renderProject) {
     []
   )
   const reopened = buildLabProjectFile()
+  for (const key of ["mode", "regionSize", "outlineMode", "outline"])
+    assert(
+      reopened.layers[1].params[key] === cells.params[key],
+      `Save/reopen lost ${key}`
+    )
   assert(
     reopened.layers[1].type === "photographic-cells" &&
       reopened.layers[1].parentId === group.id,
@@ -457,6 +787,31 @@ export async function checkPhotographicCells(renderProject) {
     "Reopened pixels",
     0
   )
+  const regionProject = {
+    ...saved,
+    layers: saved.layers.map((layer) =>
+      layer.id === cells.id
+        ? {
+            ...layer,
+            params: {
+              ...layer.params,
+              threshold: 0.5,
+              gap: 0,
+              size: 0.0625,
+              selection: "random",
+              seed: 31,
+              regionSize: 0.4,
+              outline: 0,
+            },
+          }
+        : layer
+    ),
+  }
+  const regionPreview = await renderProject(regionProject)
+  await runtimeCheck(
+    buildShaderExportConfig(regionProject),
+    regionPreview.image
+  )
   const asset = {
     id: "photo-asset",
     kind: "image",
@@ -479,7 +834,7 @@ export async function checkPhotographicCells(renderProject) {
         parentId: group.id,
       },
     ],
-    sceneConfig: { ...DEFAULT_SCENE_CONFIG, backgroundColor: "#141416" },
+    sceneConfig: { ...DEFAULT_SCENE_CONFIG, backgroundColor: "#f5f2ee" },
   }
   const preview = await renderProject(art)
   const colors = new Set()
@@ -490,6 +845,30 @@ export async function checkPhotographicCells(renderProject) {
   thumbnail.width = preview.image.width
   thumbnail.height = preview.image.height
   thumbnail.getContext("2d").putImageData(preview.image, 0, 0)
+  const oldCells = { ...cells, params: { outline: 0.12 } }
+  applyLabProjectFile(
+    parseLabProjectFileValue({ ...saved, layers: [group, oldCells] }),
+    []
+  )
+  const legacy = useLayerStore.getState().getLayerById(cells.id).params
+  assert(
+    legacy.mode === "cells" &&
+      legacy.outlineMode === "every-cell" &&
+      legacy.outline === 0.12 &&
+      legacy.size === 0.1 &&
+      legacy.gap === 0.08 &&
+      legacy.selection === "light" &&
+      legacy.irregularity === 0.35 &&
+      legacy.threshold === 0.35,
+    "New region defaults changed a saved partial cell layer"
+  )
+  const fresh = createLayer("photographic-cells").params
+  assert(
+    fresh.mode === "regions" &&
+      fresh.outlineMode === "perimeter" &&
+      fresh.gap === 0,
+    "New layers must start with connected regions"
+  )
   return {
     samples,
     png: first.png,

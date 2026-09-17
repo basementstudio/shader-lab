@@ -1,5 +1,6 @@
 declare module "three/tsl" {
   export interface LoopConfig {
+    name?: string
     condition?: string
     end: number | TSLNode
     start: number
@@ -103,17 +104,31 @@ declare module "three/tsl" {
   export function cross(left: unknown, right: unknown): TSLNode
   export function div(left: unknown, right: unknown): TSLNode
   export function dot(left: unknown, right: unknown): TSLNode
+  export interface ShaderFunction {
+    (...args: unknown[]): TSLNode & { compute(count: number): unknown }
+    setLayout(layout: {
+      name: string
+      type: string
+      inputs: { name: string; type: string }[]
+    }): ShaderFunction
+  }
+  export interface ConditionalNode extends TSLNode {
+    Else(callback: () => unknown): ConditionalNode
+  }
   export function Fn(
     fn: ShaderNodeFn | ((...args: never[]) => unknown),
     layout?: unknown
-  ): (...args: unknown[]) => TSLNode & { compute(count: number): unknown }
+  ): ShaderFunction
   export function Loop(
     config: LoopConfig | TSLNode | number,
     callback: (inputs: LoopInputs) => unknown
   ): TSLNode
   export function exp(value: unknown): TSLNode
   export function fract(value: unknown): TSLNode
-  export function If(condition: TSLNode, callback: () => unknown): TSLNode
+  export function If(
+    condition: TSLNode,
+    callback: () => unknown
+  ): ConditionalNode
   export function int(value?: unknown): TSLNode
   export function float(value?: unknown): TSLNode
   export function floor(value: unknown): TSLNode

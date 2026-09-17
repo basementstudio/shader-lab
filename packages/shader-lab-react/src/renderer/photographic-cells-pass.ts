@@ -7,6 +7,10 @@ import {
   floor,
   Fn,
   fract,
+  If,
+  int,
+  length,
+  Loop,
   max,
   min,
   mix,
@@ -39,6 +43,9 @@ function number(
 
 /** Select photographic cells without replacing their interiors with flat samples. */
 export class PhotographicCellsPass extends PassNode {
+  private readonly regions = uniform(0)
+  private readonly regionSize = uniform(0.35)
+  private readonly outlineMode = uniform(2)
   private readonly size = uniform(0.1)
   private readonly cellAspect = uniform(1)
   private readonly irregularity = uniform(0.35)
@@ -94,6 +101,11 @@ export class PhotographicCellsPass extends PassNode {
   }
 
   override updateParams(params: LayerParameterValues): void {
+    this.regions.value = params.mode === "regions" ? 1 : 0
+    this.regionSize.value = number(params.regionSize, 0.35, 0.05, 2)
+    this.outlineMode.value = 2
+    if (params.outlineMode === "none") this.outlineMode.value = 0
+    if (params.outlineMode === "perimeter") this.outlineMode.value = 1
     this.size.value = number(params.size, 0.1, 0.015, 0.5)
     this.cellAspect.value = number(params.cellAspect, 1, 0.25, 4)
     this.irregularity.value = number(params.irregularity, 0.35, 0, 1)
@@ -121,22 +133,112 @@ export class PhotographicCellsPass extends PassNode {
             43758.5453
           )
         )
+      // Selection is independent of the cell geometry and outline. A painted
+      // coverage source can later replace this field without changing either.
+      const sampleTone = (position: Node) => {
+        const inset = vec2(0.5).div(this.resolution)
+        const probe = this.source
+          .sample(
+            clamp(position.div(this.aspect).add(0.5), inset, vec2(1).sub(inset))
+          )
+          .level(0)
+        return clamp(dot(probe.rgb, vec3(0.2126, 0.7152, 0.0722)), 0, 1)
+      }
+      const rowGeometry = (row: Node) => {
+        const width = this.size
+          .mul(this.cellAspect)
+          .mul(mix(1, hash(vec2(row, 17)).mul(0.8).add(0.6), this.irregularity))
+        const shift = hash(vec2(row, 53))
+          .sub(0.5)
+          .mul(width)
+          .mul(this.irregularity)
+        return { width, shift }
+      }
+      const cellAt = Fn(([id]: [Node]) => {
+        const { width, shift } = rowGeometry(id.y)
+        const center = vec2(
+          id.x.add(0.5).mul(width).sub(shift),
+          id.y.add(0.5).mul(this.size)
+        )
+        const score = float(0).toVar()
+        If(this.regions.greaterThan(0.5), () => {
+          // Smooth a field in composition space, then quantize only its boundary
+          // into cells. Region Size never changes the photographic samples inside.
+          const field = center.div(this.regionSize)
+          const base = floor(field)
+          const fraction = fract(field)
+          const blend = fraction
+            .mul(fraction)
+            .mul(float(3).sub(fraction.mul(2)))
+          const values = vec4(0).toVar()
+          If(this.selection.greaterThan(1.5), () => {
+            values.assign(
+              vec4(
+                hash(base),
+                hash(base.add(vec2(1, 0))),
+                hash(base.add(vec2(0, 1))),
+                hash(base.add(1))
+              )
+            )
+          }).Else(() => {
+            values.assign(
+              vec4(
+                sampleTone(base.mul(this.regionSize)),
+                sampleTone(base.add(vec2(1, 0)).mul(this.regionSize)),
+                sampleTone(base.add(vec2(0, 1)).mul(this.regionSize)),
+                sampleTone(base.add(1).mul(this.regionSize))
+              )
+            )
+            If(this.selection.greaterThan(0.5), () => {
+              values.assign(float(1).sub(values))
+            })
+          })
+          score.assign(
+            mix(
+              mix(values.x, values.y, blend.x),
+              mix(values.z, values.w, blend.x),
+              blend.y
+            )
+          )
+        }).Else(() => {
+          If(this.selection.greaterThan(1.5), () => {
+            score.assign(hash(id))
+          }).Else(() => {
+            const luma = sampleTone(center)
+            score.assign(
+              select(this.selection.greaterThan(0.5), float(1).sub(luma), luma)
+            )
+          })
+        })
+        const chosen = select(
+          this.threshold.lessThanEqual(0),
+          float(1),
+          select(
+            this.threshold.greaterThanEqual(1),
+            float(0),
+            step(this.threshold, score)
+          )
+        )
+        const selected = select(
+          this.invert.greaterThan(0.5),
+          float(1).sub(chosen),
+          chosen
+        )
+        return vec4(center, width, selected)
+      }).setLayout({
+        name: "photographicCell",
+        type: "vec4",
+        inputs: [{ name: "id", type: "vec2" }],
+      })
       const screen = vec2(uv().x, float(1).sub(uv().y))
       const point = screen.sub(0.5).mul(this.aspect)
       const row = floor(point.y.div(this.size))
-      // Rows vary in width and stagger, but still partition the plane exactly.
-      const width = this.size
-        .mul(this.cellAspect)
-        .mul(mix(1, hash(vec2(row, 17)).mul(0.8).add(0.6), this.irregularity))
-      const shift = hash(vec2(row, 53))
-        .sub(0.5)
-        .mul(width)
-        .mul(this.irregularity)
-      const column = floor(point.x.add(shift).div(width))
-      const center = vec2(
-        column.add(0.5).mul(width).sub(shift),
-        row.add(0.5).mul(this.size)
-      )
+      const geometry = rowGeometry(row)
+      const column = floor(point.x.add(geometry.shift).div(geometry.width))
+      const current = cellAt(vec2(column, row)).toVar()
+      const center = current.xy
+      const width = current.z
+      const selected = current.w
       const cell = vec2(width, this.size)
       const local = abs(point.sub(center))
       const half = cell.mul(float(1).sub(this.gap)).mul(0.5)
@@ -151,43 +253,97 @@ export class PhotographicCellsPass extends PassNode {
         float(1),
         float(1).sub(smoothstep(edge.negate(), edge, distance))
       ).mul(select(this.gap.greaterThanEqual(1), float(0), float(1)))
-      // Only cell selection uses a coarse sample; the visible color stays full-resolution.
-      const inset = vec2(0.5).div(this.resolution)
-      const probeUv = clamp(
-        center.div(this.aspect).add(0.5),
-        inset,
-        vec2(1).sub(inset)
-      )
-      const probe = this.source.sample(probeUv).level(0)
-      const luma = clamp(dot(probe.rgb, vec3(0.2126, 0.7152, 0.0722)), 0, 1)
-      const score = select(
-        this.selection.greaterThan(1.5),
-        hash(vec2(column, row)),
-        select(this.selection.greaterThan(0.5), float(1).sub(luma), luma)
-      )
-      const chosen = select(
-        this.threshold.lessThanEqual(0),
-        float(1),
-        select(
-          this.threshold.greaterThanEqual(1),
-          float(0),
-          step(this.threshold, score)
-        )
-      )
-      const selected = select(
-        this.invert.greaterThan(0.5),
-        float(1).sub(chosen),
-        chosen
-      )
       const mask = coverage.mul(selected)
       const strokeWidth = min(width, this.size).mul(this.outline)
+      const outlineDistance = distance.toVar()
+      If(
+        this.outlineMode
+          .equal(1)
+          .and(this.gap.equal(0))
+          .and(this.outline.greaterThan(0)),
+        () => {
+          // Distance to the complement of the selected union, rather than to each
+          // cell edge. Search neighboring rows by their own widths/staggers so
+          // T-junctions and narrow cells do not leave internal seams.
+          const boundary = min(
+            this.aspect.x.mul(0.5).sub(abs(point.x)),
+            this.aspect.y.mul(0.5).sub(abs(point.y))
+          ).toVar()
+          // Only pixels close enough to a cell edge can carry a perimeter.
+          // Bound neighbor queries by the stroke reach before sampling the source.
+          const reach = strokeWidth.add(edge)
+          If(
+            selected
+              .greaterThan(0.5)
+              .and(distance.greaterThanEqual(reach.negate())),
+            () => {
+              const rows = floor(reach.div(this.size)).add(1)
+              Loop(
+                { start: 0, end: int(rows.mul(2).add(1)), type: "int" },
+                ({ i }) => {
+                  const neighborRow = row.add(float(i).sub(rows))
+                  const adjacent = rowGeometry(neighborRow)
+                  const nearestColumn = floor(
+                    point.x.add(adjacent.shift).div(adjacent.width)
+                  )
+                  const columns = floor(reach.div(adjacent.width)).add(1)
+                  Loop(
+                    {
+                      start: 0,
+                      end: int(columns.mul(2).add(1)),
+                      type: "int",
+                      name: "j",
+                    },
+                    ({ j }) => {
+                      const neighborColumn = nearestColumn.add(
+                        float(j).sub(columns)
+                      )
+                      const neighborCenter = vec2(
+                        neighborColumn
+                          .add(0.5)
+                          .mul(adjacent.width)
+                          .sub(adjacent.shift),
+                        neighborRow.add(0.5).mul(this.size)
+                      )
+                      const outside = length(
+                        max(
+                          abs(point.sub(neighborCenter)).sub(
+                            vec2(adjacent.width, this.size).mul(0.5)
+                          ),
+                          vec2(0)
+                        )
+                      )
+                      If(
+                        outside.lessThan(boundary).and(outside.lessThan(reach)),
+                        () => {
+                          const neighbor = cellAt(
+                            vec2(neighborColumn, neighborRow)
+                          )
+                          If(neighbor.w.lessThan(0.5), () => {
+                            boundary.assign(outside)
+                          })
+                        }
+                      )
+                    }
+                  )
+                }
+              )
+            }
+          )
+          outlineDistance.assign(boundary.negate())
+        }
+      )
       const interior = float(1).sub(
-        smoothstep(edge.negate(), edge, distance.add(strokeWidth))
+        smoothstep(edge.negate(), edge, outlineDistance.add(strokeWidth))
       )
       // Subtract the inset fill from the outer coverage. Multiplying two edge
       // fades adds extra ink when a gap opens, especially for thin outlines.
       const strokeCoverage = max(coverage.sub(interior), 0).mul(
-        select(this.outline.greaterThan(0), float(1), float(0))
+        select(
+          this.outline.greaterThan(0).and(this.outlineMode.greaterThan(0)),
+          float(1),
+          float(0)
+        )
       )
       // RGB is straight-alpha: normalize here because mask applies coverage below.
       const stroke = strokeCoverage.div(max(coverage, 0.000001))

@@ -16,7 +16,7 @@ export const LAYER_CATALOG: Record<LayerType, LayerCatalogEntry> = {
     category: "distort",
     label: "Photographic Cells",
     description:
-      "Reveal photographic blocks selected by tone or chance. Group with a photo to keep the cutout isolated.",
+      "Reveal connected photographic regions with stepped edges and perimeter outlines. Group with a photo to keep the cutout isolated.",
     previewSrc: "/examples/photographic-cells.webp",
   },
   "displaced-rings": {

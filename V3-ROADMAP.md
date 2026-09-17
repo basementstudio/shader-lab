@@ -144,6 +144,53 @@ Esto no cierra la fase 3: quedan la curaduría visual con las referencias comple
 
 **Primer prototipo de celdas aceptado como base útil por el usuario; corregido el exceso de grosor de contornos al cambiar Gap:** Photographic Cells selecciona bloques rectangulares según zonas claras, oscuras o azar con semilla. Conserva el detalle fotográfico interior y permite ajustar tamaño, proporción, irregularidad de filas, separación, bordes suaves, inversión y contornos. Cutout revela las capas externas al grupo; Keep Image conserva la fotografía y superpone únicamente los contornos seleccionados. Incluye catálogo, editor/runtime, guardado/reapertura y PNG. Ver [alcance y prueba manual](tests/composition/PHOTOGRAPHIC-CELLS-MANUAL-QA.md). No cierra la familia: el usuario señala que todavía no alcanza las referencias. Quedan regiones fotográficas conectadas con siluetas escalonadas y contornos de perímetro (puente, `11-puente-recortes-geometricos.png`), regiones amplias de color con bordes celulares y puntos finos (afiche blanco, `05-recortes-celdas-color.png`), curaduría con las imágenes abiertas y validación temporal/de rendimiento con video. Evaluar selección de regiones conectadas y contornos sin divisiones internas; combinar capas para color/tramas cuando resulte más simple. La cuadrícula rectangular actual y sus contornos por celda son límites del prototipo, no el objetivo visual final.
 
+#### 3.3.1 Evolucionar Photographic Cells hacia regiones y revelado dirigido
+
+**Dirección acordada con el usuario; pendiente de implementación.** Mejorar la capa actual con regiones automáticas y contornos de perímetro primero. Incorporar después pintura manual como otra fuente de selección, útil aunque el modo automático funcione bien. Mantener pocos controles y reutilizar la geometría, transparencia y composición existentes.
+
+**Objetivo visual:** abrir y comparar `11-puente-recortes-geometricos.png` y `05-recortes-celdas-color.png` antes de decidir apariencia o valores iniciales. En el puente, conservar fotografía reconocible dentro de una silueta conectada con escalones y un contorno fino de color. En el afiche blanco, formar regiones amplias de color con bordes celulares, pequeños fragmentos alrededor y una trama mucho más fina que las celdas.
+
+**A. Regiones automáticas — primera entrega**
+
+- Añadir un modo **Regions** que seleccione conjuntos de celdas vecinas y produzca parches continuos. Explorar selección guiada por la imagen y patrones espaciales coherentes con semilla; conservar los modos actuales de selección por celda.
+- Separar **Region Size**, que determina la escala de los parches, de **Cell Size**, que determina el tamaño de los escalones del borde. Mantener detalle fotográfico completo dentro de cada región.
+- Reutilizar Threshold, inversión y Seed cuando sean pertinentes; mostrar solo los controles relevantes al modo elegido. A Gap 0, las celdas seleccionadas contiguas deben formar una superficie continua.
+- Separar internamente la selección de regiones de la generación de celdas y contornos. Tanto la selección automática como la pintura posterior deben alimentar el mismo resultado geométrico.
+- Evaluar los resultados con varias fotografías y regiones de color. La selección tonal o procedural no promete identificar sujetos: aislar exactamente el puente requiere una selección dirigida o trabajo posterior de detección. Si el automático no resulta útil, documentar el límite y priorizar pintura sin bloquear toda la mejora.
+
+**B. Contornos integrados en Photographic Cells — junto con regiones**
+
+- Mantener el contorno dentro de este efecto: necesita conocer la selección y la vecindad de sus celdas. Un efecto genérico para delinear imágenes, texto o grupos queda como posibilidad futura fuera de esta entrega.
+- Controles: **Outline → None / Perimeter / Every Cell**, **Width** y **Color**. Perimeter sigue la silueta revelada; Every Cell conserva la apariencia actual de contornos por celda.
+- En Perimeter, eliminar aristas compartidas entre celdas seleccionadas cuando formen una región continua. Delinear también los límites de huecos reales dentro de la región. Comprobar uniones, esquinas y filas irregulares sin costuras internas.
+- Definir y comprobar el comportamiento con Gap positivo sobre la cobertura resultante: las separaciones reales pueden crear contornos, sin inflar el grosor. Conservar la corrección reciente de antialiasing, el alfa de la fuente y el comportamiento de Cutout / Keep Image.
+- Aplicar los mismos modos de contorno a regiones automáticas y pintadas. Mantener la apariencia de proyectos anteriores: al faltar el nuevo selector, un contorno existente conserva Every Cell y un ancho cero sigue sin dibujar contorno.
+
+**C. Pintura manual — entrega posterior sobre la misma selección**
+
+- Añadir **Paint** como modo de selección de la capa. El usuario pinta dónde quiere revelar la fotografía; la geometría convierte esa área en bloques escalonados. Cambiar Cell Size ajusta la fidelidad al trazo sin borrar lo pintado.
+- Interfaz mínima: **Reveal / Erase**, **Brush Size** y **Clear**, con una acción explícita para entrar y salir de pintura. Mostrar la huella del pincel y evitar conflictos con selección, desplazamiento y zoom del lienzo.
+- Mantener la pintura alineada en coordenadas de composición al cambiar zoom, tamaño de vista o resolución de exportación. La pintura representa cobertura de esta capa; no incorpora seguimiento automático del sujeto en video.
+- Un trazo debe poder deshacerse/rehacerse como una sola acción; Clear también debe ser reversible. Conservar lo pintado al cambiar temporalmente de modo y definir su persistencia en duplicación, guardado/reapertura e hidratación real del editor.
+- Incluir la selección pintada en el archivo de proyecto y en la configuración/recursos exportados al runtime. Vista previa, PNG y render de video deben reproducirla sin depender del estado temporal del editor.
+- Esta herramienta es un modo de revelado propio de Photographic Cells. No reactiva el trabajo pospuesto de máscaras geométricas genéricas ni exige la revisión de Blob Tracking.
+
+**D. Refinamientos visuales a evaluar después**
+
+- **Edge Scatter:** probar un único control que fragmente celdas cerca del perímetro, preservando las regiones principales. Comparar con los pequeños cuadrados alrededor de las manchas del afiche blanco antes de decidir su incorporación.
+- **Puntos finos:** probar primero una composición con la capa de halftone existente, manteniendo una escala de trama menor que Cell Size. Evaluar el orden y el alcance del grupo para que la trama respete la región revelada. Añadir controles propios solo si esa combinación no alcanza un resultado útil.
+- Color, anotaciones técnicas y tipografía pueden venir de otras capas. Preparar composiciones editables que demuestren el conjunto sin recargar este efecto.
+
+**Orden y aceptación:** entregar A+B primero en un PR apilado; revisar renders y obtener feedback del usuario. Continuar con C en una entrega posterior; evaluar D con esas herramientas disponibles. No considerar implementada ninguna mejora por haberla documentado. Mantener todos los PR dentro de la pila V3 hasta completar el plan.
+
+**Criterios de cierre de esta mejora:**
+
+- Una región de varias celdas a Gap 0 muestra fotografía continua, contorno exterior fino y ausencia de divisiones internas en Perimeter; Every Cell reproduce las divisiones deliberadamente. Comprobar regiones separadas, huecos y filas irregulares.
+- Region Size cambia la escala de los parches y Cell Size cambia los escalones sin convertir el interior en colores planos. Comparar capturas con las referencias 05 y 11, incluyendo una composición sobre blanco con amplio espacio vacío.
+- En Paint, poder revelar un detalle elegido, borrar parte, cambiar Cell Size y zoom, deshacer/rehacer, guardar/reabrir y exportar conservando el área elegida y sus contornos.
+- Mantener aislamiento de grupos, transparencia de la fuente, ancho de contorno estable al variar Gap, compatibilidad de proyectos anteriores y equivalencia editor/runtime. Ampliar pruebas de GPU, hidratación mediante `applyLabProjectFile`, historial y exportación según cada entrega.
+- Medir respuesta interactiva con fotografía y video a resoluciones representativas; comprobar estabilidad temporal de regiones automáticas. Documentar límites junto a las capturas revisadas. Pasar `bun run check` y `bun run test:composition` al implementar; la revisión visual del usuario sigue siendo necesaria.
+
 **Idea para ampliar anillos, todavía por elegir:** probar una única familia de formas concéntricas (círculo, triángulo y cuadrado) reutilizando conteo, rotación, desplazamiento y separación. Separar la forma base del corte completo/mitad permitiría extender los semidiscos sin multiplicar controles. No implementar esta ampliación en el prototipo de celdas; presentar la propuesta al usuario primero.
 
 ### 3.4 Reorganizar el catálogo junto con cada incorporación

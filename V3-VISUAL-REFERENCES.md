@@ -33,11 +33,13 @@ The images are visual references, not application assets. They are not bundled i
 
 ## Photographic Cells: accepted prototype, unfinished visual direction
 
-The user considers the first layer useful enough, with the Gap/outline defect to fix. This does **not** mean it achieves references 05 and 11.
+The user considers the first layer useful enough; the Gap/outline inflation has been corrected. This does **not** mean it achieves references 05 and 11.
 
 - The bridge is one photographic subject revealed through connected, stepped regions. Its contours follow the region perimeter; it is not a brick grid with every cell individually outlined.
 - The white poster combines broad flowing color regions, small stepped edge fragments, fine dots, and delicate technical marks. Large randomly selected rectangular cells alone do not reproduce that appearance.
-- Preserve detail inside revealed regions. Evaluate connected-region selection and perimeter-only contours in a later visual refinement. Fine dots and color treatment may come from a combination of layers; do not force the entire poster into a single effect or multiply controls prematurely.
+- Approved next direction: automatic connected regions and integrated None / Perimeter / Every Cell outlines first, followed by a Paint selection mode with Reveal / Erase, Brush Size, Clear, and undo. Preserve photographic detail and share geometry/outline behavior between automatic and painted selection.
+- Region Size controls the broad patches; Cell Size controls their stepped boundaries. Painting should remain useful independently of automatic selection, without implying subject detection.
+- Evaluate Edge Scatter later. Try existing halftone and color layers for the fine dot treatment before adding more controls. The detailed sequence and acceptance criteria are in roadmap section 3.3.1; these improvements are planned, not implemented.
 - Use these images for side-by-side visual review before marking the cell family complete. The present center-sampled row grid, per-cell outlines, and absence of fine dot treatment remain explicit limits.
 
 For every shader slice, note the reference filenames used, which visible qualities it achieves, and which remain follow-up work. Keep the experimental editorial, analog photographic, and acid-graphics direction visible in actual renders.

@@ -20,7 +20,7 @@ Primer paso de la fase 1: [baselines de composición y mapa del canal alfa](test
 
 Avance de 1.3: grupos aislados con hasta ocho niveles, controles del editor, reordenamiento de subárboles, plegado, visibilidad, opacidad, duplicación, deshacer, persistencia v7 y exportación de configuración. Las pruebas cubren estado, hidratación real y píxeles guardados/reabiertos. El usuario confirmó la prueba de aislamiento de foto + halftone, opacidad y plegado; la [lista manual ampliada](tests/composition/GROUPS-MANUAL-QA.md) sigue disponible para la validación global.
 
-**Prioridades revisadas con el usuario (17 de septiembre de 2026):** siguiente PR: texto transparente por defecto (2.1). Después, explorar los anillos desplazados ya previstos en 3.2–3.3; no es una familia adicional. Posponer las máscaras básicas de círculo/rectángulo y su interfaz genérica: no bloquean texto ni la exploración de anillos; revisar cuándo retomarlas al cerrar el alcance de V3. Desarrollar modos de máscara adaptados al lenguaje visual de los efectos seleccionados. Registrar con prioridad baja una revisión de calidad de Blob Tracking y sus posibilidades como máscara (6.3).
+**Prioridades revisadas con el usuario (17 de septiembre de 2026):** texto transparente por defecto (2.1) implementado en #156 y confirmado por el usuario. Siguiente entrega: prototipo de los anillos desplazados ya previstos en 3.2–3.3; no es una familia adicional. Posponer las máscaras básicas de círculo/rectángulo y su interfaz genérica: no bloquean texto ni la exploración de anillos; revisar cuándo retomarlas al cerrar el alcance de V3. Desarrollar modos de máscara adaptados al lenguaje visual de los efectos seleccionados. Registrar con prioridad baja una revisión de calidad de Blob Tracking y sus posibilidades como máscara (6.3).
 
 ## Fase 1 — Resolver la base de composición y proteger proyectos existentes
 
@@ -125,6 +125,10 @@ Exigir el caso de **48 anillos**, aunque la referencia muestre seis u ocho. Expl
 Permitir destruir completamente el reconocimiento de la imagen. Preparar combinaciones editables, como anillos + dos tintas + erosión, usando componentes disponibles y ampliándolas al incorporar familias posteriores.
 
 Separar la transformación de la fotografía dentro de cada banda del modo que recorta su cobertura. Probar anillos completos y semidiscos, con desplazamiento y rotación, y definir controles útiles para revelar/ocultar regiones. Los huecos deben mostrar el contenido inferior y los efectos deben respetar los límites del grupo. Este trabajo amplía la exploración de anillos existente; no agrega otra familia ni exige implementar primero máscaras geométricas genéricas.
+
+**Primer prototipo implementado, pendiente de validación visual del usuario:** Displaced Rings admite 1–128 bandas (48 comprobadas), anillos/semidiscos, centro, radio, distribución, desplazamiento alternado/progresivo/aleatorio con semilla, rotación global y por banda, escala progresiva, separación y bordes suaves. Output distingue Distort y Cutout; dentro de un grupo, Cutout revela las capas externas por los huecos. Editor y runtime comparten el comportamiento, con pruebas de píxeles, hidratación real, deshacer, guardado/reapertura y PNG. El catálogo incorpora una vista previa fotográfica y muestra el efecto primero. Ver [alcance y prueba manual](tests/composition/DISPLACED-RINGS-MANUAL-QA.md).
+
+Esto no cierra la fase 3: quedan la curaduría visual con las referencias completas, combinaciones con otros efectos, rendimiento con fotografías/video a resoluciones representativas y la selección de las otras familias. El prototipo usa transformaciones progresivas; no incluye controles individuales por anillo ni inversión de cobertura.
 
 ### 3.4 Reorganizar el catálogo junto con cada incorporación
 

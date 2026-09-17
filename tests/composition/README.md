@@ -61,7 +61,7 @@ These findings come from source inspection and the limited GPU checks above, not
 
 | Boundary | Current behavior | Required follow-up |
 | --- | --- | --- |
-| `blend-modes.ts` in editor and runtime | Sources combine coverage; effects preserve input coverage. Legacy masks still darken RGB and return alpha 1 | Introduce true coverage masks with a compatibility path for saved masks |
+| `blend-modes.ts` in editor and runtime | Sources combine coverage; color effects preserve input coverage; Displaced Rings transforms it. Legacy masks still darken RGB and return alpha 1 | Introduce true coverage masks with a compatibility path for saved masks |
 | `pass-node.ts` in both renderers | Roles are derived from layer kind/Effect Mode; initial and replacement materials preserve computed straight alpha | Audit individual effect algorithms, particularly spatial effects, as group composition is introduced |
 | `media-pass.ts` | Contain mode now supports transparent out-of-bounds samples, defaulting on for new layers; absent settings retain black | Broader alpha composition remains separate from this source-boundary fix |
 | `pipeline-manager.ts` | The root begins over an opaque base (or a runtime input texture); groups render children against independent transparent targets and are connected to editor organization/history/persistence/runtime configs | Add coverage masks and verify representative large grouped scenes; keep the scene background a deliberate choice |
@@ -73,8 +73,8 @@ The source/effect distinction prevents repeated filtering from increasing covera
 
 ## Next implementation slice
 
-1. Confirm new text insertion over a photo, changing Text Color and Background Opacity, and save/reopen. The user has confirmed the focused group isolation/opacity/collapse check; retain the broader [group checklist](GROUPS-MANUAL-QA.md) for final regression.
-2. Explore the existing displaced-ring family, including offset half-discs and transparent gaps. Develop coverage behavior with the effect; basic circle/rectangle masks are postponed. Blob Tracking's quality and tailored-mask review is low priority (roadmap 6.3).
+1. Validate the Displaced Rings prototype with the [focused manual test](DISPLACED-RINGS-MANUAL-QA.md). The user confirmed the transparent-text and focused group checks; retain the broader [group checklist](GROUPS-MANUAL-QA.md) for final regression.
+2. Refine the selected ring direction after visual feedback, then continue the roadmap. Basic circle/rectangle masks remain postponed; Blob Tracking's quality and tailored-mask review is low priority (roadmap 6.3).
 3. Carry alpha through transparent scene backgrounds, preview, and supported exports while keeping these legacy fixtures stable.
 
 ## Transparent text defaults
@@ -104,3 +104,13 @@ History retains group hierarchy and selections. Duplicates get new group/child I
 `editor-groups.mjs` tests these store operations, actual history restoration, grouping depth/cycle rejection, version-7 save → **applyLabProjectFile** → save, child/group animation, malformed imports, and hidden-parent frame construction. It exports a real `ShaderLabConfig` and renders it through the headless runtime, then compares grouped editor preview/PNG output and a fresh saved-project render. The saved group is collapsed to verify that collapse does not suppress rendering. Coverage masks remain separate work.
 
 Still outstanding for phase 1: the fourteen selected artistic references, broader photographs/portraits/objects and video captures, complete runtime scene/export coverage, group/mask behavior, and the short 3D feasibility checks. This suite is a starting point, not phase-1 acceptance.
+
+## Displaced Rings prototype
+
+`displaced-rings.mjs` exercises the new effect in both renderers with exact pixel parity: identity at 1/8/48/128 rings, touching-band coverage, antialiased cutout edges, half-discs, opacity, empty gaps, seeded displacement, and rotation of asymmetric color/alpha. A 512×384 case explicitly counts 48 separated radial bands. Its logged wall time includes readback on SwiftShader and is not a real-time GPU performance claim.
+
+The test also restores history, saves and hydrates through `applyLabProjectFile`, renders exported runtime configuration, checks cutouts inside a group over an external background, and compares preview/PNG and reopened pixels. A bundled photograph supplies a nonblank visual artifact. Original compatibility fixtures remain frozen.
+
+This effect uses the new `transform` composition role: layer opacity interpolates premultiplied original/transformed pixels, including their coverage; zero opacity restores the input. Other effects retain their existing roles. Cutout starts with transparent coverage and composites transformed bands; Distort retains the original image between bands. Samples outside the input image are transparent. Scene background/export alpha policy is unchanged. Legacy layer Mask mode retains its old semantics; use Output → Cutout for these holes.
+
+See [controls, scope, and remaining visual checks](DISPLACED-RINGS-MANUAL-QA.md). Broader video/export and hardware performance checks remain pending.

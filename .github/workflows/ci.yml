@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - git-chad/shader-lab-v3-plan
+      - git-chad/v3-*
   push:
     branches:
       - main

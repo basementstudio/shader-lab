@@ -603,6 +603,15 @@ export function migrateLayerParams(
 ): LayerParameterValues {
   const params: LayerParameterValues = { ...layer.params }
 
+  // Files without this setting predate transparent contain bounds. Preserve
+  // their black borders before filling missing parameters with new defaults.
+  if (
+    (layer.type === "image" || layer.type === "video") &&
+    params.transparentBounds === undefined
+  ) {
+    params.transparentBounds = false
+  }
+
   if (layer.type === "ascii" && typeof params.fontWeight === "string") {
     params.fontWeight = LEGACY_ASCII_FONT_WEIGHTS[params.fontWeight] ?? 400
   }

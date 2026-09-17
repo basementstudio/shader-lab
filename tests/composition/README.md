@@ -1,8 +1,8 @@
 # V3 composition baselines
 
-First slice of roadmap steps 1.1–1.2. This PR establishes regression checks before changing alpha behavior; it does not implement transparent composition, groups, or new masks.
+Regression coverage for roadmap steps 1.1–1.2. The first PR establishes legacy baselines; its stacked successor adds transparent media bounds. Full transparent composition, groups, and new masks remain outstanding.
 
-Integration branch: `git-chad/shader-lab-v3-plan`. Parent PR: [#150](https://github.com/basementstudio/shader-lab/pull/150). Child PRs target that branch, never `main`.
+Integration branch: `git-chad/shader-lab-v3-plan`. Parent PR: [#150](https://github.com/basementstudio/shader-lab/pull/150). The first child, [#151](https://github.com/basementstudio/shader-lab/pull/151), targets integration. Each subsequent stacked PR targets the preceding feature branch, never `main`.
 
 ## Run
 
@@ -37,6 +37,14 @@ Each fixture renders through the editor renderer, compares preview with PNG expo
 
 Editor hydration starts from deliberately different store state. A separate in-memory variant adds an opacity track with keyframes, tracks targeting a missing layer and parameter, and an invalid layer selection. It verifies that hydration preserves valid animation, prunes invalid tracks, clears previous timeline selection/playhead state, and saves only the surviving track. The frozen project fixture remains unchanged.
 
+## Transparent media bounds
+
+New image and video layers expose **Transparent Borders** when Fit is **Contain**. It defaults on; disabling it restores black borders. Saved layers without `transparentBounds` are migrated to `false` before new defaults are applied. Runtime configs that omit it also keep black borders. Cover mode is unchanged, including its existing edge sampling. No saved fixture or visual baseline is refreshed for this change.
+
+`media-bounds.mjs` renders the editor and runtime MediaPass with both the SVG and bundled video over a colored input texture. It checks legacy/missing, explicit solid, transparent, partial-opacity, scaled/offset, and Cover cases. It also checks new-layer defaults, migration, save/reopen, shader-config export, and preview/PNG export against explicit pixel expectations. Rendered transparent/solid examples are saved alongside the baseline artifacts.
+
+This change reveals lower content at empty media bounds; it does not make the scene canvas or exported PNG background transparent. The existing scene background, mask semantics, and global effect scope remain unchanged.
+
 ## Confirmed alpha boundaries
 
 These findings come from source inspection and the limited GPU checks above, not a completed end-to-end alpha audit.
@@ -45,7 +53,7 @@ These findings come from source inspection and the limited GPU checks above, not
 | --- | --- | --- |
 | `blend-modes.ts` in editor and runtime | Filter mixes RGB using source alpha but returns alpha 1; masks multiply RGB or threshold to black and return alpha 1 | Distinguish source-over composition from effect interpolation; introduce true coverage masks with a compatibility path for saved masks |
 | `pass-node.ts` in both renderers | Source and effect passes share composition; default opaque node materials can force alpha 1 independently of shader output | Define straight/premultiplied alpha conventions and material settings together with separate source/effect semantics |
-| `media-pass.ts` | Contain mode fills out-of-bounds samples with opaque black | Preserve previous saved appearances while allowing transparent bounds in new composition behavior |
+| `media-pass.ts` | Contain mode now supports transparent out-of-bounds samples, defaulting on for new layers; absent settings retain black | Broader alpha composition remains separate from this source-boundary fix |
 | `pipeline-manager.ts` | A single global ping-pong chain begins over an opaque base and finishes through an opaque blit | Introduce isolated group targets and their own effect scope; keep the scene background a deliberate choice |
 | `scene-post-process.ts` | Scene color adjustments return alpha 1 | Preserve coverage through color grading |
 | Canvas renderer creation | Editor and runtime use `alpha: false`; editor clears to alpha 1 | Carry alpha through preview/export where supported, including texture output |

@@ -161,6 +161,18 @@ try {
       `PASS ${name}: preview/export and reopen match; ${result.colors} colors`
     )
   }
+  const mediaBounds = await page.evaluate(() => window.checkMediaBounds())
+  await Bun.write(
+    resolve(artifacts, "transparent-media-bounds.png"),
+    Buffer.from(mediaBounds.transparentPng.split(",")[1], "base64")
+  )
+  await Bun.write(
+    resolve(artifacts, "solid-media-bounds.png"),
+    Buffer.from(mediaBounds.solidPng.split(",")[1], "base64")
+  )
+  console.log(
+    `PASS media bounds: ${mediaBounds.samples} editor/runtime image/video samples, migration, save/reopen, shader export, and PNG export`
+  )
   assert.deepEqual(errors, [], "Browser or GPU errors occurred")
   console.log(
     update

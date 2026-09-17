@@ -15,6 +15,7 @@ import { useEditorStore } from "@/store/editor-store"
 import { useLayerStore } from "@/store/layer-store"
 import { useTimelineStore } from "@/store/timeline-store"
 import { BLEND_MODES } from "@/types/editor"
+import { checkMediaBounds } from "./media-bounds.mjs"
 
 function pixels(canvas) {
   const copy = document.createElement("canvas")
@@ -238,6 +239,12 @@ window.checkExistingProject = async () => {
   if (JSON.stringify(parsed) !== JSON.stringify(reopened))
     throw new Error("Saved project is not stable across parse/serialize/reopen")
   const state = buildViewerProjectState(reopened)
+  const expectedRestored = structuredClone(reopened)
+  for (const layer of expectedRestored.layers) {
+    if (layer.type === "image" || layer.type === "video") {
+      layer.params.transparentBounds = false
+    }
+  }
   // Start from a different editor session so no-op restoration cannot pass
   // merely because the stores already contain their default values.
   useLayerStore.getState().replaceState([], null, null)
@@ -262,7 +269,7 @@ window.checkExistingProject = async () => {
     "timeline",
     "audio",
   ]) {
-    if (JSON.stringify(stored[key]) !== JSON.stringify(reopened[key])) {
+    if (JSON.stringify(stored[key]) !== JSON.stringify(expectedRestored[key])) {
       throw new Error(`Editor hydration/save changed ${key}`)
     }
   }
@@ -280,7 +287,7 @@ window.checkExistingProject = async () => {
     throw new Error("Existing project lost layers or bundled assets")
   }
   for (const [index, layer] of state.layers.entries()) {
-    const saved = original.layers[index]
+    const saved = expectedRestored.layers[index]
     for (const key of [
       "blendMode",
       "compositeMode",
@@ -369,3 +376,5 @@ window.checkExistingProject = async () => {
   }
   return { layers: state.layers.length, assets: state.assets.length }
 }
+
+window.checkMediaBounds = () => checkMediaBounds(renderProject)

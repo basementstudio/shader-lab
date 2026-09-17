@@ -653,6 +653,11 @@ export const sketch = Fn(() => {
 
 ## Included Runtime Support
 
+Image and video layers in Contain mode support `params.transparentBounds: true`
+to reveal the content beneath their empty borders. Omit the setting or use
+`false` to retain black borders. This option does not affect Cover mode or make
+the composition's canvas background transparent.
+
 - Gradient
 - Text
 - Custom shader (source and effect modes)

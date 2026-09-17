@@ -1,3 +1,4 @@
+import { CURRENT_PROJECT_FILE_VERSION } from "./project-version"
 import { validateLayerHierarchy } from "@/renderer/layer-hierarchy"
 import { z } from "zod"
 import { useAssetStore } from "@/store/asset-store"
@@ -318,7 +319,7 @@ const projectAudioSchema = z.looseObject({
   source: z.looseObject({ kind: z.string() }).nullable().optional(),
 })
 
-export const CURRENT_PROJECT_FILE_VERSION = 7
+export { CURRENT_PROJECT_FILE_VERSION } from "./project-version"
 
 const labProjectFileSchema = z.looseObject({
   assets: z.array(assetReferenceSchema),

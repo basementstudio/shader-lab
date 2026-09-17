@@ -29,15 +29,13 @@ import { consumeAutosaveResume } from "@/lib/editor/autosave/resume"
 import { createAutosaveScheduler } from "@/lib/editor/autosave/scheduler"
 import {
   findRestorableAutosave,
-  forgetAutosaveRecord,
-  forgetOwnAutosaveRecord,
   listLiveAutosaveRecords,
   saveAutosaveRecord,
 } from "@/lib/editor/autosave/store"
 import {
   isAutosaveSuppressed,
+  isRestoringAutosave,
   withAutosaveRestore,
-  withAutosaveSuppressed,
 } from "@/lib/editor/autosave/suppress"
 import {
   audioChanged,
@@ -46,8 +44,11 @@ import {
   releasedInteractiveEdit,
   timelineChanged,
 } from "@/lib/editor/autosave/triggers"
-import { disarmRemixDraft } from "@/lib/editor/remix-draft"
-import { getDefaultProjectFile } from "@/lib/editor/default-project"
+import {
+  registerProjectStarter,
+  replaceWithNewProject,
+  type ProjectStart,
+} from "@/lib/editor/project-start"
 import {
   applyLabProjectFile,
   buildLabProjectFile,
@@ -112,7 +113,6 @@ export function AutosaveMount() {
   const pillBottom = useBottomOffsetAboveTimeline(restored)
   const readyRef = useRef(false)
   const signatureRef = useRef<string | null>(null)
-  const restoredFromRef = useRef<string | null>(null)
   const editedBeforeReadyRef = useRef(false)
   const pendingWriteRef = useRef<Promise<void> | null>(null)
 
@@ -136,15 +136,22 @@ export function AutosaveMount() {
 
     signatureRef.current = signature
 
-    const write = saveAutosaveRecord({
-      activeDraft,
-      projectFile,
-      remixOrigin,
-    }).then((written) => {
-      if (written) {
-        whenIdle(collectStoredAssetGarbage)
-      }
-    })
+    // Serialize writes: a slow older snapshot must not overwrite a new document.
+    const write = (pendingWriteRef.current ?? Promise.resolve())
+      .then(() =>
+        saveAutosaveRecord({
+          activeDraft,
+          projectFile,
+          remixOrigin,
+        })
+      )
+      .then((written) => {
+        if (written) {
+          whenIdle(collectStoredAssetGarbage)
+        } else if (signatureRef.current === signature) {
+          signatureRef.current = null
+        }
+      })
 
     pendingWriteRef.current = write
 
@@ -191,6 +198,7 @@ export function AutosaveMount() {
 
       if (!candidate) {
         readyRef.current = true
+        if (editedBeforeReadyRef.current) scheduler.request()
 
         return
       }
@@ -252,8 +260,6 @@ export function AutosaveMount() {
           projectFile: candidate.projectFile,
           remixOrigin: candidate.remixOrigin,
         })
-
-        restoredFromRef.current = candidate.sessionId
 
         if (!resuming) {
           setRestored(true)
@@ -331,6 +337,15 @@ export function AutosaveMount() {
         }
       }),
       useEditorStore.subscribe((state, previous) => {
+        if (
+          !readyRef.current &&
+          state.sceneRevision !== previous.sceneRevision &&
+          !isRestoringAutosave()
+        ) {
+          // File imports/remixes suppress autosave during hydration, but still
+          // represent an explicit choice that must win over pending recovery.
+          editedBeforeReadyRef.current = true
+        }
         if (editorChanged(previous, state)) {
           request()
         }
@@ -377,39 +392,31 @@ export function AutosaveMount() {
     }
   }, [scheduler])
 
-  const startFresh = useCallback(() => {
-    setRestored(false)
-    scheduler.cancel()
+  const beginProject = useCallback(
+    (kind: ProjectStart) => {
+      setRestored(false)
+      scheduler.cancel()
+      editedBeforeReadyRef.current = true
+      readyRef.current = true
+      replaceWithNewProject(kind)
+      signatureRef.current = null
+      // Persist even an untouched blank project, preventing older scenes returning.
+      persist()
+    },
+    [persist, scheduler]
+  )
 
-    withAutosaveSuppressed(() => {
-      applyLabProjectFile(
-        getDefaultProjectFile(),
-        useAssetStore.getState().assets
-      )
-      useRemixOriginStore.getState().clearRemixOrigin()
-      useDraftStore.getState().clearActiveDraft()
-      disarmRemixDraft()
-    })
-
-    signatureRef.current = null
-
-    const restoredFrom = restoredFromRef.current
-
-    restoredFromRef.current = null
-
-    void forgetOwnAutosaveRecord()
-
-    if (restoredFrom) {
-      void forgetAutosaveRecord(restoredFrom)
-    }
-  }, [scheduler])
+  useEffect(() => {
+    registerProjectStarter(beginProject)
+    return () => registerProjectStarter(null)
+  }, [beginProject])
 
   return (
     <AnimatePresence initial={false}>
       {restored ? (
         <motion.div
           animate={reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
-          className="pointer-events-none fixed left-1/2 z-95 -translate-x-1/2"
+          className="pointer-events-none fixed left-1/2 z-95 w-max max-w-[calc(100vw-24px)] -translate-x-1/2"
           exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
           initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
           style={{ bottom: pillBottom }}
@@ -426,8 +433,12 @@ export function AutosaveMount() {
             <Typography as="span" tone="secondary" variant="caption">
               Restored your last session
             </Typography>
-            <Button onClick={startFresh} size="compact" variant="secondary">
-              Start fresh
+            <Button
+              onClick={() => beginProject("blank")}
+              size="compact"
+              variant="secondary"
+            >
+              New blank project
             </Button>
             <IconButton
               aria-label="Dismiss restore notice"

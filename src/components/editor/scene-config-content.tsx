@@ -1,6 +1,11 @@
 "use client"
 
 import { useCallback } from "react"
+import {
+  hasSceneAdjustments,
+  neutralSceneAdjustments,
+} from "@/lib/editor/scene-adjustments"
+import { Button } from "@/components/ui/button"
 import { ChannelMixerMatrix } from "@/components/ui/channel-mixer-matrix"
 import { ColorPicker } from "@/components/ui/color-picker"
 import { ColorCurvesEditor } from "@/components/ui/color-curves"
@@ -100,6 +105,27 @@ export function SceneConfigContent() {
 
   return (
     <div className="flex min-h-0 max-h-[min(62vh,620px)] flex-col gap-0 overflow-x-hidden overflow-y-auto">
+      <section
+        className="flex flex-col gap-2 px-4 py-3"
+        aria-label="Global color adjustments"
+      >
+        <Typography tone="secondary" variant="label">
+          {hasSceneAdjustments(sceneConfig)
+            ? "Global colors active"
+            : "Global colors neutral"}
+        </Typography>
+        <Typography tone="muted" variant="caption">
+          These adjustments affect the entire composition.
+        </Typography>
+        <Button
+          disabled={!hasSceneAdjustments(sceneConfig)}
+          onClick={() => updateSceneConfig(neutralSceneAdjustments())}
+          size="compact"
+          variant="secondary"
+        >
+          Reset all global colors
+        </Button>
+      </section>
       {/* Composition */}
       <Section title="Composition">
         <Row label="Aspect">

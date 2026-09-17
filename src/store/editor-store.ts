@@ -1,8 +1,5 @@
 import { create } from "zustand"
-import {
-  getDefaultProjectComposition,
-  getDefaultProjectSceneConfig,
-} from "@/lib/editor/default-project"
+import { DEFAULT_SCENE_CONFIG } from "@/types/editor"
 import { DEFAULT_CANVAS_SIZE } from "@/lib/editor/layers"
 import type { EditorRenderer } from "@/renderer/contracts"
 import type {
@@ -13,9 +10,6 @@ import type {
   SidebarView,
   WebGPUStatus,
 } from "@/types/editor"
-
-const DEFAULT_PROJECT_COMPOSITION = getDefaultProjectComposition()
-const DEFAULT_PROJECT_SCENE_CONFIG = getDefaultProjectSceneConfig()
 
 export interface EditorStoreState extends EditorStateSnapshot {
   activeFloatingPanelDrag:
@@ -121,10 +115,10 @@ export const useEditorStore = create<EditorStore>((set) => ({
   liveRenderer: null,
   liveCanvas: null,
   mobilePanel: "none",
-  outputSize: DEFAULT_PROJECT_COMPOSITION,
+  outputSize: { ...DEFAULT_CANVAS_SIZE },
   panOffset: { x: 0, y: 0 },
   renderScale: 1,
-  sceneConfig: DEFAULT_PROJECT_SCENE_CONFIG,
+  sceneConfig: structuredClone(DEFAULT_SCENE_CONFIG),
   sidebars: {
     left: true,
     right: true,

@@ -19,7 +19,7 @@ import {
   patchAudioLink,
 } from "@/lib/editor/audio/links"
 import type { AudioSpectrogram } from "@/lib/editor/audio/spectrogram"
-import { getDefaultProjectAudio } from "@/lib/editor/default-project"
+import { getBlankProjectAudio } from "@/lib/editor/blank-project"
 import {
   AUDIO_BAND_IDS,
   type AudioBandConfig,
@@ -130,16 +130,16 @@ export function selectAudioModulationInput(
   }
 }
 
-const DEFAULT_PROJECT_AUDIO = getDefaultProjectAudio()
+const BLANK_PROJECT_AUDIO = getBlankProjectAudio()
 
 export const useAudioStore = create<AudioStore>((set, get) => ({
   analysisProgress: 0,
-  bands: DEFAULT_PROJECT_AUDIO.bands,
+  bands: BLANK_PROJECT_AUDIO.bands,
   envelopes: null,
   error: null,
-  links: DEFAULT_PROJECT_AUDIO.links,
-  offsetSeconds: DEFAULT_PROJECT_AUDIO.offsetSeconds,
-  source: DEFAULT_PROJECT_AUDIO.source,
+  links: BLANK_PROJECT_AUDIO.links,
+  offsetSeconds: BLANK_PROJECT_AUDIO.offsetSeconds,
+  source: BLANK_PROJECT_AUDIO.source,
   spectrogram: null,
   status: "idle",
 
@@ -370,7 +370,10 @@ if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
       links: state.links.map((link) => ({
         band: link.band,
         enabled: link.enabled,
-        key: link.binding.kind === "param" ? link.binding.key : link.binding.property,
+        key:
+          link.binding.kind === "param"
+            ? link.binding.key
+            : link.binding.property,
         outMax: link.outMax,
         outMin: link.outMin,
       })),

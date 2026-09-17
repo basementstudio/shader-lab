@@ -27,6 +27,7 @@ import { useHistoryStore } from "@/store/history-store"
 import { useLayerStore } from "@/store/layer-store"
 import { useTimelineStore } from "@/store/timeline-store"
 import { DEFAULT_SCENE_CONFIG } from "@/types/editor"
+import { checkLayerDrops } from "./layer-drops.mjs"
 
 function assert(value, message) {
   if (!value) throw new Error(message)
@@ -138,6 +139,7 @@ async function checkRuntime(config) {
 }
 
 export async function checkEditorGroups(renderProject) {
+  checkLayerDrops()
   const store = () => useLayerStore.getState()
   const timeline = () => useTimelineStore.getState()
   const size = { width: 64, height: 48 }

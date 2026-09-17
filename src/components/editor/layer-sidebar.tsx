@@ -2,12 +2,12 @@
 import {
   ChevronDownIcon,
   ChevronRightIcon,
-  GroupIcon,
   DotsVerticalIcon,
   DragHandleDots2Icon,
   EyeClosedIcon,
   EyeOpenIcon,
   FileIcon,
+  GroupIcon,
   ImageIcon,
   LayoutIcon,
   ShadowIcon,
@@ -15,7 +15,6 @@ import {
   TransparencyGridIcon,
   TrashIcon,
 } from "@radix-ui/react-icons"
-import { Reorder, useDragControls, useReducedMotion } from "motion/react"
 import Image from "next/image"
 import {
   type ChangeEvent,
@@ -32,6 +31,7 @@ import {
   type AddLayerAction,
   LayerPicker,
 } from "@/components/editor/layer-picker"
+import { useLayerDrag } from "@/components/editor/use-layer-drag"
 import { GlassPanel } from "@/components/ui/glass-panel"
 import { IconButton } from "@/components/ui/icon-button"
 import { Select } from "@/components/ui/select"
@@ -39,8 +39,11 @@ import { HoverTooltip } from "@/components/ui/tooltip"
 import { Typography } from "@/components/ui/typography"
 import { playUISound } from "@/lib/audio/shader-lab-sounds"
 import { cn } from "@/lib/cn"
-import { groupingSelection } from "@/lib/editor/layer-groups"
 import { duplicateLayers } from "@/lib/editor/duplicate-layers"
+import {
+  groupingSelection,
+  type LayerDropTarget,
+} from "@/lib/editor/layer-groups"
 import { getAssetAccept, inferFileAssetKind } from "@/lib/editor/media-file"
 import { getSeedableMediaDuration } from "@/lib/editor/timeline-duration"
 import { useAssetStore } from "@/store/asset-store"
@@ -121,6 +124,9 @@ function inferSelectedFileKind(file: File): AssetKind | null {
 
 type LayerListItemProps = {
   children?: ReactNode
+  dragPlacement?: LayerDropTarget["placement"] | undefined
+  isDragging: boolean
+  onDragStart: ReturnType<typeof useLayerDrag>["start"]
   asset: EditorAsset | null
   hasMissingAsset: boolean
   isFloatingPanelDragging: boolean
@@ -147,35 +153,22 @@ const LAYER_ACTION_OPTIONS = [
 
 function LayerListShell({
   children,
-  isFloatingPanelDragging,
-  onReorder,
-  values,
   nested = false,
 }: {
   children: ReactNode
-  isFloatingPanelDragging: boolean
-  onReorder: (nextLayers: EditorLayer[]) => void
-  values: EditorLayer[]
   nested?: boolean
 }) {
-  const className = nested
-    ? "ml-2 flex flex-col gap-0.5 border-l border-[var(--ds-border-divider)] pl-1"
-    : "flex max-h-[min(44vh,320px)] min-[900px]:max-h-[min(52vh,480px)] flex-col gap-0.5 overflow-y-auto p-1"
-
-  if (isFloatingPanelDragging) {
-    return <ul className={className}>{children}</ul>
-  }
-
   return (
-    <Reorder.Group
-      axis="y"
-      as="ul"
-      className={className}
-      onReorder={onReorder}
-      values={values}
+    <ul
+      data-layer-tree-root={nested ? undefined : "true"}
+      className={
+        nested
+          ? "ml-2 flex flex-col gap-0.5 border-l border-[var(--ds-border-divider)] pl-1"
+          : "flex max-h-[min(44vh,320px)] min-[900px]:max-h-[min(52vh,480px)] flex-col gap-0.5 overflow-y-auto overscroll-contain p-1"
+      }
     >
       {children}
-    </Reorder.Group>
+    </ul>
   )
 }
 
@@ -196,9 +189,10 @@ const LayerListItem = memo(function LayerListItem({
   onSelectLayer,
   onSetLayerVisibility,
   children,
+  dragPlacement,
+  isDragging,
+  onDragStart,
 }: LayerListItemProps) {
-  const dragControls = useDragControls()
-  const reduceMotion = useReducedMotion()
   const [renaming, setRenaming] = useState(false)
   const [name, setName] = useState(layer.name)
   const cancelRename = useRef(false)
@@ -228,7 +222,11 @@ const LayerListItem = memo(function LayerListItem({
   const content = (
     <>
       <div
+        data-layer-row={layer.id}
+        data-drop-inside={dragPlacement === "inside" || undefined}
         className={cn(
+          dragPlacement === "inside" &&
+            "ring-1 ring-inset ring-[var(--ds-color-text-primary)]",
           "relative grid min-h-11 grid-cols-[minmax(0,1fr)_28px_28px_28px] items-center gap-1 rounded-[var(--ds-radius-control)] border border-transparent px-1.5 py-[6px]",
           !layer.locked &&
             "hover:border-[var(--ds-border-subtle)] hover:bg-[var(--ds-color-surface-subtle)]",
@@ -238,7 +236,7 @@ const LayerListItem = memo(function LayerListItem({
       >
         <div className="flex min-w-0 items-center gap-1.5">
           <HoverTooltip
-            content="Drag to reorder within this group"
+            content="Drag to reorder or move between groups"
             side="right"
           >
             <button
@@ -247,7 +245,7 @@ const LayerListItem = memo(function LayerListItem({
               disabled={layer.locked || isFloatingPanelDragging}
               onPointerDown={(event) => {
                 event.stopPropagation()
-                dragControls.start(event)
+                onDragStart(layer.id, event)
               }}
               type="button"
             >
@@ -358,25 +356,30 @@ const LayerListItem = memo(function LayerListItem({
     </>
   )
 
-  if (isFloatingPanelDragging) return <li>{content}</li>
   return (
-    <Reorder.Item
-      as="li"
-      className="relative"
-      drag={layer.locked ? false : "y"}
-      dragControls={dragControls}
-      dragListener={false}
-      layout="position"
-      {...(reduceMotion ? { transition: { layout: { duration: 0 } } } : {})}
-      style={{ zIndex: 0 }}
-      value={layer}
+    <li
+      className={cn("relative", isDragging && "opacity-40")}
+      data-layer-item={layer.id}
     >
+      {dragPlacement === "before" && (
+        <div
+          data-drop-line="before"
+          className="pointer-events-none absolute -top-px right-0 left-0 z-10 h-0.5 rounded bg-[var(--ds-color-text-primary)]"
+        />
+      )}
       {content}
-    </Reorder.Item>
+      {dragPlacement === "after" && (
+        <div
+          data-drop-line="after"
+          className="pointer-events-none absolute -bottom-px right-0 left-0 z-10 h-0.5 rounded bg-[var(--ds-color-text-primary)]"
+        />
+      )}
+    </li>
   )
 })
 
 export function LayerSidebar() {
+  const layerDrag = useLayerDrag()
   const imageInputRef = useRef<HTMLInputElement | null>(null)
   const relinkInputRef = useRef<HTMLInputElement | null>(null)
   const relinkTargetRef = useRef<{
@@ -659,17 +662,7 @@ export function LayerSidebar() {
       (layer) => (layer.parentId ?? null) === parentId
     )
     return (
-      <LayerListShell
-        nested={parentId !== null}
-        isFloatingPanelDragging={frozen}
-        onReorder={(next) =>
-          reorderSiblings(
-            parentId,
-            next.map((layer) => layer.id)
-          )
-        }
-        values={siblings}
-      >
+      <LayerListShell nested={parentId !== null}>
         {siblings.map((layer) => {
           const asset = layer.assetId
             ? (assetsById.get(layer.assetId) ?? null)
@@ -677,6 +670,13 @@ export function LayerSidebar() {
           return (
             <LayerListItem
               key={layer.id}
+              onDragStart={layerDrag.start}
+              isDragging={layerDrag.preview?.id === layer.id}
+              dragPlacement={
+                layerDrag.preview?.target?.id === layer.id
+                  ? layerDrag.preview.target.placement
+                  : undefined
+              }
               layer={layer}
               asset={asset}
               hasMissingAsset={Boolean(layer.assetId && !asset)}
@@ -697,6 +697,19 @@ export function LayerSidebar() {
       </LayerListShell>
     )
   }
+
+  const dragStatus = (
+    <output
+      aria-live="polite"
+      className={cn(
+        "pointer-events-none absolute right-0 bottom-full left-0 z-10 mb-1 min-[900px]:top-full min-[900px]:bottom-auto min-[900px]:mt-1 min-[900px]:mb-0 rounded-[var(--ds-radius-control)] text-xs text-[var(--ds-color-text-secondary)]",
+        layerDrag.preview &&
+          "border border-[var(--ds-border-divider)] bg-[rgb(20_20_24_/_0.96)] px-3 py-2"
+      )}
+    >
+      {layerDrag.preview?.message}
+    </output>
+  )
 
   const groupButton = (
     <IconButton
@@ -750,7 +763,7 @@ export function LayerSidebar() {
         <GlassPanel
           data-layer-sidebar-panel="true"
           className={cn(
-            "pointer-events-auto relative flex flex-col gap-[var(--ds-space-1)] p-0 max-h-[min(56vh,420px)] w-full",
+            "pointer-events-auto relative flex flex-col gap-[var(--ds-space-1)] overflow-visible p-0 max-h-[min(56vh,420px)] w-full",
             !mobilePanelVisible && "pointer-events-none"
           )}
           variant="panel"
@@ -786,6 +799,7 @@ export function LayerSidebar() {
           </div>
 
           {renderLayerTree(null, false)}
+          {dragStatus}
           {groupError && (
             <output className="px-3 pb-2 text-xs text-[var(--ds-color-text-muted)]">
               {groupError}
@@ -805,7 +819,7 @@ export function LayerSidebar() {
           {({ dragHandleProps, suppressResize: _suppressResize }) => (
             <GlassPanel
               data-layer-sidebar-panel="true"
-              className="relative flex w-[284px] flex-col gap-[var(--ds-space-1)] p-0"
+              className="relative flex w-[284px] flex-col gap-[var(--ds-space-1)] overflow-visible p-0"
               variant="panel"
             >
               <div className="flex min-h-11 items-center justify-between border-[var(--ds-border-divider)] border-b px-3">
@@ -849,6 +863,7 @@ export function LayerSidebar() {
               </div>
 
               {renderLayerTree(null, shouldFreezeDesktopLayerList)}
+              {dragStatus}
               {groupError && (
                 <output className="px-3 pb-2 text-xs text-[var(--ds-color-text-muted)]">
                   {groupError}

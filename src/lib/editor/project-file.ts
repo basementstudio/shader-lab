@@ -635,6 +635,25 @@ export function migrateLayerParams(
     }
   }
 
+  // Regions/perimeter are creation defaults. Pre-region cell projects and
+  // partial configs keep their original independent-cell selection and strokes.
+  if (layer.type === "photographic-cells") {
+    const previousDefaults: LayerParameterValues = {
+      mode: "cells",
+      outlineMode: "every-cell",
+      selection: "light",
+      threshold: 0.35,
+      size: 0.1,
+      irregularity: 0.35,
+      gap: 0.08,
+      outline: 0,
+      outlineColor: "#e8e5dc",
+    }
+    for (const [key, value] of Object.entries(previousDefaults)) {
+      if (params[key] === undefined) params[key] = value
+    }
+  }
+
   // Saved text without an explicit background opacity used the old solid
   // fallback. New-layer defaults must not change those compositions.
   if (layer.type === "text" && params.backgroundAlpha === undefined) {

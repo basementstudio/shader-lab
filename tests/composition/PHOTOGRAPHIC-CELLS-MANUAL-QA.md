@@ -1,26 +1,33 @@
-# Photographic Cells prototype
+# Photographic Cells: regions and perimeter outlines
 
-The first cell/block family slice from roadmap 3.2–3.3. Each cell retains the original photographic detail. Light/Dark selection uses a sample at the cell center; Random selects cells using a stable seed.
+Roadmap 3.3.1 A+B. Open references **11 (bridge)** and **05 (white poster)** using [the visual reference guide](../../V3-VISUAL-REFERENCES.md) before judging the result. The goal is continuous photographic regions with stepped silhouettes and thin perimeter contours.
 
 ## Focused test
 
-1. Put a photograph in a group and a colored background outside, below that group. Add **Photographic Cells** above the photo inside the group.
-2. Leave **Output → Cutout**. Move **Threshold** from 0 to 1: all cells should gradually give way to the outside background. **Invert Selection** swaps which cells remain.
-3. Try **Select Cells → Dark Areas**, then **Random**. Change **Cell Size**, **Cell Aspect**, **Irregularity**, and **Seed**. Photo details inside each block should remain sharp rather than becoming a single flat color.
-4. Increase **Gap**, then set **Outline Width → 0.04** and choose an outline color. Hold Outline Width at 0.01 and move Gap between 0, 0.25, and 0.5: separated contours should retain their thin weight instead of becoming heavier. Repeat in Keep Image mode. Gaps should reveal the external background; outlines should stay within the photo's existing coverage. Text outside the group must remain unaffected.
-5. Choose **Keep Image** to retain the original photo with only the selected cell outlines over it. Set Outline Width to 0 to restore the original image in this mode.
-6. Undo a setting change, save/reopen `.lab`, and export PNG. Settings, membership, and appearance should survive.
+1. Put a photograph in a group and a white or colored background outside, below the group. Add a **new Photographic Cells** layer above the photo inside the group. New layers start with **Layout → Regions**, **Selection Source → Random**, **Gap → 0**, and **Outline → Perimeter**. Existing layers keep their previous settings; switch their layout and outline mode explicitly to try this behavior.
+2. Change **Region Size** between 0.15 and 0.6. The broad patches should change scale. Then change **Cell Size** between 0.02 and 0.08: their boundaries should gain smaller/larger steps while the interior retains photographic detail. Region Size appears only in Regions layout.
+3. Switch **Outline → Every Cell**, then **Perimeter**. Internal dividing lines should appear, then disappear. Perimeter should follow outer silhouettes and holes, including with Irregularity above 0. **None** hides the width/color controls and removes the outline.
+4. Try **Light Areas**, **Dark Areas**, Seed and Invert Selection. Threshold 0 keeps everything; 1 clears everything before inversion. Random regions stay fixed as the underlying photo/video changes. Tone-guided selection can change as the source changes; it is not subject tracking.
+5. Hold Outline Width at 0.01, Edge Softness at 0, and vary Gap from 0 to 0.5. At zero gap adjacent selected cells join. Positive gaps separate them and therefore expose individual perimeters, without adding excess stroke weight. Outlines must not fill transparent parts of the source or affect outside layers.
+6. Choose **Keep Image**: the whole photograph remains and only the selected outlines appear. Switch Outline to None to recover the untouched image.
+7. Undo/redo mode and size changes, save/reopen `.lab`, and export PNG. Settings, membership, orientation, and appearance should survive. Load a pre-region project with an outline: it must keep **Individual Cells / Every Cell** and its original appearance.
 
-## Scope and limits
+## Behavior and scope
 
-Cell Size is relative to the shorter composition edge; Cell Aspect stretches cell width. Irregularity varies row widths and staggering. This prototype uses rectangular cells; Voronoi cells, moving fragments, and automatic object segmentation are not included.
+Region Size is relative to the shorter composition edge and is independent of Cell Size. Regions samples a smooth field at cell centers: Random interpolates seeded lattice values; Light/Dark interpolates image-tone samples on a lattice scaled by Region Size. It produces coherent patches, not object segmentation or a guarantee of a single connected component. Cell Size still determines the geometric approximation of those patches. Tiny source details can be missed by the tone field.
 
-Cutout clips the current accumulated input. Use an isolated group to target one photo. The scene's background still fills final output; this does not introduce transparent-canvas export or change the legacy layer Mask mode.
+Irregularity changes row widths/staggering. Perimeter finds the nearest unselected cell boundary, respecting each row's geometry; its search reach adapts to stroke width and softness. It skips distant cells before evaluating their selection. At Gap 0 it removes shared internal edges and outlines holes and the canvas boundary. Positive Gap creates real separations and uses the individual-cell contour. Very small cells with wide, soft outlines require more neighbor queries.
 
-Selection is based on one sample per cell, so tiny image features can disappear when cells are large. Video may change cell selection as tones cross the threshold; temporal stabilization and representative hardware/video export measurements remain follow-up validation. There is no per-cell GPU loop.
+Cutout clips the accumulated input within its group. The scene background still fills final output; transparent-canvas export and legacy layer Mask behavior are unchanged. Rendering fallbacks and real hydration preserve missing parameters in older saved projects. New creation defaults are a separate set.
 
-Automated tests cover 104 editor/runtime GPU cases, full-detail interiors, tone/random/inverted selection, deterministic seeds, transparent/soft gaps, colored outlines, opacity, rectangular canvases, real hydration/history, saved/reopened pixels, exported runtime config, and preview/PNG equivalence. The catalog preview uses the bundled photographic example and the new default settings.
+## Validation and limits
 
-## Visual direction still pending
+Automated coverage includes 154 editor/runtime GPU cases: prior alpha/outline-width cases plus coherent regions, independent region/cell scales, seeded repeatability, tone selection, inversion, holes, shared edges, irregular rows, tiny cells with broad soft outlines, outline modes, and source alpha. Real hydration/history, legacy partial settings, save/reopen, exported headless runtime region pixels, group isolation, and preview/PNG equivalence are checked. The runtime comparison explicitly uses render-target UV orientation.
 
-Review originals 05 and 11 using [the reference guide](../../V3-VISUAL-REFERENCES.md). The user accepted this as a useful prototype, not completion of the reference look. Connected stepped silhouettes, perimeter contours without internal grid lines, and the white poster's broad color regions/fine dots remain visual follow-up work.
+Local browser validation covers importing a scene, uploading a photo, layout switching, conditional controls, selection and outline modes, and actual `.lab` export. Artifacts: `.context/regions-editor-ui.png`, `.context/regions-photo.png`, `.context/regions-color.png`. The latter explores existing halftone over a color field; it does not complete the poster treatment. The catalog thumbnail uses the bundled photo and the new creation defaults.
+
+A local synthetic moving-source benchmark used Chromium **SwiftShader (software rendering)**, five timed frames after two warm-up frames, including texture upload and waiting for GPU work. At 640×480 the median pass time was about 12 ms for Random and 27 ms for Light Areas; at 1920×1080, about 55 ms and 58 ms respectively. Settings: Cell Size 0.04, Region Size 0.35, Threshold 0.5, zero gap/irregularity, Perimeter width 0.025. These are software baseline measurements, not native GPU frame-rate claims. Representative hardware and encoded video export validation remain open; tone-driven cell boundaries may pop as the threshold is crossed.
+
+## Follow-up scope
+
+The user accepted A+B visually and shared an eagle composition with rings, stepped cutouts and fine dots. They also reported high load/heat: ongoing performance validation must cover video playback, animated effects and eventual 3D, as well as idle rendering. The responsible pass is not yet isolated. Paint selection with Reveal/Erase, Brush Size, Clear and undo is the next feature slice. Edge Scatter remains an experiment. Fine dots/color should first be composed with existing layers, with further curation against reference 05. Exact subject isolation, automatic tracking, and the full editorial composition are not delivered by this slice.

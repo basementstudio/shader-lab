@@ -20,15 +20,40 @@ Primer paso de la fase 1: [baselines de composición y mapa del canal alfa](test
 
 Avance de 1.3: grupos aislados con hasta ocho niveles, controles del editor, reordenamiento de subárboles, plegado, visibilidad, opacidad, duplicación, deshacer, persistencia v7 y exportación de configuración. Las pruebas cubren estado, hidratación real y píxeles guardados/reabiertos. El usuario confirmó la prueba de aislamiento de foto + halftone, opacidad y plegado. La corrección posterior de arrastre permite entrar/salir de grupos con indicadores de destino y actualiza orden y pertenencia en una sola operación; la [lista manual ampliada](tests/composition/GROUPS-MANUAL-QA.md) sigue disponible para la validación global.
 
-**Prioridades revisadas con el usuario (17 de septiembre de 2026):** texto transparente por defecto (2.1) implementado en #156 y confirmado por el usuario. Anillos desplazados implementados y validados visualmente; el usuario también confirmó la corrección de arrastre entre grupos. Regiones conectadas y contornos de perímetro en Photographic Cells (3.3.1 A+B) confirmados visualmente por el usuario; pintura manual confirmada visualmente por el usuario, con entrada automática a edición al elegir Paint. El usuario reporta alta carga/calor al combinar efectos: evaluar rendimiento durante reproducción y edición de escenas dinámicas en cada entrega. Posponer las máscaras básicas de círculo/rectángulo y su interfaz genérica: no bloquean texto ni la exploración de anillos; revisar cuándo retomarlas al cerrar el alcance de V3. Desarrollar modos de máscara adaptados al lenguaje visual de los efectos seleccionados. Registrar con prioridad baja una revisión de calidad de Blob Tracking y sus posibilidades como máscara (6.3).
+**Prioridades revisadas con el usuario (17 de septiembre de 2026):** texto transparente por defecto (2.1) implementado en #156 y confirmado por el usuario. Anillos desplazados implementados y validados visualmente; el usuario también confirmó la corrección de arrastre entre grupos. Regiones conectadas y contornos de perímetro en Photographic Cells (3.3.1 A+B) confirmados visualmente por el usuario; pintura manual confirmada visualmente por el usuario, con entrada automática a edición al elegir Paint. El usuario reporta alta carga/calor al combinar efectos: evaluar rendimiento durante reproducción y edición de escenas dinámicas en cada entrega. La decisión inicial de posponer máscaras generales queda reemplazada por la aprobación posterior de 1.4: gradiente, elipse, rectángulo y pincel, con prioridad alta y sin herramienta de pluma. Mantener los modos creativos propios de cada efecto. Las anotaciones técnicas y la revisión de Blob Tracking ganan protagonismo en 6.3; Patterns personalizables queda como exploración de prioridad baja en 6.5.
+
+### Ampliaciones confirmadas tras feedback de diseñadores
+
+**Aprobadas como dirección del plan, todavía sin implementar.** Orden de trabajo acordado: inicio limpio → máscaras reutilizables y Gradient Map local → herramientas de composición con formas y texto → anotaciones técnicas → investigación de profundidad/parallax. Patterns personalizables se registra con prioridad baja. Este orden revisa prioridades entre fases sin eliminar dependencias ni validaciones; no obliga a terminar toda una fase antes de abordar la siguiente entrega útil.
+
+| Tema | Alcance acordado | Ubicación |
+| --- | --- | --- |
+| Inicio limpio | Proyecto vacío con ajustes neutros; demo separada y ajustes globales visibles | 1.0 |
+| Máscaras generales | Gradiente lineal/radial, elipse/círculo, rectángulo/cuadrado y pincel; sin pluma | 1.4 |
+| Gradient Map local | Capa de efecto, combinable con grupos y máscaras; conservar ajuste global | 2.5.2 |
+| Formas | Capas editables y presets; recorte y mezclas fotográficas | 2.7 |
+| Texto y composición | Edición directa, etiquetas pequeñas, multilínea, alineación y artboard estable; conexión con grilla opcional | 2.2–2.3, 2.8 y fase 8 |
+| Anotaciones técnicas | Puntos, cajas, cruces, etiquetas y líneas; dirección artística destacada, vinculada a Blob Tracking | 6.3 |
+| Profundidad y parallax | Investigar mapas importados primero; generación automática después | 6.4 |
+| Patterns personalizables | Cargar SVG/imágenes, ordenar una secuencia tonal y elegir tratamiento del color; prioridad baja | 6.5 |
+
+Las nuevas capturas de referencia están identificadas en [V3-VISUAL-REFERENCES.md](V3-VISUAL-REFERENCES.md). La aprobación de estas ideas no implica aceptación visual de las entregas que aún esperan prueba del usuario.
 
 ## Fase 1 — Resolver la base de composición y proteger proyectos existentes
 
-**Prioridad máxima:** transparencia y grupos sostienen la composición. La cobertura alfa necesaria para los modos creativos de máscara se incorpora con los efectos que la usan; la interfaz de máscaras básicas queda aplazada. La preparación inicial debe ser breve y servir a la ejecución.
+**Prioridad máxima:** transparencia y grupos sostienen la composición. Resolver primero el inicio limpio y ampliar esa base con máscaras generales simples, sin perder los modos de cobertura propios de cada efecto. La preparación inicial debe ser breve y servir a la ejecución.
 
 ### Referencias visuales obligatorias
 
 Antes de decidir el comportamiento o la apariencia de cualquier shader, abrir las imágenes pertinentes de [V3-VISUAL-REFERENCES.md](V3-VISUAL-REFERENCES.md). El directorio original y la copia local contienen las dieciséis referencias del usuario. Comparar renders con esas imágenes; las pruebas técnicas no sustituyen la revisión visual ni dan por terminada una familia.
+
+### 1.0 Ofrecer un inicio realmente limpio — primera corrección
+
+El usuario reporta que una sesión nueva conserva ajustes globales de la escena demo, alterando su trabajo sin una indicación clara. La inspección confirma que `Start fresh` aplica `getDefaultProjectFile()`, incluidos sus ajustes globales; distinguir ese comportamiento de restaurar un proyecto guardado.
+
+Ofrecer **New blank project** con escena vacía y ajustes globales neutros, manteniendo la demo como elección separada. Hacer evidente cuándo hay ajustes globales activos y permitir restablecerlos. Definir claramente el recorrido de primera visita, nuevo proyecto y restauración de sesión; no borrar ni neutralizar los ajustes deliberados de archivos existentes.
+
+**Cierre:** una foto insertada en un proyecto vacío no hereda gradación de la demo. Abrir la demo y restaurar un proyecto conservan sus respectivos ajustes. Verificar también historial, autosave y guardado/reapertura del nuevo proyecto.
 
 ### 1.1 Preparar pruebas y referencias mínimas
 
@@ -42,7 +67,7 @@ Permitir regiones vacías junto a contenido totalmente opaco. Bajar la opacidad 
 
 ### 1.3 Introducir grupos reales con alcance propio
 
-Los grupos con alcance propio son **requisitos confirmados**, pedidos explícitamente por un colega diseñador. Las máscaras de grupo también se solicitaron, pero el usuario decidió posponer la interfaz de máscaras básicas y priorizar modos creativos ligados a efectos (1.4). Se propone composición aislada por defecto: procesar los contenidos pertinentes del grupo y luego integrarlo al conjunto. Sus efectos no deben afectar capas externas. Agregar carpetas sobre una cadena global de filtros no resuelve el requisito.
+Los grupos con alcance propio son **requisitos confirmados**, pedidos explícitamente por un colega diseñador. Las máscaras de grupo también están confirmadas: tras una postergación inicial, el usuario aprobó retomar máscaras generales simples en 1.4, junto a los modos creativos propios de los efectos. Se propone composición aislada por defecto: procesar los contenidos pertinentes del grupo y luego integrarlo al conjunto. Sus efectos no deben afectar capas externas. Agregar carpetas sobre una cadena global de filtros no resuelve el requisito.
 
 Incluir organización, reordenamiento, plegado, visibilidad, opacidad, deshacer y guardado. Definir la profundidad de anidamiento durante la implementación, sin prometer reproducir todo Photoshop.
 
@@ -52,29 +77,34 @@ Ofrecer una elección explícita entre Isolated y Pass Through, con una explicac
 
 Validar grupos anidados y cambios de modo, visibilidad, reordenamiento, deshacer/rehacer, guardado/reapertura y paridad entre editor, runtime y exportación. Conservar la apariencia de todos los grupos aislados existentes.
 
-### 1.4 Orientar las máscaras hacia modos creativos por efecto
+### 1.4 Máscaras generales simples y modos creativos por efecto — prioridad alta
 
-**Decisión de producto:** posponer las máscaras básicas de círculo/rectángulo adjuntas a capas o grupos. Priorizar modos adaptados a cada efecto: por ejemplo, anillos o semidiscos desplazados que revelan fotografía y dejan huecos, o regiones detectadas por Blob Tracking que sirven de máscara. Los anillos se exploran en 3.2–3.3; Blob Tracking tiene prioridad baja en 6.3. No asumir que todas las capas necesitan el mismo interruptor genérico de máscara.
+**Decisión actual confirmada:** retomar máscaras generales reutilizables. Reemplaza la postergación anterior. Mantener únicamente cuatro herramientas: **gradiente** (lineal y radial), **elipse** (incluye círculo), **rectángulo** (incluye cuadrado) y **pincel**. **Sin pen tool/pluma ni edición de nodos Bézier.** La selección automática de sujetos o regiones queda para una extensión posterior, no para esta primera entrega.
 
-Al incorporar cada modo, definir qué contenido recorta, cómo se asigna y cómo se invierte/desactiva. La cobertura debe revelar capas inferiores, sin rellenos negros ni halos oscuros en bordes suaves. Mantener la composición aislada del grupo y la apariencia de los modos de máscara guardados. La transformación de la imagen y el recorte de su cobertura son comportamientos distintos que deben quedar claros en los controles.
+Distinguir dos usos mediante controles claros:
 
-Conservar esta pila como referencia de alcance para cuando se retomen las máscaras de grupo; no es un requisito del siguiente PR:
+- **Aplicar un efecto dentro de una máscara:** por ejemplo, pintar Halftone sobre parte de una fotografía; fuera de la máscara sigue visible la imagen sin ese efecto.
+- **Recortar contenido de una capa o grupo:** fuera de la máscara hay transparencia que revela las capas inferiores.
+
+Definir asignación y alcance, inversión, desactivación y edición directa de posición/tamaño/dirección según la herramienta. Mantener pocos controles; evaluar suavidad de borde y transiciones del gradiente según el resultado. Reutilizar la interacción y el código útil del pincel de Cells —Reveal/Erase, tamaño, edición explícita y un trazo por acción de historial— sin asumir que ya funciona como máscara general. Conservar las pinturas guardadas y los modos específicos de Cells y Rings; evitar acoplar la nueva máscara a su geometría.
 
 ```text
 Texto — fuera del grupo
-Grupo «Retrato» — máscara circular
-  Halftone
+Grupo «Retrato» — máscara de elipse que recorta contenido
+  Halftone — máscara de pincel que limita el efecto
   Fotografía
 Fondo — fuera del grupo
 ```
 
-Halftone modifica solo la fotografía; la máscara circular recorta el grupo; texto y fondo quedan fuera de su alcance. La asignación arbitraria de la silueta de otra capa sigue como extensión sugerida, con alcance pendiente; no debe confundirse con un modo de máscara propio de un efecto.
+En esta composición, el pincel limita Halftone sin borrar la foto; la elipse recorta el grupo entero. Texto y fondo quedan fuera de ambos alcances. La selección de una capa de formas como máscara se conecta con 2.7; la asignación arbitraria de cualquier silueta de capa requiere una decisión posterior.
+
+**Cierre:** gradiente, elipse, rectángulo y pincel funcionan con los dos usos definidos, inversión/desactivación, zoom y desplazamiento. Bordes suaves sin halos negros ni pérdida incorrecta de alfa; grupos aislados y máscaras anteriores conservan su apariencia. Probar historial, duplicación, hidratación real, guardado/reapertura y paridad editor/runtime/PNG/video. Las máscaras estáticas se reutilizan mientras cambia la fuente de video; la pintura manual no implica seguimiento automático del sujeto.
 
 ### 1.5 Anticipar las decisiones de viabilidad 3D
 
 Probar brevemente formatos, materiales, animaciones, conservación de recursos y geometría SVG. Registrar decisiones abiertas para las fases 4 y 5 sin demorar la composición. Una entrada de catálogo o tipo de capa no demuestra soporte completo de modelos.
 
-**Cierre de la base:** huecos transparentes y contenido opaco conviven; grupos y efectos mantienen su alcance al reordenar, deshacer, guardar, reabrir y exportar. Las escenas anteriores conservan su apariencia y los bordes suaves quedan limpios. Cada modo creativo de máscara incorporado debe superar esas mismas pruebas en su fase; la interfaz básica aplazada no bloquea el cierre de esta base.
+**Cierre de la base:** huecos transparentes y contenido opaco conviven; grupos y efectos mantienen su alcance al reordenar, deshacer, guardar, reabrir y exportar. Las escenas anteriores conservan su apariencia y los bordes suaves quedan limpios. Las máscaras generales acordadas y cada modo creativo incorporado deben superar esas mismas pruebas; la selección automática y una herramienta de pluma no forman parte del alcance inicial.
 
 ## Fase 2 — Facilitar las piezas tipográficas y pulir las capas actuales
 
@@ -86,13 +116,15 @@ El usuario reporta texto blanco sobre negro y la necesidad de recurrir a máscar
 
 La inspección inicial confirmó que `layers.ts` creaba texto en modo máscara y `layer-registry.ts` definía fondo negro con alfa 1. `text-pass.ts` ya distingue el alfa del fondo y dibuja el texto opaco; admite color editable y posición mediante anclaje y desplazamiento. La corrección debe cambiar los valores de capas nuevas y conservar el fondo sólido de archivos anteriores que omitan ese parámetro.
 
-### 2.2 Explorar selección y arrastre directo en el lienzo
+### 2.2 Componer texto directamente en el lienzo
 
-Probar el alcance mínimo útil para seleccionar un texto y moverlo arrastrando, sin depender de una grilla. Sincronizar el resultado con los controles existentes de posición, respetando anclaje y zoom. Verificar deshacer el movimiento y recuperar la misma posición al guardar y reabrir. Incorporarlo al alcance inicial si resulta viable como mejora acotada; no prometer un editor completo.
+**Dirección aprobada:** seleccionar, arrastrar y redimensionar texto directamente, con controles de alineación y sincronización con posición, anclaje y zoom. Validar deshacer/rehacer y posición guardada. Resolver primero un conjunto útil dentro del editor actual; una sección separada de **Design** sigue como alternativa de producto para evaluar más adelante, no como segunda interfaz comprometida.
 
-### 2.3 Revisar pequeñas mejoras de controles tipográficos
+La grilla de la fase 8 se conecta con esta edición y con las formas de 2.7: sirve de referencia para márgenes, columnas y alineaciones. El snapping debe poder desactivarse y conservar colocación libre. La edición directa y la alineación básica deben seguir siendo útiles sin activar una grilla; su carácter opcional no cambia por esta conexión.
 
-Conservar fuente, tamaño, peso, espaciado, color, anclaje y desplazamiento. Como **candidatas a validar**, revisar el límite actual de 32 caracteres, el tamaño mínimo de 48 y la claridad del control de fondo transparente o sólido. Evaluar si ampliar esos límites resuelve usos reales sin degradar la edición. Son oportunidades observadas, no nuevos requisitos ni un compromiso de construir un motor de composición tipográfica completo.
+### 2.3 Ampliar controles tipográficos útiles
+
+Conservar fuente, tamaño, peso, espaciado, color, anclaje y desplazamiento. Incorporar etiquetas más pequeñas y texto multilínea; revisar el límite de 32 caracteres y el mínimo de 48px, que impiden anotaciones finas en los estudios actuales. Definir límites útiles al implementar, sin prometer un motor tipográfico completo. Mantener claro el control de fondo transparente/sólido y comprobar composición, edición y exportación con bloques de texto.
 
 ### 2.4 Ajustar halftone como primer efecto
 
@@ -112,11 +144,31 @@ Conservar el funcionamiento del umbral, la inversión y la transparencia; cambia
 
 Entrega: controles Dark Color / Light Color, fallbacks negro/blanco y mezcla dentro del pase existente, sin render adicional. Referencia 01 revisada y render azul/rosa inspeccionado. Pruebas de GPU editor/runtime, video decodificado, hidratación real, historial, guardado/reapertura y PNG; [prueba enfocada y límites](tests/composition/THRESHOLD-COLORS-MANUAL-QA.md).
 
+#### 2.5.2 Gradient Map como capa de efecto — prioridad alta
+
+**Aprobado:** trasladar la capacidad de mapeo tonal global a una capa de efecto reordenable, con colores/puntos del gradiente editables y alcance controlado por grupos y máscaras. Conservar también el ajuste global y la apariencia de proyectos existentes. Distinguir esta recoloración de la capa Gradient, que genera un campo de color.
+
+Ejemplo de aceptación: Gradient Map recolorea únicamente la foto de su grupo; al enmascararlo con pincel, el resto de la foto conserva sus colores originales y las capas externas no cambian. Probar opacidad, inversión del mapeo si se ofrece, historial, persistencia y exportación con fotografía/video.
+
+Explorar una paleta de apariencia térmica a partir de la referencia Brockhampton compartida. El falso color tonal puede funcionar sin profundidad; colorear un depth map es otra interpretación. No afirmar que un mapa de profundidad mide temperatura ni que reproduce automáticamente la distribución de color de esa portada.
+
 ### 2.6 Preservar las composiciones guardadas
 
 Aplicar los nuevos valores únicamente a capas recién creadas y comparar proyectos anteriores con sus resultados de referencia, incluidos textos con fondo sólido, máscaras y modos de mezcla elegidos previamente.
 
-**Cierre:** el texto nuevo se integra sobre fondo transparente sin activar máscaras ni Screen; su contenido permanece opaco y su color es editable. Si se incorpora el arrastre, coincide con controles, deshacer y posición guardada. Los efectos actuales ofrecen valores iniciales útiles, conservan libertad de edición y combinación, y las escenas anteriores —incluidos sus textos— mantienen su apariencia. Resolver estos puntos no depende de la grilla opcional.
+### 2.7 Capas de formas y composiciones fotográficas
+
+**Aprobado por etapas:** formas editables y una pequeña biblioteca de presets, con color, posición, tamaño y rotación. Reutilizar la interacción de composición y las máscaras simples de 1.4. Permitir utilizar formas para enmascarar y para combinar fotografía/color, tomando Lovedance como referencia visual.
+
+Probar doble exposición con las máscaras y modos de mezcla disponibles antes de añadir un efecto específico. Mantener el alcance simple: no incorporar pluma, edición Bézier ni un Illustrator completo. Dibujar geometría vectorial libre queda fuera de esta entrega; el pincel acordado pinta cobertura de máscara, no crea trazados vectoriales.
+
+### 2.8 Artboard estable y relación con la grilla
+
+Definir un área de composición de tamaño estable para conservar encuadre y posiciones de texto, formas y efectos al cambiar el tamaño de la ventana. Los estudios actuales se reencuadran porque el canvas sigue el viewport; separar tamaño del documento, zoom y vista previa. Preservar las escenas anteriores que dependen del comportamiento adaptable y comprobar correspondencia con exportación.
+
+La grilla opcional de la fase 8 debe utilizar el mismo espacio del documento para alinear texto y formas. Esta base se desarrolla dentro del editor existente antes de decidir si una sección Design separada aporta valor.
+
+**Cierre:** el texto nuevo se integra sobre fondo transparente sin activar máscaras ni Screen; su contenido permanece opaco y su color es editable. La edición directa coincide con controles, deshacer y posición guardada; las formas y el artboard mantienen una composición consistente. Los efectos actuales ofrecen valores iniciales útiles, conservan libertad de edición y combinación, y las escenas anteriores —incluidos sus textos— mantienen su apariencia. Resolver estos puntos no depende de la grilla opcional.
 
 ## Fase 3 — Explorar la primera tanda artística e incorporarla al catálogo
 
@@ -160,7 +212,7 @@ Esto no cierra la fase 3: quedan la curaduría visual con las referencias comple
 
 **Objetivo visual:** abrir y comparar `11-puente-recortes-geometricos.png` y `05-recortes-celdas-color.png` antes de decidir apariencia o valores iniciales. En el puente, conservar fotografía reconocible dentro de una silueta conectada con escalones y un contorno fino de color. En el afiche blanco, formar regiones amplias de color con bordes celulares, pequeños fragmentos alrededor y una trama mucho más fina que las celdas.
 
-**Estado de A+B:** Regions utiliza un campo espacial coherente con semilla o tonos interpolados de la imagen; Region Size controla los parches y Cell Size los escalones. Outline ofrece None / Perimeter / Every Cell, con contornos alrededor de huecos y sin aristas internas a Gap 0, incluidas filas irregulares. Los valores iniciales nuevos favorecen regiones conectadas; hidratación y runtime conservan la apariencia de configuraciones anteriores. Se revisaron renders fotográficos sobre blanco y una combinación exploratoria con halftone. Pintura, Edge Scatter y cierre del tratamiento del afiche siguen pendientes. Ver [prueba manual, cobertura y límites de rendimiento](tests/composition/PHOTOGRAPHIC-CELLS-MANUAL-QA.md).
+**Estado de A+B:** Regions utiliza un campo espacial coherente con semilla o tonos interpolados de la imagen; Region Size controla los parches y Cell Size los escalones. Outline ofrece None / Perimeter / Every Cell, con contornos alrededor de huecos y sin aristas internas a Gap 0, incluidas filas irregulares. Los valores iniciales nuevos favorecen regiones conectadas; hidratación y runtime conservan la apariencia de configuraciones anteriores. Se revisaron renders fotográficos sobre blanco y una combinación exploratoria con halftone. Paint ya está aceptado; Edge Scatter y estudios editables del afiche están implementados y pendientes de feedback visual, como se detalla en C y D. Ver [prueba manual, cobertura y límites de rendimiento](tests/composition/PHOTOGRAPHIC-CELLS-MANUAL-QA.md).
 
 **A. Regiones automáticas — primera entrega**
 
@@ -189,7 +241,15 @@ Implementación: Layout Paint entra automáticamente a edición; Done permite sa
 - Incluir la selección pintada en el archivo de proyecto y en la configuración/recursos exportados al runtime. Vista previa, PNG y render de video deben reproducirla sin depender del estado temporal del editor.
 - Esta herramienta es un modo de revelado propio de Photographic Cells. No reactiva el trabajo pospuesto de máscaras geométricas genéricas ni exige la revisión de Blob Tracking.
 
-**D. Refinamientos visuales a evaluar después**
+**D. Refinamientos visuales — implementados, pendientes de feedback visual del usuario**
+
+Se abrieron las referencias 05 y 11 y se compararon renders reales. Se incorporó **Edge Scatter** (0–1, inicial 0) para Regions y Paint: fragmenta el perímetro mediante un desplazamiento acotado del punto de selección, sin mover la geometría ni el detalle de la fotografía. Reutiliza Seed; no modifica la pintura guardada. Cero conserva el resultado anterior, y Individual Cells lo ignora. Sin pases, texturas ni muestras de fuente adicionales; no depende del tiempo. Detalles pintados muy estrechos pueden fragmentarse con valores altos.
+
+[Dos estudios editables](public/examples/v3/README.md) muestran campos de color con trama fina y revelado fotográfico dirigido, con tipografía y marcas SVG separadas. Cells se aplica después del Halftone existente dentro del grupo: los puntos son mucho más pequeños que las celdas y respetan su cobertura. No hizo falta añadir más controles de trama a Cells. Las referencias no se incluyen como assets; se utiliza fotografía existente de la app y linework original.
+
+La curaduría demuestra esas cualidades, no cierra toda la dirección artística ni reproduce los afiches. Sigue pendiente la aceptación del usuario, el acabado analógico más rico y la validación nativa de rendimiento/exportación temporal de 7.2. El mínimo tipográfico actual de 48px limita anotaciones finas; retomar el ajuste acotado de 2.3. La curaduría también confirma que el canvas sigue el viewport: las escenas importadas se reencuadran según la ventana. El artboard estable aprobado en 2.8 debe resolverse antes de presentar estas escenas como plantillas de afiches fijos. [Prueba manual, compatibilidad y límites](tests/composition/CELL-SCATTER-MANUAL-QA.md).
+
+**Criterios de exploración utilizados:**
 
 - **Edge Scatter:** probar un único control que fragmente celdas cerca del perímetro, preservando las regiones principales. Comparar con los pequeños cuadrados alrededor de las manchas del afiche blanco antes de decidir su incorporación.
 - **Puntos finos:** probar primero una composición con la capa de halftone existente, manteniendo una escala de trama menor que Cell Size. Evaluar el orden y el alcance del grupo para que la trama respete la región revelada. Añadir controles propios solo si esa combinación no alcanza un resultado útil.
@@ -263,13 +323,35 @@ Derivar geometría de los contornos y ofrecer profundidad de extrusión, bisel, 
 
 Elegir según resultados visuales y viabilidad, aplicar los criterios de controles y valores iniciales, actualizar el catálogo en cada incorporación y ampliar las combinaciones editables.
 
-### 6.3 Revisar Blob Tracking y sus modos de máscara — prioridad baja
+### 6.3 Anotaciones técnicas y calidad de Blob Tracking — dirección artística destacada
 
-Pedido del usuario: dedicar una revisión de calidad a Blob Tracking porque tiene potencial visual desaprovechado. Comparar sus resultados actuales sobre fotografía y video; revisar detección, estabilidad temporal, contornos, valores iniciales y claridad de controles antes de elegir cambios. No asumir que necesita una reescritura completa.
+**Prioridad revisada:** el usuario quiere profundizar en estos detalles; deja de ser una nota de prioridad baja. Los puntos naranjas, cajas rojas, cruces, etiquetas y líneas de las nuevas referencias aportan una dirección visual importante para V3. Desarrollarla después de las herramientas de composición prioritarias, por entregas con revisión visual.
 
-Explorar modos de máscara adaptados a sus regiones detectadas y al movimiento, distinguiendo visualización de la máscara, aplicación de un efecto dentro de las regiones y recorte real de la fotografía. Validar inversión/desactivación, bordes, cobertura alfa, grupos, guardado, reapertura y exportación. Conservar los resultados de escenas anteriores. El alcance concreto se decide tras esa revisión; esta tarea no bloquea texto ni la exploración inicial de anillos.
+Revisar primero lo que ya ofrece Blob Tracking: detección, estabilidad temporal, contornos, valores iniciales, controles y coste con fotografía/video. Decidir qué conviene ampliar allí y qué merece una capa de anotaciones independiente, sin duplicar funciones ni asumir una reescritura.
 
-**Cierre:** las familias seleccionadas pasan sus pruebas visuales, de libertad y composición; las candidatas pospuestas quedan identificadas sin presentarlas como entregas prometidas. Registrar el resultado de la revisión de Blob Tracking y qué mejoras o modos se integran o se aplazan.
+Explorar colocación guiada por bordes/regiones y colocación decorativa con semilla. Buscar combinaciones de puntos, cajas, cruces, etiquetas y conexiones con control coherente de densidad, escala y color, evitando una lista inmanejable de parámetros. Las etiquetas decorativas deben distinguirse de una detección real: una caja con texto no demuestra reconocimiento de personas ni seguimiento semántico. Revisar renders con las referencias abiertas, tanto en composiciones sutiles como densas.
+
+En video, evitar parpadeo y saltos de identificadores/posiciones cuando sea viable; medir estabilidad y carga sostenida antes de prometer seguimiento. Conservar la apariencia de escenas anteriores, historial, persistencia y paridad de exportación. Los modos de máscara derivados de detección siguen como extensión posterior a las cuatro máscaras manuales de 1.4; distinguir visualización, efecto localizado y recorte de cobertura.
+
+### 6.4 Profundidad y parallax — investigación aprobada
+
+Investigar primero **imagen + depth map importado** para movimiento sutil de cámara/parallax, desplazamiento y aplicación selectiva de efectos según distancia. Parallax es un resultado que puede usar profundidad; no requiere prometer otra clase de mapa al usuario. Definir alineación, inversión/escala de profundidad y tratamiento de bordes/huecos antes de elegir controles o incorporar el efecto.
+
+Usar [DepthFlow](https://github.com/BrokenSource/DepthFlow) como referencia técnica para la exploración, sin asumir que se integra directamente en el navegador. Revisar arquitectura, dependencias y condiciones de reutilización antes de elegir una integración. Comparar una prueba pequeña con los objetivos de rendimiento de Shader Lab.
+
+La generación automática de profundidad viene después: evaluar ejecución local o servicio, coste, latencia y reutilización del resultado. Comenzar con fotografía; profundidad de video, estabilidad entre frames y relación con futuras escenas 3D requieren validación separada. No ejecutar inferencia por frame por defecto ni asumir compatibilidad solo porque una biblioteca la ofrezca. La investigación debe producir una decisión de viabilidad y alcance; no constituye una promesa de entregar todas estas variantes en V3.
+
+### 6.5 Mejorar Pattern con patrones propios — prioridad baja
+
+**Exploración solicitada:** ampliar la capa Pattern existente para cargar SVG o imágenes propias y organizar una secuencia de motivos. Permitir previsualizar y reordenar los elementos que se asignan de zonas claras a oscuras. El orden manual debe expresar una intención visual, sin depender de ordenar automáticamente por el brillo de los archivos.
+
+Ejemplo del usuario: una secuencia desde una manzana verde/fresca hasta una podrida, asignada por orden a tonos claros → oscuros. Cambiar el orden cambia qué motivo aparece en cada rango tonal de la imagen; no significa interpolar o transformar una manzana en otra.
+
+Permitir conservar los colores originales de las imágenes y SVG multicolor. Explorar un modo explícito de recoloración para SVG compatibles, definiendo si reemplaza un color, usa una tinta o permite editar una paleta; no destruir los colores originales por defecto ni prometer recolorear cualquier SVG arbitrario. Definir formatos/subconjunto SVG, transparencia, escala, separación, cantidad de motivos y comportamiento de los rangos al ampliar la herramienta.
+
+Conservar patrones incorporados y proyectos anteriores. Los motivos cargados, su orden y sus colores deben sobrevivir a duplicación, historial, guardado/reapertura y exportación editor/runtime. Validar con fotografía y video, reutilizando texturas/atlas sin decodificar archivos por frame; medir memoria y fijar límites útiles al implementar. Esta exploración de prioridad baja no bloquea las entregas prioritarias; su incorporación final a V3 queda por decidir.
+
+**Cierre:** las familias seleccionadas pasan sus pruebas visuales, de libertad y composición; las candidatas pospuestas quedan identificadas sin presentarlas como entregas prometidas. Registrar el resultado de anotaciones/Blob Tracking y la decisión de viabilidad de profundidad/parallax. Identificar explícitamente qué alcance de Patterns se incorpora o se aplaza.
 
 ## Fase 7 — Verificar el conjunto y cerrar V3
 
@@ -277,7 +359,7 @@ Explorar modos de máscara adaptados a sus regiones detectadas y al movimiento, 
 
 ### 7.1 Revisar regresiones y usabilidad de extremo a extremo
 
-Recorrer inserción, edición extrema, combinaciones, catálogo, grupos, máscaras, deshacer y reapertura. Incluir piezas tipográficas y, si se entrega, la concordancia del arrastre con los controles. Comparar escenas antiguas y comprobar que valores iniciales atractivos y libertad creativa coexisten.
+Recorrer inserción, edición extrema, combinaciones, catálogo, grupos, máscaras, deshacer y reapertura. Incluir inicio limpio, máscaras de efecto frente a recorte, Gradient Map local, formas, piezas tipográficas y concordancia de edición directa con controles, artboard y exportación. Comparar escenas antiguas y comprobar que valores iniciales atractivos y libertad creativa coexisten.
 
 ### 7.2 Verificar rendimiento y exportación
 
@@ -302,12 +384,21 @@ Probar casos representativos con capas, video y 3D. Comparar vista previa y expo
 
 Explorar columnas, filas, separación, márgenes y configuraciones o presets editoriales. Validar una grilla visible únicamente como guía del editor: no es una capa ni un efecto de trama y no forma parte de la imagen exportada. Estos detalles son propuestas para probar, no decisiones cerradas.
 
-### 8.2 Evaluar alineación y ajuste a la grilla para texto
+### 8.2 Evaluar alineación y ajuste a la grilla para texto y formas
 
-Comenzar la exploración con texto y su arrastre, si este se incorpora. Probar snapping activable para alinear elementos, manteniendo posicionamiento libre al desactivarlo. Evaluar legibilidad de la guía y concordancia entre ajuste, controles y deshacer, sin ampliar el editor innecesariamente.
+Conectar la grilla con la edición directa de texto (2.2) y las capas de formas (2.7), usando el artboard de 2.8. Probar snapping activable a columnas, filas y márgenes; conservar posicionamiento libre al desactivarlo. Evaluar legibilidad de la guía y concordancia entre ajuste, controles, zoom y deshacer. La alineación básica puede desarrollarse sin esperar a esta grilla opcional.
 
 ### 8.3 Dejar las extensiones futuras identificadas
 
-El posicionamiento de modelos 3D mediante la grilla y las formas básicas —estrellas, cuadrados y círculos— son posibilidades futuras, **no requisitos confirmados**. Evaluarlas por separado solo si la guía inicial demuestra utilidad.
+El posicionamiento de modelos 3D mediante la grilla sigue como posibilidad futura, no como requisito confirmado. Las capas de formas ya están aprobadas en 2.7 y no dependen de implementar la grilla; su ajuste a ella se evalúa en 8.2.
 
 **Cierre opcional:** decidir si merece desarrollarse o posponerse. Si se desarrolla, validar la utilidad para texto, el ajuste activable y la separación entre guía e imagen exportada. Ningún resultado de esta fase condiciona el cierre obligatorio de V3.
+
+
+## Seguimiento posterior — Página de guías
+
+**Idea acordada con el usuario; desarrollar el alcance más adelante.** Crear una página de guías para ayudar a diseñadores a aprender Shader Lab y conseguir resultados útiles combinando sus capas. Registrar esta dirección sin iniciar su implementación ni añadirla como requisito de cierre de V3.
+
+Como punto de partida, reutilizar los [estudios editables y recetas](public/examples/v3/README.md): mostrar el resultado visual, explicar el orden de las capas y el alcance de los grupos, destacar los controles que cambian el resultado y ofrecer archivos `.lab` para explorar. Considerar también guías breves de composición, pintura, color y exportación, con consejos de rendimiento cuando correspondan.
+
+La organización de contenidos, el diseño de la página, su acceso desde la app y la selección de las primeras guías quedan por definir con el usuario. Priorizar explicaciones prácticas orientadas a resultados y mantener los ejemplos alineados con las herramientas disponibles.

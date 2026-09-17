@@ -57,6 +57,7 @@ export class PhotographicCellsPass extends PassNode {
   private paintValue = ""
   private readonly regions = uniform(0)
   private readonly regionSize = uniform(0.35)
+  private readonly edgeScatter = uniform(0)
   private readonly outlineMode = uniform(2)
   private readonly size = uniform(0.1)
   private readonly cellAspect = uniform(1)
@@ -131,6 +132,7 @@ export class PhotographicCellsPass extends PassNode {
     }
     this.regions.value = params.mode === "regions" ? 1 : 0
     this.regionSize.value = number(params.regionSize, 0.35, 0.05, 2)
+    this.edgeScatter.value = number(params.edgeScatter, 0, 0, 1)
     this.outlineMode.value = 2
     if (params.outlineMode === "none") this.outlineMode.value = 0
     if (params.outlineMode === "perimeter") this.outlineMode.value = 1
@@ -187,9 +189,29 @@ export class PhotographicCellsPass extends PassNode {
           id.x.add(0.5).mul(width).sub(shift),
           id.y.add(0.5).mul(this.size)
         )
+        // Jitter only where selection is read, never the cell geometry or photo.
+        // A bounded lookup (at most 1.5 cell widths/heights per axis) fragments
+        // boundaries while leaving the interior intact. No extra source samples,
+        // neighborhood search or time dependence; zero keeps the legacy path.
+        const selectionPoint = center.toVar()
+        If(
+          this.edgeScatter
+            .greaterThan(0)
+            .and(
+              this.regions.greaterThan(0.5).or(this.painted.greaterThan(0.5))
+            ),
+          () => {
+            selectionPoint.addAssign(
+              vec2(hash(id.add(vec2(71, 193))), hash(id.add(vec2(137, 47))))
+                .sub(0.5)
+                .mul(vec2(width, this.size))
+                .mul(this.edgeScatter.mul(3))
+            )
+          }
+        )
         const score = float(0).toVar()
         If(this.painted.greaterThan(0.5), () => {
-          const paintUV = center.div(this.paintAspect).add(0.5)
+          const paintUV = selectionPoint.div(this.paintAspect).add(0.5)
           const inside = paintUV.x
             .greaterThanEqual(0)
             .and(paintUV.x.lessThan(1))
@@ -206,7 +228,7 @@ export class PhotographicCellsPass extends PassNode {
           If(this.regions.greaterThan(0.5), () => {
             // Smooth a field in composition space, then quantize only its boundary
             // into cells. Region Size never changes the photographic samples inside.
-            const field = center.div(this.regionSize)
+            const field = selectionPoint.div(this.regionSize)
             const base = floor(field)
             const fraction = fract(field)
             const blend = fraction

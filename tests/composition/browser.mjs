@@ -1,3 +1,4 @@
+import { checkThresholdColors } from "./threshold-colors.mjs"
 import { buildBlendNode as buildRuntimeBlendNode } from "@runtime/renderer/blend-modes"
 import { float, vec4 } from "three/tsl"
 import * as THREE from "three/webgpu"
@@ -391,3 +392,5 @@ window.checkTransparentText = () => checkTransparentText(renderProject)
 window.checkDisplacedRings = () => checkDisplacedRings(renderProject)
 
 window.checkPhotographicCells = () => checkPhotographicCells(renderProject)
+
+window.checkThresholdColors = () => checkThresholdColors(renderProject)

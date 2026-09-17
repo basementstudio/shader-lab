@@ -43,3 +43,7 @@ The user considers the first layer useful enough; the Gap/outline inflation has 
 - Use these images for side-by-side visual review before marking the cell family complete. The current smooth field produces stepped patches and perimeter contours, but does not isolate a chosen subject. Directed painting is implemented and accepted; curation of the fine dot/color treatment remains a follow-up.
 
 For every shader slice, note the reference filenames used, which visible qualities it achieves, and which remain follow-up work. Keep the experimental editorial, analog photographic, and acid-graphics direction visible in actual renders.
+
+## Threshold palette
+
+Reference 01 (Lovedance red/blue) was opened for the custom Threshold palette slice. Actual blue/pink and blue/red photo renders demonstrate strong two-color separation while retaining the existing noisy boundary and softness controls. Black/white defaults remain unchanged. This supplies a palette tool for later compositions; it does not deliver the reference’s lighting, geometric collage or typography. User visual acceptance is pending; see [the focused test](tests/composition/THRESHOLD-COLORS-MANUAL-QA.md).

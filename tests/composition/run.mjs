@@ -221,6 +221,14 @@ try {
   console.log(
     `PASS displaced rings: ${rings.samples} GPU cases, 48 distinct bands (${rings.denseMs}ms including readback), hydration, runtime export, group cutouts, preview/PNG`
   )
+  const threshold = await page.evaluate(() => window.checkThresholdColors())
+  await Bun.write(
+    resolve(artifacts, "threshold-colors.png"),
+    Buffer.from(threshold.png.split(",")[1], "base64")
+  )
+  console.log(
+    `PASS threshold colors: ${threshold.samples} editor/runtime GPU cases, decoded video, alpha, history, hydration and PNG export`
+  )
   const cells = await page.evaluate(() => window.checkPhotographicCells())
   await Bun.write(
     resolve(artifacts, "photographic-cells-preview.webp"),

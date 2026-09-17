@@ -148,7 +148,14 @@ export async function checkEditorGroups(renderProject) {
   const effect = {
     ...createLayer("threshold"),
     id: "effect",
-    params: { threshold: 0.1, softness: 0.01, noise: 0, invert: false },
+    params: {
+      threshold: 0.1,
+      softness: 0.01,
+      noise: 0,
+      invert: false,
+      darkColor: "#000000",
+      lightColor: "#ffffff",
+    },
   }
   useAssetStore.getState().replaceAssets([])
   useAudioStore.setState({ links: [], source: null })

@@ -2757,6 +2757,22 @@ const thresholdParams = [
     label: "Invert",
     type: "boolean",
   },
+  {
+    defaultValue: "#000000",
+    key: "darkColor",
+    label: "Dark Color",
+    type: "color",
+    description:
+      "Color for the dark side of the threshold. Invert swaps the two regions.",
+  },
+  {
+    defaultValue: "#ffffff",
+    key: "lightColor",
+    label: "Light Color",
+    type: "color",
+    description:
+      "Color for the light side. Softness blends between the two colors.",
+  },
 ] as const satisfies ParameterDefinitions
 
 const smearParams = [

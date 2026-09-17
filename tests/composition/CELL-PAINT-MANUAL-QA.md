@@ -4,7 +4,7 @@ Roadmap 3.3.1 C. Visual target: reference **11, bridge** in [the reference guide
 
 ## Focused acceptance
 
-1. Above a photograph, select **Photographic Cells → Layout → Paint**, **Output → Cutout**, **Gap → 0**, **Outline → Perimeter**. Choose **Edit Paint**. An empty mask reveals nothing; editing shows a faint source guide.
+1. Above a photograph, select **Photographic Cells → Layout → Paint**, **Output → Cutout**, **Gap → 0**, **Outline → Perimeter**. Choosing Paint starts editing automatically and shows the faint source guide. After Done Painting, use Edit Paint to resume. Switching to another layout exits editing.
 2. With **Reveal**, drag across a subject. Expect full photographic detail inside connected stepped blocks, a fine perimeter, and no internal grid lines. Choose **Done Painting**: the faint guide disappears.
 3. Edit again, choose **Erase**, and remove a small part. Undo once restores that entire stroke; redo reapplies it. **Clear Paint** clears the mask and can be undone. Escape during a stroke cancels it. Opening/dismissing Export does not exit Paint mode.
 4. Space-drag to pan and use the usual zoom controls. The brush stays under the pointer. Change Cell Size: the steps change, while the painted area remains. Switch to Regions and back: the painting is retained. Duplicate the layer: the copy retains its painting.

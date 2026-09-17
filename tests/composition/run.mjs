@@ -194,6 +194,14 @@ try {
   console.log(
     `PASS editor groups: store operations, history, v7 hydration, ${editorGroups.tracks} animation tracks, shader export, and saved/reopened pixels`
   )
+  const text = await page.evaluate(() => window.checkTransparentText())
+  await Bun.write(
+    resolve(artifacts, "new-transparent-text.png"),
+    Buffer.from(text.png.split(",")[1], "base64")
+  )
+  console.log(
+    `PASS transparent text: ${text.samples} editor/runtime pixel checks, legacy hydration, save/reopen, and PNG export`
+  )
   assert.deepEqual(errors, [], "Browser or GPU errors occurred")
   console.log(
     update

@@ -619,6 +619,12 @@ export function migrateLayerParams(
 ): LayerParameterValues {
   const params: LayerParameterValues = { ...layer.params }
 
+  // Saved text without an explicit background opacity used the old solid
+  // fallback. New-layer defaults must not change those compositions.
+  if (layer.type === "text" && params.backgroundAlpha === undefined) {
+    params.backgroundAlpha = 1
+  }
+
   // Files without this setting predate transparent contain bounds. Preserve
   // their black borders before filling missing parameters with new defaults.
   if (

@@ -276,9 +276,10 @@ const textParams = [
     type: "color",
   },
   {
-    defaultValue: 1,
+    defaultValue: 0,
     key: "backgroundAlpha",
-    label: "Background Alpha",
+    label: "Background Opacity",
+    description: "0 is transparent; 1 is solid. Letters remain opaque.",
     max: 1,
     min: 0,
     step: 0.01,

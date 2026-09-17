@@ -54,6 +54,7 @@ try {
     headless: true,
     args: [
       "--enable-unsafe-webgpu",
+      "--use-webgpu-adapter=swiftshader",
       "--use-angle=swiftshader",
       "--enable-unsafe-swiftshader",
     ],
@@ -82,6 +83,20 @@ try {
   assert.ok(
     await page.evaluate(async () => !!(await navigator.gpu?.requestAdapter())),
     "WebGPU is required; no fallback or skipped tests"
+  )
+  console.log(
+    "GPU adapter:",
+    await page.evaluate(async () => {
+      const adapter = await navigator.gpu.requestAdapter()
+      return adapter
+        ? {
+            vendor: adapter.info.vendor,
+            architecture: adapter.info.architecture,
+            device: adapter.info.device,
+            description: adapter.info.description,
+          }
+        : null
+    })
   )
 
   console.log(

@@ -35,6 +35,8 @@ Each fixture renders through the editor renderer, compares preview with PNG expo
 
 `existing-default-project.json` is an unmodified copy of the repository's existing saved project. Parsing, serialization, reopening, viewer hydration, and the actual editor hydration/save path must retain its nine layers, two bundled assets, blend modes, masks, opacity, and parameter values. The editor check also verifies scene settings, composition dimensions, selection, timeline, audio, and the scene-replacement signal. Its video/audio and full effect stack are **not** rendered by this initial suite.
 
+Editor hydration starts from deliberately different store state. A separate in-memory variant adds an opacity track with keyframes, tracks targeting a missing layer and parameter, and an invalid layer selection. It verifies that hydration preserves valid animation, prunes invalid tracks, clears previous timeline selection/playhead state, and saves only the surviving track. The frozen project fixture remains unchanged.
+
 ## Confirmed alpha boundaries
 
 These findings come from source inspection and the limited GPU checks above, not a completed end-to-end alpha audit.

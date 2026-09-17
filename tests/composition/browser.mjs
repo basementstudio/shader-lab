@@ -25,6 +25,17 @@ function pixels(canvas) {
   return context.getImageData(0, 0, copy.width, copy.height)
 }
 
+function canonicalJson(value) {
+  return JSON.stringify(value, (_key, entry) => {
+    if (entry && typeof entry === "object" && !Array.isArray(entry)) {
+      return Object.fromEntries(
+        Object.entries(entry).sort(([a], [b]) => a.localeCompare(b))
+      )
+    }
+    return entry
+  })
+}
+
 function compare(actual, expected, tolerance = 0) {
   if (actual.width !== expected.width || actual.height !== expected.height) {
     throw new Error("Image dimensions changed")
@@ -227,6 +238,13 @@ window.checkExistingProject = async () => {
   if (JSON.stringify(parsed) !== JSON.stringify(reopened))
     throw new Error("Saved project is not stable across parse/serialize/reopen")
   const state = buildViewerProjectState(reopened)
+  // Start from a different editor session so no-op restoration cannot pass
+  // merely because the stores already contain their default values.
+  useLayerStore.getState().replaceState([], null, null)
+  useAssetStore.getState().replaceAssets([])
+  useEditorStore.getState().updateSceneConfig({ exposure: 2 })
+  useEditorStore.getState().setOutputSize(320, 240)
+  useTimelineStore.setState({ currentTime: 3, isPlaying: false, loop: false })
   const revision = useEditorStore.getState().sceneRevision
   const missing = applyLabProjectFile(reopened, [])
   if (missing.missingAssetCount || missing.missingAudioSource) {
@@ -273,6 +291,81 @@ window.checkExistingProject = async () => {
       if (JSON.stringify(layer[key]) !== JSON.stringify(saved[key]))
         throw new Error(`Existing ${layer.type} layer changed ${key}`)
     }
+  }
+  const validTrack = {
+    id: "hydration-opacity",
+    layerId: reopened.layers[0].id,
+    binding: {
+      kind: "layer",
+      property: "opacity",
+      label: "Opacity",
+      valueType: "number",
+    },
+    enabled: true,
+    keyframes: [
+      {
+        id: "opacity-start",
+        time: 0,
+        value: 0.25,
+        easing: { type: "bezier", controlPoints: [0, 0, 1, 1] },
+      },
+      {
+        id: "opacity-end",
+        time: 1,
+        value: 1,
+        easing: { type: "bezier", controlPoints: [0, 0, 1, 1] },
+      },
+    ],
+  }
+  const tracks = [
+    validTrack,
+    { ...validTrack, id: "missing-layer", layerId: "deleted-layer" },
+    {
+      ...validTrack,
+      id: "missing-parameter",
+      binding: {
+        kind: "param",
+        key: "removed-parameter",
+        label: "Removed",
+        valueType: "number",
+      },
+    },
+  ]
+  const withTracks = structuredClone(reopened)
+  withTracks.timeline.tracks = tracks
+  withTracks.selectedLayerId = "deleted-layer"
+  useTimelineStore.setState({
+    tracks: [{ ...validTrack, id: "previous-session-track" }],
+    currentTime: 3,
+    isPlaying: false,
+    selectedTrackId: "previous-session-track",
+    selectedKeyframeId: "previous-session-keyframe",
+    selectedKeyframeIds: ["previous-session-keyframe"],
+  })
+  applyLabProjectFile(withTracks, useAssetStore.getState().assets)
+  const timeline = useTimelineStore.getState()
+  if (canonicalJson(timeline.tracks) !== canonicalJson([validTrack])) {
+    throw new Error(
+      `Hydration must retain valid tracks and prune missing layers/parameters: ${JSON.stringify(timeline.tracks)}`
+    )
+  }
+  if (
+    timeline.currentTime !== 0 ||
+    !timeline.isPlaying ||
+    timeline.selectedTrackId !== null ||
+    timeline.selectedKeyframeId !== null ||
+    timeline.selectedKeyframeIds.length !== 0 ||
+    useLayerStore.getState().selectedLayerId !== null
+  ) {
+    throw new Error(
+      "Hydration retained stale timeline state or an invalid layer selection"
+    )
+  }
+  if (
+    canonicalJson(buildLabProjectFile().timeline.tracks) !==
+    canonicalJson([validTrack])
+  ) {
+    throw new Error("Saving restored pruned timeline tracks")
   }
   return { layers: state.layers.length, assets: state.assets.length }
 }

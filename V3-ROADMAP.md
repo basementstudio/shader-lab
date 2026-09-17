@@ -104,11 +104,13 @@ Extender el criterio a los demás efectos. Organizar controles con etiquetas com
 
 #### 2.5.1 Colores editables en Threshold
 
-**Pedido del usuario, pendiente de implementar:** permitir elegir dos colores en la capa **Threshold** existente: **Color oscuro** y **Color claro**, reemplazando la salida fija negro/blanco por una combinación personalizada. Mantener negro y blanco como valores iniciales y como fallback en proyectos anteriores.
+**Implementado, pendiente de validación visual del usuario:** dos colores editables en la capa **Threshold** existente: **Color oscuro** y **Color claro**, reemplazando la salida fija negro/blanco por una combinación personalizada. Mantener negro y blanco como valores iniciales y como fallback en proyectos anteriores.
 
 Conservar el funcionamiento del umbral, la inversión y la transparencia; cambiar la paleta solo modifica los colores de salida. Integrar los selectores con deshacer/rehacer, guardado/reapertura y exportación editor/runtime. Evitar un pase de render adicional para esta recoloración, teniendo en cuenta fuentes de video y escenas dinámicas.
 
 **Cierre:** con los colores iniciales, las escenas existentes se ven iguales; al elegir, por ejemplo, azul y rosa, ambas regiones adoptan esos colores sin desplazar sus límites. La paleta elegida sobrevive al historial, reapertura y exportación.
+
+Entrega: controles Dark Color / Light Color, fallbacks negro/blanco y mezcla dentro del pase existente, sin render adicional. Referencia 01 revisada y render azul/rosa inspeccionado. Pruebas de GPU editor/runtime, video decodificado, hidratación real, historial, guardado/reapertura y PNG; [prueba enfocada y límites](tests/composition/THRESHOLD-COLORS-MANUAL-QA.md).
 
 ### 2.6 Preservar las composiciones guardadas
 

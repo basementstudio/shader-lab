@@ -165,6 +165,46 @@ async function gpuChecks() {
         })
         close(at(outlined, 2, 8), [0, 1, 0, 0.6], "Outline color")
         close(at(outlined, 8, 8), color, "Outline replaced photo interior")
+        // Measure visible outline ink, including fractional edge coverage, rather
+        // than counting bright pixels (which misses subpixel stroke inflation).
+        target.setSize(256, 256)
+        for (const output of ["cutout", "keep-image"]) {
+          for (const outline of [0.01, 0.08]) {
+            for (const softness of [0, 0.02]) {
+              for (const gap of [0, 0.125, 0.25, 0.5]) {
+                const pixels = await paint(
+                  `stroke-width-${output}-${outline}-${softness}-${gap}`,
+                  {
+                    ...identity,
+                    output,
+                    outline,
+                    softness,
+                    gap,
+                    outlineColor: "#00ff00",
+                  }
+                )
+                let ink = 0
+                // Left edge of one cell, away from corners and adjacent strokes.
+                for (let x = 0; x < 32; x++) {
+                  const pixel = at(pixels, x, 32)
+                  ink +=
+                    ((pixel[1] - color[1]) / (1 - color[1])) *
+                    (pixel[3] / color[3])
+                }
+                // Softness can clip a fade against the zero-gap partition; the
+                // separated edges must still carry only the requested ink width.
+                if (softness === 0 || gap >= 0.25)
+                  close(
+                    [ink],
+                    [64 * outline],
+                    "Gap inflated outline width",
+                    0.1
+                  )
+              }
+            }
+          }
+        }
+        target.setSize(64, 64)
         close(
           await paint("disabled", { ...identity, threshold: 1 }, solid, 0),
           all,

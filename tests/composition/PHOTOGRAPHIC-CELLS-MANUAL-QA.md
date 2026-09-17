@@ -7,7 +7,7 @@ The first cell/block family slice from roadmap 3.2–3.3. Each cell retains the 
 1. Put a photograph in a group and a colored background outside, below that group. Add **Photographic Cells** above the photo inside the group.
 2. Leave **Output → Cutout**. Move **Threshold** from 0 to 1: all cells should gradually give way to the outside background. **Invert Selection** swaps which cells remain.
 3. Try **Select Cells → Dark Areas**, then **Random**. Change **Cell Size**, **Cell Aspect**, **Irregularity**, and **Seed**. Photo details inside each block should remain sharp rather than becoming a single flat color.
-4. Increase **Gap**, then set **Outline Width → 0.04** and choose an outline color. Gaps should reveal the external background; outlines should stay within the photo's existing coverage. Text outside the group must remain unaffected.
+4. Increase **Gap**, then set **Outline Width → 0.04** and choose an outline color. Hold Outline Width at 0.01 and move Gap between 0, 0.25, and 0.5: separated contours should retain their thin weight instead of becoming heavier. Repeat in Keep Image mode. Gaps should reveal the external background; outlines should stay within the photo's existing coverage. Text outside the group must remain unaffected.
 5. Choose **Keep Image** to retain the original photo with only the selected cell outlines over it. Set Outline Width to 0 to restore the original image in this mode.
 6. Undo a setting change, save/reopen `.lab`, and export PNG. Settings, membership, and appearance should survive.
 
@@ -19,4 +19,8 @@ Cutout clips the current accumulated input. Use an isolated group to target one 
 
 Selection is based on one sample per cell, so tiny image features can disappear when cells are large. Video may change cell selection as tones cross the threshold; temporal stabilization and representative hardware/video export measurements remain follow-up validation. There is no per-cell GPU loop.
 
-Automated tests cover 40 editor/runtime GPU cases, full-detail interiors, tone/random/inverted selection, deterministic seeds, transparent/soft gaps, colored outlines, opacity, rectangular canvases, real hydration/history, saved/reopened pixels, exported runtime config, and preview/PNG equivalence. The catalog preview uses the bundled photographic example and the new default settings.
+Automated tests cover 104 editor/runtime GPU cases, full-detail interiors, tone/random/inverted selection, deterministic seeds, transparent/soft gaps, colored outlines, opacity, rectangular canvases, real hydration/history, saved/reopened pixels, exported runtime config, and preview/PNG equivalence. The catalog preview uses the bundled photographic example and the new default settings.
+
+## Visual direction still pending
+
+Review originals 05 and 11 using [the reference guide](../../V3-VISUAL-REFERENCES.md). The user accepted this as a useful prototype, not completion of the reference look. Connected stepped silhouettes, perimeter contours without internal grid lines, and the white poster's broad color regions/fine dots remain visual follow-up work.

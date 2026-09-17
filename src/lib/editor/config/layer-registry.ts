@@ -3380,6 +3380,14 @@ const blurParams = [
 
 const photographicCellsParams = [
   {
+    key: "paintMask",
+    label: "Painted coverage",
+    type: "text",
+    defaultValue: "",
+    animatable: false,
+    visibleWhen: { key: "__internal", equals: "cell-paint" },
+  },
+  {
     key: "output",
     label: "Output",
     group: "Coverage",
@@ -3400,10 +3408,10 @@ const photographicCellsParams = [
     defaultValue: "regions",
     options: [
       { label: "Regions", value: "regions" },
+      { label: "Paint", value: "paint" },
       { label: "Individual Cells", value: "cells" },
     ],
-    description:
-      "Regions joins neighboring cells into larger photographic shapes.",
+    description: "Join cells into regions, or paint where to reveal the image.",
   },
   {
     key: "regionSize",
@@ -3420,6 +3428,7 @@ const photographicCellsParams = [
   },
   {
     key: "selection",
+    visibleWhen: { key: "mode", notEquals: "paint" },
     label: "Selection Source",
     group: "Selection",
     type: "select",
@@ -3432,6 +3441,7 @@ const photographicCellsParams = [
   },
   {
     key: "threshold",
+    visibleWhen: { key: "mode", notEquals: "paint" },
     label: "Threshold",
     group: "Selection",
     type: "number",

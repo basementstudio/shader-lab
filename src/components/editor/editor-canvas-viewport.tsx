@@ -10,6 +10,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react"
+import { CellPaintOverlay } from "./cell-paint-overlay"
 import { MadeByBasement } from "@/components/editor/made-by-basement"
 import { useMobileCanvasFit } from "@/components/editor/use-mobile-canvas-fit"
 import { useEditorRenderer } from "@/hooks/use-editor-renderer"
@@ -134,6 +135,8 @@ export function EditorCanvasViewport() {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === " " && !isEditableTarget(event.target)) {
+        // Space belongs to canvas panning, even after a toolbar button had focus.
+        event.preventDefault()
         setIsSpacePressed(true)
       }
     }
@@ -345,6 +348,10 @@ export function EditorCanvasViewport() {
               data-editor-canvas="true"
               ref={canvasRef}
               className="absolute inset-0 h-full w-full [image-rendering:pixelated]"
+            />
+            <CellPaintOverlay
+              panning={isSpacePressed}
+              disabled={exportingPreview || !isReady || !!pendingSceneSlug}
             />
             {compositionOverlay && (
               <div

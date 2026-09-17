@@ -1,3 +1,16 @@
+import {
+  decodeCellPaintMask,
+  encodeCellPaintMask,
+  emptyCellPaintMask,
+} from "@/renderer/cell-paint-mask"
+import {
+  expandCellPaintMask,
+  paintCellSegment,
+} from "@/lib/editor/paint/cell-paint-brush"
+import {
+  useCellPaintStore,
+  withCellPaintPreview,
+} from "@/store/cell-paint-store"
 import { PhotographicCellsPass as RuntimeCells } from "@runtime/renderer/photographic-cells-pass"
 import { buildRendererFrame as runtimeFrame } from "@runtime/renderer/contracts"
 import { createHeadlessRenderer } from "@runtime/renderer/create-headless-renderer"
@@ -104,6 +117,137 @@ async function gpuChecks() {
         return pixels
       }
       try {
+        const paintedMask = emptyCellPaintMask()
+        for (let y = 0; y < 256; y++)
+          paintedMask.data.fill(255, y * 512, y * 512 + 256)
+        const paintMask = encodeCellPaintMask(paintedMask)
+        const paintParams = {
+          ...identity,
+          mode: "paint",
+          paintMask,
+          size: 0.125,
+          threshold: 1,
+        }
+        const painted = await paint("paint quadrant", paintParams)
+        for (let y = 0; y < 64; y++)
+          for (let x = 0; x < 64; x++) {
+            close(
+              at(painted, x, y),
+              x < 32 && y < 32 ? color : [0, 0, 0, 0],
+              "Paint coordinates"
+            )
+          }
+        close(
+          await paint("paint ignores automatic selection", {
+            ...paintParams,
+            selection: "random",
+            threshold: 0,
+            regionSize: 1,
+          }),
+          painted,
+          "Automatic controls affected paint"
+        )
+        const inverted = await paint("paint inverted", {
+          ...paintParams,
+          invert: true,
+        })
+        close(at(inverted, 8, 8), [0, 0, 0, 0], "Invert painted selection")
+        close(at(inverted, 48, 48), color, "Invert painted complement")
+        const perimeter = await paint("paint perimeter", {
+          ...paintParams,
+          outlineMode: "perimeter",
+          outline: 0.25,
+          outlineColor: "#ffffff",
+        })
+        close(at(perimeter, 8, 12), color, "Paint has internal perimeter seams")
+        assert(
+          at(perimeter, 31, 12)[1] > color[1] + 0.2,
+          "Paint perimeter missing"
+        )
+        const detailed = await paint("paint source detail", paintParams, photo)
+        close(
+          at(detailed, 8, 8),
+          [0, 0, 0, 0],
+          "Paint manufactured source alpha"
+        )
+        const guided = await paint("paint guide", {
+          ...paintParams,
+          _paintGuide: true,
+        })
+        assert(
+          at(guided, 48, 48)[3] > 0.05 && at(guided, 48, 48)[3] < color[3],
+          "Empty area guide missing"
+        )
+        close(
+          await paint("paint guide removed", paintParams),
+          painted,
+          "Guide persisted"
+        )
+        assert(
+          (await paint("paint clear", { ...paintParams, paintMask: "" })).every(
+            (v) => v === 0
+          ),
+          "Clearing left coverage"
+        )
+        assert(
+          (
+            await paint("paint invalid mask", {
+              ...paintParams,
+              paintMask: "pc1:bad",
+            })
+          ).every((v) => v === 0),
+          "Invalid mask did not clear"
+        )
+        const changing = new THREE.DataTexture(
+          new Float32Array([0.2, 0.7, 0.4, 0.8]),
+          1,
+          1,
+          THREE.RGBAFormat,
+          THREE.FloatType
+        )
+        changing.needsUpdate = true
+        const frameOne = await paint(
+          "paint moving source one",
+          paintParams,
+          changing
+        )
+        const uploaded = pass.paintTexture.version
+        changing.image.data.set([0.7, 0.2, 0.8, 0.8])
+        changing.needsUpdate = true
+        const frameTwo = await paint(
+          "paint moving source two",
+          paintParams,
+          changing
+        )
+        close(
+          at(frameOne, 8, 8),
+          [0.2, 0.7, 0.4, 0.8],
+          "Paint first source frame"
+        )
+        close(
+          at(frameTwo, 8, 8),
+          [0.7, 0.2, 0.8, 0.8],
+          "Paint stale source frame"
+        )
+        assert(
+          pass.paintTexture.version === uploaded,
+          "Video change re-uploaded mask"
+        )
+        changing.dispose()
+        await paint("paint invalid reset", {
+          ...paintParams,
+          paintMask: "pc1:bad",
+        })
+        const version = pass.paintTexture.version
+        pass.updateParams({
+          ...paintParams,
+          paintMask: "pc1:bad",
+          threshold: 0.2,
+        })
+        assert(
+          pass.paintTexture.version === version,
+          "Unchanged mask re-uploaded"
+        )
         const all = await paint("all", identity)
         for (let i = 0; i < all.length; i += 4)
           close(all.slice(i, i + 4), color, "Identity coverage")
@@ -667,7 +811,11 @@ async function runtimeCheck(config, expectedImage) {
     if (expectedImage) {
       close(
         pixels,
-        Array.from(expectedImage.data, (value) => value / 255),
+        Array.from(expectedImage.data, (value, index) => {
+          const v = value / 255
+          if (index % 4 === 3) return v
+          return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4
+        }),
         "Exported runtime connected-region coverage",
         0.005
       )
@@ -694,6 +842,40 @@ async function runtimeCheck(config, expectedImage) {
 }
 
 export async function checkPhotographicCells(renderProject) {
+  const brush = emptyCellPaintMask()
+  paintCellSegment(
+    brush,
+    { x: -0.35, y: -0.2 },
+    { x: 0.35, y: -0.2 },
+    0.08,
+    false
+  )
+  const encoded = encodeCellPaintMask(brush)
+  close(
+    Array.from(decodeCellPaintMask(encoded).data),
+    Array.from(brush.data),
+    "Mask roundtrip",
+    0
+  )
+  assert(encoded.length < 44000, "Unbounded mask")
+  for (let x = 100; x < 410; x++)
+    assert(brush.data[154 * 512 + x] === 255, "Fast stroke has gaps")
+  paintCellSegment(brush, { x: 0, y: -0.2 }, { x: 0, y: -0.2 }, 0.04, true)
+  assert(
+    brush.data[154 * 512 + 256] === 0 && brush.data[154 * 512 + 200] === 255,
+    "Erase affected wrong area"
+  )
+  const expanded = expandCellPaintMask(brush, 2, 1)
+  assert(
+    expanded.data[154 * 512 + 228] === 255 &&
+      expanded.data[154 * 512 + 256] === 0,
+    "Resize moved coverage"
+  )
+  for (const invalid of ["", "pc1:1:1:no", "x".repeat(50000)])
+    assert(
+      decodeCellPaintMask(invalid).data.every((v) => v === 0),
+      "Invalid mask failed closed"
+    )
   const samples = await gpuChecks()
   const group = { ...createLayer("group"), id: "portrait" }
   const cells = {
@@ -812,6 +994,80 @@ export async function checkPhotographicCells(renderProject) {
     buildShaderExportConfig(regionProject),
     regionPreview.image
   )
+  const paintProject = {
+    ...regionProject,
+    layers: regionProject.layers.map((layer) =>
+      layer.id === cells.id
+        ? {
+            ...layer,
+            params: {
+              ...layer.params,
+              mode: "paint",
+              paintMask: encoded,
+              outline: 0.06,
+            },
+          }
+        : layer
+    ),
+  }
+  applyLabProjectFile(parseLabProjectFileValue(paintProject), [])
+  const paintBefore = buildEditorHistorySnapshot()
+  const duplicateId = useLayerStore.getState().duplicateLayer(cells.id)
+  assert(
+    useLayerStore.getState().getLayerById(duplicateId).params.paintMask ===
+      encoded,
+    "Duplicate lost painted selection"
+  )
+  applyEditorHistorySnapshot(paintBefore)
+  useLayerStore.getState().updateLayerParam(cells.id, "mode", "regions")
+  useLayerStore.getState().updateLayerParam(cells.id, "mode", "paint")
+  useLayerStore.getState().updateLayerParam(cells.id, "size", 0.1)
+  assert(
+    useLayerStore.getState().getLayerById(cells.id).params.paintMask ===
+      encoded,
+    "Layout or geometry erased paint"
+  )
+  applyEditorHistorySnapshot(paintBefore)
+  useLayerStore.getState().updateLayerParam(cells.id, "paintMask", "")
+  applyEditorHistorySnapshot(paintBefore)
+  assert(
+    useLayerStore.getState().getLayerById(cells.id).params.paintMask ===
+      encoded,
+    "Paint history lost mask"
+  )
+  useCellPaintStore.getState().edit(cells.id)
+  useCellPaintStore.getState().setDraft("")
+  const previewLayers = withCellPaintPreview(
+    useLayerStore.getState().layers,
+    cells.id
+  )
+  assert(
+    previewLayers.find((l) => l.id === cells.id).params._paintGuide === true,
+    "Editor guide missing"
+  )
+  const paintSaved = buildLabProjectFile()
+  assert(
+    paintSaved.layers.find((l) => l.id === cells.id).params.paintMask ===
+      encoded,
+    "Draft leaked into save"
+  )
+  assert(
+    !JSON.stringify(paintSaved).includes("_paintGuide"),
+    "Guide leaked into save"
+  )
+  useCellPaintStore.getState().edit(null)
+  useLayerStore.getState().replaceState([])
+  applyLabProjectFile(
+    parseLabProjectFileValue(JSON.parse(JSON.stringify(paintSaved))),
+    []
+  )
+  assert(
+    useLayerStore.getState().getLayerById(cells.id).params.paintMask ===
+      encoded,
+    "Hydration lost paint mask"
+  )
+  const paintPreview = await renderProject(paintSaved)
+  await runtimeCheck(buildShaderExportConfig(paintSaved), paintPreview.image)
   const asset = {
     id: "photo-asset",
     kind: "image",

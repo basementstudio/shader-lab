@@ -684,7 +684,7 @@ export function PropertiesSidebar() {
     )
   }
 
-  if (!hasLayers) {
+  if (!hasLayers && sidebarView !== "scene") {
     return null
   }
 
@@ -704,17 +704,6 @@ export function PropertiesSidebar() {
           !mobilePanelVisible && "translate-y-3 opacity-0"
         )}
       >
-        <div
-          aria-hidden="true"
-          className="pointer-events-none invisible absolute top-0 left-0 -z-1 w-full"
-        >
-          <div className="w-full" ref={bindMeasuredView}>
-            <MeasuringLayoutProvider>
-              {renderInvisibleContent()}
-            </MeasuringLayoutProvider>
-          </div>
-        </div>
-
         <motion.div
           className={cn(
             "pointer-events-auto overflow-hidden rounded-[var(--ds-radius-panel)] max-h-[min(60vh,520px)] w-full",
@@ -739,7 +728,7 @@ export function PropertiesSidebar() {
 
       <div
         aria-hidden="true"
-        className="pointer-events-none invisible absolute top-0 left-0 -z-1 hidden w-full min-[900px]:block"
+        className="pointer-events-none invisible absolute top-0 left-0 -z-1 w-[calc(100vw-24px)] min-[900px]:w-[300px]"
       >
         <div className="w-full" ref={bindMeasuredView}>
           <MeasuringLayoutProvider>

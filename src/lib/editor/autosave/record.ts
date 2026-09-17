@@ -50,7 +50,7 @@ export function chooseAutosaveRecord(input: {
         record.sessionId !== input.currentSessionId &&
         record.schemaVersion === AUTOSAVE_SCHEMA_VERSION &&
         input.now - record.savedAt <= maxAgeMs &&
-        record.projectFile?.layers?.length > 0
+        Array.isArray(record.projectFile?.layers)
     )
     .sort((a, b) => b.savedAt - a.savedAt)
 

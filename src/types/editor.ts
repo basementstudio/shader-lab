@@ -531,6 +531,7 @@ export interface EditorStateSnapshot {
 }
 
 export interface EditorHistorySnapshot {
+  sceneConfig: SceneConfig
   selectedLayerIds?: string[]
   audio: EditorAudioSnapshot
   hoveredLayerId: string | null

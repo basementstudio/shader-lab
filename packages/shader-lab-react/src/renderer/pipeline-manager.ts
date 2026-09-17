@@ -36,6 +36,7 @@ import { PixelTrailPass } from "./pixel-trail-pass"
 import { PixelationPass } from "./pixelation-pass"
 import { PlotterPass } from "./plotter-pass"
 import { PosterizePass } from "./posterize-pass"
+import { PhotographicCellsPass } from "./photographic-cells-pass"
 import { DisplacedRingsPass } from "./displaced-rings-pass"
 import { SlicePass } from "./slice-pass"
 import { SmearPass } from "./smear-pass"
@@ -502,7 +503,10 @@ export class PipelineManager {
     layer: ShaderLabLayerConfig
   ): void {
     pass.enabled = layer.visible
-    if (layer.type === "displaced-rings") {
+    if (
+      layer.type === "displaced-rings" ||
+      layer.type === "photographic-cells"
+    ) {
       pass.updateCompositionRole("transform")
     } else {
       pass.updateCompositionRole(
@@ -613,6 +617,8 @@ export class PipelineManager {
           return new ThresholdPass(layer.id)
         case "pixel-sorting":
           return new PixelSortingPass(layer.id)
+        case "photographic-cells":
+          return new PhotographicCellsPass(layer.id)
         case "displaced-rings":
           return new DisplacedRingsPass(layer.id)
         case "slice":

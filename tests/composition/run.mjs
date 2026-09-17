@@ -221,6 +221,23 @@ try {
   console.log(
     `PASS displaced rings: ${rings.samples} GPU cases, 48 distinct bands (${rings.denseMs}ms including readback), hydration, runtime export, group cutouts, preview/PNG`
   )
+  const cells = await page.evaluate(() => window.checkPhotographicCells())
+  await Bun.write(
+    resolve(artifacts, "photographic-cells-preview.webp"),
+    Buffer.from(cells.previewWebp.split(",")[1], "base64")
+  )
+  for (const [name, png] of [
+    ["cell-cutout", cells.png],
+    ["photographic-cells-preview", cells.previewPng],
+  ]) {
+    await Bun.write(
+      resolve(artifacts, `${name}.png`),
+      Buffer.from(png.split(",")[1], "base64")
+    )
+  }
+  console.log(
+    `PASS photographic cells: ${cells.samples} editor/runtime GPU cases, full-detail interiors, alpha, hydration, runtime export, groups, preview/PNG`
+  )
   assert.deepEqual(errors, [], "Browser or GPU errors occurred")
   console.log(
     update

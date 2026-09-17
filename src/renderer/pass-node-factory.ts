@@ -18,6 +18,7 @@ import { PixelSortingPass } from "@/renderer/pixel-sorting-pass"
 import { PixelationPass } from "@/renderer/pixelation-pass"
 import { PlotterPass } from "@/renderer/plotter-pass"
 import { PosterizePass } from "@/renderer/posterize-pass"
+import { PhotographicCellsPass } from "./photographic-cells-pass"
 import { DisplacedRingsPass } from "./displaced-rings-pass"
 import { SlicePass } from "@/renderer/slice-pass"
 import { SmearPass } from "@/renderer/smear-pass"
@@ -70,6 +71,8 @@ export function createPassNode(
       return new ThresholdPass(layerId)
     case "pixel-sorting":
       return new PixelSortingPass(layerId)
+    case "photographic-cells":
+      return new PhotographicCellsPass(layerId)
     case "displaced-rings":
       return new DisplacedRingsPass(layerId)
     case "slice":

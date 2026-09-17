@@ -350,6 +350,16 @@ async function checkExportedRuntime(config) {
 }
 
 export async function checkDisplacedRings(renderProject) {
+  const curated = createLayer("displaced-rings").params
+  assert(
+    curated.shape === "half-discs" &&
+      curated.count === 22 &&
+      curated.radius === 2 &&
+      curated.rotationStep === 45 &&
+      curated.gap === 0 &&
+      curated.offset.every((value) => value === 0),
+    "New rings lost user-curated defaults"
+  )
   const checks = await passChecks()
   const group = { ...createLayer("group"), id: "portrait" }
   const rings = {
@@ -369,6 +379,21 @@ export async function checkDisplacedRings(renderProject) {
     sceneConfig: DEFAULT_SCENE_CONFIG,
     timeline: { duration: 1, loop: true, tracks: [] },
   }
+  const missing = {
+    ...project,
+    layers: [{ ...rings, parentId: null, params: {} }],
+  }
+  applyLabProjectFile(parseLabProjectFileValue(missing), [])
+  const legacy = useLayerStore.getState().getLayerById(rings.id).params
+  assert(
+    legacy.shape === "rings" &&
+      legacy.count === 8 &&
+      legacy.radius === 0.9 &&
+      legacy.rotationStep === 12 &&
+      legacy.gap === 0.04 &&
+      legacy.offset[0] === 0.045,
+    "Missing saved ring settings adopted new defaults"
+  )
   applyLabProjectFile(parseLabProjectFileValue(project), [])
   const before = buildEditorHistorySnapshot()
   useLayerStore.getState().updateLayerParam(rings.id, "count", 48)
@@ -439,6 +464,7 @@ export async function checkDisplacedRings(renderProject) {
         params: {
           ...createLayer("displaced-rings").params,
           shape: "half-discs",
+          count: 8,
           output: "cutout",
           radius: 0.8,
           rotationStep: 27,

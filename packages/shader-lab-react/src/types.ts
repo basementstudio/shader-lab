@@ -19,6 +19,7 @@ export type ShaderLabSourceLayerType =
   | "video"
 
 export type ShaderLabEffectLayerType =
+  | "photographic-cells"
   | "displaced-rings"
   | "ascii"
   | "blob-tracking"

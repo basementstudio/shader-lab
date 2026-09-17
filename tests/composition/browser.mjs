@@ -20,6 +20,7 @@ import { checkGroups } from "./groups.mjs"
 import { checkEditorGroups } from "./editor-groups.mjs"
 import { checkMediaBounds } from "./media-bounds.mjs"
 import { checkTransparentText } from "./transparent-text.mjs"
+import { checkPhotographicCells } from "./photographic-cells.mjs"
 import { checkDisplacedRings } from "./displaced-rings.mjs"
 
 function pixels(canvas) {
@@ -388,3 +389,5 @@ window.checkGroups = checkGroups
 window.checkEditorGroups = () => checkEditorGroups(renderProject)
 window.checkTransparentText = () => checkTransparentText(renderProject)
 window.checkDisplacedRings = () => checkDisplacedRings(renderProject)
+
+window.checkPhotographicCells = () => checkPhotographicCells(renderProject)

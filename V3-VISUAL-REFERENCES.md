@@ -1,6 +1,6 @@
 # V3 visual references
 
-These sixteen images are the user's visual direction for Shader Lab V3. Before choosing shader behavior, geometry, defaults, or appearance, **open the relevant reference images**. Compare the resulting render with them. Technical correctness alone does not establish visual completion.
+The original sixteen images and the additional designer-feedback references below are the user's visual direction for Shader Lab V3. Before choosing shader behavior, geometry, defaults, or appearance, **open the relevant reference images**. Compare the resulting render with them. Technical correctness alone does not establish visual completion.
 
 ## Where to find them
 
@@ -59,3 +59,21 @@ References 05 and 11 were reopened full-size. Before/after renders of existing a
 - This is reference-driven progress, not a reproduction or final V3 visual completion. The richer analog finish, fine typography (current minimum 48px), final visual acceptance, sustained native-GPU performance, and encoded video export remain open.
 
 The user authorized this next slice while away, without waiting for manual acceptance of Threshold #162. No PRs have been merged.
+
+
+## Additional designer feedback — approved planning direction
+
+The four screenshots shared on September 17 were opened and reviewed. They supplement the original sixteen; they are reference material, not product assets. Workspace backups live in `.context/v3-references/`:
+
+| Backup | Original attachment | What to inspect |
+| --- | --- | --- |
+| `17-feedback-mascaras-celdas.png` | `.context/attachments/rqFvlg/image.png` | Cell poster: local effects, masking and fine texture. |
+| `18-feedback-paleta-termica.png` | `.context/attachments/Snglqt/image.png` | Thermal-style false color: tonal palette study, not evidence of depth or temperature data. |
+| `19-feedback-anotaciones-tecnicas.png` | `.context/attachments/dAIoad/image.png` | Orange points, red boxes, crosshairs, labels and connections: prominent annotation/Blob Tracking direction. |
+| `20-feedback-formas-lovedance.png` | `.context/attachments/aByVza/image.png` | Lovedance: colored shape layers, photographic blends, masking and type. |
+
+The user approved simple general masks (linear/radial gradient, ellipse/circle, rectangle/square, brush), replacing the earlier postponement. No pen tool. Reuse the accepted Cells brush interaction while implementing general effect masking separately from content cutouts. Automatic selection remains later work.
+
+Technical annotations are now a prominent artistic direction, rather than only a low-priority Blob Tracking note. Revisit screenshot 19 before choosing their behavior or appearance. Thermal-style color mapping and depth-driven coloring are separate explorations; do not infer how the cover in screenshot 18 was made.
+
+The new low-priority Pattern proposal has no additional supplied image: its concrete brief is user-uploaded SVG/image motifs in a manually ordered light-to-dark sequence (fresh green apple → rotten apple), preserving original colors and exploring explicit SVG recoloring. Do not mistake ordering motifs for generating an animated morph between them. These are roadmap additions, not implemented features or new visual approvals of existing work.

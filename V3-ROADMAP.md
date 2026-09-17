@@ -319,3 +319,12 @@ Comenzar la exploración con texto y su arrastre, si este se incorpora. Probar s
 El posicionamiento de modelos 3D mediante la grilla y las formas básicas —estrellas, cuadrados y círculos— son posibilidades futuras, **no requisitos confirmados**. Evaluarlas por separado solo si la guía inicial demuestra utilidad.
 
 **Cierre opcional:** decidir si merece desarrollarse o posponerse. Si se desarrolla, validar la utilidad para texto, el ajuste activable y la separación entre guía e imagen exportada. Ningún resultado de esta fase condiciona el cierre obligatorio de V3.
+
+
+## Seguimiento posterior — Página de guías
+
+**Idea acordada con el usuario; desarrollar el alcance más adelante.** Crear una página de guías para ayudar a diseñadores a aprender Shader Lab y conseguir resultados útiles combinando sus capas. Registrar esta dirección sin iniciar su implementación ni añadirla como requisito de cierre de V3.
+
+Como punto de partida, reutilizar los [estudios editables y recetas](public/examples/v3/README.md): mostrar el resultado visual, explicar el orden de las capas y el alcance de los grupos, destacar los controles que cambian el resultado y ofrecer archivos `.lab` para explorar. Considerar también guías breves de composición, pintura, color y exportación, con consejos de rendimiento cuando correspondan.
+
+La organización de contenidos, el diseño de la página, su acceso desde la app y la selección de las primeras guías quedan por definir con el usuario. Priorizar explicaciones prácticas orientadas a resultados y mantener los ejemplos alineados con las herramientas disponibles.

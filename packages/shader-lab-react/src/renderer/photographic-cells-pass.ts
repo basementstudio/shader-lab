@@ -26,6 +26,7 @@ import {
   vec3,
   vec4,
 } from "three/tsl"
+import { CELL_PAINT_SIZE, decodeCellPaintMask } from "./cell-paint-mask"
 import { PassNode } from "./pass-node"
 import type { LayerParameterValues } from "../types/editor"
 
@@ -43,6 +44,17 @@ function number(
 
 /** Select photographic cells without replacing their interiors with flat samples. */
 export class PhotographicCellsPass extends PassNode {
+  private readonly painted = uniform(0)
+  private readonly paintGuide = uniform(0)
+  private readonly paintAspect = uniform(new THREE.Vector2(1, 1))
+  private readonly paintTexture = new THREE.DataTexture(
+    new Uint8Array(CELL_PAINT_SIZE ** 2),
+    CELL_PAINT_SIZE,
+    CELL_PAINT_SIZE,
+    THREE.RedFormat
+  )
+  private readonly paintSource = texture(this.paintTexture)
+  private paintValue = ""
   private readonly regions = uniform(0)
   private readonly regionSize = uniform(0.35)
   private readonly outlineMode = uniform(2)
@@ -65,6 +77,10 @@ export class PhotographicCellsPass extends PassNode {
 
   constructor(id: string) {
     super(id)
+    this.paintTexture.minFilter = THREE.NearestFilter
+    this.paintTexture.magFilter = THREE.NearestFilter
+    this.paintTexture.generateMipmaps = false
+    this.paintTexture.needsUpdate = true
     this.placeholder = new THREE.Texture()
     this.placeholder.type = THREE.HalfFloatType
     this.placeholder.minFilter = THREE.NearestFilter
@@ -101,6 +117,18 @@ export class PhotographicCellsPass extends PassNode {
   }
 
   override updateParams(params: LayerParameterValues): void {
+    this.painted.value = params.mode === "paint" ? 1 : 0
+    this.paintGuide.value = params._paintGuide === true ? 0.18 : 0
+    const paintValue =
+      typeof params.paintMask === "string" ? params.paintMask : ""
+    // Video/source changes do not decode or upload the painted mask again.
+    if (paintValue !== this.paintValue) {
+      const mask = decodeCellPaintMask(paintValue)
+      this.paintTexture.image.data?.set(mask.data)
+      this.paintTexture.needsUpdate = true
+      ;(this.paintAspect.value as THREE.Vector2).set(mask.width, mask.height)
+      this.paintValue = paintValue
+    }
     this.regions.value = params.mode === "regions" ? 1 : 0
     this.regionSize.value = number(params.regionSize, 0.35, 0.05, 2)
     this.outlineMode.value = 2
@@ -133,8 +161,7 @@ export class PhotographicCellsPass extends PassNode {
             43758.5453
           )
         )
-      // Selection is independent of the cell geometry and outline. A painted
-      // coverage source can later replace this field without changing either.
+      // Automatic and painted selection share the same geometry and outline.
       const sampleTone = (position: Node) => {
         const inset = vec2(0.5).div(this.resolution)
         const probe = this.source
@@ -161,56 +188,76 @@ export class PhotographicCellsPass extends PassNode {
           id.y.add(0.5).mul(this.size)
         )
         const score = float(0).toVar()
-        If(this.regions.greaterThan(0.5), () => {
-          // Smooth a field in composition space, then quantize only its boundary
-          // into cells. Region Size never changes the photographic samples inside.
-          const field = center.div(this.regionSize)
-          const base = floor(field)
-          const fraction = fract(field)
-          const blend = fraction
-            .mul(fraction)
-            .mul(float(3).sub(fraction.mul(2)))
-          const values = vec4(0).toVar()
-          If(this.selection.greaterThan(1.5), () => {
-            values.assign(
-              vec4(
-                hash(base),
-                hash(base.add(vec2(1, 0))),
-                hash(base.add(vec2(0, 1))),
-                hash(base.add(1))
-              )
-            )
-          }).Else(() => {
-            values.assign(
-              vec4(
-                sampleTone(base.mul(this.regionSize)),
-                sampleTone(base.add(vec2(1, 0)).mul(this.regionSize)),
-                sampleTone(base.add(vec2(0, 1)).mul(this.regionSize)),
-                sampleTone(base.add(1).mul(this.regionSize))
-              )
-            )
-            If(this.selection.greaterThan(0.5), () => {
-              values.assign(float(1).sub(values))
-            })
-          })
+        If(this.painted.greaterThan(0.5), () => {
+          const paintUV = center.div(this.paintAspect).add(0.5)
+          const inside = paintUV.x
+            .greaterThanEqual(0)
+            .and(paintUV.x.lessThan(1))
+            .and(paintUV.y.greaterThanEqual(0))
+            .and(paintUV.y.lessThan(1))
           score.assign(
-            mix(
-              mix(values.x, values.y, blend.x),
-              mix(values.z, values.w, blend.x),
-              blend.y
+            select(
+              inside,
+              this.paintSource.sample(paintUV).level(0).r,
+              float(0)
             )
           )
         }).Else(() => {
-          If(this.selection.greaterThan(1.5), () => {
-            score.assign(hash(id))
-          }).Else(() => {
-            const luma = sampleTone(center)
+          If(this.regions.greaterThan(0.5), () => {
+            // Smooth a field in composition space, then quantize only its boundary
+            // into cells. Region Size never changes the photographic samples inside.
+            const field = center.div(this.regionSize)
+            const base = floor(field)
+            const fraction = fract(field)
+            const blend = fraction
+              .mul(fraction)
+              .mul(float(3).sub(fraction.mul(2)))
+            const values = vec4(0).toVar()
+            If(this.selection.greaterThan(1.5), () => {
+              values.assign(
+                vec4(
+                  hash(base),
+                  hash(base.add(vec2(1, 0))),
+                  hash(base.add(vec2(0, 1))),
+                  hash(base.add(1))
+                )
+              )
+            }).Else(() => {
+              values.assign(
+                vec4(
+                  sampleTone(base.mul(this.regionSize)),
+                  sampleTone(base.add(vec2(1, 0)).mul(this.regionSize)),
+                  sampleTone(base.add(vec2(0, 1)).mul(this.regionSize)),
+                  sampleTone(base.add(1).mul(this.regionSize))
+                )
+              )
+              If(this.selection.greaterThan(0.5), () => {
+                values.assign(float(1).sub(values))
+              })
+            })
             score.assign(
-              select(this.selection.greaterThan(0.5), float(1).sub(luma), luma)
+              mix(
+                mix(values.x, values.y, blend.x),
+                mix(values.z, values.w, blend.x),
+                blend.y
+              )
             )
+          }).Else(() => {
+            If(this.selection.greaterThan(1.5), () => {
+              score.assign(hash(id))
+            }).Else(() => {
+              const luma = sampleTone(center)
+              score.assign(
+                select(
+                  this.selection.greaterThan(0.5),
+                  float(1).sub(luma),
+                  luma
+                )
+              )
+            })
           })
         })
-        const chosen = select(
+        const automatic = select(
           this.threshold.lessThanEqual(0),
           float(1),
           select(
@@ -218,6 +265,11 @@ export class PhotographicCellsPass extends PassNode {
             float(0),
             step(this.threshold, score)
           )
+        )
+        const chosen = select(
+          this.painted.greaterThan(0.5),
+          step(0.5, score),
+          automatic
         )
         const selected = select(
           this.invert.greaterThan(0.5),
@@ -352,13 +404,14 @@ export class PhotographicCellsPass extends PassNode {
       // Outlines never manufacture coverage in transparent parts of the source.
       return select(
         this.cutout.greaterThan(0.5),
-        vec4(rgb, original.a.mul(mask)),
+        vec4(rgb, original.a.mul(max(mask, this.paintGuide.mul(this.painted)))),
         vec4(mix(original.rgb, rgb, mask), original.a)
       )
     })()
   }
 
   override dispose(): void {
+    this.paintTexture.dispose()
     this.placeholder.dispose()
     super.dispose()
   }

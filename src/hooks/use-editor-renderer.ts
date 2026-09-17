@@ -6,6 +6,7 @@ import { registerAgentFramePump } from "@/lib/agent-bridge/frame-pump"
 import { isPreviewRenderLocked } from "@/lib/editor/preview-render-lock"
 import { RendererBootTrace } from "@/lib/renderer-boot"
 import { gpuSnapshot } from "@/lib/webgpu-diagnostics"
+import { withCellPaintPreview } from "@/store/cell-paint-store"
 import { buildRendererFrame, type EditorRenderer } from "@/renderer/contracts"
 import { errorFingerprint } from "@/renderer/pass-failure"
 import { browserSupportsWebGPU } from "@/renderer/webgpu-support"
@@ -356,7 +357,10 @@ export function useEditorRenderer() {
             audio: selectAudioModulationInput(useAudioStore.getState()),
             clockTime,
             delta,
-            layers: layerState.layers,
+            layers: withCellPaintPreview(
+              layerState.layers,
+              layerState.selectedLayerId
+            ),
             outputSize: editorState.outputSize,
             pixelRatio: getPixelRatio(),
             sceneConfig: editorState.sceneConfig,

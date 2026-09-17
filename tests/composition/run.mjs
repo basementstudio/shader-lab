@@ -173,6 +173,10 @@ try {
   console.log(
     `PASS media bounds: ${mediaBounds.samples} editor/runtime image/video samples, migration, save/reopen, shader export, and PNG export`
   )
+  const alphaSamples = await page.evaluate(() => window.checkAlphaCompositing())
+  console.log(
+    `PASS ${alphaSamples} alpha samples: source-over, effects, pass materials, grading, and the runtime texture pipeline`
+  )
   assert.deepEqual(errors, [], "Browser or GPU errors occurred")
   console.log(
     update

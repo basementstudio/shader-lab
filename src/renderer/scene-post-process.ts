@@ -167,6 +167,7 @@ export class ScenePostProcess {
     this.scene = new THREE.Scene()
     this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
     this.material = new THREE.MeshBasicNodeMaterial()
+    this.material.blending = THREE.NoBlending
 
     const renderTargetUv = vec2(uv().x, float(1).sub(uv().y))
     this.inputNode = tslTexture(new THREE.Texture(), renderTargetUv)
@@ -550,6 +551,6 @@ export class ScenePostProcess {
     // Final clamp
     color = clamp(color, 0, 1)
 
-    return vec4(color, float(1))
+    return vec4(color, input.a)
   }
 }

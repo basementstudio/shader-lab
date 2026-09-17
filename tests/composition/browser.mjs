@@ -15,6 +15,7 @@ import { useEditorStore } from "@/store/editor-store"
 import { useLayerStore } from "@/store/layer-store"
 import { useTimelineStore } from "@/store/timeline-store"
 import { BLEND_MODES } from "@/types/editor"
+import { checkAlphaCompositing } from "./alpha-compositing.mjs"
 import { checkMediaBounds } from "./media-bounds.mjs"
 
 function pixels(canvas) {
@@ -378,3 +379,4 @@ window.checkExistingProject = async () => {
 }
 
 window.checkMediaBounds = () => checkMediaBounds(renderProject)
+window.checkAlphaCompositing = checkAlphaCompositing

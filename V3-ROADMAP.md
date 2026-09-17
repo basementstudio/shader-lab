@@ -12,7 +12,7 @@ Todo el trabajo de V3 se entrega mediante PRs pequeños apilados. Cada nuevo PR 
 
 Los PRs pequeños pueden integrarse progresivamente en la rama de V3. Ningún cambio de V3 se integra en `main` hasta completar el alcance obligatorio del plan y su validación global de la fase 7. La fase 8 sigue siendo opcional y no bloquea esa entrega.
 
-La rama de integración es `git-chad/shader-lab-v3-plan`. La pila comienza con [#151](https://github.com/basementstudio/shader-lab/pull/151), en `git-chad/v3-composition-alpha`. El siguiente PR usa esa rama como base. Al integrar PRs, actualizar las bases de los descendientes para conservar la pila; únicamente el PR principal apunta a `main` y permanece en borrador hasta completar la validación obligatoria.
+La rama de integración es `git-chad/shader-lab-v3-plan`. La pila comienza con [#151](https://github.com/basementstudio/shader-lab/pull/151), en `git-chad/v3-composition-alpha`, seguido de [#152](https://github.com/basementstudio/shader-lab/pull/152), en `git-chad/v3-transparent-media-bounds`. La base compartida de composición alfa continúa desde esta última rama. Al integrar PRs, actualizar las bases de los descendientes para conservar la pila; únicamente el PR principal apunta a `main` y permanece en borrador hasta completar la validación obligatoria.
 
 PR principal: [#150 — V3: designer-focused composition and experimental graphics](https://github.com/basementstudio/shader-lab/pull/150).
 

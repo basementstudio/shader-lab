@@ -204,6 +204,7 @@ export class PipelineManager {
     const blitUv = vec2(uv().x, float(1).sub(uv().y))
     this.blitInputNode = tslTexture(createPipelinePlaceholder(), blitUv)
     this.blitMaterial = new THREE.MeshBasicNodeMaterial()
+    this.blitMaterial.blending = THREE.NoBlending
     this.blitMaterial.colorNode = this.blitInputNode
     const blitMesh = new THREE.Mesh(
       new THREE.PlaneGeometry(2, 2),
@@ -441,6 +442,12 @@ export class PipelineManager {
     layer: ShaderLabLayerConfig
   ): void {
     pass.enabled = layer.visible
+    pass.updateCompositionRole(
+      layer.kind === "effect" ||
+      (layer.type === "custom-shader" && layer.params.effectMode === true)
+        ? "effect"
+        : "source"
+    )
     pass.updateOpacity(clampUnit(layer.opacity))
     pass.updateBlendMode(layer.blendMode)
     const compositeMode: ShaderLabCompositeMode =

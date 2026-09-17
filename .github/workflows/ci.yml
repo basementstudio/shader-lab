@@ -47,12 +47,27 @@ jobs:
       - name: Type check app
         run: bun run typecheck:tsc
 
-      - name: Install composition test browser
-        run: bunx playwright install --with-deps chromium
-
-      - name: Check composition baselines
-        run: bun run test:composition
-
       - name: Ensure changeset exists for PR changes
         if: github.event_name == 'pull_request'
         run: bunx changeset status --since=origin/${{ github.base_ref }}
+
+  composition:
+    # Linux Chromium/SwiftShader currently drops its GPU instance during these
+    # texture-backed shader compilations. Keep the full GPU checks on macOS.
+    runs-on: macos-14
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bunx playwright install chromium
+      - run: bun run test:composition
+      - name: Upload rendered compositions
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: composition-actuals
+          path: .context/composition-test/
+          if-no-files-found: ignore

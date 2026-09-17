@@ -12,7 +12,9 @@ bunx playwright install chromium
 bun run test:composition
 ```
 
-Linux requires `bunx playwright install --with-deps chromium`. The runner serves a bundled harness on an ephemeral loopback port and launches the locked Playwright Chromium with WebGPU over SwiftShader. No app server, account, or external services are required. Missing WebGPU, browser errors, shader compilation errors, missing baselines, and mismatches fail the command; tests do not silently skip or fall back to WebGL.
+The supported baseline runner is macOS, including the dedicated `macos-14` CI job. Linux Chromium/SwiftShader currently drops its GPU instance during texture-backed shader compilation (`Instance dropped in popErrorScope`); Linux support is not verified. The existing build, lint, and type checks remain on Linux.
+
+The runner serves a bundled harness on an ephemeral loopback port and launches the locked Playwright Chromium with an explicitly selected SwiftShader WebGPU adapter. No app server, account, or external services are required. Missing WebGPU, browser errors, shader compilation errors, missing baselines, and mismatches fail the command; tests do not silently skip or fall back to WebGL.
 
 Actual PNGs are saved in `.context/composition-test/`. Run `bun run test:composition --update` only when deliberately capturing a reviewed baseline. Never refresh existing legacy expectations just to make an alpha change pass.
 

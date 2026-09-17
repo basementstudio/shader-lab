@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160">
+  <defs>
+    <linearGradient id="tone"><stop stop-color="#004de6"/><stop offset="1" stop-color="#ffce45"/></linearGradient>
+    <radialGradient id="edge"><stop offset=".5" stop-color="#ff4c73"/><stop offset="1" stop-color="#ff4c73" stop-opacity="0"/></radialGradient>
+  </defs>
+  <path fill="url(#tone)" fill-rule="evenodd" d="M0 0h160v160H0z M50 50v60h60V50z"/>
+  <circle cx="80" cy="80" r="48" fill="url(#edge)"/>
+</svg>

@@ -14,6 +14,10 @@ Los PRs pequeños pueden integrarse progresivamente en la rama de V3. Ningún ca
 
 La rama de integración es `git-chad/shader-lab-v3-plan`. Todos los PRs pequeños de V3 deben usarla como base; únicamente el PR principal apunta a `main` y permanece en borrador hasta completar la validación obligatoria.
 
+PR principal: [#150 — V3: designer-focused composition and experimental graphics](https://github.com/basementstudio/shader-lab/pull/150).
+
+Primer paso de la fase 1: [baselines de composición y mapa del canal alfa](tests/composition/README.md). Esta cobertura inicial no cierra la fase ni sustituye la validación visual con las catorce referencias elegidas.
+
 ## Fase 1 — Resolver la base de composición y proteger proyectos existentes
 
 **Prioridad máxima:** transparencia, grupos y máscaras sostienen la composición. La preparación inicial debe ser breve y servir a la ejecución.

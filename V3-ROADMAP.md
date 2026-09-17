@@ -16,19 +16,23 @@ La rama de integración es `git-chad/shader-lab-v3-plan`. La pila comienza con [
 
 PR principal: [#150 — V3: designer-focused composition and experimental graphics](https://github.com/basementstudio/shader-lab/pull/150).
 
-Primer paso de la fase 1: [baselines de composición y mapa del canal alfa](tests/composition/README.md). Esta cobertura inicial no cierra la fase ni sustituye la validación visual con las catorce referencias elegidas.
+Primer paso de la fase 1: [baselines de composición y mapa del canal alfa](tests/composition/README.md). Esta cobertura inicial no cierra la fase ni sustituye la validación visual con las dieciséis referencias elegidas.
 
 Avance de 1.3: grupos aislados con hasta ocho niveles, controles del editor, reordenamiento de subárboles, plegado, visibilidad, opacidad, duplicación, deshacer, persistencia v7 y exportación de configuración. Las pruebas cubren estado, hidratación real y píxeles guardados/reabiertos. El usuario confirmó la prueba de aislamiento de foto + halftone, opacidad y plegado. La corrección posterior de arrastre permite entrar/salir de grupos con indicadores de destino y actualiza orden y pertenencia en una sola operación; la [lista manual ampliada](tests/composition/GROUPS-MANUAL-QA.md) sigue disponible para la validación global.
 
-**Prioridades revisadas con el usuario (17 de septiembre de 2026):** texto transparente por defecto (2.1) implementado en #156 y confirmado por el usuario. Siguiente entrega: prototipo de los anillos desplazados ya previstos en 3.2–3.3; no es una familia adicional. Posponer las máscaras básicas de círculo/rectángulo y su interfaz genérica: no bloquean texto ni la exploración de anillos; revisar cuándo retomarlas al cerrar el alcance de V3. Desarrollar modos de máscara adaptados al lenguaje visual de los efectos seleccionados. Registrar con prioridad baja una revisión de calidad de Blob Tracking y sus posibilidades como máscara (6.3).
+**Prioridades revisadas con el usuario (17 de septiembre de 2026):** texto transparente por defecto (2.1) implementado en #156 y confirmado por el usuario. Anillos desplazados implementados y validados visualmente; el usuario también confirmó la corrección de arrastre entre grupos. En curso: primer prototipo de recortes fotográficos por celdas (3.2–3.3). Posponer las máscaras básicas de círculo/rectángulo y su interfaz genérica: no bloquean texto ni la exploración de anillos; revisar cuándo retomarlas al cerrar el alcance de V3. Desarrollar modos de máscara adaptados al lenguaje visual de los efectos seleccionados. Registrar con prioridad baja una revisión de calidad de Blob Tracking y sus posibilidades como máscara (6.3).
 
 ## Fase 1 — Resolver la base de composición y proteger proyectos existentes
 
 **Prioridad máxima:** transparencia y grupos sostienen la composición. La cobertura alfa necesaria para los modos creativos de máscara se incorpora con los efectos que la usan; la interfaz de máscaras básicas queda aplazada. La preparación inicial debe ser breve y servir a la ejecución.
 
+### Referencias visuales obligatorias
+
+Antes de decidir el comportamiento o la apariencia de cualquier shader, abrir las imágenes pertinentes de [V3-VISUAL-REFERENCES.md](V3-VISUAL-REFERENCES.md). El directorio original y la copia local contienen las dieciséis referencias del usuario. Comparar renders con esas imágenes; las pruebas técnicas no sustituyen la revisión visual ni dan por terminada una familia.
+
 ### 1.1 Preparar pruebas y referencias mínimas
 
-Reunir las catorce imágenes elegidas y pruebas con fotografías, retratos, objetos, tipografía y video, variando luz y detalle. Guardar escenas existentes y resultados de referencia para comprobar su apariencia desde el primer cambio.
+Reunir las dieciséis imágenes elegidas y pruebas con fotografías, retratos, objetos, tipografía y video, variando luz y detalle. Guardar escenas existentes y resultados de referencia para comprobar su apariencia desde el primer cambio.
 
 ### 1.2 Comprobar el estado actual y corregir el canal alfa
 
@@ -41,6 +45,12 @@ Permitir regiones vacías junto a contenido totalmente opaco. Bajar la opacidad 
 Los grupos con alcance propio son **requisitos confirmados**, pedidos explícitamente por un colega diseñador. Las máscaras de grupo también se solicitaron, pero el usuario decidió posponer la interfaz de máscaras básicas y priorizar modos creativos ligados a efectos (1.4). Se propone composición aislada por defecto: procesar los contenidos pertinentes del grupo y luego integrarlo al conjunto. Sus efectos no deben afectar capas externas. Agregar carpetas sobre una cadena global de filtros no resuelve el requisito.
 
 Incluir organización, reordenamiento, plegado, visibilidad, opacidad, deshacer y guardado. Definir la profundidad de anidamiento durante la implementación, sin prometer reproducir todo Photoshop.
+
+**Ampliación acordada para más adelante — Pass Through:** añadir un modo opcional de grupo que permita a sus efectos procesar las capas inferiores externas, dentro del contexto de composición de su padre. Mantener **Isolated** como valor predeterminado, también para proyectos guardados que no indiquen un modo. Esta ampliación no bloquea las entregas en curso.
+
+Ofrecer una elección explícita entre Isolated y Pass Through, con una explicación breve de su alcance. Un grupo con Ink y Displaced Rings sobre una imagen externa debe dejarla intacta en Isolated y procesarla al elegir Pass Through. Las capas superiores y las que estén fuera de un ancestro aislado deben conservar su independencia. Definir el comportamiento de opacidad, mezcla y recorte del grupo antes de implementarlo; no asumir que basta con aplanar sus hijos.
+
+Validar grupos anidados y cambios de modo, visibilidad, reordenamiento, deshacer/rehacer, guardado/reapertura y paridad entre editor, runtime y exportación. Conservar la apariencia de todos los grupos aislados existentes.
 
 ### 1.4 Orientar las máscaras hacia modos creativos por efecto
 
@@ -106,7 +116,7 @@ Aplicar los nuevos valores únicamente a capas recién creadas y comparar proyec
 
 Explorar deterioro fotográfico, imágenes sintéticas o escultóricas y geometría, inspirados en afiches experimentales, discos, revistas de música electrónica, Photoshop y diseño de finales de los noventa y los dos mil. Admitir registros claros, oscuros, sobrios y coloridos.
 
-La base principal son las catorce imágenes elegidas, más Lovedance —forma roja sobre fotografía azul, atravesada por luces— y el collage monocromo de foto difusa, curvas técnicas y tipografía precisas. Transformar fotografía con geometría, tono, textura y composición sin limitarse al cyberpunk o una estética retro. Los archivos iniciales fueron exploratorios: solo dos ejemplos interesaron y una página de Paradiso falló.
+La base principal son las dieciséis imágenes elegidas, más Lovedance —forma roja sobre fotografía azul, atravesada por luces— y el collage monocromo de foto difusa, curvas técnicas y tipografía precisas. Transformar fotografía con geometría, tono, textura y composición sin limitarse al cyberpunk o una estética retro. Los archivos iniciales fueron exploratorios: solo dos ejemplos interesaron y una página de Paradiso falló.
 
 ### 3.2 Probar las tres familias recomendadas
 
@@ -129,6 +139,59 @@ Separar la transformación de la fotografía dentro de cada banda del modo que r
 **Primer prototipo implementado y validado visualmente por el usuario (valores iniciales a cargo del usuario):** Displaced Rings admite 1–128 bandas (48 comprobadas), anillos/semidiscos, centro, radio, distribución, desplazamiento alternado/progresivo/aleatorio con semilla, rotación global y por banda, escala progresiva, separación y bordes suaves. Output distingue Distort y Cutout; dentro de un grupo, Cutout revela las capas externas por los huecos. Editor y runtime comparten el comportamiento, con pruebas de píxeles, hidratación real, deshacer, guardado/reapertura y PNG. El catálogo incorpora una vista previa fotográfica y muestra el efecto primero. Ver [alcance y prueba manual](tests/composition/DISPLACED-RINGS-MANUAL-QA.md).
 
 Esto no cierra la fase 3: quedan la curaduría visual con las referencias completas, combinaciones con otros efectos, rendimiento con fotografías/video a resoluciones representativas y la selección de las otras familias. El prototipo usa transformaciones progresivas; no incluye controles individuales por anillo ni inversión de cobertura.
+
+**Valores iniciales de anillos elegidos por el usuario:** las capas nuevas usan 22 semidiscos, radio 2, rotación por anillo de 45°, desplazamiento y separación 0, con Output en Distort. Mantener los parámetros de escenas existentes y los valores anteriores cuando falten campos en archivos guardados.
+
+**Primer prototipo de celdas aceptado como base útil por el usuario; corregido el exceso de grosor de contornos al cambiar Gap:** Photographic Cells selecciona bloques rectangulares según zonas claras, oscuras o azar con semilla. Conserva el detalle fotográfico interior y permite ajustar tamaño, proporción, irregularidad de filas, separación, bordes suaves, inversión y contornos. Cutout revela las capas externas al grupo; Keep Image conserva la fotografía y superpone únicamente los contornos seleccionados. Incluye catálogo, editor/runtime, guardado/reapertura y PNG. Ver [alcance y prueba manual](tests/composition/PHOTOGRAPHIC-CELLS-MANUAL-QA.md). No cierra la familia: el usuario señala que todavía no alcanza las referencias. Quedan regiones fotográficas conectadas con siluetas escalonadas y contornos de perímetro (puente, `11-puente-recortes-geometricos.png`), regiones amplias de color con bordes celulares y puntos finos (afiche blanco, `05-recortes-celdas-color.png`), curaduría con las imágenes abiertas y validación temporal/de rendimiento con video. Evaluar selección de regiones conectadas y contornos sin divisiones internas; combinar capas para color/tramas cuando resulte más simple. La cuadrícula rectangular actual y sus contornos por celda son límites del prototipo, no el objetivo visual final.
+
+#### 3.3.1 Evolucionar Photographic Cells hacia regiones y revelado dirigido
+
+**Dirección acordada con el usuario; pendiente de implementación.** Mejorar la capa actual con regiones automáticas y contornos de perímetro primero. Incorporar después pintura manual como otra fuente de selección, útil aunque el modo automático funcione bien. Mantener pocos controles y reutilizar la geometría, transparencia y composición existentes.
+
+**Objetivo visual:** abrir y comparar `11-puente-recortes-geometricos.png` y `05-recortes-celdas-color.png` antes de decidir apariencia o valores iniciales. En el puente, conservar fotografía reconocible dentro de una silueta conectada con escalones y un contorno fino de color. En el afiche blanco, formar regiones amplias de color con bordes celulares, pequeños fragmentos alrededor y una trama mucho más fina que las celdas.
+
+**A. Regiones automáticas — primera entrega**
+
+- Añadir un modo **Regions** que seleccione conjuntos de celdas vecinas y produzca parches continuos. Explorar selección guiada por la imagen y patrones espaciales coherentes con semilla; conservar los modos actuales de selección por celda.
+- Separar **Region Size**, que determina la escala de los parches, de **Cell Size**, que determina el tamaño de los escalones del borde. Mantener detalle fotográfico completo dentro de cada región.
+- Reutilizar Threshold, inversión y Seed cuando sean pertinentes; mostrar solo los controles relevantes al modo elegido. A Gap 0, las celdas seleccionadas contiguas deben formar una superficie continua.
+- Separar internamente la selección de regiones de la generación de celdas y contornos. Tanto la selección automática como la pintura posterior deben alimentar el mismo resultado geométrico.
+- Evaluar los resultados con varias fotografías y regiones de color. La selección tonal o procedural no promete identificar sujetos: aislar exactamente el puente requiere una selección dirigida o trabajo posterior de detección. Si el automático no resulta útil, documentar el límite y priorizar pintura sin bloquear toda la mejora.
+
+**B. Contornos integrados en Photographic Cells — junto con regiones**
+
+- Mantener el contorno dentro de este efecto: necesita conocer la selección y la vecindad de sus celdas. Un efecto genérico para delinear imágenes, texto o grupos queda como posibilidad futura fuera de esta entrega.
+- Controles: **Outline → None / Perimeter / Every Cell**, **Width** y **Color**. Perimeter sigue la silueta revelada; Every Cell conserva la apariencia actual de contornos por celda.
+- En Perimeter, eliminar aristas compartidas entre celdas seleccionadas cuando formen una región continua. Delinear también los límites de huecos reales dentro de la región. Comprobar uniones, esquinas y filas irregulares sin costuras internas.
+- Definir y comprobar el comportamiento con Gap positivo sobre la cobertura resultante: las separaciones reales pueden crear contornos, sin inflar el grosor. Conservar la corrección reciente de antialiasing, el alfa de la fuente y el comportamiento de Cutout / Keep Image.
+- Aplicar los mismos modos de contorno a regiones automáticas y pintadas. Mantener la apariencia de proyectos anteriores: al faltar el nuevo selector, un contorno existente conserva Every Cell y un ancho cero sigue sin dibujar contorno.
+
+**C. Pintura manual — entrega posterior sobre la misma selección**
+
+- Añadir **Paint** como modo de selección de la capa. El usuario pinta dónde quiere revelar la fotografía; la geometría convierte esa área en bloques escalonados. Cambiar Cell Size ajusta la fidelidad al trazo sin borrar lo pintado.
+- Interfaz mínima: **Reveal / Erase**, **Brush Size** y **Clear**, con una acción explícita para entrar y salir de pintura. Mostrar la huella del pincel y evitar conflictos con selección, desplazamiento y zoom del lienzo.
+- Mantener la pintura alineada en coordenadas de composición al cambiar zoom, tamaño de vista o resolución de exportación. La pintura representa cobertura de esta capa; no incorpora seguimiento automático del sujeto en video.
+- Un trazo debe poder deshacerse/rehacerse como una sola acción; Clear también debe ser reversible. Conservar lo pintado al cambiar temporalmente de modo y definir su persistencia en duplicación, guardado/reapertura e hidratación real del editor.
+- Incluir la selección pintada en el archivo de proyecto y en la configuración/recursos exportados al runtime. Vista previa, PNG y render de video deben reproducirla sin depender del estado temporal del editor.
+- Esta herramienta es un modo de revelado propio de Photographic Cells. No reactiva el trabajo pospuesto de máscaras geométricas genéricas ni exige la revisión de Blob Tracking.
+
+**D. Refinamientos visuales a evaluar después**
+
+- **Edge Scatter:** probar un único control que fragmente celdas cerca del perímetro, preservando las regiones principales. Comparar con los pequeños cuadrados alrededor de las manchas del afiche blanco antes de decidir su incorporación.
+- **Puntos finos:** probar primero una composición con la capa de halftone existente, manteniendo una escala de trama menor que Cell Size. Evaluar el orden y el alcance del grupo para que la trama respete la región revelada. Añadir controles propios solo si esa combinación no alcanza un resultado útil.
+- Color, anotaciones técnicas y tipografía pueden venir de otras capas. Preparar composiciones editables que demuestren el conjunto sin recargar este efecto.
+
+**Orden y aceptación:** entregar A+B primero en un PR apilado; revisar renders y obtener feedback del usuario. Continuar con C en una entrega posterior; evaluar D con esas herramientas disponibles. No considerar implementada ninguna mejora por haberla documentado. Mantener todos los PR dentro de la pila V3 hasta completar el plan.
+
+**Criterios de cierre de esta mejora:**
+
+- Una región de varias celdas a Gap 0 muestra fotografía continua, contorno exterior fino y ausencia de divisiones internas en Perimeter; Every Cell reproduce las divisiones deliberadamente. Comprobar regiones separadas, huecos y filas irregulares.
+- Region Size cambia la escala de los parches y Cell Size cambia los escalones sin convertir el interior en colores planos. Comparar capturas con las referencias 05 y 11, incluyendo una composición sobre blanco con amplio espacio vacío.
+- En Paint, poder revelar un detalle elegido, borrar parte, cambiar Cell Size y zoom, deshacer/rehacer, guardar/reabrir y exportar conservando el área elegida y sus contornos.
+- Mantener aislamiento de grupos, transparencia de la fuente, ancho de contorno estable al variar Gap, compatibilidad de proyectos anteriores y equivalencia editor/runtime. Ampliar pruebas de GPU, hidratación mediante `applyLabProjectFile`, historial y exportación según cada entrega.
+- Medir respuesta interactiva con fotografía y video a resoluciones representativas; comprobar estabilidad temporal de regiones automáticas. Documentar límites junto a las capturas revisadas. Pasar `bun run check` y `bun run test:composition` al implementar; la revisión visual del usuario sigue siendo necesaria.
+
+**Idea para ampliar anillos, todavía por elegir:** probar una única familia de formas concéntricas (círculo, triángulo y cuadrado) reutilizando conteo, rotación, desplazamiento y separación. Separar la forma base del corte completo/mitad permitiría extender los semidiscos sin multiplicar controles. No implementar esta ampliación en el prototipo de celdas; presentar la propuesta al usuario primero.
 
 ### 3.4 Reorganizar el catálogo junto con cada incorporación
 

@@ -12,6 +12,13 @@ export interface LayerCatalogEntry {
 
 export const LAYER_CATALOG: Record<LayerType, LayerCatalogEntry> = {
   group: { label: "Group" },
+  "photographic-cells": {
+    category: "distort",
+    label: "Photographic Cells",
+    description:
+      "Reveal photographic blocks selected by tone or chance. Group with a photo to keep the cutout isolated.",
+    previewSrc: "/examples/photographic-cells.webp",
+  },
   "displaced-rings": {
     category: "distort",
     label: "Displaced Rings",

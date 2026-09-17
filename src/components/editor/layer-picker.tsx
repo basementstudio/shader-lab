@@ -59,6 +59,7 @@ export type AddLayerAction =
   | "pixel-sorting"
   | "plotter"
   | "posterize"
+  | "photographic-cells"
   | "displaced-rings"
   | "slice"
   | "smear"
@@ -114,6 +115,7 @@ const SOURCE_ITEMS: readonly SourceItem[] = SOURCE_ICONS.map(
 )
 
 const EFFECT_ORDER: readonly AddLayerAction[] = [
+  "photographic-cells",
   "displaced-rings",
   "ascii",
   "ink",

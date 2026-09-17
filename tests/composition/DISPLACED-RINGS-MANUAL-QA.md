@@ -1,12 +1,12 @@
 # Displaced Rings prototype
 
-This is the first ring-family slice from roadmap 3.2–3.3, awaiting the user's visual feedback. Generic circle/rectangle masks remain postponed.
+This is the first ring-family slice from roadmap 3.2–3.3, with its visual direction confirmed by the user. Generic circle/rectangle masks remain postponed.
 
 ## Focused test
 
 1. Put a photograph in a group. Keep a colored background below the group and a text layer above it, outside the group.
 2. Select the photo, add **Displaced Rings**, and keep it above the photo inside that group.
-3. Set **Output → Cutout**, **Shape → Half-discs**, **Rings → 8**, **Rotation per Ring → 27°**, **Offset → X 0.09 / Y 0.025**, and **Gap → 0.07**.
+3. Set **Output → Cutout**, **Shape → Half-discs**, **Rings → 8**, **Radius → 0.8**, **Rotation per Ring → 27°**, **Offset → X 0.09 / Y 0.025**, and **Gap → 0.07**.
 4. Change **Rings** to **48**, then return to 8. Change Rotation per Ring and Offset.
 
 Expected: displaced photographic arcs rotate and shift; their gaps reveal the background outside the group. External text remains intact. The 48-ring setting produces much finer fragmentation. There are no black rectangles replacing the holes.
@@ -26,3 +26,7 @@ The effect accepts 1–128 bands. Radius and Offset use the shorter composition 
 Cutout clips the accumulated content below it in its current group. At the scene root it acts on the root composition. Use a group to isolate a photograph from lower scene layers. The existing layer-level Mask setting is separate and retains its legacy behavior.
 
 Automated checks cover editor/runtime GPU parity, displaced color and alpha, 48 distinct bands, real editor hydration/history, runtime config export, and preview/PNG comparison. The catalog thumbnail uses the bundled photographic sample with the half-disc settings above. Representative video export, hardware performance, and full artistic-reference comparison remain to be validated; 128 is a bounded prototype limit, not a real-time performance guarantee.
+
+## User-curated new-layer defaults
+
+New rings use Distort, Half-discs, 22 rings, radius 2, 45° rotation per ring, and zero offset/gap. Other controls retain their defaults. Saved explicit settings are unchanged. Missing saved fields use the old defaults (Rings, 8, radius 0.9, 12°, offset 0.045/0, gap 0.04), matching unchanged runtime fallbacks. The photographic stress-test thumbnail retains its original explicit 8-band setup.

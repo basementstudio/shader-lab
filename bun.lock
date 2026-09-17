@@ -51,6 +51,7 @@
         "babel-plugin-react-compiler": "1.0.0",
         "cross-env": "^10.1.0",
         "drizzle-kit": "^0.31.10",
+        "playwright": "^1.63.0",
         "postcss-preset-env": "^10.6.1",
         "tailwindcss": "^4.1.18",
         "typescript": "^5.9.3",
@@ -58,7 +59,7 @@
     },
     "packages/shader-lab-mcp": {
       "name": "@basementstudio/shader-lab-mcp",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "bin": {
         "shader-lab-mcp": "dist/stdio.js",
       },
@@ -78,7 +79,7 @@
     },
     "packages/shader-lab-react": {
       "name": "@basementstudio/shader-lab",
-      "version": "3.0.0",
+      "version": "3.0.2",
       "dependencies": {
         "typescript": "^5.9.3",
       },
@@ -1911,6 +1912,10 @@
     "pify": ["pify@4.0.1", "", {}, "sha512-uB80kBFb/tfd68bVleG9T5GGsGPjJrLAUpR5PZIrhBnIaRTQRjqdJSsIKkOP6OAIFbj7GOrcudc5pNjZ+geV2g=="],
 
     "pkce-challenge": ["pkce-challenge@5.0.1", "", {}, "sha512-wQ0b/W4Fr01qtpHlqSqspcj3EhBvimsdh0KlHhH8HRZnMsEa0ea2fTULOXOS9ccQr3om+GcGRk4e+isrZWV8qQ=="],
+
+    "playwright": ["playwright@1.63.0", "", { "dependencies": { "playwright-core": "1.63.0" }, "bin": { "playwright": "cli.js" } }, "sha512-+7ziBLidS4NaNCdt57SUDT+wYmmd5fmiQejUic/kb+YsYSCPyOOE9sebzMjNmQrsnNpDJqd4WHvV/8lfKfUDUg=="],
+
+    "playwright-core": ["playwright-core@1.63.0", "", { "bin": { "playwright-core": "cli.js" } }, "sha512-rYCsBF/M5HjUch52bbtVONEFjv6Xu8sm8h72dNlR5bzIE1fvC/bxgspzkjSfU+MweEMmPM8KJebG6nnyxo5mCg=="],
 
     "postcss": ["postcss@8.5.8", "", { "dependencies": { "nanoid": "^3.3.11", "picocolors": "^1.1.1", "source-map-js": "^1.2.1" } }, "sha512-OW/rX8O/jXnm82Ey1k44pObPtdblfiuWnrd8X7GJ7emImCOstunGbXUpp7HdBrFQX6rJzn3sPT397Wp5aCwCHg=="],
 

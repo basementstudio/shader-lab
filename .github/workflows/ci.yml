@@ -47,6 +47,12 @@ jobs:
       - name: Type check app
         run: bun run typecheck:tsc
 
+      - name: Install composition test browser
+        run: bunx playwright install --with-deps chromium
+
+      - name: Check composition baselines
+        run: bun run test:composition
+
       - name: Ensure changeset exists for PR changes
         if: github.event_name == 'pull_request'
         run: bunx changeset status --since=origin/${{ github.base_ref }}

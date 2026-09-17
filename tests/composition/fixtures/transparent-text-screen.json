@@ -1,0 +1,177 @@
+{
+  "format": "shader-lab",
+  "version": 6,
+  "composition": {
+    "width": 256,
+    "height": 192
+  },
+  "assets": [
+    {
+      "id": "sample",
+      "kind": "image",
+      "fileName": "alpha-sample.svg",
+      "url": "/scenes/default/alpha-sample.svg",
+      "mimeType": "image/svg+xml",
+      "width": 160,
+      "height": 160,
+      "duration": null,
+      "sizeBytes": 570
+    }
+  ],
+  "layers": [
+    {
+      "assetId": null,
+      "blendMode": "screen",
+      "compositeMode": "filter",
+      "expanded": true,
+      "hue": 0,
+      "id": "text",
+      "kind": "source",
+      "locked": false,
+      "maskConfig": {
+        "invert": false,
+        "mode": "multiply",
+        "source": "luminance"
+      },
+      "name": "Text",
+      "opacity": 1,
+      "params": {
+        "text": "V3",
+        "anchor": "center",
+        "offset": [
+          0,
+          0
+        ],
+        "fontSize": 96,
+        "fontFamily": "mono",
+        "fontWeight": 400,
+        "letterSpacing": 0,
+        "textColor": "#ff713d",
+        "backgroundColor": "#000000",
+        "backgroundAlpha": 0
+      },
+      "runtimeError": null,
+      "saturation": 1,
+      "type": "text",
+      "visible": true
+    },
+    {
+      "assetId": "sample",
+      "blendMode": "normal",
+      "compositeMode": "filter",
+      "expanded": true,
+      "hue": 0,
+      "id": "image",
+      "kind": "source",
+      "locked": false,
+      "maskConfig": {
+        "invert": false,
+        "mode": "multiply",
+        "source": "luminance"
+      },
+      "name": "Image",
+      "opacity": 1,
+      "params": {
+        "fitMode": "contain",
+        "scale": 1,
+        "offset": [
+          0,
+          0
+        ],
+        "svgRasterResolution": "2048"
+      },
+      "runtimeError": null,
+      "saturation": 1,
+      "type": "image",
+      "visible": true
+    }
+  ],
+  "selectedLayerId": "text",
+  "sceneConfig": {
+    "backgroundColor": "#080808",
+    "compositionAspect": "screen",
+    "compositionWidth": 1920,
+    "compositionHeight": 1080,
+    "exposure": 0,
+    "brightness": 0,
+    "contrast": 0,
+    "saturation": 1,
+    "vibrance": 0,
+    "hue": 0,
+    "temperature": 0,
+    "tint": 0,
+    "invert": false,
+    "channelMixer": {
+      "rr": 1,
+      "rg": 0,
+      "rb": 0,
+      "gr": 0,
+      "gg": 1,
+      "gb": 0,
+      "br": 0,
+      "bg": 0,
+      "bb": 1
+    },
+    "colorCurves": {
+      "blue": {
+        "points": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 1,
+            "y": 1
+          }
+        ]
+      },
+      "green": {
+        "points": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 1,
+            "y": 1
+          }
+        ]
+      },
+      "red": {
+        "points": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 1,
+            "y": 1
+          }
+        ]
+      },
+      "rgb": {
+        "points": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 1,
+            "y": 1
+          }
+        ]
+      }
+    },
+    "clampMin": 0,
+    "clampGamma": 1,
+    "clampMax": 1,
+    "quantizeEnabled": false,
+    "quantizeLevels": 256,
+    "colorMap": null
+  },
+  "timeline": {
+    "duration": 5,
+    "loop": true,
+    "tracks": []
+  }
+}

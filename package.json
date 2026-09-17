@@ -31,6 +31,7 @@
     "version-canary": "changeset version --snapshot canary",
     "version-packages": "changeset version",
     "start": "next start",
+    "test:composition": "bun tests/composition/run.mjs",
     "typecheck": "tsgo --noEmit",
     "typecheck:runtime": "bun run --cwd packages/shader-lab-react typecheck",
     "typecheck:compare": "bun run typecheck:tsc && bun run typecheck",
@@ -84,6 +85,7 @@
     "babel-plugin-react-compiler": "1.0.0",
     "cross-env": "^10.1.0",
     "drizzle-kit": "^0.31.10",
+    "playwright": "^1.63.0",
     "postcss-preset-env": "^10.6.1",
     "tailwindcss": "^4.1.18",
     "typescript": "^5.9.3"

@@ -1,0 +1,204 @@
+{
+  "format": "shader-lab",
+  "version": 6,
+  "composition": {
+    "width": 256,
+    "height": 192
+  },
+  "assets": [
+    {
+      "id": "sample",
+      "kind": "image",
+      "fileName": "alpha-sample.svg",
+      "url": "/scenes/default/alpha-sample.svg",
+      "mimeType": "image/svg+xml",
+      "width": 160,
+      "height": 160,
+      "duration": null,
+      "sizeBytes": 570
+    }
+  ],
+  "layers": [
+    {
+      "assetId": null,
+      "blendMode": "normal",
+      "compositeMode": "filter",
+      "expanded": true,
+      "hue": 0,
+      "id": "halftone",
+      "kind": "effect",
+      "locked": false,
+      "maskConfig": {
+        "invert": false,
+        "mode": "multiply",
+        "source": "luminance"
+      },
+      "name": "Halftone",
+      "opacity": 0.65,
+      "params": {
+        "colorMode": "cmyk",
+        "shape": "circle",
+        "spacing": 5,
+        "dotSize": 1,
+        "dotMin": 0,
+        "angle": 28,
+        "contrast": 1,
+        "softness": 0.25,
+        "dotGain": 0,
+        "dotMorph": 0,
+        "invertLuma": false,
+        "customColorCount": 4,
+        "customLuminanceBias": 0,
+        "bloomEnabled": false,
+        "bloomIntensity": 1.25,
+        "bloomThreshold": 0.6,
+        "bloomRadius": 6,
+        "bloomSoftness": 0.35,
+        "customBgColor": "#F5F5F0",
+        "customColor1": "#0d1014",
+        "customColor2": "#4d5057",
+        "customColor3": "#969aa2",
+        "customColor4": "#e1e2de",
+        "ink": "#0d1014",
+        "duotoneLight": "#F5F5F0",
+        "duotoneDark": "#1d1d1c",
+        "preset": "process",
+        "gcr": 0.5,
+        "cmykBlend": "subtractive",
+        "cyanAngle": 15,
+        "magentaAngle": 75,
+        "yellowAngle": 0,
+        "keyAngle": 45,
+        "paperColor": "#F5F5F0",
+        "paperGrain": 0.15,
+        "registration": 0,
+        "inkCyan": "#00AEEF",
+        "inkMagenta": "#EC008C",
+        "inkYellow": "#FFF200",
+        "inkKey": "#1a1a1a"
+      },
+      "runtimeError": null,
+      "saturation": 1,
+      "type": "halftone",
+      "visible": true
+    },
+    {
+      "assetId": "sample",
+      "blendMode": "normal",
+      "compositeMode": "filter",
+      "expanded": true,
+      "hue": 0,
+      "id": "image",
+      "kind": "source",
+      "locked": false,
+      "maskConfig": {
+        "invert": false,
+        "mode": "multiply",
+        "source": "luminance"
+      },
+      "name": "Image",
+      "opacity": 1,
+      "params": {
+        "fitMode": "contain",
+        "scale": 1,
+        "offset": [
+          0,
+          0
+        ],
+        "svgRasterResolution": "2048"
+      },
+      "runtimeError": null,
+      "saturation": 1,
+      "type": "image",
+      "visible": true
+    }
+  ],
+  "selectedLayerId": "halftone",
+  "sceneConfig": {
+    "backgroundColor": "#080808",
+    "compositionAspect": "screen",
+    "compositionWidth": 1920,
+    "compositionHeight": 1080,
+    "exposure": 0,
+    "brightness": 0,
+    "contrast": 0,
+    "saturation": 1,
+    "vibrance": 0,
+    "hue": 0,
+    "temperature": 0,
+    "tint": 0,
+    "invert": false,
+    "channelMixer": {
+      "rr": 1,
+      "rg": 0,
+      "rb": 0,
+      "gr": 0,
+      "gg": 1,
+      "gb": 0,
+      "br": 0,
+      "bg": 0,
+      "bb": 1
+    },
+    "colorCurves": {
+      "blue": {
+        "points": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 1,
+            "y": 1
+          }
+        ]
+      },
+      "green": {
+        "points": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 1,
+            "y": 1
+          }
+        ]
+      },
+      "red": {
+        "points": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 1,
+            "y": 1
+          }
+        ]
+      },
+      "rgb": {
+        "points": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 1,
+            "y": 1
+          }
+        ]
+      }
+    },
+    "clampMin": 0,
+    "clampGamma": 1,
+    "clampMax": 1,
+    "quantizeEnabled": false,
+    "quantizeLevels": 256,
+    "colorMap": null
+  },
+  "timeline": {
+    "duration": 5,
+    "loop": true,
+    "tracks": []
+  }
+}

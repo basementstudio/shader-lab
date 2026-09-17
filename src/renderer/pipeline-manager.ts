@@ -1,3 +1,9 @@
+import {
+  type CompositionNode,
+  flattenComposition,
+  isCompositionGroup,
+} from "./composition-tree"
+import { GroupPass } from "./group-pass"
 import { float, type TSLNode, texture as tslTexture, uv, vec2 } from "three/tsl"
 import * as THREE from "three/webgpu"
 import { isSvgMediaSource } from "@/lib/editor/media-file"
@@ -208,8 +214,11 @@ export class PipelineManager {
     this.blitScene.add(blitMesh)
   }
 
-  syncLayers(layers: RenderableLayerPass[]): void {
-    const incomingIds = new Set(layers.map((layer) => layer.layer.id))
+  syncLayers(layers: CompositionNode<RenderableLayerPass>[]): void {
+    const getId = (node: CompositionNode<RenderableLayerPass>) =>
+      isCompositionGroup(node) ? node.id : node.layer.id
+    const flattened = flattenComposition(layers, (node) => node.layer.id)
+    const incomingIds = new Set(flattened.map(getId))
 
     for (const [layerId, pass] of this.passMap) {
       if (incomingIds.has(layerId)) {
@@ -226,17 +235,32 @@ export class PipelineManager {
       this.markDirty()
     }
 
-    const orderedPasses: LayerPassNode[] = []
-
-    for (const renderableLayer of layers) {
-      const layerId = renderableLayer.layer.id
-      const signature = createLayerSignature(renderableLayer)
+    for (const node of flattened) {
+      const layerId = getId(node)
+      const group = isCompositionGroup(node)
+      const signature = group
+        ? JSON.stringify([node.visible, node.opacity, node.blendMode])
+        : createLayerSignature(node)
       let pass = this.passMap.get(layerId)
 
-      this.layerTypes.set(layerId, renderableLayer.layer.type)
-
+      if (pass && pass instanceof GroupPass !== group) {
+        pass.dispose()
+        this.passMap.delete(layerId)
+        this.layerSignatures.delete(layerId)
+        this.compilingPasses.delete(layerId)
+        this.compiledVersions.delete(layerId)
+        pass = undefined
+      }
+      this.layerTypes.set(layerId, group ? "group" : node.layer.type)
+      const created = !pass
       if (!pass) {
-        pass = this.createPass(renderableLayer.layer)
+        pass = group
+          ? new GroupPass(
+              layerId,
+              (child) => this.isActive(child),
+              (...args) => this.renderPass(...args)
+            )
+          : this.createPass(node.layer)
         pass.resize(this.width, this.height)
         pass.updateLogicalSize(this.logicalWidth, this.logicalHeight)
         this.passMap.set(layerId, pass)
@@ -246,20 +270,38 @@ export class PipelineManager {
       if (this.layerSignatures.get(layerId) !== signature) {
         const versionBefore = pass.getMaterialVersion()
         this.layerSignatures.set(layerId, signature)
-        this.applyLayerState(pass, renderableLayer)
+        if (group) {
+          pass.enabled = node.visible
+          pass.updateOpacity(clampUnit(node.opacity))
+          pass.updateBlendMode(node.blendMode)
+          pass.flushColorNode()
+        } else {
+          this.applyLayerState(pass, node)
+        }
         this.markDirty()
 
-        if (pass.getMaterialVersion() !== versionBefore) {
-          // Recover on a material rebuild, not on any signature change: keyframed
-          // and audio-driven values change the signature every frame, which would
-          // reset the failure count before it could ever throttle.
+        if ((created && group) || pass.getMaterialVersion() !== versionBefore) {
+          // Animated uniform changes must not reset repeated render failures.
+          // Only a new pass or rebuilt material re-enables a dropped pass.
           this.clearPassFailure(layerId)
           this.scheduleCompile(pass)
         }
       }
-
-      orderedPasses.push(pass)
     }
+
+    // All passes exist before wiring children, so reparenting preserves media state.
+    for (const node of flattened) {
+      if (!isCompositionGroup(node)) continue
+      const pass = this.passMap.get(node.id) as GroupPass
+      if (
+        pass.setChildren(
+          node.children.map((child) => this.passMap.get(getId(child))!)
+        )
+      ) {
+        this.markDirty()
+      }
+    }
+    const orderedPasses = layers.map((node) => this.passMap.get(getId(node))!)
 
     if (
       orderedPasses.length !== this.passes.length ||
@@ -272,12 +314,8 @@ export class PipelineManager {
 
   render(time: number, delta: number, timelineTime = time): boolean {
     if (this.activePassesDirty) {
-      this.cachedActivePasses = this.passes.filter(
-        (pass) =>
-          pass.enabled &&
-          !this.isPassDisabled(pass.layerId) &&
-          (!this.compilingPasses.has(pass.layerId) ||
-            this.compiledVersions.has(pass.layerId))
+      this.cachedActivePasses = this.passes.filter((pass) =>
+        this.isActive(pass)
       )
       this.activePassesDirty = false
     }
@@ -305,43 +343,17 @@ export class PipelineManager {
     let writeTarget = this.rtB
 
     for (const pass of activePasses) {
-      try {
-        ;(
-          pass.render as (
-            renderer: THREE.WebGPURenderer,
-            inputTexture: THREE.Texture,
-            outputTarget: THREE.WebGLRenderTarget,
-            time: number,
-            delta: number,
-            timelineTime: number
-          ) => void
-        )(
-          this.renderer,
+      if (
+        !this.renderPass(
+          pass,
           readTarget.texture,
           writeTarget,
           time,
           delta,
           timelineTime
         )
-      } catch (error) {
-        // Exports must fail loudly: dropping a layer would ship a frame that
-        // looks fine but is wrong. Still report, so the abort is diagnosable.
-        if (this.strictPassFailures) {
-          reportPassFailure(
-            this.layerTypes.get(pass.layerId),
-            pass.layerId,
-            "pass-render",
-            error
-          )
-          throw error
-        }
-
-        this.handlePassRenderFailure(pass.layerId, error)
-        // Skip the swap: the failed pass contributes nothing.
+      )
         continue
-      }
-
-      this.passFailures.delete(pass.layerId)
 
       const previousRead = readTarget
       readTarget = writeTarget
@@ -478,8 +490,8 @@ export class PipelineManager {
     pass.enabled = renderableLayer.layer.visible
     pass.updateCompositionRole(
       renderableLayer.layer.kind === "effect" ||
-      (renderableLayer.layer.type === "custom-shader" &&
-        renderableLayer.params.effectMode === true)
+        (renderableLayer.layer.type === "custom-shader" &&
+          renderableLayer.params.effectMode === true)
         ? "effect"
         : "source"
     )
@@ -565,6 +577,51 @@ export class PipelineManager {
     }
   }
 
+  private isActive(pass: PassNode): boolean {
+    return (
+      pass.enabled &&
+      !this.isPassDisabled(pass.layerId) &&
+      (!this.compilingPasses.has(pass.layerId) ||
+        this.compiledVersions.has(pass.layerId))
+    )
+  }
+
+  private renderPass(
+    pass: PassNode,
+    input: THREE.Texture,
+    output: THREE.WebGLRenderTarget,
+    time: number,
+    delta: number,
+    timelineTime: number
+  ): boolean {
+    try {
+      ;(
+        pass.render as (
+          renderer: THREE.WebGPURenderer,
+          input: THREE.Texture,
+          output: THREE.WebGLRenderTarget,
+          time: number,
+          delta: number,
+          timelineTime: number
+        ) => void
+      )(this.renderer, input, output, time, delta, timelineTime)
+    } catch (error) {
+      if (this.strictPassFailures) {
+        reportPassFailure(
+          this.layerTypes.get(pass.layerId),
+          pass.layerId,
+          "pass-render",
+          error
+        )
+        throw error
+      }
+      this.handlePassRenderFailure(pass.layerId, error)
+      return false
+    }
+    this.passFailures.delete(pass.layerId)
+    return true
+  }
+
   private isPassDisabled(layerId: string): boolean {
     return (this.passFailures.get(layerId)?.total ?? 0) >= MAX_PASS_FAILURES
   }
@@ -614,11 +671,13 @@ export class PipelineManager {
     renderer
       .compileAsync(scene, camera)
       .then(() => {
+        if (this.passMap.get(pass.layerId) !== pass) return
         this.compilingPasses.delete(pass.layerId)
         this.compiledVersions.set(pass.layerId, pass.getMaterialVersion())
         this.markDirty()
       })
       .catch((error: unknown) => {
+        if (this.passMap.get(pass.layerId) !== pass) return
         // Keep the delete: dropping it wedges hasPendingCompilations().
         this.compilingPasses.delete(pass.layerId)
         reportPassFailure(

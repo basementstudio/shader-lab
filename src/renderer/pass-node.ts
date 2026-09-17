@@ -13,7 +13,7 @@ import {
   vec3,
   vec4,
 } from "three/tsl"
-import { buildBlendNode } from "@/renderer/blend-modes"
+import { buildBlendNode, type CompositionRole } from "@/renderer/blend-modes"
 import type { BloomCompositor } from "@/renderer/dual-filter-bloom"
 import type {
   LayerCompositeMode,
@@ -45,6 +45,7 @@ export class PassNode {
   protected lastOutputTarget: THREE.WebGLRenderTarget | null = null
   private effectSwapGeneration = 0
   private blendMode = "normal"
+  private compositionRole: CompositionRole = "effect"
   private compositeMode: LayerCompositeMode = "filter"
   private maskSource = "luminance"
   private maskMode = "multiply"
@@ -55,7 +56,10 @@ export class PassNode {
     this.layerId = layerId
     this.scene = new THREE.Scene()
     this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
+    // The shader already composites the full pixel. NoBlending also prevents
+    // Three's opaque-material path from overwriting the computed alpha.
     this.material = new THREE.MeshBasicNodeMaterial()
+    this.material.blending = THREE.NoBlending
     this.opacityUniform = uniform(1)
     this.hueUniform = uniform(0)
     this.saturationUniform = uniform(1)
@@ -102,6 +106,13 @@ export class PassNode {
 
   updateOpacity(opacity: number): void {
     this.opacityUniform.value = opacity
+  }
+
+  updateCompositionRole(role: CompositionRole): void {
+    if (role !== this.compositionRole) {
+      this.compositionRole = role
+      this.colorNodeDirty = true
+    }
   }
 
   updateBlendMode(blendMode: string): boolean {
@@ -229,6 +240,7 @@ export class PassNode {
 
     const generation = ++this.effectSwapGeneration
     const nextMaterial = new THREE.MeshBasicNodeMaterial()
+    nextMaterial.blending = THREE.NoBlending
     nextMaterial.colorNode = this.composeColorNode(nextEffectNode)
 
     const standbyScene = new THREE.Scene()
@@ -288,6 +300,7 @@ export class PassNode {
             source: this.maskSource,
           }
         : undefined,
+      this.compositionRole,
     ) as Node
   }
 

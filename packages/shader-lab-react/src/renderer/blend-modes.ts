@@ -161,6 +161,8 @@ export type MaskNodeConfig = {
   source: string
 }
 
+export type CompositionRole = "source" | "effect"
+
 export function buildBlendNode(
   mode: string,
   base: Node,
@@ -168,6 +170,7 @@ export function buildBlendNode(
   opacity: Node,
   compositeMode: "filter" | "mask" = "filter",
   maskConfig?: MaskNodeConfig,
+  role: CompositionRole = "source",
 ): Node {
   const baseRgb = base.rgb
   const blendRgb = blend.rgb
@@ -228,8 +231,32 @@ export function buildBlendNode(
   }
 
   if (compositeMode === "filter") {
-    return vec4(mix(baseRgb, composited, normalizedOpacity.mul(blendAlpha)), float(1))
+    const baseAlpha = float(clamp(base.a, float(0), float(1)))
+    const amount = normalizedOpacity.mul(blendAlpha)
+    const filteredRgb = mix(baseRgb, composited, amount)
+
+    if (role === "effect") {
+      // An effect's output alpha controls its strength, not a second layer of
+      // coverage. Preserve the input silhouette through repeated filtering.
+      return vec4(filteredRgb, baseAlpha)
+    }
+
+    // Straight-alpha source-over, with blending only where source and backdrop
+    // overlap. See https://www.w3.org/TR/compositing-1/#blending .
+    const outputAlpha = amount.add(baseAlpha.mul(float(1).sub(amount)))
+    const sourceRgb = mix(blendRgb, composited, baseAlpha)
+    const premultipliedRgb = sourceRgb.mul(amount).add(
+      baseRgb.mul(baseAlpha).mul(float(1).sub(amount)),
+    )
+    // Avoid division by zero without dimming tiny but nonzero coverage.
+    const denominator = select(outputAlpha.greaterThan(0), outputAlpha, float(1))
+    const outputRgb = premultipliedRgb.div(denominator)
+    // Keep the exact existing expression for opaque backdrops.
+    return vec4(select(baseAlpha.equal(1), filteredRgb, outputRgb), outputAlpha)
   }
+
+  // Existing mask mode is a saved RGB-darkening operation. Coverage masks
+  // require an explicit compatibility path and are not introduced here.
 
   const source = maskConfig?.source ?? "luminance"
   let maskValue: Node

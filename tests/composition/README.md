@@ -1,6 +1,6 @@
 # V3 composition baselines
 
-Regression coverage for roadmap steps 1.1–1.2. The first PR establishes legacy baselines; its stacked successor adds transparent media bounds. Full transparent composition, groups, and new masks remain outstanding.
+Regression coverage for roadmap steps 1.1–1.2. The first PR establishes legacy baselines; its stacked successors add transparent media bounds and alpha-aware source/effect composition. Transparent scene/export backgrounds, groups, and new masks remain outstanding.
 
 Integration branch: `git-chad/shader-lab-v3-plan`. Parent PR: [#150](https://github.com/basementstudio/shader-lab/pull/150). The first child, [#151](https://github.com/basementstudio/shader-lab/pull/151), targets integration. Each subsequent stacked PR targets the preceding feature branch, never `main`.
 
@@ -47,25 +47,35 @@ This change reveals lower content at empty media bounds; it does not make the sc
 
 ## Confirmed alpha boundaries
 
+### Source/effect composition foundation
+
+The shared compositor now treats source layers as straight-alpha source-over and effect layers as coverage-preserving color filters. Source blending follows the [W3C general blending/compositing formula](https://www.w3.org/TR/compositing-1/#blending), including backdrop coverage when applying blend modes. Zero-coverage output is finite and tiny nonzero coverage does not darken RGB. The opaque-backdrop path retains the previous RGB expression.
+
+Effect output alpha continues to control effect strength (`layer opacity × effect alpha`); it does not add new coverage over the input. The layer kind determines this role, with custom shaders in Effect Mode treated as effects. This is the initial policy: spatial effects still need per-effect evaluation of displaced/blurred coverage before claiming complete alpha support.
+
+Pass materials (including asynchronously replaced materials), texture copies, and scene grading retain alpha instead of forcing it opaque. Materials use `NoBlending` because the shader has already computed the final pixel; another GPU blend would apply alpha twice. Internal textures use straight RGB and alpha. Runtime callers supplying premultiplied input need to convert it to straight alpha first.
+
+`alpha-compositing.mjs` checks analytic source-over examples, all blend modes against empty backdrops, finite empty pixels, tiny alpha, source/effect opacity, adjacent transparent/opaque pixels, repeated filtering, actual pass material creation/replacement, scene grading, and the headless runtime pipeline. It checks source/effect role selection using real gradient and posterize layers over a translucent external texture. All legacy PNGs and mask samples remain unchanged.
+
 These findings come from source inspection and the limited GPU checks above, not a completed end-to-end alpha audit.
 
 | Boundary | Current behavior | Required follow-up |
 | --- | --- | --- |
-| `blend-modes.ts` in editor and runtime | Filter mixes RGB using source alpha but returns alpha 1; masks multiply RGB or threshold to black and return alpha 1 | Distinguish source-over composition from effect interpolation; introduce true coverage masks with a compatibility path for saved masks |
-| `pass-node.ts` in both renderers | Source and effect passes share composition; default opaque node materials can force alpha 1 independently of shader output | Define straight/premultiplied alpha conventions and material settings together with separate source/effect semantics |
+| `blend-modes.ts` in editor and runtime | Sources combine coverage; effects preserve input coverage. Legacy masks still darken RGB and return alpha 1 | Introduce true coverage masks with a compatibility path for saved masks |
+| `pass-node.ts` in both renderers | Roles are derived from layer kind/Effect Mode; initial and replacement materials preserve computed straight alpha | Audit individual effect algorithms, particularly spatial effects, as group composition is introduced |
 | `media-pass.ts` | Contain mode now supports transparent out-of-bounds samples, defaulting on for new layers; absent settings retain black | Broader alpha composition remains separate from this source-boundary fix |
-| `pipeline-manager.ts` | A single global ping-pong chain begins over an opaque base and finishes through an opaque blit | Introduce isolated group targets and their own effect scope; keep the scene background a deliberate choice |
-| `scene-post-process.ts` | Scene color adjustments return alpha 1 | Preserve coverage through color grading |
+| `pipeline-manager.ts` | A single global ping-pong chain begins over an opaque base; texture copies now retain alpha, including external runtime inputs | Introduce isolated group targets and their own effect scope; keep the scene background a deliberate choice |
+| `scene-post-process.ts` | Scene color adjustments now retain input alpha | Verify grading together with future transparent canvas/export support |
 | Canvas renderer creation | Editor and runtime use `alpha: false`; editor clears to alpha 1 | Carry alpha through preview/export where supported, including texture output |
 | Text creation | New text defaults to mask mode and background alpha 1 | Change only new-layer defaults in phase 2; preserve saved text settings |
 
-Changing the shared mix formula alone is insufficient: source-over applied to a filtered copy of the same translucent input can increase its coverage. True masks also change the visual meaning of existing saved masks. Resolve both before switching the pipeline to transparent targets.
+The source/effect distinction prevents repeated filtering from increasing coverage. True masks still change the visual meaning of existing saved masks and require an explicit compatibility path before switching the editor to transparent targets.
 
 ## Next implementation slice
 
-1. Define source versus effect composition, alpha representation, and a persisted compatibility strategy for saved projects and exported runtime configs.
-2. Add expected-output GPU tests for empty pixels next to opaque content, partial coverage, source-over blending, effect opacity, and soft masks over colored lower layers.
-3. Implement alpha behavior across render targets, materials, postprocessing, preview, and supported exports while keeping these legacy fixtures stable.
+1. Define a persisted compatibility strategy for true coverage masks in saved projects and exported runtime configs.
+2. Extend the alpha tests with soft masks over colored lower layers and per-effect spatial behavior.
+3. Carry alpha through transparent scene backgrounds, preview, and supported exports while keeping these legacy fixtures stable.
 4. Extend into isolated groups, scoped masks, reordering, undo, and save/reopen tests.
 
 Still outstanding for phase 1: the fourteen selected artistic references, broader photographs/portraits/objects and video captures, complete runtime scene/export coverage, group/mask behavior, and the short 3D feasibility checks. This suite is a starting point, not phase-1 acceptance.

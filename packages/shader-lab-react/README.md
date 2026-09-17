@@ -347,6 +347,13 @@ export function PostProcessingExample({
 - Keep the postprocessing `width`/`height` and `postprocessing.resize(...)` in sync with the input render target size, especially for screen-space effects like dithering, pixelation, and ASCII
 - `postprocessing.texture` always points to the latest output texture
 
+External input textures and output textures use straight (unpremultiplied) RGB
+and alpha. The texture path preserves input coverage through effect passes;
+effect output alpha controls effect strength. Source layers use source-over
+composition. Convert premultiplied input to straight alpha before passing it in.
+Legacy mask layers still use their existing RGB-darkening behavior, and the
+canvas composition background remains opaque.
+
 ## `useShaderLab`
 
 ```ts

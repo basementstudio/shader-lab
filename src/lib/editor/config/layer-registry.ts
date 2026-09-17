@@ -3507,6 +3507,19 @@ const photographicCellsParams = [
     description: "Stagger rows and vary their cell widths.",
   },
   {
+    key: "edgeScatter",
+    label: "Edge Scatter",
+    group: "Geometry",
+    type: "number",
+    defaultValue: 0,
+    min: 0,
+    max: 1,
+    step: 0.01,
+    visibleWhen: { key: "mode", notEquals: "cells" },
+    description:
+      "Break region edges into scattered cells. Seed changes the pattern; 0 restores the original edge.",
+  },
+  {
     key: "seed",
     label: "Seed",
     group: "Geometry",

@@ -123,6 +123,15 @@ With the editor running, execute `SHADER_LAB_URL=http://localhost:55000 bun test
 
 ## Photographic Cells prototype and curated ring defaults
 
-`photographic-cells.mjs` covers 154 editor/runtime GPU cases for full-resolution photographic interiors, light/dark/random selection, inversion, deterministic seeds, alpha/soft edges, outlines, opacity, parameter extremes, and cell proportions on rectangular compositions. It exercises actual `applyLabProjectFile` hydration, history restore, exported headless runtime configuration, group isolation, save/reopen, and preview/PNG comparison. Region coverage includes independent cell/region scales, perimeter versus per-cell outlines, holes, irregular rows, broad soft contours on tiny cells, preserved pre-region settings, and exported runtime region pixels. Artifacts include `cell-cutout.png` and `photographic-cells-preview.png`; the latter supplies the catalog thumbnail. See [the focused manual test and limits](PHOTOGRAPHIC-CELLS-MANUAL-QA.md).
+`photographic-cells.mjs` covers 216 editor/runtime GPU cases for full-resolution photographic interiors, light/dark/random selection, inversion, deterministic seeds, alpha/soft edges, outlines, opacity, parameter extremes, and cell proportions on rectangular compositions. It exercises actual `applyLabProjectFile` hydration, history restore, exported headless runtime configuration, group isolation, save/reopen, and preview/PNG comparison. Region coverage includes independent cell/region scales, perimeter versus per-cell outlines, holes, irregular rows, broad soft contours on tiny cells, preserved pre-region settings, and exported runtime region pixels. Artifacts include `cell-cutout.png` and `photographic-cells-preview.png`; the latter supplies the catalog thumbnail. See [the focused manual test and limits](PHOTOGRAPHIC-CELLS-MANUAL-QA.md).
 
 `displaced-rings.mjs` now verifies the user's new-layer defaults and preservation of missing saved fields before default filling. Renderer fallbacks and all frozen compatibility fixtures remain unchanged.
+
+
+## Edge Scatter and editorial studies
+
+`cell-edge-scatter.mjs` runs through the Cells harness against editor and runtime. It verifies changes stay in a bounded edge band, interiors and cell geometry survive, source detail/alpha are preserved, zero/missing values restore the original, seeds are deterministic, inversion is complementary, outlines/Keep Image work, and moving source frames do not reupload paint or rebuild the graph. The project checks include `edgeScatter` in actual hydration, history and save/reopen; exported region/paint renders exercise it too.
+
+[Two editable studies and preview PNGs](../../public/examples/v3/README.md) show the reference-driven color/dot/photo treatment. With the dev server running, use `bun tests/composition/editorial-studies-ui.mjs` for controls, history, conditional visibility, bundled media and real .lab import/export. [Focused manual test](CELL-SCATTER-MANUAL-QA.md).
+
+`bun tests/composition/effect-video-performance.mjs --scatter` runs a bounded off/on comparison over decoded video in Random, Light and Paint at 640×480 and 1920×1080. It records adapter metadata and timings in `.context/scatter-video-performance.json`. These software-adapter measurements are not native FPS or sustained thermal validation.

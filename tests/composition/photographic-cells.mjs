@@ -1,3 +1,4 @@
+import { checkCellEdgeScatter } from "./cell-edge-scatter.mjs"
 import {
   decodeCellPaintMask,
   encodeCellPaintMask,
@@ -248,6 +249,16 @@ async function gpuChecks() {
           pass.paintTexture.version === version,
           "Unchanged mask re-uploaded"
         )
+        await checkCellEdgeScatter({
+          paint,
+          at,
+          close,
+          assert,
+          color,
+          solid,
+          photo,
+          pass,
+        })
         const all = await paint("all", identity)
         for (let i = 0; i < all.length; i += 4)
           close(all.slice(i, i + 4), color, "Identity coverage")
@@ -888,6 +899,7 @@ export async function checkPhotographicCells(renderProject) {
       gap: 0.5,
       mode: "regions",
       regionSize: 0.35,
+      edgeScatter: 0.65,
       outlineMode: "perimeter",
       outline: 0.025,
     },
@@ -913,12 +925,15 @@ export async function checkPhotographicCells(renderProject) {
     "Hydration lost Regions mode"
   )
   const before = buildEditorHistorySnapshot()
+  useLayerStore.getState().updateLayerParam(cells.id, "edgeScatter", 0)
   useLayerStore.getState().updateLayerParam(cells.id, "threshold", 1)
   useLayerStore.getState().updateLayerParam(cells.id, "mode", "cells")
   useLayerStore.getState().updateLayerParam(cells.id, "outlineMode", "none")
   applyEditorHistorySnapshot(before)
   assert(
-    useLayerStore.getState().getLayerById(cells.id).params.threshold === 0,
+    useLayerStore.getState().getLayerById(cells.id).params.threshold === 0 &&
+      useLayerStore.getState().getLayerById(cells.id).params.edgeScatter ===
+        0.65,
     "History lost cell settings"
   )
   assert(
@@ -934,7 +949,13 @@ export async function checkPhotographicCells(renderProject) {
     []
   )
   const reopened = buildLabProjectFile()
-  for (const key of ["mode", "regionSize", "outlineMode", "outline"])
+  for (const key of [
+    "mode",
+    "regionSize",
+    "edgeScatter",
+    "outlineMode",
+    "outline",
+  ])
     assert(
       reopened.layers[1].params[key] === cells.params[key],
       `Save/reopen lost ${key}`
@@ -1115,14 +1136,16 @@ export async function checkPhotographicCells(renderProject) {
       legacy.gap === 0.08 &&
       legacy.selection === "light" &&
       legacy.irregularity === 0.35 &&
-      legacy.threshold === 0.35,
+      legacy.threshold === 0.35 &&
+      legacy.edgeScatter === 0,
     "New region defaults changed a saved partial cell layer"
   )
   const fresh = createLayer("photographic-cells").params
   assert(
     fresh.mode === "regions" &&
       fresh.outlineMode === "perimeter" &&
-      fresh.gap === 0,
+      fresh.gap === 0 &&
+      fresh.edgeScatter === 0,
     "New layers must start with connected regions"
   )
   return {

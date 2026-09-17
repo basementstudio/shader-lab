@@ -1,0 +1,450 @@
+{
+  "format": "shader-lab",
+  "version": 7,
+  "composition": {
+    "width": 720,
+    "height": 960
+  },
+  "selectedLayerId": "cells",
+  "sceneConfig": {
+    "backgroundColor": "#ffffff",
+    "compositionAspect": "screen",
+    "compositionWidth": 1920,
+    "compositionHeight": 1080,
+    "exposure": 0,
+    "brightness": 0,
+    "contrast": 0,
+    "saturation": 1,
+    "vibrance": 0,
+    "hue": 0,
+    "temperature": 0,
+    "tint": 0,
+    "invert": false,
+    "channelMixer": {
+      "rr": 1,
+      "rg": 0,
+      "rb": 0,
+      "gr": 0,
+      "gg": 1,
+      "gb": 0,
+      "br": 0,
+      "bg": 0,
+      "bb": 1
+    },
+    "colorCurves": {
+      "blue": {
+        "points": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 1,
+            "y": 1
+          }
+        ]
+      },
+      "green": {
+        "points": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 1,
+            "y": 1
+          }
+        ]
+      },
+      "red": {
+        "points": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 1,
+            "y": 1
+          }
+        ]
+      },
+      "rgb": {
+        "points": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 1,
+            "y": 1
+          }
+        ]
+      }
+    },
+    "clampMin": 0,
+    "clampGamma": 1,
+    "clampMax": 1,
+    "quantizeEnabled": false,
+    "quantizeLevels": 256,
+    "colorMap": null
+  },
+  "timeline": {
+    "duration": 5,
+    "loop": true,
+    "tracks": []
+  },
+  "assets": [
+    {
+      "id": "registration",
+      "kind": "image",
+      "url": "/scenes/default/editorial/registration.svg",
+      "fileName": "registration.svg",
+      "mimeType": "image/svg+xml",
+      "width": 720,
+      "height": 960
+    }
+  ],
+  "layers": [
+    {
+      "assetId": null,
+      "blendMode": "normal",
+      "compositeMode": "filter",
+      "expanded": true,
+      "hue": 0,
+      "id": "title",
+      "kind": "source",
+      "locked": false,
+      "maskConfig": {
+        "invert": false,
+        "mode": "multiply",
+        "source": "luminance"
+      },
+      "name": "FIELD",
+      "opacity": 1,
+      "params": {
+        "text": "FIELD",
+        "anchor": "top-left",
+        "offset": [
+          0.55,
+          -0.12
+        ],
+        "fontSize": 48,
+        "fontFamily": "mono",
+        "fontWeight": 400,
+        "letterSpacing": -0.04,
+        "textColor": "#202020",
+        "backgroundColor": "#000000",
+        "backgroundAlpha": 0
+      },
+      "runtimeError": null,
+      "saturation": 1,
+      "type": "text",
+      "visible": true
+    },
+    {
+      "assetId": null,
+      "blendMode": "normal",
+      "compositeMode": "filter",
+      "expanded": true,
+      "hue": 0,
+      "id": "subtitle",
+      "kind": "source",
+      "locked": false,
+      "maskConfig": {
+        "invert": false,
+        "mode": "multiply",
+        "source": "luminance"
+      },
+      "name": "NOTES",
+      "opacity": 1,
+      "params": {
+        "text": "NOTES",
+        "anchor": "top-left",
+        "offset": [
+          0.55,
+          -0.18
+        ],
+        "fontSize": 48,
+        "fontFamily": "mono",
+        "fontWeight": 400,
+        "letterSpacing": -0.04,
+        "textColor": "#202020",
+        "backgroundColor": "#000000",
+        "backgroundAlpha": 0
+      },
+      "runtimeError": null,
+      "saturation": 1,
+      "type": "text",
+      "visible": true
+    },
+    {
+      "assetId": null,
+      "blendMode": "normal",
+      "compositeMode": "filter",
+      "expanded": true,
+      "hue": 0,
+      "id": "edition",
+      "kind": "source",
+      "locked": false,
+      "maskConfig": {
+        "invert": false,
+        "mode": "multiply",
+        "source": "luminance"
+      },
+      "name": "01 /",
+      "opacity": 1,
+      "params": {
+        "text": "01 /",
+        "anchor": "top-left",
+        "offset": [
+          0.72,
+          -0.89
+        ],
+        "fontSize": 48,
+        "fontFamily": "mono",
+        "fontWeight": 400,
+        "letterSpacing": -0.04,
+        "textColor": "#202020",
+        "backgroundColor": "#000000",
+        "backgroundAlpha": 0
+      },
+      "runtimeError": null,
+      "saturation": 1,
+      "type": "text",
+      "visible": true
+    },
+    {
+      "assetId": "registration",
+      "blendMode": "normal",
+      "compositeMode": "filter",
+      "expanded": true,
+      "hue": 0,
+      "id": "marks",
+      "kind": "source",
+      "locked": false,
+      "maskConfig": {
+        "invert": false,
+        "mode": "multiply",
+        "source": "luminance"
+      },
+      "name": "Registration marks",
+      "opacity": 0.35,
+      "params": {
+        "fitMode": "contain",
+        "transparentBounds": true,
+        "scale": 1,
+        "offset": [
+          0,
+          0
+        ],
+        "svgRasterResolution": "2048"
+      },
+      "runtimeError": null,
+      "saturation": 1,
+      "type": "image",
+      "visible": true
+    },
+    {
+      "assetId": null,
+      "blendMode": "normal",
+      "compositeMode": "filter",
+      "expanded": true,
+      "hue": 0,
+      "id": "study",
+      "kind": "group",
+      "locked": false,
+      "maskConfig": {
+        "invert": false,
+        "mode": "multiply",
+        "source": "luminance"
+      },
+      "name": "Color / fine dots",
+      "opacity": 1,
+      "params": {},
+      "runtimeError": null,
+      "saturation": 1,
+      "type": "group",
+      "visible": true
+    },
+    {
+      "assetId": null,
+      "blendMode": "normal",
+      "compositeMode": "filter",
+      "expanded": true,
+      "hue": 0,
+      "id": "cells",
+      "kind": "effect",
+      "locked": false,
+      "maskConfig": {
+        "invert": false,
+        "mode": "multiply",
+        "source": "luminance"
+      },
+      "name": "Stepped regions",
+      "opacity": 1,
+      "params": {
+        "paintMask": "",
+        "output": "cutout",
+        "mode": "regions",
+        "regionSize": 0.4,
+        "selection": "random",
+        "threshold": 0.48,
+        "invert": false,
+        "size": 0.03,
+        "cellAspect": 1,
+        "irregularity": 0,
+        "edgeScatter": 0.65,
+        "seed": 11,
+        "gap": 0,
+        "softness": 0,
+        "outlineMode": "none",
+        "outline": 0.025,
+        "outlineColor": "#b53387"
+      },
+      "runtimeError": null,
+      "saturation": 1,
+      "type": "photographic-cells",
+      "visible": true,
+      "parentId": "study"
+    },
+    {
+      "assetId": null,
+      "blendMode": "normal",
+      "compositeMode": "filter",
+      "expanded": true,
+      "hue": 0,
+      "id": "dots",
+      "kind": "effect",
+      "locked": false,
+      "maskConfig": {
+        "invert": false,
+        "mode": "multiply",
+        "source": "luminance"
+      },
+      "name": "Fine source-color dots",
+      "opacity": 1,
+      "params": {
+        "colorMode": "source",
+        "shape": "circle",
+        "spacing": 3,
+        "dotSize": 0.8,
+        "dotMin": 0.45,
+        "angle": 45,
+        "contrast": 1.2,
+        "softness": 0.25,
+        "dotGain": 0,
+        "dotMorph": 0,
+        "invertLuma": false,
+        "customColorCount": 4,
+        "customLuminanceBias": 0,
+        "bloomEnabled": false,
+        "bloomIntensity": 1.25,
+        "bloomThreshold": 0.6,
+        "bloomRadius": 6,
+        "bloomSoftness": 0.35,
+        "customBgColor": "#F5F5F0",
+        "customColor1": "#0d1014",
+        "customColor2": "#4d5057",
+        "customColor3": "#969aa2",
+        "customColor4": "#e1e2de",
+        "ink": "#0d1014",
+        "duotoneLight": "#F5F5F0",
+        "duotoneDark": "#1d1d1c",
+        "preset": "process",
+        "gcr": 0.5,
+        "cmykBlend": "subtractive",
+        "cyanAngle": 15,
+        "magentaAngle": 75,
+        "yellowAngle": 0,
+        "keyAngle": 45,
+        "paperColor": "#F5F5F0",
+        "paperGrain": 0,
+        "registration": 0,
+        "inkCyan": "#00AEEF",
+        "inkMagenta": "#EC008C",
+        "inkYellow": "#FFF200",
+        "inkKey": "#1a1a1a"
+      },
+      "runtimeError": null,
+      "saturation": 1,
+      "type": "halftone",
+      "visible": true,
+      "parentId": "study"
+    },
+    {
+      "assetId": null,
+      "blendMode": "normal",
+      "compositeMode": "filter",
+      "expanded": true,
+      "hue": 0,
+      "id": "color",
+      "kind": "source",
+      "locked": false,
+      "maskConfig": {
+        "invert": false,
+        "mode": "multiply",
+        "source": "luminance"
+      },
+      "name": "Blue / ochre / violet",
+      "opacity": 1,
+      "params": {
+        "preset": "custom",
+        "activePoints": 5,
+        "point1Color": "#e9a019",
+        "point1Position": [
+          -0.5,
+          -0.55
+        ],
+        "point1Weight": 1,
+        "point2Color": "#397bca",
+        "point2Position": [
+          0.55,
+          -0.4
+        ],
+        "point2Weight": 1,
+        "point3Color": "#008f97",
+        "point3Position": [
+          -0.5,
+          0.65
+        ],
+        "point3Weight": 1,
+        "point4Color": "#5534ac",
+        "point4Position": [
+          0.05,
+          0.1
+        ],
+        "point4Weight": 0.7,
+        "point5Color": "#f4d545",
+        "point5Position": [
+          0.6,
+          0.65
+        ],
+        "point5Weight": 1,
+        "noiseType": "simplex",
+        "noiseSeed": 12,
+        "warpAmount": 0.5,
+        "warpScale": 2,
+        "warpIterations": 1,
+        "warpDecay": 1,
+        "warpBias": 0.5,
+        "vortexAmount": 0.4,
+        "animate": false,
+        "motionAmount": 0,
+        "motionSpeed": 0.4,
+        "falloff": 3.8,
+        "tonemapMode": "none",
+        "glowStrength": 0,
+        "glowThreshold": 0,
+        "grainAmount": 0,
+        "vignetteStrength": 0,
+        "vignetteRadius": 1.5,
+        "vignetteSoftness": 1
+      },
+      "runtimeError": null,
+      "saturation": 1,
+      "type": "gradient",
+      "visible": true,
+      "parentId": "study"
+    }
+  ]
+}

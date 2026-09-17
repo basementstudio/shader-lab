@@ -1,6 +1,6 @@
 # V3 composition baselines
 
-Regression coverage for roadmap steps 1.1–1.2. The first PR establishes legacy baselines; its stacked successors add transparent media bounds and alpha-aware source/effect composition. Transparent scene/export backgrounds, groups, and new masks remain outstanding.
+Regression coverage for roadmap steps 1.1–1.3. The first PR establishes legacy baselines; its stacked successors add transparent media bounds, alpha-aware source/effect composition, and internal isolated group rendering. Transparent scene/export backgrounds, editor group controls/persistence, and new masks remain outstanding.
 
 Integration branch: `git-chad/shader-lab-v3-plan`. Parent PR: [#150](https://github.com/basementstudio/shader-lab/pull/150). The first child, [#151](https://github.com/basementstudio/shader-lab/pull/151), targets integration. Each subsequent stacked PR targets the preceding feature branch, never `main`.
 
@@ -64,7 +64,7 @@ These findings come from source inspection and the limited GPU checks above, not
 | `blend-modes.ts` in editor and runtime | Sources combine coverage; effects preserve input coverage. Legacy masks still darken RGB and return alpha 1 | Introduce true coverage masks with a compatibility path for saved masks |
 | `pass-node.ts` in both renderers | Roles are derived from layer kind/Effect Mode; initial and replacement materials preserve computed straight alpha | Audit individual effect algorithms, particularly spatial effects, as group composition is introduced |
 | `media-pass.ts` | Contain mode now supports transparent out-of-bounds samples, defaulting on for new layers; absent settings retain black | Broader alpha composition remains separate from this source-boundary fix |
-| `pipeline-manager.ts` | A single global ping-pong chain begins over an opaque base; texture copies now retain alpha, including external runtime inputs | Introduce isolated group targets and their own effect scope; keep the scene background a deliberate choice |
+| `pipeline-manager.ts` | The root begins over an opaque base (or a runtime input texture); internal groups render children against independent transparent targets | Connect groups to editor organization, undo, persistence, and public runtime configs; keep the scene background a deliberate choice |
 | `scene-post-process.ts` | Scene color adjustments now retain input alpha | Verify grading together with future transparent canvas/export support |
 | Canvas renderer creation | Editor and runtime use `alpha: false`; editor clears to alpha 1 | Carry alpha through preview/export where supported, including texture output |
 | Text creation | New text defaults to mask mode and background alpha 1 | Change only new-layer defaults in phase 2; preserve saved text settings |
@@ -73,9 +73,18 @@ The source/effect distinction prevents repeated filtering from increasing covera
 
 ## Next implementation slice
 
-1. Define a persisted compatibility strategy for true coverage masks in saved projects and exported runtime configs.
-2. Extend the alpha tests with soft masks over colored lower layers and per-effect spatial behavior.
+1. Connect the internal group render tree to editor group creation, organization, collapse, visibility, opacity, undo, save/reopen, and shader-config export.
+2. Define a persisted compatibility strategy for true coverage masks; extend tests with soft group masks over colored lower layers and per-effect spatial behavior.
 3. Carry alpha through transparent scene backgrounds, preview, and supported exports while keeping these legacy fixtures stable.
-4. Extend into isolated groups, scoped masks, reordering, undo, and save/reopen tests.
+
+## Isolated group renderer foundation
+
+The internal `RendererFrame.layers` contract accepts a tree of existing renderable layers and `CompositionGroup` nodes. Frames use top-first sidebar order at every level; pipeline synchronization reverses every sibling list into paint order. Existing project files and public `ShaderLabConfig` values still contain flat layers. This is the rendering foundation, not delivery of editor groups or the complete roadmap step 1.3.
+
+Each group clears its own targets to transparent, processes only its children, and composites the combined result into its parent. Group opacity and blend mode apply once to that result. Empty and effect-only groups do not modify the parent; hidden parents suppress rendering and export preparation throughout their subtree. Children retain their pass instances when reparented, preserving media/simulation state. Removed groups dispose their own targets and material without disposing surviving children.
+
+Nesting is bounded to eight group levels. Duplicate IDs and excessive depth are rejected before pipeline synchronization mutates live passes. Each group owns two full-resolution RGBA16F targets (about 32 MiB at 1920×1080), reused across frames and resized with the output. This is not an unlimited group-count or performance guarantee; pooling and representative large-scene measurements remain follow-up work.
+
+`groups.mjs` exercises actual editor/runtime pipelines with gradient sources and threshold effects, covering effect isolation, overlap, group versus child opacity, nested/sibling scope, visibility, ordering, reparenting, resize, cleanup, animation discovery, export preparation, and external runtime input alpha. The editor entry-point test renders a nested photographic group with transparent bounds and compares preview with PNG export, saving `isolated-groups.png`. Existing flat saved projects and frozen baselines remain unchanged. Coverage masks, persisted groups, and undo are not yet tested or implemented by this slice.
 
 Still outstanding for phase 1: the fourteen selected artistic references, broader photographs/portraits/objects and video captures, complete runtime scene/export coverage, group/mask behavior, and the short 3D feasibility checks. This suite is a starting point, not phase-1 acceptance.

@@ -5,6 +5,7 @@ import {
 import { cloneParameterValues } from "@/lib/editor/parameter-schema"
 import { evaluateTimelineForLayers } from "@/lib/editor/timeline/evaluate"
 import { createProjectClock } from "@/renderer/project-clock"
+import type { CompositionNode } from "@/renderer/composition-tree"
 import type {
   EditorAsset,
   EditorLayer,
@@ -32,7 +33,7 @@ export interface RenderableLayerPass {
 export interface RendererFrame {
   clock: ProjectClock
   cropAspectRatio: number | null
-  layers: RenderableLayerPass[]
+  layers: CompositionNode<RenderableLayerPass>[]
   logicalSize: Size
   outputSize: Size
   pixelRatio: number

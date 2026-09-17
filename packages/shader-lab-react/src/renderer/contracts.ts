@@ -1,6 +1,7 @@
 import { createRuntimeClock } from "../runtime-clock"
 import { resolveEvaluatedLayers } from "../timeline"
 import type { ShaderLabConfig, ShaderLabLayerConfig } from "../types"
+import type { CompositionNode } from "./composition-tree"
 
 export interface RendererSize {
   height: number
@@ -16,7 +17,7 @@ export interface ProjectClock {
 
 export interface RendererFrame {
   clock: ProjectClock
-  layers: ShaderLabLayerConfig[]
+  layers: CompositionNode<ShaderLabLayerConfig>[]
   logicalSize: RendererSize
   outputSize: RendererSize
   pixelRatio: number

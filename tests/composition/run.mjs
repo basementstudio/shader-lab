@@ -177,6 +177,14 @@ try {
   console.log(
     `PASS ${alphaSamples} alpha samples: source-over, effects, pass materials, grading, and the runtime texture pipeline`
   )
+  const groups = await page.evaluate(() => window.checkGroups())
+  await Bun.write(
+    resolve(artifacts, "isolated-groups.png"),
+    Buffer.from(groups.png.split(",")[1], "base64")
+  )
+  console.log(
+    `PASS ${groups.samples} group checks: isolation, nesting, opacity, ordering, lifecycle, and editor PNG export`
+  )
   assert.deepEqual(errors, [], "Browser or GPU errors occurred")
   console.log(
     update

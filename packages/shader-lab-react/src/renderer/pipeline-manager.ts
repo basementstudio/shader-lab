@@ -1,3 +1,9 @@
+import {
+  type CompositionNode,
+  flattenComposition,
+  isCompositionGroup,
+} from "./composition-tree"
+import { GroupPass } from "./group-pass"
 import { float, type TSLNode, texture as tslTexture, uv, vec2 } from "three/tsl"
 import * as THREE from "three/webgpu"
 import type { ShaderLabCompositeMode, ShaderLabLayerConfig } from "../types"
@@ -214,8 +220,11 @@ export class PipelineManager {
     this.blitScene.add(blitMesh)
   }
 
-  syncLayers(layers: ShaderLabLayerConfig[]): void {
-    const incomingIds = new Set(layers.map((layer) => layer.id))
+  syncLayers(layers: CompositionNode<ShaderLabLayerConfig>[]): void {
+    const getId = (node: CompositionNode<ShaderLabLayerConfig>) =>
+      isCompositionGroup(node) ? node.id : node.id
+    const flattened = flattenComposition(layers, (node) => node.id)
+    const incomingIds = new Set(flattened.map(getId))
 
     for (const [layerId, pass] of this.passMap) {
       if (incomingIds.has(layerId)) {
@@ -230,33 +239,70 @@ export class PipelineManager {
       this.dirty = true
     }
 
-    const orderedPasses: LayerPassNode[] = []
+    for (const node of flattened) {
+      const layerId = getId(node)
+      const group = isCompositionGroup(node)
+      const signature = group
+        ? JSON.stringify([node.visible, node.opacity, node.blendMode])
+        : createLayerSignature(node)
+      let pass = this.passMap.get(layerId)
 
-    for (const layer of layers) {
-      const signature = createLayerSignature(layer)
-      let pass = this.passMap.get(layer.id)
+      if (pass && pass instanceof GroupPass !== group) {
+        pass.dispose()
+        this.passMap.delete(layerId)
+        this.layerSignatures.delete(layerId)
+        this.compilingPasses.delete(layerId)
+        this.compiledVersions.delete(layerId)
+        pass = undefined
+      }
 
+      const created = !pass
       if (!pass) {
-        pass = this.createPass(layer)
+        pass = group
+          ? new GroupPass(
+              layerId,
+              (child) => this.isActive(child),
+              (...args) => this.renderPass(...args)
+            )
+          : this.createPass(node)
         pass.resize(this.width, this.height)
         pass.updateLogicalSize(this.logicalWidth, this.logicalHeight)
-        this.passMap.set(layer.id, pass)
+        this.passMap.set(layerId, pass)
         this.dirty = true
       }
 
-      if (this.layerSignatures.get(layer.id) !== signature) {
+      if (this.layerSignatures.get(layerId) !== signature) {
         const versionBefore = pass.getMaterialVersion()
-        this.layerSignatures.set(layer.id, signature)
-        this.applyLayerState(pass, layer)
+        this.layerSignatures.set(layerId, signature)
+        if (group) {
+          pass.enabled = node.visible
+          pass.updateOpacity(clampUnit(node.opacity))
+          pass.updateBlendMode(node.blendMode)
+          pass.flushColorNode()
+        } else {
+          this.applyLayerState(pass, node)
+        }
         this.dirty = true
 
-        if (pass.getMaterialVersion() !== versionBefore) {
+        if ((created && group) || pass.getMaterialVersion() !== versionBefore) {
           this.scheduleCompile(pass)
         }
       }
-
-      orderedPasses.push(pass)
     }
+
+    // All passes exist before wiring children, so reparenting preserves media state.
+    for (const node of flattened) {
+      if (!isCompositionGroup(node)) continue
+      const pass = this.passMap.get(node.id) as GroupPass
+      if (
+        pass.setChildren(
+          node.children.map((child) => this.passMap.get(getId(child))!)
+        )
+      ) {
+        this.dirty = true
+      }
+    }
+    const orderedPasses = layers.map((node) => this.passMap.get(getId(node))!)
 
     if (
       orderedPasses.length !== this.passes.length ||
@@ -268,12 +314,7 @@ export class PipelineManager {
   }
 
   render(time: number, delta: number): boolean {
-    const activePasses = this.passes.filter(
-      (pass) =>
-        pass.enabled &&
-        (!this.compilingPasses.has(pass.layerId) ||
-          this.compiledVersions.has(pass.layerId))
-    )
+    const activePasses = this.passes.filter((pass) => this.isActive(pass))
     const needsContinuousRender = activePasses.some((pass) =>
       pass.needsContinuousRender()
     )
@@ -296,7 +337,7 @@ export class PipelineManager {
     let writeTarget = this.rtB
 
     for (const pass of activePasses) {
-      pass.render(this.renderer, readTarget.texture, writeTarget, time, delta)
+      this.renderPass(pass, readTarget.texture, writeTarget, time, delta)
       const previousRead = readTarget
       readTarget = writeTarget
       writeTarget = previousRead
@@ -314,12 +355,7 @@ export class PipelineManager {
     delta: number,
     inputTexture?: THREE.Texture
   ): THREE.Texture | null {
-    const activePasses = this.passes.filter(
-      (pass) =>
-        pass.enabled &&
-        (!this.compilingPasses.has(pass.layerId) ||
-          this.compiledVersions.has(pass.layerId))
-    )
+    const activePasses = this.passes.filter((pass) => this.isActive(pass))
     const needsContinuousRender = activePasses.some((pass) =>
       pass.needsContinuousRender()
     )
@@ -348,7 +384,7 @@ export class PipelineManager {
     let writeTarget = this.rtB
 
     for (const pass of activePasses) {
-      pass.render(this.renderer, readTarget.texture, writeTarget, time, delta)
+      this.renderPass(pass, readTarget.texture, writeTarget, time, delta)
       const previousRead = readTarget
       readTarget = writeTarget
       writeTarget = previousRead
@@ -414,6 +450,26 @@ export class PipelineManager {
     this.compiledVersions.clear()
   }
 
+  private isActive(pass: PassNode): boolean {
+    return (
+      pass.enabled &&
+      (!this.compilingPasses.has(pass.layerId) ||
+        this.compiledVersions.has(pass.layerId))
+    )
+  }
+
+  private renderPass(
+    pass: PassNode,
+    input: THREE.Texture,
+    output: THREE.WebGLRenderTarget,
+    time: number,
+    delta: number,
+    _timelineTime = time
+  ): boolean {
+    pass.render(this.renderer, input, output, time, delta)
+    return true
+  }
+
   private scheduleCompile(pass: LayerPassNode): void {
     const version = pass.getMaterialVersion()
     if (this.compiledVersions.get(pass.layerId) === version) {
@@ -428,11 +484,13 @@ export class PipelineManager {
     renderer
       .compileAsync(scene, camera)
       .then(() => {
+        if (this.passMap.get(pass.layerId) !== pass) return
         this.compilingPasses.delete(pass.layerId)
         this.compiledVersions.set(pass.layerId, pass.getMaterialVersion())
         this.dirty = true
       })
       .catch(() => {
+        if (this.passMap.get(pass.layerId) !== pass) return
         this.compilingPasses.delete(pass.layerId)
       })
   }
@@ -444,7 +502,7 @@ export class PipelineManager {
     pass.enabled = layer.visible
     pass.updateCompositionRole(
       layer.kind === "effect" ||
-      (layer.type === "custom-shader" && layer.params.effectMode === true)
+        (layer.type === "custom-shader" && layer.params.effectMode === true)
         ? "effect"
         : "source"
     )

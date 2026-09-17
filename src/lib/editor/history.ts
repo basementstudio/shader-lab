@@ -1,3 +1,4 @@
+import { useEditorStore } from "@/store/editor-store"
 import type {
   EditorAudioSnapshot,
   EditorHistorySnapshot,
@@ -56,10 +57,12 @@ export function buildEditorHistorySnapshotFromState(
     | "selectedTrackId"
     | "tracks"
   >,
-  audioState: EditorAudioSnapshot
+  audioState: EditorAudioSnapshot,
+  editorState = useEditorStore.getState()
 ): EditorHistorySnapshot {
   return {
     audio: cloneHistoryAudio(audioState),
+    sceneConfig: structuredClone(editorState.sceneConfig),
     hoveredLayerId: layerState.hoveredLayerId,
     layers: structuredClone(layerState.layers),
     selectedLayerId: layerState.selectedLayerId,
@@ -98,6 +101,9 @@ export function applyEditorHistorySnapshot(
     tracks: snapshot.timeline.tracks,
   })
   useAudioStore.getState().restoreSnapshot(snapshot.audio)
+  useEditorStore
+    .getState()
+    .updateSceneConfig(structuredClone(snapshot.sceneConfig))
 }
 
 export function getHistorySnapshotSignature(
@@ -105,6 +111,7 @@ export function getHistorySnapshotSignature(
 ): string {
   return JSON.stringify({
     audio: snapshot.audio,
+    sceneConfig: snapshot.sceneConfig,
     layers: snapshot.layers,
     timeline: {
       duration: snapshot.timeline.duration,

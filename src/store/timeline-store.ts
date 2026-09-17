@@ -1,6 +1,5 @@
 import { create } from "zustand"
 import { advanceProjectTimeline } from "@/renderer/project-clock"
-import { getDefaultProjectTimeline } from "@/lib/editor/default-project"
 import { clampDuration, MIN_DURATION } from "@/lib/editor/timeline-duration"
 import {
   type KeyframeEasing,
@@ -115,7 +114,6 @@ export interface TimelineStoreActions {
 export type TimelineStore = TimelineStoreState & TimelineStoreActions
 
 const TIME_EPSILON = 1 / 240
-const DEFAULT_PROJECT_TIMELINE = getDefaultProjectTimeline()
 
 function clampTime(time: number, duration: number): number {
   if (!Number.isFinite(time)) {
@@ -346,15 +344,15 @@ function createSelectionState(
 
 export const useTimelineStore = create<TimelineStore>((set, get) => ({
   currentTime: 0,
-  duration: DEFAULT_PROJECT_TIMELINE.duration,
+  duration: 10,
   frozen: false,
   isPlaying: true,
   lastRenderedClockTime: 0,
-  loop: DEFAULT_PROJECT_TIMELINE.loop,
+  loop: true,
   selectedKeyframeId: null,
   selectedKeyframeIds: [],
   selectedTrackId: null,
-  tracks: DEFAULT_PROJECT_TIMELINE.tracks,
+  tracks: [],
 
   setFrozen: (frozen) => {
     set((state) => ({

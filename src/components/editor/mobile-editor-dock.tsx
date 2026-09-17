@@ -10,6 +10,7 @@ import type { ElementType } from "react"
 import { GlassPanel } from "@/components/ui/glass-panel"
 import { Typography } from "@/components/ui/typography"
 import { playUISound } from "@/lib/audio/shader-lab-sounds"
+import { hasSceneAdjustments } from "@/lib/editor/scene-adjustments"
 import { cn } from "@/lib/cn"
 import { useEditorStore } from "@/store/editor-store"
 import type { MobileEditorPanel } from "@/types/editor"
@@ -28,6 +29,9 @@ const MOBILE_DOCK_ITEMS: readonly MobileDockItem[] = [
 ] as const
 
 export function MobileEditorDock() {
+  const globalColorsActive = useEditorStore((state) =>
+    hasSceneAdjustments(state.sceneConfig)
+  )
   const immersiveCanvas = useEditorStore((state) => state.immersiveCanvas)
   const mobilePanel = useEditorStore((state) => state.mobilePanel)
   const setMobilePanel = useEditorStore((state) => state.setMobilePanel)
@@ -48,7 +52,11 @@ export function MobileEditorDock() {
 
           return (
             <button
-              aria-label={label}
+              aria-label={
+                panel === "scene" && globalColorsActive
+                  ? "Scene — global colors active"
+                  : label
+              }
               aria-pressed={isActive}
               className={cn(
                 "flex min-h-14 cursor-pointer flex-col items-center justify-center gap-1 rounded-[var(--ds-radius-control)] border border-transparent px-2 py-2 text-[var(--ds-color-text-muted)] transition-[background-color,border-color,color,transform] duration-160 ease-[var(--ease-out-cubic)] active:scale-[0.97]",
@@ -71,7 +79,9 @@ export function MobileEditorDock() {
                 tone={isActive ? "primary" : "muted"}
                 variant="caption"
               >
-                {label}
+                {panel === "scene" && globalColorsActive
+                  ? "Colors active"
+                  : label}
               </Typography>
             </button>
           )

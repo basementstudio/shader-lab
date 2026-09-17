@@ -1,3 +1,4 @@
+import { checkCleanProjects } from "./clean-projects.mjs"
 import { checkThresholdColors } from "./threshold-colors.mjs"
 import { buildBlendNode as buildRuntimeBlendNode } from "@runtime/renderer/blend-modes"
 import { float, vec4 } from "three/tsl"
@@ -394,3 +395,5 @@ window.checkDisplacedRings = () => checkDisplacedRings(renderProject)
 window.checkPhotographicCells = () => checkPhotographicCells(renderProject)
 
 window.checkThresholdColors = () => checkThresholdColors(renderProject)
+
+window.checkCleanProjects = checkCleanProjects

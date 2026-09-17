@@ -24,7 +24,7 @@ Avance de 1.3: grupos aislados con hasta ocho niveles, controles del editor, reo
 
 ### Ampliaciones confirmadas tras feedback de diseñadores
 
-**Aprobadas como dirección del plan, todavía sin implementar.** Orden de trabajo acordado: inicio limpio → máscaras reutilizables y Gradient Map local → herramientas de composición con formas y texto → anotaciones técnicas → investigación de profundidad/parallax. Patterns personalizables se registra con prioridad baja. Este orden revisa prioridades entre fases sin eliminar dependencias ni validaciones; no obliga a terminar toda una fase antes de abordar la siguiente entrega útil.
+**Aprobadas como dirección del plan; el estado de cada entrega se detalla abajo.** Orden de trabajo acordado: inicio limpio → máscaras reutilizables y Gradient Map local → herramientas de composición con formas y texto → anotaciones técnicas → investigación de profundidad/parallax. Patterns personalizables se registra con prioridad baja. Este orden revisa prioridades entre fases sin eliminar dependencias ni validaciones; no obliga a terminar toda una fase antes de abordar la siguiente entrega útil.
 
 | Tema | Alcance acordado | Ubicación |
 | --- | --- | --- |
@@ -52,6 +52,8 @@ Antes de decidir el comportamiento o la apariencia de cualquier shader, abrir la
 El usuario reporta que una sesión nueva conserva ajustes globales de la escena demo, alterando su trabajo sin una indicación clara. La inspección confirma que `Start fresh` aplica `getDefaultProjectFile()`, incluidos sus ajustes globales; distinguir ese comportamiento de restaurar un proyecto guardado.
 
 Ofrecer **New blank project** con escena vacía y ajustes globales neutros, manteniendo la demo como elección separada. Hacer evidente cuándo hay ajustes globales activos y permitir restablecerlos. Definir claramente el recorrido de primera visita, nuevo proyecto y restauración de sesión; no borrar ni neutralizar los ajustes deliberados de archivos existentes.
+
+**Implementado, pendiente de aceptación manual:** primera visita vacía; menú Project con New blank project / Open demo también en Actions móvil; aviso de gradación global y reset completo reversible que conserva fondo, composición y calidad de preview. Crear/abrir un documento reinicia el historial, incluidas entradas pendientes. Autosave admite proyectos vacíos y los persiste inmediatamente al comenzar uno, evitando restaurar una demo antigua por encima de un vacío nuevo; los proyectos importados/restaurados mantienen su gradación. [Prueba manual](tests/composition/CLEAN-PROJECTS-MANUAL-QA.md).
 
 **Cierre:** una foto insertada en un proyecto vacío no hereda gradación de la demo. Abrir la demo y restaurar un proyecto conservan sus respectivos ajustes. Verificar también historial, autosave y guardado/reapertura del nuevo proyecto.
 

@@ -1,10 +1,6 @@
 import { create } from "zustand"
 import { getLayerDefinition } from "@/lib/editor/config/layer-registry"
 import {
-  getDefaultProjectLayers,
-  getDefaultProjectSelectedLayerId,
-} from "@/lib/editor/default-project"
-import {
   dropLayer,
   insertGroup,
   type LayerDropTarget,
@@ -100,8 +96,6 @@ export interface LayerStoreActions {
 }
 
 export type LayerStore = LayerStoreState & LayerStoreActions
-
-const DEFAULT_SELECTED_LAYER_ID = getDefaultProjectSelectedLayerId()
 
 function getGradientNoiseDefaults(noiseType: string): {
   warpAmount: number
@@ -518,13 +512,11 @@ function pruneRemovedLayerDependencies(layers: EditorLayer[]): void {
 
 export const useLayerStore = create<LayerStore>((set, get) => ({
   hoveredLayerId: null,
-  layers: getDefaultProjectLayers(),
+  layers: [],
   recordingFluidLayerId: null,
-  selectedLayerIds: DEFAULT_SELECTED_LAYER_ID
-    ? [DEFAULT_SELECTED_LAYER_ID]
-    : [],
-  selectedLayerId: DEFAULT_SELECTED_LAYER_ID,
-  selectionAnchorId: DEFAULT_SELECTED_LAYER_ID,
+  selectedLayerIds: [],
+  selectedLayerId: null,
+  selectionAnchorId: null,
 
   addLayer: (type, insertIndex) => {
     const existingLayers = get().layers

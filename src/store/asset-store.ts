@@ -3,7 +3,6 @@ import {
   forgetStoredAssets,
   persistAssetBlob,
 } from "@/lib/editor/autosave/assets"
-import { getDefaultProjectAssets } from "@/lib/editor/default-project"
 import { inferFileAssetKind, isAudioFileName } from "@/lib/editor/media-file"
 import type { AssetKind, EditorAsset } from "@/types/editor"
 
@@ -157,7 +156,7 @@ function loadAudioMetadata(url: string): Promise<{ duration: number }> {
 }
 
 export const useAssetStore = create<AssetStore>((set, get) => ({
-  assets: getDefaultProjectAssets(),
+  assets: [],
 
   async loadAsset(file) {
     const kind = validateFile(file)

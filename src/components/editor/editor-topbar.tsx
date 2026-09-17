@@ -16,6 +16,8 @@ import {
 import { AnimatePresence, motion } from "motion/react"
 import dynamic from "next/dynamic"
 import { useCallback, useEffect, useRef, useState } from "react"
+import { ProjectMenu } from "@/components/editor/project-menu"
+import { hasSceneAdjustments } from "@/lib/editor/scene-adjustments"
 import { AgentConnectPanel } from "@/components/editor/agent-connect-panel"
 import { FloatingDesktopPanel } from "@/components/editor/floating-desktop-panel"
 import { fitMobileCanvas } from "@/components/editor/use-mobile-canvas-fit"
@@ -125,6 +127,9 @@ export function EditorTopBar({
   const immersiveCanvas = useEditorStore((state) => state.immersiveCanvas)
   const mobilePanel = useEditorStore((state) => state.mobilePanel)
   const rightSidebarVisible = useEditorStore((state) => state.sidebars.right)
+  const globalColorsActive = useEditorStore((state) =>
+    hasSceneAdjustments(state.sceneConfig)
+  )
   const sidebarView = useEditorStore((state) => state.sidebarView)
   const setSidebarView = useEditorStore((state) => state.setSidebarView)
   const zoom = useEditorStore((state) => state.zoom)
@@ -407,11 +412,40 @@ export function EditorTopBar({
       scheduleHistoryCommit(nextSnapshot)
     })
 
+    const unsubscribeEditor = useEditorStore.subscribe(
+      (state, previousState) => {
+        if (state.sceneRevision !== previousState.sceneRevision) {
+          // A document replacement is a boundary, including any pending debounce.
+          if (historyTimerRef.current !== null) {
+            window.clearTimeout(historyTimerRef.current)
+            historyTimerRef.current = null
+          }
+          pendingBaseSnapshotRef.current = null
+          useHistoryStore.getState().clearHistory()
+          syncHistorySnapshotRefs()
+          return
+        }
+        if (applyingHistoryRef.current || isRestoringAutosave()) {
+          syncHistorySnapshotRefs()
+          return
+        }
+        if (state.sceneConfig === previousState.sceneConfig) return
+        const next = buildEditorHistorySnapshot()
+        if (
+          getHistorySnapshotSignature(next) !==
+          getHistorySnapshotSignature(latestSnapshotRef.current)
+        ) {
+          scheduleHistoryCommit(next)
+        }
+      }
+    )
+
     return () => {
       unregisterShortcuts()
       unsubscribeLayers()
       unsubscribeTimeline()
       unsubscribeAudio()
+      unsubscribeEditor()
 
       if (historyTimerRef.current !== null) {
         window.clearTimeout(historyTimerRef.current)
@@ -468,6 +502,8 @@ export function EditorTopBar({
             >
               <DragHandleDots2Icon height={14} width={14} />
             </IconButton>
+
+            <ProjectMenu />
 
             <div className="inline-flex items-center gap-0.5 rounded-[var(--ds-radius-bar)] border border-white/8 bg-black/25 p-[3px]">
               <IconButton
@@ -556,6 +592,21 @@ export function EditorTopBar({
               ) : null}
             </div>
 
+            {globalColorsActive ? (
+              <Button
+                aria-label="Global colors active"
+                className="h-7 whitespace-nowrap"
+                size="compact"
+                variant="secondary"
+                onClick={() => {
+                  useEditorStore.getState().setSidebarOpen("right", true)
+                  setSidebarView("scene")
+                }}
+              >
+                Global colors active
+              </Button>
+            ) : null}
+
             <div className="inline-flex items-center gap-1.5">
               <AnimatePresence initial={false}>
                 {hasMovedFloatingPanels ? (
@@ -641,6 +692,7 @@ export function EditorTopBar({
             className="pointer-events-auto flex w-full max-w-[420px] flex-col gap-1.5 p-1.5"
             variant="panel"
           >
+            <ProjectMenu mobile />
             <div className="grid grid-cols-5 gap-1.5">
               <IconButton
                 aria-label="Undo"

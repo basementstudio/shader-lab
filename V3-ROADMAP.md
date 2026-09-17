@@ -16,7 +16,7 @@ La rama de integración es `git-chad/shader-lab-v3-plan`. La pila comienza con [
 
 PR principal: [#150 — V3: designer-focused composition and experimental graphics](https://github.com/basementstudio/shader-lab/pull/150).
 
-Primer paso de la fase 1: [baselines de composición y mapa del canal alfa](tests/composition/README.md). Esta cobertura inicial no cierra la fase ni sustituye la validación visual con las catorce referencias elegidas.
+Primer paso de la fase 1: [baselines de composición y mapa del canal alfa](tests/composition/README.md). Esta cobertura inicial no cierra la fase ni sustituye la validación visual con las dieciséis referencias elegidas.
 
 Avance de 1.3: grupos aislados con hasta ocho niveles, controles del editor, reordenamiento de subárboles, plegado, visibilidad, opacidad, duplicación, deshacer, persistencia v7 y exportación de configuración. Las pruebas cubren estado, hidratación real y píxeles guardados/reabiertos. El usuario confirmó la prueba de aislamiento de foto + halftone, opacidad y plegado. La corrección posterior de arrastre permite entrar/salir de grupos con indicadores de destino y actualiza orden y pertenencia en una sola operación; la [lista manual ampliada](tests/composition/GROUPS-MANUAL-QA.md) sigue disponible para la validación global.
 
@@ -26,9 +26,13 @@ Avance de 1.3: grupos aislados con hasta ocho niveles, controles del editor, reo
 
 **Prioridad máxima:** transparencia y grupos sostienen la composición. La cobertura alfa necesaria para los modos creativos de máscara se incorpora con los efectos que la usan; la interfaz de máscaras básicas queda aplazada. La preparación inicial debe ser breve y servir a la ejecución.
 
+### Referencias visuales obligatorias
+
+Antes de decidir el comportamiento o la apariencia de cualquier shader, abrir las imágenes pertinentes de [V3-VISUAL-REFERENCES.md](V3-VISUAL-REFERENCES.md). El directorio original y la copia local contienen las dieciséis referencias del usuario. Comparar renders con esas imágenes; las pruebas técnicas no sustituyen la revisión visual ni dan por terminada una familia.
+
 ### 1.1 Preparar pruebas y referencias mínimas
 
-Reunir las catorce imágenes elegidas y pruebas con fotografías, retratos, objetos, tipografía y video, variando luz y detalle. Guardar escenas existentes y resultados de referencia para comprobar su apariencia desde el primer cambio.
+Reunir las dieciséis imágenes elegidas y pruebas con fotografías, retratos, objetos, tipografía y video, variando luz y detalle. Guardar escenas existentes y resultados de referencia para comprobar su apariencia desde el primer cambio.
 
 ### 1.2 Comprobar el estado actual y corregir el canal alfa
 
@@ -112,7 +116,7 @@ Aplicar los nuevos valores únicamente a capas recién creadas y comparar proyec
 
 Explorar deterioro fotográfico, imágenes sintéticas o escultóricas y geometría, inspirados en afiches experimentales, discos, revistas de música electrónica, Photoshop y diseño de finales de los noventa y los dos mil. Admitir registros claros, oscuros, sobrios y coloridos.
 
-La base principal son las catorce imágenes elegidas, más Lovedance —forma roja sobre fotografía azul, atravesada por luces— y el collage monocromo de foto difusa, curvas técnicas y tipografía precisas. Transformar fotografía con geometría, tono, textura y composición sin limitarse al cyberpunk o una estética retro. Los archivos iniciales fueron exploratorios: solo dos ejemplos interesaron y una página de Paradiso falló.
+La base principal son las dieciséis imágenes elegidas, más Lovedance —forma roja sobre fotografía azul, atravesada por luces— y el collage monocromo de foto difusa, curvas técnicas y tipografía precisas. Transformar fotografía con geometría, tono, textura y composición sin limitarse al cyberpunk o una estética retro. Los archivos iniciales fueron exploratorios: solo dos ejemplos interesaron y una página de Paradiso falló.
 
 ### 3.2 Probar las tres familias recomendadas
 
@@ -138,7 +142,7 @@ Esto no cierra la fase 3: quedan la curaduría visual con las referencias comple
 
 **Valores iniciales de anillos elegidos por el usuario:** las capas nuevas usan 22 semidiscos, radio 2, rotación por anillo de 45°, desplazamiento y separación 0, con Output en Distort. Mantener los parámetros de escenas existentes y los valores anteriores cuando falten campos en archivos guardados.
 
-**Primer prototipo de celdas implementado, pendiente de validación visual del usuario:** Photographic Cells selecciona bloques rectangulares según zonas claras, oscuras o azar con semilla. Conserva el detalle fotográfico interior y permite ajustar tamaño, proporción, irregularidad de filas, separación, bordes suaves, inversión y contornos. Cutout revela las capas externas al grupo; Keep Image conserva la fotografía y superpone únicamente los contornos seleccionados. Incluye catálogo, editor/runtime, guardado/reapertura y PNG. Ver [alcance y prueba manual](tests/composition/PHOTOGRAPHIC-CELLS-MANUAL-QA.md). No cierra la familia: quedan curaduría con todas las referencias y validación temporal/de rendimiento con video.
+**Primer prototipo de celdas aceptado como base útil por el usuario; corregido el exceso de grosor de contornos al cambiar Gap:** Photographic Cells selecciona bloques rectangulares según zonas claras, oscuras o azar con semilla. Conserva el detalle fotográfico interior y permite ajustar tamaño, proporción, irregularidad de filas, separación, bordes suaves, inversión y contornos. Cutout revela las capas externas al grupo; Keep Image conserva la fotografía y superpone únicamente los contornos seleccionados. Incluye catálogo, editor/runtime, guardado/reapertura y PNG. Ver [alcance y prueba manual](tests/composition/PHOTOGRAPHIC-CELLS-MANUAL-QA.md). No cierra la familia: el usuario señala que todavía no alcanza las referencias. Quedan regiones fotográficas conectadas con siluetas escalonadas y contornos de perímetro (puente, `11-puente-recortes-geometricos.png`), regiones amplias de color con bordes celulares y puntos finos (afiche blanco, `05-recortes-celdas-color.png`), curaduría con las imágenes abiertas y validación temporal/de rendimiento con video. Evaluar selección de regiones conectadas y contornos sin divisiones internas; combinar capas para color/tramas cuando resulte más simple. La cuadrícula rectangular actual y sus contornos por celda son límites del prototipo, no el objetivo visual final.
 
 **Idea para ampliar anillos, todavía por elegir:** probar una única familia de formas concéntricas (círculo, triángulo y cuadrado) reutilizando conteo, rotación, desplazamiento y separación. Separar la forma base del corte completo/mitad permitiría extender los semidiscos sin multiplicar controles. No implementar esta ampliación en el prototipo de celdas; presentar la propuesta al usuario primero.
 

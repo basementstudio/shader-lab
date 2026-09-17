@@ -181,11 +181,16 @@ export class PhotographicCellsPass extends PassNode {
       )
       const mask = coverage.mul(selected)
       const strokeWidth = min(width, this.size).mul(this.outline)
-      const stroke = smoothstep(
-        strokeWidth.negate().sub(edge),
-        strokeWidth.negate().add(edge),
-        distance
-      ).mul(select(this.outline.greaterThan(0), float(1), float(0)))
+      const interior = float(1).sub(
+        smoothstep(edge.negate(), edge, distance.add(strokeWidth))
+      )
+      // Subtract the inset fill from the outer coverage. Multiplying two edge
+      // fades adds extra ink when a gap opens, especially for thin outlines.
+      const strokeCoverage = max(coverage.sub(interior), 0).mul(
+        select(this.outline.greaterThan(0), float(1), float(0))
+      )
+      // RGB is straight-alpha: normalize here because mask applies coverage below.
+      const stroke = strokeCoverage.div(max(coverage, 0.000001))
       const original = this.inputNode
       const rgb = mix(original.rgb, this.outlineColor, stroke)
       // Outlines never manufacture coverage in transparent parts of the source.

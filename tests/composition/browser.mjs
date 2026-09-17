@@ -2,12 +2,18 @@ import { buildBlendNode as buildRuntimeBlendNode } from "@runtime/renderer/blend
 import { float, vec4 } from "three/tsl"
 import * as THREE from "three/webgpu"
 import {
+  applyLabProjectFile,
+  buildLabProjectFile,
   buildViewerProjectState,
   parseLabProjectFileValue,
 } from "@/lib/editor/project-file"
 import { buildBlendNode } from "@/renderer/blend-modes"
 import { buildRendererFrame } from "@/renderer/contracts"
 import { createWebGPURenderer } from "@/renderer/create-webgpu-renderer"
+import { useAssetStore } from "@/store/asset-store"
+import { useEditorStore } from "@/store/editor-store"
+import { useLayerStore } from "@/store/layer-store"
+import { useTimelineStore } from "@/store/timeline-store"
 import { BLEND_MODES } from "@/types/editor"
 
 function pixels(canvas) {
@@ -221,6 +227,34 @@ window.checkExistingProject = async () => {
   if (JSON.stringify(parsed) !== JSON.stringify(reopened))
     throw new Error("Saved project is not stable across parse/serialize/reopen")
   const state = buildViewerProjectState(reopened)
+  const revision = useEditorStore.getState().sceneRevision
+  const missing = applyLabProjectFile(reopened, [])
+  if (missing.missingAssetCount || missing.missingAudioSource) {
+    throw new Error("Editor hydration lost bundled media")
+  }
+  if (useEditorStore.getState().sceneRevision !== revision + 1) {
+    throw new Error("Editor did not signal scene replacement")
+  }
+  const stored = buildLabProjectFile()
+  for (const key of [
+    "layers",
+    "sceneConfig",
+    "composition",
+    "selectedLayerId",
+    "timeline",
+    "audio",
+  ]) {
+    if (JSON.stringify(stored[key]) !== JSON.stringify(reopened[key])) {
+      throw new Error(`Editor hydration/save changed ${key}`)
+    }
+  }
+  if (
+    useAssetStore.getState().assets.length !== original.assets.length ||
+    useLayerStore.getState().layers.length !== original.layers.length ||
+    useTimelineStore.getState().currentTime !== 0
+  ) {
+    throw new Error("Editor stores were not restored")
+  }
   if (
     state.layers.length !== original.layers.length ||
     state.assets.length !== original.assets.length

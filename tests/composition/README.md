@@ -31,7 +31,7 @@ Each fixture renders through the editor renderer, compares preview with PNG expo
 
 `legacy-blends.json` freezes 136 GPU samples across the editor and exported runtime: all 16 blend modes at three opacities, plus five mask sources, two mask modes, and inversion. The shaders are evaluated into float render targets; both implementations must match, and reference values have a tolerance of `0.00001`. These are compatibility expectations, not endorsements of the old alpha semantics.
 
-`existing-default-project.json` is an unmodified copy of the repository's existing saved project. Parsing, serialization, reopening, and hydration must retain its nine layers, two bundled assets, blend modes, masks, opacity, and parameter values. Its video/audio and full effect stack are **not** rendered by this initial suite.
+`existing-default-project.json` is an unmodified copy of the repository's existing saved project. Parsing, serialization, reopening, viewer hydration, and the actual editor hydration/save path must retain its nine layers, two bundled assets, blend modes, masks, opacity, and parameter values. The editor check also verifies scene settings, composition dimensions, selection, timeline, audio, and the scene-replacement signal. Its video/audio and full effect stack are **not** rendered by this initial suite.
 
 ## Confirmed alpha boundaries
 

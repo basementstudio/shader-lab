@@ -1,6 +1,54 @@
 import { validateLayerHierarchy } from "@/renderer/layer-hierarchy"
 import type { EditorLayer } from "@/types/editor"
 
+export type LayerDropTarget = {
+  id: string
+  placement: "before" | "inside" | "after"
+}
+
+/** Move a whole subtree and its membership together, once the pointer is released. */
+export function dropLayer(
+  layers: EditorLayer[],
+  id: string,
+  target: LayerDropTarget
+): EditorLayer[] | null {
+  const source = layers.find((layer) => layer.id === id)
+  const anchor = layers.find((layer) => layer.id === target.id)
+  if (!(source && anchor) || source.locked) return null
+  const contents = subtreeLayers(layers, id)
+  if (contents.some((layer) => layer.id === target.id)) return null
+  const parentId =
+    target.placement === "inside" ? anchor.id : (anchor.parentId ?? null)
+  const parent = layers.find((layer) => layer.id === parentId)
+  if (
+    parentId !== null &&
+    (!parent || parent.kind !== "group" || parent.locked)
+  )
+    return null
+  const ids = new Set(contents.map((layer) => layer.id))
+  const remaining = layers.filter((layer) => !ids.has(layer.id))
+  let index = remaining.findIndex((layer) => layer.id === anchor.id)
+  if (target.placement === "inside") index++
+  if (target.placement === "after")
+    index += subtreeLayers(remaining, anchor.id).length
+  const next = [
+    ...remaining.slice(0, index),
+    (source.parentId ?? null) === parentId ? source : { ...source, parentId },
+    ...contents.slice(1),
+    ...remaining.slice(index),
+  ].map((layer) =>
+    layer.id === parentId && !layer.expanded
+      ? { ...layer, expanded: true }
+      : layer
+  )
+  try {
+    validateLayerHierarchy(next)
+  } catch {
+    return null
+  }
+  return next.every((layer, i) => layer === layers[i]) ? layers : next
+}
+
 export function subtreeLayers(
   layers: readonly EditorLayer[],
   id: string

@@ -1,17 +1,18 @@
-import {
-  insertGroup,
-  moveLayerToGroup,
-  reorderSiblingLayers,
-  subtreeLayers,
-  visibleLayerRows,
-} from "@/lib/editor/layer-groups"
-import { validateLayerHierarchy } from "@/renderer/layer-hierarchy"
 import { create } from "zustand"
 import { getLayerDefinition } from "@/lib/editor/config/layer-registry"
 import {
   getDefaultProjectLayers,
   getDefaultProjectSelectedLayerId,
 } from "@/lib/editor/default-project"
+import {
+  dropLayer,
+  insertGroup,
+  type LayerDropTarget,
+  moveLayerToGroup,
+  reorderSiblingLayers,
+  subtreeLayers,
+  visibleLayerRows,
+} from "@/lib/editor/layer-groups"
 import {
   clampLayerAdjustments,
   cloneLayer,
@@ -23,8 +24,9 @@ import {
   getParameterDefinition,
 } from "@/lib/editor/parameter-schema"
 import { normalizeTextFontWeight } from "@/lib/editor/text-fonts"
-import { useEditorStore } from "@/store/editor-store"
+import { validateLayerHierarchy } from "@/renderer/layer-hierarchy"
 import { useAudioStore } from "@/store/audio-store"
+import { useEditorStore } from "@/store/editor-store"
 import { useTimelineStore } from "@/store/timeline-store"
 import type {
   BlendMode,
@@ -51,6 +53,7 @@ export interface LayerStoreActions {
   groupLayers: (ids: string[]) => string | null
   ungroupLayer: (id: string) => void
   moveLayer: (id: string, parentId: string | null) => void
+  dropLayer: (id: string, target: LayerDropTarget) => void
   reorderSiblings: (parentId: string | null, ids: string[]) => void
   addLayer: (type: LayerType, insertIndex?: number) => string
   duplicateLayer: (id: string) => string | null
@@ -698,6 +701,11 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
   moveLayer: (id, parentId) => {
     const layers = moveLayerToGroup(get().layers, id, parentId)
     if (layers) set({ layers })
+  },
+
+  dropLayer: (id, target) => {
+    const layers = dropLayer(get().layers, id, target)
+    if (layers && layers !== get().layers) set({ layers })
   },
 
   reorderSiblings: (parentId, ids) => {

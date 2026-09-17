@@ -11,6 +11,7 @@ export interface LayerCatalogEntry {
 }
 
 export const LAYER_CATALOG: Record<LayerType, LayerCatalogEntry> = {
+  group: { label: "Group" },
   ascii: {
     category: "core",
     description:

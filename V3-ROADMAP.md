@@ -18,7 +18,7 @@ PR principal: [#150 — V3: designer-focused composition and experimental graphi
 
 Primer paso de la fase 1: [baselines de composición y mapa del canal alfa](tests/composition/README.md). Esta cobertura inicial no cierra la fase ni sustituye la validación visual con las catorce referencias elegidas.
 
-Avance técnico de 1.3: el contrato interno de render admite grupos aislados y hasta ocho niveles de anidamiento, con pruebas de alcance, opacidad, orden, recursos y exportación. La creación y organización de grupos en el editor, deshacer, persistencia, exportación de configuración y máscaras siguen pendientes; esta base no cierra 1.3.
+Avance de 1.3: grupos aislados con hasta ocho niveles, controles del editor, reordenamiento de subárboles, plegado, visibilidad, opacidad, duplicación, deshacer, persistencia v7 y exportación de configuración. Las pruebas cubren estado, hidratación real y píxeles guardados/reabiertos. Queda la [validación manual de grupos](tests/composition/GROUPS-MANUAL-QA.md); máscaras de cobertura y validación global de la fase 1 siguen pendientes.
 
 ## Fase 1 — Resolver la base de composición y proteger proyectos existentes
 

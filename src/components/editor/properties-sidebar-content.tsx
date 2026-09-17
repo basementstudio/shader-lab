@@ -1,5 +1,7 @@
 "use client"
 
+import { LayerGroupLocation } from "@/components/editor/layer-group-location"
+
 import { TextAlignRightIcon } from "@radix-ui/react-icons"
 import { AnimatePresence, motion } from "motion/react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
@@ -549,6 +551,7 @@ export function SelectedLayerPropertiesContent({
               valueSuffix="%"
             />
 
+            <LayerGroupLocation layerId={layerId} />
             <div className="grid items-center gap-[10px] [grid-template-columns:minmax(0,1fr)_132px]">
               <Typography className="min-w-0" tone="secondary" variant="label">
                 Blend
@@ -566,24 +569,7 @@ export function SelectedLayerPropertiesContent({
               />
             </div>
 
-            <div className="grid items-center gap-[10px] [grid-template-columns:minmax(0,1fr)_132px]">
-              <Typography className="min-w-0" tone="secondary" variant="label">
-                Mode
-              </Typography>
-              <Select
-                className="w-[132px]"
-                onValueChange={(value) => {
-                  if (value) {
-                    setLayerCompositeMode(layerId, value as LayerCompositeMode)
-                  }
-                }}
-                options={compositeModeOptions}
-                triggerClassName="w-[132px]"
-                value={compositeMode}
-              />
-            </div>
-
-            {compositeMode === "mask" && (
+            {layerType !== "group" && (
               <>
                 <div className="grid items-center gap-[10px] [grid-template-columns:minmax(0,1fr)_132px]">
                   <Typography
@@ -591,95 +577,125 @@ export function SelectedLayerPropertiesContent({
                     tone="secondary"
                     variant="label"
                   >
-                    Source
+                    Mode
                   </Typography>
                   <Select
                     className="w-[132px]"
                     onValueChange={(value) => {
                       if (value) {
-                        setLayerMaskConfig(layerId, {
-                          source: value as MaskSource,
-                        })
+                        setLayerCompositeMode(
+                          layerId,
+                          value as LayerCompositeMode
+                        )
                       }
                     }}
-                    options={maskSourceOptions}
+                    options={compositeModeOptions}
                     triggerClassName="w-[132px]"
-                    value={maskConfig.source}
+                    value={compositeMode}
                   />
                 </div>
 
-                <div className="grid items-center gap-[10px] [grid-template-columns:minmax(0,1fr)_132px]">
-                  <Typography
-                    className="min-w-0"
-                    tone="secondary"
-                    variant="label"
-                  >
-                    Mask Mode
-                  </Typography>
-                  <Select
-                    className="w-[132px]"
-                    onValueChange={(value) => {
-                      if (value) {
-                        setLayerMaskConfig(layerId, { mode: value as MaskMode })
-                      }
-                    }}
-                    options={maskModeOptions}
-                    triggerClassName="w-[132px]"
-                    value={maskConfig.mode}
-                  />
-                </div>
+                {compositeMode === "mask" && (
+                  <>
+                    <div className="grid items-center gap-[10px] [grid-template-columns:minmax(0,1fr)_132px]">
+                      <Typography
+                        className="min-w-0"
+                        tone="secondary"
+                        variant="label"
+                      >
+                        Source
+                      </Typography>
+                      <Select
+                        className="w-[132px]"
+                        onValueChange={(value) => {
+                          if (value) {
+                            setLayerMaskConfig(layerId, {
+                              source: value as MaskSource,
+                            })
+                          }
+                        }}
+                        options={maskSourceOptions}
+                        triggerClassName="w-[132px]"
+                        value={maskConfig.source}
+                      />
+                    </div>
 
-                <div className="grid items-center gap-[10px] [grid-template-columns:minmax(0,1fr)_132px]">
-                  <Typography
-                    className="min-w-0"
-                    tone="secondary"
-                    variant="label"
-                  >
-                    Invert
-                  </Typography>
-                  <Toggle
-                    checked={maskConfig.invert}
-                    className="justify-self-end"
-                    onCheckedChange={(nextValue) =>
-                      setLayerMaskConfig(layerId, { invert: nextValue })
-                    }
-                  />
-                </div>
+                    <div className="grid items-center gap-[10px] [grid-template-columns:minmax(0,1fr)_132px]">
+                      <Typography
+                        className="min-w-0"
+                        tone="secondary"
+                        variant="label"
+                      >
+                        Mask Mode
+                      </Typography>
+                      <Select
+                        className="w-[132px]"
+                        onValueChange={(value) => {
+                          if (value) {
+                            setLayerMaskConfig(layerId, {
+                              mode: value as MaskMode,
+                            })
+                          }
+                        }}
+                        options={maskModeOptions}
+                        triggerClassName="w-[132px]"
+                        value={maskConfig.mode}
+                      />
+                    </div>
+
+                    <div className="grid items-center gap-[10px] [grid-template-columns:minmax(0,1fr)_132px]">
+                      <Typography
+                        className="min-w-0"
+                        tone="secondary"
+                        variant="label"
+                      >
+                        Invert
+                      </Typography>
+                      <Toggle
+                        checked={maskConfig.invert}
+                        className="justify-self-end"
+                        onCheckedChange={(nextValue) =>
+                          setLayerMaskConfig(layerId, { invert: nextValue })
+                        }
+                      />
+                    </div>
+                  </>
+                )}
+
+                <Slider
+                  label={renderFieldLabel(
+                    "Hue",
+                    buildTimelineControl(hueBinding, hue),
+                    buildAudioControl(hueBinding)
+                  )}
+                  max={180}
+                  min={-180}
+                  onInteractionStart={onInteractionStart}
+                  onValueChange={(value) => setLayerHue(layerId, value)}
+                  onValueCommitted={() => onInteractionEnd?.()}
+                  value={hue}
+                />
+
+                <Slider
+                  label={renderFieldLabel(
+                    "Saturation",
+                    buildTimelineControl(saturationBinding, saturation),
+                    buildAudioControl(saturationBinding)
+                  )}
+                  max={2}
+                  min={0}
+                  onInteractionStart={onInteractionStart}
+                  onValueChange={(value) => setLayerSaturation(layerId, value)}
+                  onValueCommitted={() => onInteractionEnd?.()}
+                  step={0.01}
+                  value={saturation}
+                  valueFormatOptions={{
+                    maximumFractionDigits: 2,
+                    minimumFractionDigits: 2,
+                  }}
+                />
               </>
             )}
-
-            <Slider
-              label={renderFieldLabel(
-                "Hue",
-                buildTimelineControl(hueBinding, hue),
-                buildAudioControl(hueBinding)
-              )}
-              max={180}
-              min={-180}
-              onInteractionStart={onInteractionStart}
-              onValueChange={(value) => setLayerHue(layerId, value)}
-              onValueCommitted={() => onInteractionEnd?.()}
-              value={hue}
-            />
-
-            <Slider
-              label={renderFieldLabel(
-                "Saturation",
-                buildTimelineControl(saturationBinding, saturation),
-                buildAudioControl(saturationBinding)
-              )}
-              max={2}
-              min={0}
-              onInteractionStart={onInteractionStart}
-              onValueChange={(value) => setLayerSaturation(layerId, value)}
-              onValueCommitted={() => onInteractionEnd?.()}
-              step={0.01}
-              value={saturation}
-              valueFormatOptions={{
-                maximumFractionDigits: 2,
-                minimumFractionDigits: 2,
-              }}
-            />
           </div>
         </section>
 

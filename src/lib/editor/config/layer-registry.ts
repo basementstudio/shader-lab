@@ -3723,6 +3723,7 @@ const blobTrackingParams = [
 ] as const satisfies ParameterDefinitions
 
 const layerDefinitions: Record<LayerType, LayerDefinition> = {
+  group: { defaultName: "Group", kind: "group", params: [], type: "group" },
   ascii: {
     defaultName: "ASCII",
     kind: "effect",

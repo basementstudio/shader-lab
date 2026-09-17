@@ -28,7 +28,7 @@ function cloneHistoryTimeline(
     | "selectedKeyframeIds"
     | "selectedTrackId"
     | "tracks"
-  >,
+  >
 ): HistoryTimelineSnapshot {
   return structuredClone({
     currentTime: timeline.currentTime,
@@ -44,7 +44,7 @@ function cloneHistoryTimeline(
 export function buildEditorHistorySnapshotFromState(
   layerState: Pick<
     ReturnType<typeof useLayerStore.getState>,
-    "hoveredLayerId" | "layers" | "selectedLayerId"
+    "hoveredLayerId" | "layers" | "selectedLayerId" | "selectedLayerIds"
   >,
   timelineState: Pick<
     TimelineStateSnapshot,
@@ -56,13 +56,14 @@ export function buildEditorHistorySnapshotFromState(
     | "selectedTrackId"
     | "tracks"
   >,
-  audioState: EditorAudioSnapshot,
+  audioState: EditorAudioSnapshot
 ): EditorHistorySnapshot {
   return {
     audio: cloneHistoryAudio(audioState),
     hoveredLayerId: layerState.hoveredLayerId,
     layers: structuredClone(layerState.layers),
     selectedLayerId: layerState.selectedLayerId,
+    selectedLayerIds: [...layerState.selectedLayerIds],
     timeline: cloneHistoryTimeline(timelineState),
   }
 }
@@ -71,14 +72,21 @@ export function buildEditorHistorySnapshot(): EditorHistorySnapshot {
   return buildEditorHistorySnapshotFromState(
     useLayerStore.getState(),
     useTimelineStore.getState(),
-    useAudioStore.getState().getSnapshot(),
+    useAudioStore.getState().getSnapshot()
   )
 }
 
-export function applyEditorHistorySnapshot(snapshot: EditorHistorySnapshot): void {
+export function applyEditorHistorySnapshot(
+  snapshot: EditorHistorySnapshot
+): void {
   useLayerStore
     .getState()
-    .replaceState(snapshot.layers, snapshot.selectedLayerId, snapshot.hoveredLayerId)
+    .replaceState(
+      snapshot.layers,
+      snapshot.selectedLayerId,
+      snapshot.hoveredLayerId,
+      snapshot.selectedLayerIds
+    )
   useTimelineStore.getState().replaceState({
     currentTime: snapshot.timeline.currentTime,
     duration: snapshot.timeline.duration,
@@ -92,7 +100,9 @@ export function applyEditorHistorySnapshot(snapshot: EditorHistorySnapshot): voi
   useAudioStore.getState().restoreSnapshot(snapshot.audio)
 }
 
-export function getHistorySnapshotSignature(snapshot: EditorHistorySnapshot): string {
+export function getHistorySnapshotSignature(
+  snapshot: EditorHistorySnapshot
+): string {
   return JSON.stringify({
     audio: snapshot.audio,
     layers: snapshot.layers,

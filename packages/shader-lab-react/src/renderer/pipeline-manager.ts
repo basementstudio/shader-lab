@@ -1,3 +1,4 @@
+import type { RenderableLayerConfig } from "./contracts"
 import {
   type CompositionNode,
   flattenComposition,
@@ -220,8 +221,8 @@ export class PipelineManager {
     this.blitScene.add(blitMesh)
   }
 
-  syncLayers(layers: CompositionNode<ShaderLabLayerConfig>[]): void {
-    const getId = (node: CompositionNode<ShaderLabLayerConfig>) =>
+  syncLayers(layers: CompositionNode<RenderableLayerConfig>[]): void {
+    const getId = (node: CompositionNode<RenderableLayerConfig>) =>
       isCompositionGroup(node) ? node.id : node.id
     const flattened = flattenComposition(layers, (node) => node.id)
     const incomingIds = new Set(flattened.map(getId))

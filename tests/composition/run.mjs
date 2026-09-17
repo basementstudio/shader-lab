@@ -186,6 +186,15 @@ try {
     `PASS ${groups.samples} group checks: isolation, nesting, opacity, ordering, lifecycle, and editor PNG export`
   )
   assert.deepEqual(errors, [], "Browser or GPU errors occurred")
+  const editorGroups = await page.evaluate(() => window.checkEditorGroups())
+  await Bun.write(
+    resolve(artifacts, "saved-editor-group.png"),
+    Buffer.from(editorGroups.png.split(",")[1], "base64")
+  )
+  console.log(
+    `PASS editor groups: store operations, history, v7 hydration, ${editorGroups.tracks} animation tracks, shader export, and saved/reopened pixels`
+  )
+  assert.deepEqual(errors, [], "Browser or GPU errors occurred")
   console.log(
     update
       ? "Baseline capture complete. Review images before committing."

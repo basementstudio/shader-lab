@@ -619,6 +619,22 @@ export function migrateLayerParams(
 ): LayerParameterValues {
   const params: LayerParameterValues = { ...layer.params }
 
+  // Curated defaults apply only to new rings. Missing saved values retain the
+  // renderer's original fallbacks, including exported partial configurations.
+  if (layer.type === "displaced-rings") {
+    const previousDefaults: LayerParameterValues = {
+      shape: "rings",
+      count: 8,
+      radius: 0.9,
+      offset: [0.045, 0],
+      rotationStep: 12,
+      gap: 0.04,
+    }
+    for (const [key, value] of Object.entries(previousDefaults)) {
+      if (params[key] === undefined) params[key] = value
+    }
+  }
+
   // Saved text without an explicit background opacity used the old solid
   // fallback. New-layer defaults must not change those compositions.
   if (layer.type === "text" && params.backgroundAlpha === undefined) {

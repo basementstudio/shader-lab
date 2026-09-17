@@ -47,6 +47,7 @@ const SUPPORTED_SHADER_EXPORT_LAYER_TYPES = new Set<LayerType>([
   "pixel-sorting",
   "pixelation",
   "plotter",
+  "photographic-cells",
   "displaced-rings",
   "slice",
   "smear",
@@ -85,6 +86,7 @@ type SupportedShaderExportLayerType = Extract<
   | "pixel-sorting"
   | "plotter"
   | "posterize"
+  | "photographic-cells"
   | "displaced-rings"
   | "slice"
   | "smear"

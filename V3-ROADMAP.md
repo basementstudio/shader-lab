@@ -20,7 +20,7 @@ Primer paso de la fase 1: [baselines de composición y mapa del canal alfa](test
 
 Avance de 1.3: grupos aislados con hasta ocho niveles, controles del editor, reordenamiento de subárboles, plegado, visibilidad, opacidad, duplicación, deshacer, persistencia v7 y exportación de configuración. Las pruebas cubren estado, hidratación real y píxeles guardados/reabiertos. El usuario confirmó la prueba de aislamiento de foto + halftone, opacidad y plegado. La corrección posterior de arrastre permite entrar/salir de grupos con indicadores de destino y actualiza orden y pertenencia en una sola operación; la [lista manual ampliada](tests/composition/GROUPS-MANUAL-QA.md) sigue disponible para la validación global.
 
-**Prioridades revisadas con el usuario (17 de septiembre de 2026):** texto transparente por defecto (2.1) implementado en #156 y confirmado por el usuario. Siguiente entrega: prototipo de los anillos desplazados ya previstos en 3.2–3.3; no es una familia adicional. Posponer las máscaras básicas de círculo/rectángulo y su interfaz genérica: no bloquean texto ni la exploración de anillos; revisar cuándo retomarlas al cerrar el alcance de V3. Desarrollar modos de máscara adaptados al lenguaje visual de los efectos seleccionados. Registrar con prioridad baja una revisión de calidad de Blob Tracking y sus posibilidades como máscara (6.3).
+**Prioridades revisadas con el usuario (17 de septiembre de 2026):** texto transparente por defecto (2.1) implementado en #156 y confirmado por el usuario. Anillos desplazados implementados y validados visualmente; el usuario también confirmó la corrección de arrastre entre grupos. En curso: primer prototipo de recortes fotográficos por celdas (3.2–3.3). Posponer las máscaras básicas de círculo/rectángulo y su interfaz genérica: no bloquean texto ni la exploración de anillos; revisar cuándo retomarlas al cerrar el alcance de V3. Desarrollar modos de máscara adaptados al lenguaje visual de los efectos seleccionados. Registrar con prioridad baja una revisión de calidad de Blob Tracking y sus posibilidades como máscara (6.3).
 
 ## Fase 1 — Resolver la base de composición y proteger proyectos existentes
 
@@ -41,6 +41,12 @@ Permitir regiones vacías junto a contenido totalmente opaco. Bajar la opacidad 
 Los grupos con alcance propio son **requisitos confirmados**, pedidos explícitamente por un colega diseñador. Las máscaras de grupo también se solicitaron, pero el usuario decidió posponer la interfaz de máscaras básicas y priorizar modos creativos ligados a efectos (1.4). Se propone composición aislada por defecto: procesar los contenidos pertinentes del grupo y luego integrarlo al conjunto. Sus efectos no deben afectar capas externas. Agregar carpetas sobre una cadena global de filtros no resuelve el requisito.
 
 Incluir organización, reordenamiento, plegado, visibilidad, opacidad, deshacer y guardado. Definir la profundidad de anidamiento durante la implementación, sin prometer reproducir todo Photoshop.
+
+**Ampliación acordada para más adelante — Pass Through:** añadir un modo opcional de grupo que permita a sus efectos procesar las capas inferiores externas, dentro del contexto de composición de su padre. Mantener **Isolated** como valor predeterminado, también para proyectos guardados que no indiquen un modo. Esta ampliación no bloquea las entregas en curso.
+
+Ofrecer una elección explícita entre Isolated y Pass Through, con una explicación breve de su alcance. Un grupo con Ink y Displaced Rings sobre una imagen externa debe dejarla intacta en Isolated y procesarla al elegir Pass Through. Las capas superiores y las que estén fuera de un ancestro aislado deben conservar su independencia. Definir el comportamiento de opacidad, mezcla y recorte del grupo antes de implementarlo; no asumir que basta con aplanar sus hijos.
+
+Validar grupos anidados y cambios de modo, visibilidad, reordenamiento, deshacer/rehacer, guardado/reapertura y paridad entre editor, runtime y exportación. Conservar la apariencia de todos los grupos aislados existentes.
 
 ### 1.4 Orientar las máscaras hacia modos creativos por efecto
 
@@ -129,6 +135,12 @@ Separar la transformación de la fotografía dentro de cada banda del modo que r
 **Primer prototipo implementado y validado visualmente por el usuario (valores iniciales a cargo del usuario):** Displaced Rings admite 1–128 bandas (48 comprobadas), anillos/semidiscos, centro, radio, distribución, desplazamiento alternado/progresivo/aleatorio con semilla, rotación global y por banda, escala progresiva, separación y bordes suaves. Output distingue Distort y Cutout; dentro de un grupo, Cutout revela las capas externas por los huecos. Editor y runtime comparten el comportamiento, con pruebas de píxeles, hidratación real, deshacer, guardado/reapertura y PNG. El catálogo incorpora una vista previa fotográfica y muestra el efecto primero. Ver [alcance y prueba manual](tests/composition/DISPLACED-RINGS-MANUAL-QA.md).
 
 Esto no cierra la fase 3: quedan la curaduría visual con las referencias completas, combinaciones con otros efectos, rendimiento con fotografías/video a resoluciones representativas y la selección de las otras familias. El prototipo usa transformaciones progresivas; no incluye controles individuales por anillo ni inversión de cobertura.
+
+**Valores iniciales de anillos elegidos por el usuario:** las capas nuevas usan 22 semidiscos, radio 2, rotación por anillo de 45°, desplazamiento y separación 0, con Output en Distort. Mantener los parámetros de escenas existentes y los valores anteriores cuando falten campos en archivos guardados.
+
+**Primer prototipo de celdas implementado, pendiente de validación visual del usuario:** Photographic Cells selecciona bloques rectangulares según zonas claras, oscuras o azar con semilla. Conserva el detalle fotográfico interior y permite ajustar tamaño, proporción, irregularidad de filas, separación, bordes suaves, inversión y contornos. Cutout revela las capas externas al grupo; Keep Image conserva la fotografía y superpone únicamente los contornos seleccionados. Incluye catálogo, editor/runtime, guardado/reapertura y PNG. Ver [alcance y prueba manual](tests/composition/PHOTOGRAPHIC-CELLS-MANUAL-QA.md). No cierra la familia: quedan curaduría con todas las referencias y validación temporal/de rendimiento con video.
+
+**Idea para ampliar anillos, todavía por elegir:** probar una única familia de formas concéntricas (círculo, triángulo y cuadrado) reutilizando conteo, rotación, desplazamiento y separación. Separar la forma base del corte completo/mitad permitiría extender los semidiscos sin multiplicar controles. No implementar esta ampliación en el prototipo de celdas; presentar la propuesta al usuario primero.
 
 ### 3.4 Reorganizar el catálogo junto con cada incorporación
 

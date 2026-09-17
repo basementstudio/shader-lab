@@ -120,3 +120,9 @@ See [controls, scope, and remaining visual checks](DISPLACED-RINGS-MANUAL-QA.md)
 `layer-drops.mjs` (included in the composition suite) covers atomic ordering/membership updates, collapsed targets, subtree moves, cycles, locked layers/groups, maximum nesting, no-op drops, history restoration, and real project hydration.
 
 With the editor running, execute `SHADER_LAB_URL=http://localhost:55000 bun tests/composition/group-drag-ui.mjs` for actual pointer gestures, destination feedback, nested/outdent drops, cancellation, undo/redo, and .lab download/import. It uses an isolated browser context; artifacts go to `.context/group-drag-test/`.
+
+## Photographic Cells prototype and curated ring defaults
+
+`photographic-cells.mjs` adds 40 editor/runtime GPU cases for full-resolution photographic interiors, light/dark/random selection, inversion, deterministic seeds, alpha/soft edges, outlines, opacity, parameter extremes, and cell proportions on rectangular compositions. It exercises actual `applyLabProjectFile` hydration, history restore, exported headless runtime configuration, group isolation, save/reopen, and preview/PNG comparison. Artifacts include `cell-cutout.png` and `photographic-cells-preview.png`; the latter supplies the catalog thumbnail. See [the focused manual test and limits](PHOTOGRAPHIC-CELLS-MANUAL-QA.md).
+
+`displaced-rings.mjs` now verifies the user's new-layer defaults and preservation of missing saved fields before default filling. Renderer fallbacks and all frozen compatibility fixtures remain unchanged.

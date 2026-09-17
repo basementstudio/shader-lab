@@ -61,9 +61,20 @@ try {
   const page = await browser.newPage()
   page.setDefaultTimeout(120_000)
   const errors = []
-  page.on("pageerror", (error) => errors.push(error.message))
+  page.on("pageerror", (error) => {
+    errors.push(error.message)
+    console.error(error.message)
+  })
   page.on("console", (message) => {
-    if (message.type() === "error") errors.push(message.text())
+    if (message.type() === "error") {
+      errors.push(message.text())
+      console.error(message.text())
+    }
+  })
+  page.on("requestfailed", (request) => {
+    const message = `${request.url()}: ${request.failure()?.errorText}`
+    errors.push(message)
+    console.error(message)
   })
   await page.goto(server.url.href)
   await page.waitForFunction(() => typeof window.checkProject === "function")

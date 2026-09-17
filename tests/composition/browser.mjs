@@ -44,7 +44,9 @@ async function settle(renderer, frame) {
   const deadline = performance.now() + 30_000
   while (renderer.hasPendingResources()) {
     if (performance.now() > deadline)
-      throw new Error("Timed out loading or compiling a fixture")
+      throw new Error(
+        `Timed out loading or compiling a fixture (compilation pending: ${renderer.hasPendingCompilations()})`
+      )
     await new Promise((resolve) => setTimeout(resolve, 20))
   }
   await renderer.prepareForExportFrame(frame.clock.timelineTime, true)

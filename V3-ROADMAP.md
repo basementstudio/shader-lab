@@ -18,11 +18,13 @@ PR principal: [#150 — V3: designer-focused composition and experimental graphi
 
 Primer paso de la fase 1: [baselines de composición y mapa del canal alfa](tests/composition/README.md). Esta cobertura inicial no cierra la fase ni sustituye la validación visual con las catorce referencias elegidas.
 
-Avance de 1.3: grupos aislados con hasta ocho niveles, controles del editor, reordenamiento de subárboles, plegado, visibilidad, opacidad, duplicación, deshacer, persistencia v7 y exportación de configuración. Las pruebas cubren estado, hidratación real y píxeles guardados/reabiertos. Queda la [validación manual de grupos](tests/composition/GROUPS-MANUAL-QA.md); máscaras de cobertura y validación global de la fase 1 siguen pendientes.
+Avance de 1.3: grupos aislados con hasta ocho niveles, controles del editor, reordenamiento de subárboles, plegado, visibilidad, opacidad, duplicación, deshacer, persistencia v7 y exportación de configuración. Las pruebas cubren estado, hidratación real y píxeles guardados/reabiertos. El usuario confirmó la prueba de aislamiento de foto + halftone, opacidad y plegado; la [lista manual ampliada](tests/composition/GROUPS-MANUAL-QA.md) sigue disponible para la validación global.
+
+**Prioridades revisadas con el usuario (17 de septiembre de 2026):** siguiente PR: texto transparente por defecto (2.1). Después, explorar los anillos desplazados ya previstos en 3.2–3.3; no es una familia adicional. Posponer las máscaras básicas de círculo/rectángulo y su interfaz genérica: no bloquean texto ni la exploración de anillos; revisar cuándo retomarlas al cerrar el alcance de V3. Desarrollar modos de máscara adaptados al lenguaje visual de los efectos seleccionados. Registrar con prioridad baja una revisión de calidad de Blob Tracking y sus posibilidades como máscara (6.3).
 
 ## Fase 1 — Resolver la base de composición y proteger proyectos existentes
 
-**Prioridad máxima:** transparencia, grupos y máscaras sostienen la composición. La preparación inicial debe ser breve y servir a la ejecución.
+**Prioridad máxima:** transparencia y grupos sostienen la composición. La cobertura alfa necesaria para los modos creativos de máscara se incorpora con los efectos que la usan; la interfaz de máscaras básicas queda aplazada. La preparación inicial debe ser breve y servir a la ejecución.
 
 ### 1.1 Preparar pruebas y referencias mínimas
 
@@ -36,15 +38,17 @@ Permitir regiones vacías junto a contenido totalmente opaco. Bajar la opacidad 
 
 ### 1.3 Introducir grupos reales con alcance propio
 
-Los grupos y sus máscaras son **requisitos confirmados**, pedidos explícitamente por un colega diseñador. Se propone composición aislada por defecto: procesar los contenidos pertinentes del grupo y luego integrarlo al conjunto. Sus efectos no deben afectar capas externas. Agregar carpetas sobre una cadena global de filtros no resuelve el requisito.
+Los grupos con alcance propio son **requisitos confirmados**, pedidos explícitamente por un colega diseñador. Las máscaras de grupo también se solicitaron, pero el usuario decidió posponer la interfaz de máscaras básicas y priorizar modos creativos ligados a efectos (1.4). Se propone composición aislada por defecto: procesar los contenidos pertinentes del grupo y luego integrarlo al conjunto. Sus efectos no deben afectar capas externas. Agregar carpetas sobre una cadena global de filtros no resuelve el requisito.
 
 Incluir organización, reordenamiento, plegado, visibilidad, opacidad, deshacer y guardado. Definir la profundidad de anidamiento durante la implementación, sin prometer reproducir todo Photoshop.
 
-### 1.4 Resolver máscaras de capa y grupo
+### 1.4 Orientar las máscaras hacia modos creativos por efecto
 
-Darles asignación clara, inversión, desactivación y bordes consistentes. La máscara de grupo recorta el resultado combinado y revela capas inferiores, sin rellenar de negro ni producir halos negros en bordes suaves.
+**Decisión de producto:** posponer las máscaras básicas de círculo/rectángulo adjuntas a capas o grupos. Priorizar modos adaptados a cada efecto: por ejemplo, anillos o semidiscos desplazados que revelan fotografía y dejan huecos, o regiones detectadas por Blob Tracking que sirven de máscara. Los anillos se exploran en 3.2–3.3; Blob Tracking tiene prioridad baja en 6.3. No asumir que todas las capas necesitan el mismo interruptor genérico de máscara.
 
-Usar esta pila de prueba, de arriba hacia abajo:
+Al incorporar cada modo, definir qué contenido recorta, cómo se asigna y cómo se invierte/desactiva. La cobertura debe revelar capas inferiores, sin rellenos negros ni halos oscuros en bordes suaves. Mantener la composición aislada del grupo y la apariencia de los modos de máscara guardados. La transformación de la imagen y el recorte de su cobertura son comportamientos distintos que deben quedar claros en los controles.
+
+Conservar esta pila como referencia de alcance para cuando se retomen las máscaras de grupo; no es un requisito del siguiente PR:
 
 ```text
 Texto — fuera del grupo
@@ -54,13 +58,13 @@ Grupo «Retrato» — máscara circular
 Fondo — fuera del grupo
 ```
 
-Halftone modifica solo la fotografía; la máscara circular recorta el grupo; texto y fondo quedan fuera de su alcance. Las máscaras de recorte que usan la silueta de otra capa son una extensión sugerida, con alcance inicial pendiente.
+Halftone modifica solo la fotografía; la máscara circular recorta el grupo; texto y fondo quedan fuera de su alcance. La asignación arbitraria de la silueta de otra capa sigue como extensión sugerida, con alcance pendiente; no debe confundirse con un modo de máscara propio de un efecto.
 
 ### 1.5 Anticipar las decisiones de viabilidad 3D
 
 Probar brevemente formatos, materiales, animaciones, conservación de recursos y geometría SVG. Registrar decisiones abiertas para las fases 4 y 5 sin demorar la composición. Una entrada de catálogo o tipo de capa no demuestra soporte completo de modelos.
 
-**Cierre:** huecos transparentes y contenido opaco conviven; máscaras y efectos mantienen su alcance al reordenar, deshacer, guardar, reabrir y exportar. Las escenas anteriores conservan su apariencia y los bordes suaves quedan limpios.
+**Cierre de la base:** huecos transparentes y contenido opaco conviven; grupos y efectos mantienen su alcance al reordenar, deshacer, guardar, reabrir y exportar. Las escenas anteriores conservan su apariencia y los bordes suaves quedan limpios. Cada modo creativo de máscara incorporado debe superar esas mismas pruebas en su fase; la interfaz básica aplazada no bloquea el cierre de esta base.
 
 ## Fase 2 — Facilitar las piezas tipográficas y pulir las capas actuales
 
@@ -70,7 +74,7 @@ Probar brevemente formatos, materiales, animaciones, conservación de recursos y
 
 El usuario reporta texto blanco sobre negro y la necesidad de recurrir a máscaras, Screen o cambiar manualmente el fondo. El requisito es insertar texto visible, con contenido opaco y color editable sobre fondo transparente, sin esos rodeos. Mantener el fondo sólido como una opción deliberada y conservar el uso de texto como máscara cuando se elija expresamente.
 
-La lectura de este checkout confirma que `layers.ts` crea texto en modo máscara y `layer-registry.ts` define fondo negro con alfa 1. `text-pass.ts` ya distingue el alfa del fondo y dibuja el texto opaco; admite color editable y posición mediante anclaje y desplazamiento. Esto orienta la revisión de valores iniciales y composición; no constituye una reproducción visual del problema.
+La inspección inicial confirmó que `layers.ts` creaba texto en modo máscara y `layer-registry.ts` definía fondo negro con alfa 1. `text-pass.ts` ya distingue el alfa del fondo y dibuja el texto opaco; admite color editable y posición mediante anclaje y desplazamiento. La corrección debe cambiar los valores de capas nuevas y conservar el fondo sólido de archivos anteriores que omitan ese parámetro.
 
 ### 2.2 Explorar selección y arrastre directo en el lienzo
 
@@ -108,7 +112,7 @@ La base principal son las catorce imágenes elegidas, más Lovedance —forma ro
 
 | Familia candidata | Resultado y referencias |
 | --- | --- |
-| Anillos desplazados y rotados | Bandas circulares transformables; afiche fotográfico azul y negro con círculos concéntricos desalineados. |
+| Anillos desplazados y rotados | Bandas circulares transformables; afiche fotográfico azul y negro con círculos concéntricos desalineados (`16-anillos-desfasados-azules.png`). Incluir en la exploración semidiscos de diferentes tamaños y desplazamientos, con huecos transparentes como modo propio del efecto. |
 | Recortes por celdas o bloques | Revelar bloques con detalle fotográfico interior y contornos opcionales. El puente presenta siluetas escalonadas, no grandes píxeles planos; el afiche blanco combina regiones de color, bordes celulares y puntos finos. |
 | Revelado fotográfico alterado | Inversiones tonales parciales, expansión de luces y sombras, neblina y erosión; James Blake verde, retrato azul difuso con anotaciones y retrato gris de apariencia solarizada. |
 
@@ -119,6 +123,8 @@ Los nombres describen resultados; no establecen las técnicas originales de prod
 Exigir el caso de **48 anillos**, aunque la referencia muestre seis u ocho. Explorar centro, radios, anchos, distribución, rotaciones individuales o progresivas, traslación, escala, separaciones, superposición e irregularidad. Evitar límites estéticos arbitrarios y evaluar los límites técnicos reales.
 
 Permitir destruir completamente el reconocimiento de la imagen. Preparar combinaciones editables, como anillos + dos tintas + erosión, usando componentes disponibles y ampliándolas al incorporar familias posteriores.
+
+Separar la transformación de la fotografía dentro de cada banda del modo que recorta su cobertura. Probar anillos completos y semidiscos, con desplazamiento y rotación, y definir controles útiles para revelar/ocultar regiones. Los huecos deben mostrar el contenido inferior y los efectos deben respetar los límites del grupo. Este trabajo amplía la exploración de anillos existente; no agrega otra familia ni exige implementar primero máscaras geométricas genéricas.
 
 ### 3.4 Reorganizar el catálogo junto con cada incorporación
 
@@ -176,7 +182,13 @@ Derivar geometría de los contornos y ofrecer profundidad de extrusión, bisel, 
 
 Elegir según resultados visuales y viabilidad, aplicar los criterios de controles y valores iniciales, actualizar el catálogo en cada incorporación y ampliar las combinaciones editables.
 
-**Cierre:** las familias seleccionadas pasan sus pruebas visuales, de libertad y composición; las candidatas pospuestas quedan identificadas sin presentarlas como entregas prometidas.
+### 6.3 Revisar Blob Tracking y sus modos de máscara — prioridad baja
+
+Pedido del usuario: dedicar una revisión de calidad a Blob Tracking porque tiene potencial visual desaprovechado. Comparar sus resultados actuales sobre fotografía y video; revisar detección, estabilidad temporal, contornos, valores iniciales y claridad de controles antes de elegir cambios. No asumir que necesita una reescritura completa.
+
+Explorar modos de máscara adaptados a sus regiones detectadas y al movimiento, distinguiendo visualización de la máscara, aplicación de un efecto dentro de las regiones y recorte real de la fotografía. Validar inversión/desactivación, bordes, cobertura alfa, grupos, guardado, reapertura y exportación. Conservar los resultados de escenas anteriores. El alcance concreto se decide tras esa revisión; esta tarea no bloquea texto ni la exploración inicial de anillos.
+
+**Cierre:** las familias seleccionadas pasan sus pruebas visuales, de libertad y composición; las candidatas pospuestas quedan identificadas sin presentarlas como entregas prometidas. Registrar el resultado de la revisión de Blob Tracking y qué mejoras o modos se integran o se aplazan.
 
 ## Fase 7 — Verificar el conjunto y cerrar V3
 

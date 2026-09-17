@@ -19,6 +19,7 @@ import { checkAlphaCompositing } from "./alpha-compositing.mjs"
 import { checkGroups } from "./groups.mjs"
 import { checkEditorGroups } from "./editor-groups.mjs"
 import { checkMediaBounds } from "./media-bounds.mjs"
+import { checkTransparentText } from "./transparent-text.mjs"
 
 function pixels(canvas) {
   const copy = document.createElement("canvas")
@@ -384,3 +385,4 @@ window.checkMediaBounds = () => checkMediaBounds(renderProject)
 window.checkAlphaCompositing = checkAlphaCompositing
 window.checkGroups = checkGroups
 window.checkEditorGroups = () => checkEditorGroups(renderProject)
+window.checkTransparentText = () => checkTransparentText(renderProject)

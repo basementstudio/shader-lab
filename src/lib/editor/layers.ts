@@ -32,12 +32,11 @@ export function getDefaultLayerName(type: LayerType, existingCount: number): str
 
 export function createLayer(type: LayerType, existingCount = 0): EditorLayer {
   const definition = getLayerDefinition(type)
-  const isTextLayer = type === "text"
 
   return {
     assetId: null,
     blendMode: "normal",
-    compositeMode: isTextLayer ? "mask" : "filter",
+    compositeMode: "filter",
     expanded: true,
     hue: 0,
     id: crypto.randomUUID(),

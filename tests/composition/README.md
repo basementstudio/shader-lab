@@ -1,6 +1,6 @@
 # V3 composition baselines
 
-Regression coverage for roadmap steps 1.1–1.3. The first PR establishes legacy baselines; its stacked successors add transparent media bounds, alpha-aware composition, isolated group rendering, and editor group controls/persistence. Transparent scene/export backgrounds and coverage masks remain outstanding.
+Regression coverage for roadmap steps 1.1–1.3 and 2.1. The first PR establishes legacy baselines; its stacked successors add transparent media bounds, alpha-aware composition, isolated groups, editor controls/persistence, and transparent text defaults. Transparent scene/export backgrounds remain outstanding. Basic shape masks are postponed; tailored coverage modes will be developed alongside selected artistic effects.
 
 Integration branch: `git-chad/shader-lab-v3-plan`. Parent PR: [#150](https://github.com/basementstudio/shader-lab/pull/150). The first child, [#151](https://github.com/basementstudio/shader-lab/pull/151), targets integration. Each subsequent stacked PR targets the preceding feature branch, never `main`.
 
@@ -67,15 +67,21 @@ These findings come from source inspection and the limited GPU checks above, not
 | `pipeline-manager.ts` | The root begins over an opaque base (or a runtime input texture); groups render children against independent transparent targets and are connected to editor organization/history/persistence/runtime configs | Add coverage masks and verify representative large grouped scenes; keep the scene background a deliberate choice |
 | `scene-post-process.ts` | Scene color adjustments now retain input alpha | Verify grading together with future transparent canvas/export support |
 | Canvas renderer creation | Editor and runtime use `alpha: false`; editor clears to alpha 1 | Carry alpha through preview/export where supported, including texture output |
-| Text creation | New text defaults to mask mode and background alpha 1 | Change only new-layer defaults in phase 2; preserve saved text settings |
+| Text creation | New text uses Normal/filter composition and background alpha 0. Saved text retains its settings; absent background alpha hydrates to the old solid fallback | Continue typography usability work; keep old text fixtures stable |
 
 The source/effect distinction prevents repeated filtering from increasing coverage. True masks still change the visual meaning of existing saved masks and require an explicit compatibility path before switching the editor to transparent targets.
 
 ## Next implementation slice
 
-1. Complete the [manual group check](GROUPS-MANUAL-QA.md), including designer feedback on grouping and moving layers.
-2. Define a persisted compatibility strategy for true coverage masks; extend tests with soft group masks over colored lower layers and per-effect spatial behavior.
+1. Confirm new text insertion over a photo, changing Text Color and Background Opacity, and save/reopen. The user has confirmed the focused group isolation/opacity/collapse check; retain the broader [group checklist](GROUPS-MANUAL-QA.md) for final regression.
+2. Explore the existing displaced-ring family, including offset half-discs and transparent gaps. Develop coverage behavior with the effect; basic circle/rectangle masks are postponed. Blob Tracking's quality and tailored-mask review is low priority (roadmap 6.3).
 3. Carry alpha through transparent scene backgrounds, preview, and supported exports while keeping these legacy fixtures stable.
+
+## Transparent text defaults
+
+New text uses Normal blending, filter composition, full layer opacity, and background opacity 0. Letters remain opaque and editable through Text Color; set Background Opacity to 1 for a deliberate solid background. Existing mask/Screen choices and explicit background opacity values survive hydration. A saved text layer missing `backgroundAlpha` receives 1 before new defaults are filled, matching the unchanged editor/runtime renderer fallback. The file format remains version 7.
+
+`transparent-text.mjs` exercises real editor hydration for old/missing and explicit settings, save/reopen, runtime config export, preview/PNG equality, and 18 editor/runtime text-pass pixel checks. It verifies opaque colored glyphs, transparent empty regions over a translucent blue input, soft edges without dark fringes, partial layer opacity, and optional solid backgrounds. `new-transparent-text.png` shows the new default over a blue scene; frozen legacy fixtures are unchanged.
 
 ## Isolated group renderer foundation
 

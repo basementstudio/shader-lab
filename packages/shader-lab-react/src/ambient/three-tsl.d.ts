@@ -1,7 +1,7 @@
 declare module "three/tsl" {
   export interface LoopConfig {
     condition?: string
-    end: number
+    end: number | TSLNode
     start: number
     type: "float" | "int"
   }
@@ -113,6 +113,8 @@ declare module "three/tsl" {
   ): TSLNode
   export function exp(value: unknown): TSLNode
   export function fract(value: unknown): TSLNode
+  export function If(condition: TSLNode, callback: () => unknown): TSLNode
+  export function int(value?: unknown): TSLNode
   export function float(value?: unknown): TSLNode
   export function floor(value: unknown): TSLNode
   export function mat2(

@@ -161,7 +161,7 @@ export type MaskNodeConfig = {
   source: string
 }
 
-export type CompositionRole = "source" | "effect"
+export type CompositionRole = "source" | "effect" | "transform"
 
 export function buildBlendNode(
   mode: string,
@@ -232,6 +232,23 @@ export function buildBlendNode(
 
   if (compositeMode === "filter") {
     const baseAlpha = float(clamp(base.a, float(0), float(1)))
+    if (role === "transform") {
+      // Spatial transformations replace coverage as well as color. Interpolate
+      // premultiplied pixels so opacity=0 restores input and cutout holes stay clear.
+      const outputAlpha = mix(baseAlpha, blendAlpha, normalizedOpacity)
+      const transformedRgb = mix(blendRgb, composited, baseAlpha)
+      const premultiplied = mix(
+        baseRgb.mul(baseAlpha),
+        transformedRgb.mul(blendAlpha),
+        normalizedOpacity
+      )
+      return vec4(
+        premultiplied.div(
+          select(outputAlpha.greaterThan(0), outputAlpha, float(1))
+        ),
+        outputAlpha
+      )
+    }
     const amount = normalizedOpacity.mul(blendAlpha)
     const filteredRgb = mix(baseRgb, composited, amount)
 

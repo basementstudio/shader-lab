@@ -12,6 +12,13 @@ export interface LayerCatalogEntry {
 
 export const LAYER_CATALOG: Record<LayerType, LayerCatalogEntry> = {
   group: { label: "Group" },
+  "displaced-rings": {
+    category: "distort",
+    label: "Displaced Rings",
+    description:
+      "Fragment the image into offset rings or half-discs. Use Cutout inside a group to reveal layers beneath it.",
+    previewSrc: "/examples/displaced-rings.webp",
+  },
   ascii: {
     category: "core",
     description:

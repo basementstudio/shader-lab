@@ -28,6 +28,7 @@ type Node = TSLNode
 export class MediaPass extends PassNode {
   private readonly canvasAspectUniform: Node
   private readonly fitModeUniform: Node
+  private readonly boundsAlphaUniform: Node
   private readonly offsetXUniform: Node
   private readonly offsetYUniform: Node
   private readonly scaleUniform: Node
@@ -47,6 +48,7 @@ export class MediaPass extends PassNode {
     this.placeholder = new THREE.Texture()
     this.canvasAspectUniform = uniform(1)
     this.fitModeUniform = uniform(0)
+    this.boundsAlphaUniform = uniform(1)
     this.offsetXUniform = uniform(0)
     this.offsetYUniform = uniform(0)
     this.scaleUniform = uniform(1)
@@ -114,6 +116,7 @@ export class MediaPass extends PassNode {
 
   override updateParams(params: LayerParameterValues): void {
     this.fitModeUniform.value = params.fitMode === "contain" ? 1 : 0
+    this.boundsAlphaUniform.value = params.transparentBounds === true ? 0 : 1
     this.scaleUniform.value =
       typeof params.scale === "number" ? 1 / Math.max(params.scale, 0.01) : 1
 
@@ -212,7 +215,11 @@ export class MediaPass extends PassNode {
       .and(sampledUv.x.lessThanEqual(1))
       .and(sampledUv.y.greaterThanEqual(0))
       .and(sampledUv.y.lessThanEqual(1))
-    const contained = select(inBounds, this.mediaTextureNode, vec4(0, 0, 0, 1))
+    const contained = select(
+      inBounds,
+      this.mediaTextureNode,
+      vec4(0, 0, 0, this.boundsAlphaUniform)
+    )
 
     return mix(this.mediaTextureNode, contained, useContain)
   }

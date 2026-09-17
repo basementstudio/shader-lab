@@ -27,6 +27,16 @@ const mediaPlacementParams = [
     type: "select",
   },
   {
+    defaultValue: true,
+    key: "transparentBounds",
+    label: "Transparent Borders",
+    type: "boolean",
+    visibleWhen: {
+      equals: "contain",
+      key: "fitMode",
+    },
+  },
+  {
     defaultValue: 1,
     key: "scale",
     label: "Scale",

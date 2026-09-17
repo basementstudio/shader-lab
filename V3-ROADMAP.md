@@ -6,13 +6,13 @@ El orden es una **propuesta de ejecución**; las prioridades de producto son rev
 
 ## Flujo de integración y entrega
 
-Todo el trabajo de V3 se entrega mediante PRs pequeños dirigidos a una rama de integración de V3. Un PR principal reúne esa rama y tiene como destino `main`.
+Todo el trabajo de V3 se entrega mediante PRs pequeños apilados. Cada nuevo PR parte de la rama del PR anterior y la usa como base. El primer PR de la pila apunta a la rama de integración de V3; un PR principal reúne esa rama y tiene como destino `main`.
 
-**PRs pequeños → rama de integración de V3 → PR principal → `main`.**
+**PR nuevo → PR anterior → rama de integración de V3 → PR principal → `main`.**
 
 Los PRs pequeños pueden integrarse progresivamente en la rama de V3. Ningún cambio de V3 se integra en `main` hasta completar el alcance obligatorio del plan y su validación global de la fase 7. La fase 8 sigue siendo opcional y no bloquea esa entrega.
 
-La rama de integración es `git-chad/shader-lab-v3-plan`. Todos los PRs pequeños de V3 deben usarla como base; únicamente el PR principal apunta a `main` y permanece en borrador hasta completar la validación obligatoria.
+La rama de integración es `git-chad/shader-lab-v3-plan`. La pila comienza con [#151](https://github.com/basementstudio/shader-lab/pull/151), en `git-chad/v3-composition-alpha`. El siguiente PR usa esa rama como base. Al integrar PRs, actualizar las bases de los descendientes para conservar la pila; únicamente el PR principal apunta a `main` y permanece en borrador hasta completar la validación obligatoria.
 
 PR principal: [#150 — V3: designer-focused composition and experimental graphics](https://github.com/basementstudio/shader-lab/pull/150).
 

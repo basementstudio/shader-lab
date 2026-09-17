@@ -17,6 +17,7 @@ import {
   isSvgMediaSource,
 } from "@/lib/editor/media-file"
 import { evaluateTimelineForLayers } from "@/lib/editor/timeline/evaluate"
+import { canPaintCellLayer, useCellPaintStore } from "@/store/cell-paint-store"
 import { useAssetStore } from "@/store/asset-store"
 import { useEditorStore } from "@/store/editor-store"
 import { useLayerStore } from "@/store/layer-store"
@@ -475,6 +476,23 @@ export function PropertiesSidebar() {
       }
 
       updateLayerParam(selectedLayer.id, key, value)
+
+      if (selectedLayer.type === "photographic-cells" && key === "mode") {
+        const state = useLayerStore.getState()
+        const paint = useCellPaintStore.getState()
+        if (
+          value === "paint" &&
+          canPaintCellLayer(
+            state.layers,
+            selectedLayer.id,
+            state.selectedLayerId
+          )
+        ) {
+          paint.edit(selectedLayer.id)
+        } else if (paint.layerId === selectedLayer.id) {
+          paint.edit(null)
+        }
+      }
     },
     [
       selectedLayer,

@@ -122,8 +122,26 @@ try {
     await page.getByRole("slider", { name: /^Threshold/ }).count(),
     0
   )
-  await page.getByRole("button", { name: "Edit Paint", exact: true }).click()
   const overlay = page.locator('[data-cell-paint-overlay="true"]')
+  await overlay.waitFor()
+  await page
+    .getByRole("button", { name: "Done Painting", exact: true })
+    .waitFor()
+  await page
+    .getByRole("combobox")
+    .filter({ hasText: /^Paint$/ })
+    .click()
+  await page.getByRole("option", { name: "Regions", exact: true }).click()
+  await overlay.waitFor({ state: "hidden" })
+  await page
+    .getByRole("combobox")
+    .filter({ hasText: /^Regions$/ })
+    .click()
+  await page.getByRole("option", { name: "Paint", exact: true }).click()
+  await overlay.waitFor()
+  await page.getByRole("button", { name: "Done Painting", exact: true }).click()
+  await overlay.waitFor({ state: "hidden" })
+  await page.getByRole("button", { name: "Edit Paint", exact: true }).click()
   await overlay.waitFor()
   const box = await overlay.boundingBox()
   const x = box.x + box.width * 0.45

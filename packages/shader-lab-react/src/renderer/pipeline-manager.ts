@@ -36,6 +36,7 @@ import { PixelTrailPass } from "./pixel-trail-pass"
 import { PixelationPass } from "./pixelation-pass"
 import { PlotterPass } from "./plotter-pass"
 import { PosterizePass } from "./posterize-pass"
+import { DisplacedRingsPass } from "./displaced-rings-pass"
 import { SlicePass } from "./slice-pass"
 import { SmearPass } from "./smear-pass"
 import { TextPass } from "./text-pass"
@@ -501,12 +502,16 @@ export class PipelineManager {
     layer: ShaderLabLayerConfig
   ): void {
     pass.enabled = layer.visible
-    pass.updateCompositionRole(
-      layer.kind === "effect" ||
-        (layer.type === "custom-shader" && layer.params.effectMode === true)
-        ? "effect"
-        : "source"
-    )
+    if (layer.type === "displaced-rings") {
+      pass.updateCompositionRole("transform")
+    } else {
+      pass.updateCompositionRole(
+        layer.kind === "effect" ||
+          (layer.type === "custom-shader" && layer.params.effectMode === true)
+          ? "effect"
+          : "source"
+      )
+    }
     pass.updateOpacity(clampUnit(layer.opacity))
     pass.updateBlendMode(layer.blendMode)
     const compositeMode: ShaderLabCompositeMode =
@@ -608,6 +613,8 @@ export class PipelineManager {
           return new ThresholdPass(layer.id)
         case "pixel-sorting":
           return new PixelSortingPass(layer.id)
+        case "displaced-rings":
+          return new DisplacedRingsPass(layer.id)
         case "slice":
           return new SlicePass(layer.id)
         case "smear":

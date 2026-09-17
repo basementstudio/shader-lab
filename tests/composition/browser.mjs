@@ -20,6 +20,7 @@ import { checkGroups } from "./groups.mjs"
 import { checkEditorGroups } from "./editor-groups.mjs"
 import { checkMediaBounds } from "./media-bounds.mjs"
 import { checkTransparentText } from "./transparent-text.mjs"
+import { checkDisplacedRings } from "./displaced-rings.mjs"
 
 function pixels(canvas) {
   const copy = document.createElement("canvas")
@@ -386,3 +387,4 @@ window.checkAlphaCompositing = checkAlphaCompositing
 window.checkGroups = checkGroups
 window.checkEditorGroups = () => checkEditorGroups(renderProject)
 window.checkTransparentText = () => checkTransparentText(renderProject)
+window.checkDisplacedRings = () => checkDisplacedRings(renderProject)

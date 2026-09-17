@@ -97,7 +97,7 @@ Nesting is bounded to eight group levels. Duplicate IDs and excessive depth are 
 
 Editor layers remain a flat list in top-first preorder. Group layers have `kind/type: "group"`; each child has a `parentId` reference. Group children are contiguous after their parent, IDs are unique, and the renderer's eight-level limit applies to edits and imported files. Project parsing and direct editor hydration reject malformed hierarchy before changing stores. Existing flat version-1–6 files remain readable; new saves use version 7.
 
-The sidebar supports grouping selected siblings, adding layers to the selected group, nested lists, collapse/expand, rename, visibility, duplication, deletion, and subtree reordering. Properties provides group opacity/blend and a Group selector for moving layers between groups. Keyboard shortcuts are Cmd/Ctrl+G and Cmd/Ctrl+Shift+G. Reordering by drag stays within siblings; the layer menu's Move up/down actions are a keyboard alternative.
+The sidebar supports grouping selected siblings, adding layers to the selected group, nested lists, collapse/expand, rename, visibility, duplication, deletion, and subtree reordering. Properties provides group opacity/blend and a Group selector for moving layers between groups. Keyboard shortcuts are Cmd/Ctrl+G and Cmd/Ctrl+Shift+G. Handle dragging supports reordering and reparenting: group centers accept children, row edges mark before/after destinations, and the left gutter selects an ancestor level. The tree stays in place until the drop commits ordering and membership together; groups carry their complete subtrees. Escape, lost pointer capture, and releases outside the list cancel. The layer menu’s Move up/down actions and Properties Group selector remain keyboard alternatives.
 
 History retains group hierarchy and selections. Duplicates get new group/child IDs, remapped child animation tracks and audio links. Deleting a group removes its descendants and their track/audio references. Ungroup lifts children to the former parent's level and removes the group's own settings. Collapse is organizational and does not affect the image.
 
@@ -114,3 +114,9 @@ The test also restores history, saves and hydrates through `applyLabProjectFile`
 This effect uses the new `transform` composition role: layer opacity interpolates premultiplied original/transformed pixels, including their coverage; zero opacity restores the input. Other effects retain their existing roles. Cutout starts with transparent coverage and composites transformed bands; Distort retains the original image between bands. Samples outside the input image are transparent. Scene background/export alpha policy is unchanged. Legacy layer Mask mode retains its old semantics; use Output → Cutout for these holes.
 
 See [controls, scope, and remaining visual checks](DISPLACED-RINGS-MANUAL-QA.md). Broader video/export and hardware performance checks remain pending.
+
+## Group drag regression coverage
+
+`layer-drops.mjs` (included in the composition suite) covers atomic ordering/membership updates, collapsed targets, subtree moves, cycles, locked layers/groups, maximum nesting, no-op drops, history restoration, and real project hydration.
+
+With the editor running, execute `SHADER_LAB_URL=http://localhost:55000 bun tests/composition/group-drag-ui.mjs` for actual pointer gestures, destination feedback, nested/outdent drops, cancellation, undo/redo, and .lab download/import. It uses an isolated browser context; artifacts go to `.context/group-drag-test/`.

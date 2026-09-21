@@ -27,6 +27,7 @@ export const LAYER_MASK_SHAPES = [
   "ellipse",
   "rectangle",
   "brush",
+  "depth",
 ] as const
 export type LayerMaskShape = (typeof LAYER_MASK_SHAPES)[number]
 export const LAYER_MASK_SCOPES = ["effect", "content"] as const
@@ -132,6 +133,12 @@ export class LayerMaskNode {
   private readonly paintAspect = uniform(new THREE.Vector2(1, 1))
   private paintTexture: THREE.DataTexture | null = null
   private paintValue = ""
+  private readonly depthPlaceholder = new THREE.Texture()
+  private readonly depthNode = texture(
+    this.depthPlaceholder,
+    vec2(uv().x, float(1).sub(uv().y))
+  )
+  private readonly hasDepth = uniform(0)
   private shape: LayerMaskShape = "none"
   private scope: LayerMaskScope = "effect"
   private invert = false
@@ -181,6 +188,11 @@ export class LayerMaskNode {
     return structural
   }
 
+  updateSceneDepth(depth: THREE.Texture | null): void {
+    this.depthNode.value = depth ?? this.depthPlaceholder
+    this.hasDepth.value = depth ? 1 : 0
+  }
+
   updateLogicalSize(width: number, height: number): void {
     const shorter = Math.max(1, Math.min(width, height))
     ;(this.aspect.value as THREE.Vector2).set(
@@ -223,6 +235,16 @@ export class LayerMaskNode {
           min(max(d.x, d.y), float(0))
         )
         value = float(1).sub(smoothstep(softness.negate(), softness, distance))
+        break
+      }
+      case "depth": {
+        const depth = float(this.depthNode.r)
+        const near = min(this.size.x, this.size.y)
+        const far = max(this.size.x, this.size.y)
+        const band = smoothstep(near.sub(softness), near.add(softness), depth).mul(
+          float(1).sub(smoothstep(far.sub(softness), far.add(softness), depth))
+        )
+        value = mix(float(1), band, this.hasDepth)
         break
       }
       case "brush": {
@@ -275,5 +297,6 @@ export class LayerMaskNode {
     this.paintTexture?.dispose()
     this.paintTexture = null
     this.paintValue = ""
+    this.depthPlaceholder.dispose()
   }
 }

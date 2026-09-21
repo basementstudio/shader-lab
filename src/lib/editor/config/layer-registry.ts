@@ -1525,6 +1525,19 @@ const modelParams = [
 
 const asciiParams = [
   {
+    animatable: false,
+    defaultValue: "luminance",
+    key: "input",
+    label: "Input",
+    options: [
+      { label: "Luminance", value: "luminance" },
+      { label: "Depth", value: "depth" },
+    ],
+    type: "select",
+    description:
+      "Depth reads the depth map of the Image layer below instead of its colors.",
+  },
+  {
     defaultValue: 80,
     description: "Characters across the composition, at any output size.",
     group: "Grid",
@@ -1850,6 +1863,19 @@ const circuitBentParams = [
 ] as const satisfies ParameterDefinitions
 
 const patternParams = [
+  {
+    animatable: false,
+    defaultValue: "luminance",
+    key: "input",
+    label: "Input",
+    options: [
+      { label: "Luminance", value: "luminance" },
+      { label: "Depth", value: "depth" },
+    ],
+    type: "select",
+    description:
+      "Depth reads the depth map of the Image layer below instead of its colors.",
+  },
   {
     defaultValue: 12,
     key: "cellSize",
@@ -2181,6 +2207,19 @@ const ditheringParams = [
 ] as const satisfies ParameterDefinitions
 
 const halftoneParams = [
+  {
+    animatable: false,
+    defaultValue: "luminance",
+    key: "input",
+    label: "Input",
+    options: [
+      { label: "Luminance", value: "luminance" },
+      { label: "Depth", value: "depth" },
+    ],
+    type: "select",
+    description:
+      "Depth reads the depth map of the Image layer below instead of its colors.",
+  },
   {
     defaultValue: "cmyk",
     key: "colorMode",
@@ -3092,6 +3131,19 @@ const thresholdParams = [
 ] as const satisfies ParameterDefinitions
 
 const gradientMapParams = [
+  {
+    animatable: false,
+    defaultValue: "luminance",
+    key: "input",
+    label: "Input",
+    options: [
+      { label: "Luminance", value: "luminance" },
+      { label: "Depth", value: "depth" },
+    ],
+    type: "select",
+    description:
+      "Depth reads the depth map of the Image layer below instead of its colors.",
+  },
   {
     key: "stops",
     label: "Ramp",

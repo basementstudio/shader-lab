@@ -136,6 +136,7 @@ export const LAYER_MASK_SHAPES = [
   "ellipse",
   "rectangle",
   "brush",
+  "depth",
 ] as const
 export type LayerMaskShape = (typeof LAYER_MASK_SHAPES)[number]
 

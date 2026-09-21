@@ -188,8 +188,9 @@ export class AsciiPass extends PassNode {
   ): void {
     this.syncGridSize()
 
+    const source = this.resolveEffectSource(inputTexture)
     for (const node of this.analysisSourceNodes) {
-      node.value = inputTexture
+      node.value = source
     }
 
     const atlasTexture = this.atlas?.texture
@@ -221,6 +222,7 @@ export class AsciiPass extends PassNode {
   }
 
   override updateParams(params: LayerParameterValues): void {
+    this.updateSourceMode(params)
     this.currentColumns =
       typeof params.columns === "number"
         ? Math.max(4, Math.min(400, Math.round(params.columns)))

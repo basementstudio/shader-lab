@@ -189,8 +189,9 @@ export class HalftonePass extends PassNode {
     time: number,
     delta: number
   ): void {
+    const source = this.resolveEffectSource(inputTexture)
     for (const node of this.sampleNodes) {
-      node.value = inputTexture
+      node.value = source
     }
     super.render(renderer, inputTexture, outputTarget, time, delta)
   }
@@ -201,6 +202,7 @@ export class HalftonePass extends PassNode {
   }
 
   override updateParams(params: LayerParameterValues): void {
+    this.updateSourceMode(params)
     this.spacingUniform.value =
       typeof params.spacing === "number" ? Math.max(2, params.spacing) : 12
     this.dotSizeUniform.value =

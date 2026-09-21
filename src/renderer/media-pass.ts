@@ -96,6 +96,10 @@ export class MediaPass extends PassNode {
   private mediaTextureNode: Node
   private readonly placeholder: THREE.Texture
   private readonly depthPlaceholder: THREE.Texture
+  private readonly marchScene: THREE.Scene
+  private readonly marchMaterial: THREE.MeshBasicNodeMaterial
+  private readonly marchGeometry: THREE.PlaneGeometry
+  private auxTarget: THREE.WebGLRenderTarget | null = null
   private readonly depthShiftXUniform: Node
   private readonly depthShiftYUniform: Node
   private readonly depthDollyUniform: Node
@@ -126,6 +130,13 @@ export class MediaPass extends PassNode {
     super(layerId)
     this.placeholder = new THREE.Texture()
     this.depthPlaceholder = new THREE.Texture()
+    this.marchScene = new THREE.Scene()
+    this.marchMaterial = new THREE.MeshBasicNodeMaterial()
+    this.marchMaterial.blending = THREE.NoBlending
+    this.marchGeometry = new THREE.PlaneGeometry(2, 2)
+    const marchMesh = new THREE.Mesh(this.marchGeometry, this.marchMaterial)
+    marchMesh.frustumCulled = false
+    this.marchScene.add(marchMesh)
     this.canvasAspectUniform = uniform(1)
     this.fitModeUniform = uniform(0)
     this.boundsAlphaUniform = uniform(1)
@@ -260,10 +271,22 @@ export class MediaPass extends PassNode {
 
   private syncDepthActive(): void {
     const active = this.depthTexture !== null
-    if (active !== this.depthActive) {
-      this.depthActive = active
-      this.rebuildEffectNode()
+    if (active === this.depthActive) {
+      if (active) {
+        this.depthTextureNodes = []
+        this.marchMaterial.colorNode = this.buildMarchNode(this.buildMediaUv())
+        this.marchMaterial.needsUpdate = true
+      }
+      return
     }
+
+    this.depthActive = active
+    if (active) {
+      this.ensureDepthTargets()
+    } else {
+      this.releaseDepthTargets()
+    }
+    this.rebuildEffectNode()
   }
 
   private releaseDepthMedia(): void {
@@ -281,25 +304,26 @@ export class MediaPass extends PassNode {
     return mix(float(node.r), float(1).sub(node.r), this.depthInvertUniform)
   }
 
-  private resolveParallaxUv(mediaUv: Node): Node {
+  private displacementAt(mediaUv: Node, depth: Node): Node {
+    const shift = vec2(this.depthShiftXUniform, this.depthShiftYUniform)
+    const camera = shift.add(mediaUv.sub(0.5).mul(this.depthDollyUniform))
+    return camera
+      .mul(this.depthRangeUniform)
+      .mul(depth.sub(this.depthFocusUniform))
+  }
+
+  private buildMarchNode(mediaUv: Node): Node {
     const steps = this.depthSteps
     const march = Fn(([sourceUv]: [Node]) => {
       const gradX = dFdx(sourceUv).toVar()
       const gradY = dFdy(sourceUv).toVar()
-      const shift = vec2(this.depthShiftXUniform, this.depthShiftYUniform)
-      const centered = sourceUv.sub(0.5)
-      const camera = shift.add(centered.mul(this.depthDollyUniform))
-      const displacementAt = (depth: Node) =>
-        camera
-          .mul(this.depthRangeUniform)
-          .mul(depth.sub(this.depthFocusUniform))
       const hit = float(0).toVar()
       const inside = float(0).toVar()
       const outside = float(1).toVar()
       Loop({ start: 0, end: int(steps), type: "int" }, ({ i }) => {
         const layer = float(1).sub(float(i).add(1).div(steps))
         const sampled = this.depthAt(
-          sourceUv.add(displacementAt(layer)),
+          sourceUv.add(this.displacementAt(sourceUv, layer)),
           gradX,
           gradY
         )
@@ -314,7 +338,7 @@ export class MediaPass extends PassNode {
         () => {
           const middle = inside.add(outside).mul(0.5)
           const sampled = this.depthAt(
-            sourceUv.add(displacementAt(middle)),
+            sourceUv.add(this.displacementAt(sourceUv, middle)),
             gradX,
             gradY
           )
@@ -325,9 +349,60 @@ export class MediaPass extends PassNode {
           })
         }
       )
-      return sourceUv.add(displacementAt(inside))
+      const finalUv = sourceUv.add(this.displacementAt(sourceUv, inside))
+      const inBounds = finalUv.x
+        .greaterThanEqual(0)
+        .and(finalUv.x.lessThanEqual(1))
+        .and(finalUv.y.greaterThanEqual(0))
+        .and(finalUv.y.lessThanEqual(1))
+      return vec4(inside, inside, inside, select(inBounds, float(1), float(0)))
     })
     return march(mediaUv)
+  }
+
+  private buildMediaUv(): Node {
+    const aspectRatio = this.textureAspectUniform.div(this.canvasAspectUniform)
+    const centeredUv = uv().sub(0.5).mul(this.scaleUniform)
+    const coverScaleX = max(aspectRatio, float(1))
+    const coverScaleY = max(float(1).div(aspectRatio), float(1))
+    const containScaleX = clamp(aspectRatio, float(0), float(1))
+    const containScaleY = clamp(float(1).div(aspectRatio), float(0), float(1))
+    const useContain = this.fitModeUniform
+    const scaleX = mix(coverScaleX, containScaleX, useContain)
+    const scaleY = mix(coverScaleY, containScaleY, useContain)
+    return vec2(
+      centeredUv.x.div(scaleX).sub(this.offsetXUniform).add(0.5),
+      centeredUv.y.div(scaleY).sub(this.offsetYUniform).add(0.5)
+    )
+  }
+
+  private ensureDepthTargets(): void {
+    if (this.auxTarget) {
+      return
+    }
+
+    this.auxTarget = new THREE.WebGLRenderTarget(1, 1, {
+      depthBuffer: false,
+      format: THREE.RGBAFormat,
+      generateMipmaps: false,
+      magFilter: THREE.LinearFilter,
+      minFilter: THREE.LinearFilter,
+      type: THREE.HalfFloatType,
+    })
+    this.depthTextureNodes = []
+    this.marchMaterial.colorNode = this.buildMarchNode(this.buildMediaUv())
+    this.marchMaterial.needsUpdate = true
+  }
+
+  private releaseDepthTargets(): void {
+    this.auxTarget?.dispose()
+    this.auxTarget = null
+  }
+
+  override getOutputSceneDepth(): THREE.Texture | null {
+    return this.depthActive && this.auxTarget
+      ? this.auxTarget.texture
+      : super.getOutputSceneDepth()
   }
 
   override updateParams(params: LayerParameterValues): void {
@@ -385,8 +460,10 @@ export class MediaPass extends PassNode {
     const nextSteps = resolveDepthSteps(params.depthQuality)
     if (nextSteps !== this.depthSteps) {
       this.depthSteps = nextSteps
-      if (this.depthActive) {
-        this.rebuildEffectNode()
+      if (this.depthActive && this.auxTarget) {
+        this.depthTextureNodes = []
+        this.marchMaterial.colorNode = this.buildMarchNode(this.buildMediaUv())
+        this.marchMaterial.needsUpdate = true
       }
     }
   }
@@ -416,10 +493,14 @@ export class MediaPass extends PassNode {
       this.mediaTextureNode.value = this.currentTexture
     }
 
-    if (this.depthTexture) {
+    if (this.depthActive && this.auxTarget && this.depthTexture) {
+      this.beforeRender(time)
       for (const node of this.depthTextureNodes) {
         node.value = this.depthTexture
       }
+      this.auxTarget.setSize(outputTarget.width, outputTarget.height)
+      renderer.setRenderTarget(this.auxTarget)
+      renderer.render(this.marchScene, this.camera)
     }
 
     super.render(renderer, inputTexture, outputTarget, time, delta)
@@ -450,6 +531,10 @@ export class MediaPass extends PassNode {
     this.depthLoadNonce += 1
     this.releaseCurrentMedia()
     this.releaseDepthMedia()
+    this.releaseDepthTargets()
+    this.marchScene.clear()
+    this.marchMaterial.dispose()
+    this.marchGeometry.dispose()
     this.placeholder.dispose()
     this.depthPlaceholder.dispose()
     super.dispose()
@@ -460,22 +545,14 @@ export class MediaPass extends PassNode {
       return this.inputNode
     }
 
-    const aspectRatio = this.textureAspectUniform.div(this.canvasAspectUniform)
-    const centeredUv = uv().sub(0.5).mul(this.scaleUniform)
-    const coverScaleX = max(aspectRatio, float(1))
-    const coverScaleY = max(float(1).div(aspectRatio), float(1))
-    const containScaleX = clamp(aspectRatio, float(0), float(1))
-    const containScaleY = clamp(float(1).div(aspectRatio), float(0), float(1))
     const useContain = this.fitModeUniform
-    const scaleX = mix(coverScaleX, containScaleX, useContain)
-    const scaleY = mix(coverScaleY, containScaleY, useContain)
-    const sampledUv = vec2(
-      centeredUv.x.div(scaleX).sub(this.offsetXUniform).add(0.5),
-      centeredUv.y.div(scaleY).sub(this.offsetYUniform).add(0.5)
-    )
-    this.depthTextureNodes = []
-    const finalUv = this.depthActive
-      ? this.resolveParallaxUv(sampledUv)
+    const sampledUv = this.buildMediaUv()
+    const aux =
+      this.depthActive && this.auxTarget
+        ? tslTexture(this.auxTarget.texture, vec2(uv().x, float(1).sub(uv().y)))
+        : null
+    const finalUv = aux
+      ? sampledUv.add(this.displacementAt(sampledUv, float(aux.r)))
       : sampledUv
     const safeUv = clamp(finalUv, vec2(0, 0), vec2(1, 1))
     this.mediaTextureNode = this.depthActive
@@ -496,13 +573,13 @@ export class MediaPass extends PassNode {
     )
     const framed = mix(this.mediaTextureNode, contained, useContain)
 
-    if (!this.depthActive) {
+    if (!aux) {
       return framed
     }
 
     const edgeAlpha = select(inBounds, float(1), this.depthEdgesAlphaUniform)
     const shaded = vec4(framed.rgb, framed.a.mul(edgeAlpha))
-    const depth = this.depthAt(finalUv, dFdx(sampledUv), dFdy(sampledUv))
+    const depth = float(aux.r)
     return mix(shaded, vec4(depth, depth, depth, shaded.a), this.depthViewUniform)
   }
 

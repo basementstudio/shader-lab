@@ -260,6 +260,9 @@ window.checkExistingProject = async () => {
     if (layer.type === "image" || layer.type === "video") {
       layer.params.transparentBounds = false
     }
+    if (["ascii", "halftone", "pattern", "gradient-map"].includes(layer.type)) {
+      layer.params.input ??= "luminance"
+    }
     if (layer.type === "image") {
       layer.params.depthInvert ??= false
       layer.params.depthRange ??= 0.3

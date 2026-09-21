@@ -22,11 +22,18 @@ Scope: roadmap 6.4, stage 1. An Image layer accepts a second grayscale image as 
 3. **Camera Offset** is a static shift; keyframe it on the timeline for your own move and turn Motion off.
 4. **Edges → Transparent** leaves the frame empty where the camera looks past the photo; **Stretch** repeats the border. **Quality** trades steps for speed; Low is fine for small moves.
 
+## Depth as an engine for other effects
+
+1. With a depth map on the photo, add **ASCII** (or Halftone, Pattern, Gradient Map) above it and set **Input → Depth**. The effect now reads distance instead of brightness, drawn over the photo. No duplicate layer needed.
+2. Add any effect above the photo and set **Mask → Shape → Depth**. **Near** and **Far** pick the band of depth the effect reaches; **Feather** softens the band; **Invert** flips it.
+3. Both keep working when the photo and the effect sit inside a group, and when the photo is inside a group and the effect above it. Remove the depth map: Input falls back to luminance and the mask stops masking.
+
 ## Expected limits
 
 - Where a near subject uncovers what was behind it, the pass stretches the subject's edge pixels into the gap, as DepthFlow does without inpainting. Soft depth edges hide this; hard-edged depth maps show it as a short smear on the trailing side.
 - The depth map is sampled with the photo's UVs; it is not realigned or rescaled to match.
 - Video layers do not accept a depth map yet. Estimation is a single still-image pass, never per frame.
+- Scene depth follows the nearest depth-bearing Image layer below. Transform effects between the two do not warp the depth with the image.
 
 ## Export and runtime
 

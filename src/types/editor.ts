@@ -249,6 +249,7 @@ export type TextParameterDefinition = ParameterDefinitionBase<
   string
 > & {
   maxLength?: number
+  multiline?: boolean
 }
 
 export type Vec2ParameterDefinition = ParameterDefinitionBase<

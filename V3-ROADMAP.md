@@ -126,10 +126,14 @@ La inspección inicial confirmó que `layers.ts` creaba texto en modo máscara y
 
 La grilla de la fase 8 se conecta con esta edición y con las formas de 2.7: sirve de referencia para márgenes, columnas y alineaciones. El snapping debe poder desactivarse y conservar colocación libre. La edición directa y la alineación básica deben seguir siendo útiles sin activar una grilla; su carácter opcional no cambia por esta conexión.
 
+
+**Implementado, pendiente de aceptación del usuario (22 de septiembre de 2026):** doble clic en el lienzo edita el texto en su lugar (fuente, tamaño y posición reales); Enter agrega línea, Cmd+Enter o clic afuera confirma, Esc restaura; toda la edición es un paso de historial. Manijas compartidas con máscaras y formas: centro mueve (actualiza Offset), eje X rota, eje Y cambia Font Size. Botón **Edit text** en el panel; el campo Text es multilínea. La posición depende del artboard estable (2.8), así que preview y export coinciden.
 ### 2.3 Ampliar controles tipográficos útiles
 
 Conservar fuente, tamaño, peso, espaciado, color, anclaje y desplazamiento. Incorporar etiquetas más pequeñas y texto multilínea; revisar el límite de 32 caracteres y el mínimo de 48px, que impiden anotaciones finas en los estudios actuales. Definir límites útiles al implementar, sin prometer un motor tipográfico completo. Mantener claro el control de fondo transparente/sólido y comprobar composición, edición y exportación con bloques de texto.
 
+
+**Implementado, pendiente de aceptación del usuario (22 de septiembre de 2026):** Font Size mínimo 8 (antes 48), Align (Follow anchor / Left / Center / Right), Line Height y Rotation alrededor del punto de anclaje; texto multilínea con saltos manuales. El trazado vive en `renderer/text-layout.ts`, compartido por editor y runtime; con una sola línea y valores por defecto la salida es idéntica a la anterior, y los fixtures antiguos no cambian. Pendiente: ajuste automático de línea, recorte de texto muy grande rotado en el borde del canvas. [Prueba manual](tests/composition/TEXT-EDITING-MANUAL-QA.md).
 ### 2.4 Ajustar halftone como primer efecto
 
 Ajustar parámetros sobre el material de prueba hasta lograr resultados útiles con luces y detalles diversos. Introducir pequeñas mejoras algorítmicas solo si las pruebas lo justifican; no plantear una reescritura general.
@@ -354,6 +358,16 @@ Revisar primero lo que ya ofrece Blob Tracking: detección, estabilidad temporal
 Explorar colocación guiada por bordes/regiones y colocación decorativa con semilla. Buscar combinaciones de puntos, cajas, cruces, etiquetas y conexiones con control coherente de densidad, escala y color, evitando una lista inmanejable de parámetros. Las etiquetas decorativas deben distinguirse de una detección real: una caja con texto no demuestra reconocimiento de personas ni seguimiento semántico. Revisar renders con las referencias abiertas, tanto en composiciones sutiles como densas.
 
 En video, evitar parpadeo y saltos de identificadores/posiciones cuando sea viable; medir estabilidad y carga sostenida antes de prometer seguimiento. Conservar la apariencia de escenas anteriores, historial, persistencia y paridad de exportación. Los modos de máscara derivados de detección siguen como extensión posterior a las cuatro máscaras manuales de 1.4; distinguir visualización, efecto localizado y recorte de cobertura.
+
+**Decisiones del usuario (22 de septiembre de 2026), tras revisar las referencias 19, 03, 10 y 21:**
+
+- Dos entregas: **parte 1**, revisión y mejora de Blob Tracking (etiquetas tipo `PERSON 01XX` con IDs por semilla, esquinas/corner brackets como estilo de marco, nube de puntos sobre el borde de cada blob, estabilidad de IDs/cajas en video, medición con el benchmark de video). **Parte 2**, capa **Annotations** independiente y decorativa, solo cuando el usuario confirme la parte 1.
+- Annotations combina **colocación guiada por bordes** (campo de bordes/luminancia reducido de las capas inferiores) **y** aleatoria con semilla; ambas requeridas.
+- Etiquetas: un vocabulario preset (PERSON, TARGET, NOT FOUND, coordenadas, frecuencias) **y** un modo custom con lista de etiquetas del usuario. Sin detección real: la "detección" se simula con las etiquetas del usuario y la interfaz lo dice.
+- Color: monocromo por capa **y** por familia de elementos; reutilizar el editor de rampa/parada de Gradient Map para afinar.
+- Tipografía: fuentes de la capa Text (Geist Mono), tamaños pequeños ahora que el mínimo es 8.
+- Video: las anotaciones derivan con semilla en el tiempo, como Blob Tracking (cuyo rendimiento el usuario considera bueno).
+- Puntos conectados (ref. 21) como modo posterior dentro de Annotations o Particle Grid, tras medir la búsqueda de vecinos en video.
 
 ### 6.4 Profundidad y parallax — investigación aprobada
 

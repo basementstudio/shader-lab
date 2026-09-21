@@ -43,6 +43,8 @@ export function GeometryHandles({
 }) {
   const host = useRef<HTMLDivElement>(null)
   const drag = useRef<Drag | null>(null)
+  const callbacks = useRef({ read, write, restore })
+  callbacks.current = { read, write, restore }
   const [box, setBox] = useState({ width: 1, height: 1 })
   useEffect(() => {
     const element = host.current
@@ -80,16 +82,13 @@ export function GeometryHandles({
   const yHandle: [number, number] = [cx + perp[0] * half[1], cy + perp[1] * half[1]]
   const start: [number, number] = [cx - dir[0] * half[0], cy - dir[1] * half[0]]
   const end = xHandle
-  const finish = useCallback(
-    (commit: boolean) => {
-      const active = drag.current
-      if (!active) return
-      drag.current = null
-      if (!commit) restore(active.original)
-      useEditorStore.getState().endInteractiveEdit()
-    },
-    [restore]
-  )
+  const finish = useCallback((commit: boolean) => {
+    const active = drag.current
+    if (!active) return
+    drag.current = null
+    if (!commit) callbacks.current.restore(active.original)
+    useEditorStore.getState().endInteractiveEdit()
+  }, [])
   useEffect(() => {
     const cancel = () => finish(false)
     const key = (event: KeyboardEvent) => {
@@ -111,7 +110,7 @@ export function GeometryHandles({
     drag.current = {
       pointer: event.pointerId,
       handle,
-      original: structuredClone(read()),
+      original: structuredClone(callbacks.current.read()),
       offset: [point[0] - cx, point[1] - cy],
     }
     useEditorStore.getState().beginInteractiveEdit()
@@ -122,7 +121,7 @@ export function GeometryHandles({
     if (!active || event.pointerId !== active.pointer) return
     event.stopPropagation()
     const point = fromEvent(event)
-    const current = read()
+    const current = callbacks.current.read()
     const [ccx, ccy] = current.center
     const dx = point[0] - ccx
     const dy = point[1] - ccy
@@ -131,12 +130,12 @@ export function GeometryHandles({
       Math.round(((radians * 180) / Math.PI) * 10) / 10
     switch (active.handle) {
       case "center":
-        write({
+        callbacks.current.write({
           center: [point[0] - active.offset[0], point[1] - active.offset[1]],
         })
         break
       case "x":
-        write({
+        callbacks.current.write({
           rotation: degrees(Math.atan2(dy, dx)),
           size: [clampSize(2 * Math.hypot(dx, dy)), current.size[1]],
         })
@@ -144,7 +143,9 @@ export function GeometryHandles({
       case "y": {
         const a = (current.rotation * Math.PI) / 180
         const projection = -dx * Math.sin(a) + dy * Math.cos(a)
-        write({ size: [current.size[0], clampSize(2 * Math.abs(projection))] })
+        callbacks.current.write({
+          size: [current.size[0], clampSize(2 * Math.abs(projection))],
+        })
         break
       }
       case "start":
@@ -158,7 +159,7 @@ export function GeometryHandles({
         ]
         const vx = active.handle === "end" ? point[0] - other[0] : other[0] - point[0]
         const vy = active.handle === "end" ? point[1] - other[1] : other[1] - point[1]
-        write({
+        callbacks.current.write({
           center: [(point[0] + other[0]) / 2, (point[1] + other[1]) / 2],
           rotation: degrees(Math.atan2(vy, vx)),
           size: [clampSize(Math.hypot(vx, vy)), current.size[1]],

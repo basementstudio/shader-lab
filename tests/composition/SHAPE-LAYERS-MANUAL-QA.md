@@ -21,4 +21,4 @@ Scope: roadmap 2.7, first stage. A **Shape** source layer draws a flat-color sil
 2. Duplicate the Shape and change the copy; the original is unaffected.
 3. Export PNG/video: identical to the canvas; the runtime package renders the same shape.
 
-Limits: shapes are procedural presets, not imported SVG paths; using a Shape layer as another layer's mask is a later decision (1.4/2.7). Default color, size and the Blades curve are open to your choice.
+Limits: shapes are procedural presets; user-uploaded SVG shapes are recorded in the roadmap as the next stage of 2.7; using a Shape layer as another layer's mask is a later decision (1.4/2.7). Default color, size and the Blades curve are open to your choice.

@@ -283,6 +283,14 @@ try {
   console.log(
     `PASS shape layers: ${shapes.samples} editor/runtime GPU cases across seven shapes, outline, softness, blend, mask, hydration, export`
   )
+  const textEditing = await page.evaluate(() => window.checkTextEditing())
+  await Bun.write(
+    resolve(artifacts, "text-editing.png"),
+    Buffer.from(textEditing.png.split(",")[1], "base64")
+  )
+  console.log(
+    `PASS text editing: ${textEditing.samples} editor/runtime checks for multiline, align, line height, rotation, small sizes, geometry helpers, hydration and export`
+  )
   assert.deepEqual(errors, [], "Browser or GPU errors occurred")
   console.log(
     update

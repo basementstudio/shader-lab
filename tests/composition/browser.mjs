@@ -27,6 +27,7 @@ import { checkLayerMasks } from "./layer-masks.mjs"
 import { checkGradientMap } from "./gradient-map.mjs"
 import { checkArtboard } from "./artboard.mjs"
 import { checkShapeLayers } from "./shape-layers.mjs"
+import { checkTextEditing } from "./text-editing.mjs"
 import { checkDisplacedRings } from "./displaced-rings.mjs"
 
 function pixels(canvas) {
@@ -256,6 +257,11 @@ window.checkExistingProject = async () => {
     if (layer.type === "image" || layer.type === "video") {
       layer.params.transparentBounds = false
     }
+    if (layer.type === "text") {
+      layer.params.align ??= "auto"
+      layer.params.lineHeight ??= 1.1
+      layer.params.rotation ??= 0
+    }
   }
   // Start from a different editor session so no-op restoration cannot pass
   // merely because the stores already contain their default values.
@@ -282,7 +288,18 @@ window.checkExistingProject = async () => {
     "audio",
   ]) {
     if (JSON.stringify(stored[key]) !== JSON.stringify(expectedRestored[key])) {
-      throw new Error(`Editor hydration/save changed ${key}`)
+      const detail =
+        key === "layers"
+          ? stored.layers
+              .map((layer, i) =>
+                JSON.stringify(layer) === JSON.stringify(expectedRestored.layers[i])
+                  ? null
+                  : `${layer.type}: ${JSON.stringify(layer.params)} vs ${JSON.stringify(expectedRestored.layers[i]?.params)}`
+              )
+              .filter(Boolean)
+              .join("; ")
+          : ""
+      throw new Error(`Editor hydration/save changed ${key} ${detail}`)
     }
   }
   if (
@@ -409,3 +426,5 @@ window.checkGradientMap = () => checkGradientMap(renderProject)
 window.checkArtboard = checkArtboard
 
 window.checkShapeLayers = () => checkShapeLayers(renderProject)
+
+window.checkTextEditing = () => checkTextEditing(renderProject)

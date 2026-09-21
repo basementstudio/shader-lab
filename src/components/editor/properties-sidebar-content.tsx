@@ -3,6 +3,7 @@
 import { CellPaintControls } from "./cell-paint-controls"
 import { GradientMapControls } from "./gradient-map-controls"
 import { LayerMaskSection } from "./layer-mask-section"
+import { useTextEditStore } from "@/store/text-edit-store"
 import { LayerGroupLocation } from "@/components/editor/layer-group-location"
 
 import { TextAlignRightIcon } from "@radix-ui/react-icons"
@@ -768,6 +769,37 @@ export function SelectedLayerPropertiesContent({
             values={values}
           />
         )}
+
+        {layerType === "text" ? (
+          <section className="flex flex-col gap-3 border-t border-[var(--ds-border-divider)] px-4 pt-[14px] pb-4 first:border-t-0">
+            <Typography
+              className="uppercase"
+              tone="secondary"
+              variant="overline"
+            >
+              Canvas
+            </Typography>
+            <div className="flex items-center justify-between gap-3">
+              <Typography tone="muted" variant="caption">
+                Type in place; drag the handles to move, rotate and resize.
+              </Typography>
+              <Button
+                onClick={() =>
+                  useTextEditStore
+                    .getState()
+                    .edit(
+                      layerId,
+                      typeof values.text === "string" ? values.text : ""
+                    )
+                }
+                size="compact"
+                variant="secondary"
+              >
+                Edit text
+              </Button>
+            </div>
+          </section>
+        ) : null}
 
         {layerType === "gradient" ? (
           <section className="flex flex-col gap-3 border-t border-[var(--ds-border-divider)] px-4 pt-[14px] pb-4 first:border-t-0">

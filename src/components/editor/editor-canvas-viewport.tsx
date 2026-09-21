@@ -392,7 +392,7 @@ export function EditorCanvasViewport() {
               <p className="text-sm text-[var(--ds-color-text-secondary)]">
                 Add a layer to start
               </p>
-              <p className="mt-2 text-xs leading-5 text-[var(--ds-color-text-muted)]">
+              <p className="mt-2 text-balance text-xs leading-5 text-[var(--ds-color-text-muted)]">
                 Use + in Layers, or drop an image or video here.
               </p>
             </div>

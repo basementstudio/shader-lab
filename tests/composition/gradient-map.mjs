@@ -6,6 +6,7 @@ import * as THREE from "three/webgpu"
 import { GradientMapPass } from "@/renderer/gradient-map-pass"
 import {
   buildColorMapBytes,
+  canonicalGradientMapStops,
   DEFAULT_GRADIENT_MAP_STOPS,
   evaluateGradientMapStops,
   GRADIENT_MAP_PRESETS,
@@ -58,10 +59,19 @@ function unitChecks() {
   )
   assert(
     parsed.length === 2 &&
-      parsed[0].color === "#0000ff" &&
-      parsed[0].position === 0 &&
-      parsed[1].position === 1,
-    "Stops must clamp, drop invalid colors and sort"
+      parsed[0].color === "#ff0000" &&
+      parsed[0].position === 1 &&
+      parsed[1].position === 0,
+    "Stops must clamp and drop invalid colors while keeping authored order"
+  )
+  close(
+    evaluateGradientMapStops(parsed, 0.25),
+    [0.25, 0, 0.75],
+    "Evaluation sorts unsorted stops"
+  )
+  assert(
+    canonicalGradientMapStops(parsed) === canonicalGradientMapStops([...parsed].reverse()),
+    "Canonical form ignores authored order"
   )
   const duotone = GRADIENT_MAP_PRESETS.find((p) => p.id === "duotone").stops
   assert(
@@ -84,7 +94,7 @@ function unitChecks() {
     "Catalog entry"
   )
   assert(createLayer("gradient-map").params.stops === thermal, "New layers start with Thermal")
-  return 8
+  return 10
 }
 
 async function passChecks() {

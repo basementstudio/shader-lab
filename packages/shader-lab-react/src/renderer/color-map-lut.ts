@@ -73,12 +73,16 @@ function srgbToLinear(value: number): number {
 
 export function serializeGradientMapStops(stops: GradientMapStop[]): string {
   return JSON.stringify(
-    [...stops]
-      .sort((a, b) => a.position - b.position)
-      .map((stop) => ({
-        position: Math.round(stop.position * 10000) / 10000,
-        color: stop.color.toLowerCase(),
-      }))
+    stops.map((stop) => ({
+      position: Math.round(stop.position * 10000) / 10000,
+      color: stop.color.toLowerCase(),
+    }))
+  )
+}
+
+export function canonicalGradientMapStops(stops: GradientMapStop[]): string {
+  return serializeGradientMapStops(
+    [...stops].sort((a, b) => a.position - b.position)
   )
 }
 
@@ -105,7 +109,7 @@ export function parseGradientMapStops(value: unknown): GradientMapStop[] {
     })
   }
   if (stops.length < 2) return DEFAULT_GRADIENT_MAP_STOPS.map((s) => ({ ...s }))
-  return stops.sort((a, b) => a.position - b.position)
+  return stops
 }
 
 export function evaluateGradientMapStops(

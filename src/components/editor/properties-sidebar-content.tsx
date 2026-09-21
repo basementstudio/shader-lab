@@ -251,6 +251,14 @@ function CustomShaderSection({
   )
 }
 
+function estimateDepthLabel(working: boolean, hasDepthMap: boolean): string {
+  if (working) {
+    return "Working…"
+  }
+
+  return hasDepthMap ? "Estimate again" : "Estimate"
+}
+
 export function SelectedLayerPropertiesContent({
   blendMode,
   compositeMode,
@@ -265,6 +273,8 @@ export function SelectedLayerPropertiesContent({
   hue,
   onInteractionEnd,
   onInteractionStart,
+  canEstimateDepthMap,
+  depthEstimationLabel,
   depthMapFileName,
   hasDepthMap,
   layerId,
@@ -274,6 +284,7 @@ export function SelectedLayerPropertiesContent({
   layerSubtitle,
   layerType,
   onAttachDepthMap,
+  onEstimateDepthMap,
   onRemoveDepthMap,
   onReplaceImage,
   onToggleParamGroup,
@@ -311,9 +322,12 @@ export function SelectedLayerPropertiesContent({
   layerRuntimeError: string | null
   layerSubtitle: string
   layerType: LayerType
+  canEstimateDepthMap: boolean
+  depthEstimationLabel: string | null
   depthMapFileName: string | null
   hasDepthMap: boolean
   onAttachDepthMap: () => void
+  onEstimateDepthMap: () => void
   onRemoveDepthMap: () => void
   onReplaceImage: () => void
   onToggleParamGroup: (groupId: string) => void
@@ -762,19 +776,31 @@ export function SelectedLayerPropertiesContent({
                 Replace
               </Button>
             </div>
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-col gap-2">
               <div className="flex min-w-0 flex-col gap-0.5">
                 <Typography tone="secondary" variant="caption">
                   Depth map
                 </Typography>
                 <Typography className="truncate" tone="muted" variant="caption">
-                  {hasDepthMap
-                    ? (depthMapFileName ?? "Attached")
-                    : "Grayscale image with the same framing. White is near."}
+                  {depthEstimationLabel ??
+                    (hasDepthMap
+                      ? (depthMapFileName ?? "Attached")
+                      : "Estimate one from the image, or attach a grayscale map. White is near.")}
                 </Typography>
               </div>
-              <div className="flex shrink-0 items-center gap-1.5">
+              <div className="flex flex-wrap items-center gap-1.5">
+                {canEstimateDepthMap ? (
+                  <Button
+                    disabled={depthEstimationLabel !== null}
+                    onClick={onEstimateDepthMap}
+                    size="compact"
+                    variant={hasDepthMap ? "secondary" : "primary"}
+                  >
+                    {estimateDepthLabel(depthEstimationLabel !== null, hasDepthMap)}
+                  </Button>
+                ) : null}
                 <Button
+                  disabled={depthEstimationLabel !== null}
                   onClick={onAttachDepthMap}
                   size="compact"
                   uiSound="action.relinkAsset"

@@ -1,3 +1,4 @@
+import { normalizeLayerMask } from "@/renderer/layer-mask"
 import { subscribeToCustomShaderCompiles } from "@/lib/agent-bridge/compile-events"
 import { pumpAgentFrame } from "@/lib/agent-bridge/frame-pump"
 import { getLayerDefinition, getLayerDefinitions } from "@/lib/editor/config/layer-registry"
@@ -16,12 +17,17 @@ import type {
   MaskSource,
   ParameterDefinition,
   ParameterValue,
+  LayerMaskScope,
+  LayerMaskShape,
 } from "@/types/editor"
 import {
   BLEND_MODES,
   LAYER_COMPOSITE_MODES,
   MASK_MODES,
   MASK_SOURCES,
+  DEFAULT_LAYER_MASK,
+  LAYER_MASK_SCOPES,
+  LAYER_MASK_SHAPES,
 } from "@/types/editor"
 
 export class AgentCommandError extends Error {}
@@ -428,6 +434,7 @@ function serializeLayer(layer: EditorLayer) {
   return {
     ...summarizeLayer(layer, index),
     hue: layer.hue,
+    mask: layer.mask ?? null,
     maskConfig: layer.maskConfig,
     params: { ...layer.params },
     saturation: layer.saturation,
@@ -859,6 +866,38 @@ const COMMAND_HANDLERS: Record<string, CommandHandler> = {
       }
 
       store.setLayerMaskConfig(layer.id, updates)
+    }
+
+    if (payload.mask !== undefined) {
+      if (payload.mask === null) {
+        store.setLayerMask(layer.id, { ...DEFAULT_LAYER_MASK })
+      } else {
+        if (!isRecord(payload.mask)) {
+          throw new AgentCommandError("`mask` must be an object or null.")
+        }
+        if (
+          payload.mask.shape !== undefined &&
+          !LAYER_MASK_SHAPES.includes(payload.mask.shape as LayerMaskShape)
+        ) {
+          throw new AgentCommandError(
+            `Invalid mask.shape. Valid values: ${LAYER_MASK_SHAPES.join(", ")}.`
+          )
+        }
+        if (
+          payload.mask.scope !== undefined &&
+          !LAYER_MASK_SCOPES.includes(payload.mask.scope as LayerMaskScope)
+        ) {
+          throw new AgentCommandError(
+            `Invalid mask.scope. Valid values: ${LAYER_MASK_SCOPES.join(", ")}.`
+          )
+        }
+        const normalized = normalizeLayerMask({
+          ...DEFAULT_LAYER_MASK,
+          ...(layer.mask ?? {}),
+          ...payload.mask,
+        })
+        if (normalized) store.setLayerMask(layer.id, normalized)
+      }
     }
 
     return serializeLayer(requireLayer(layer.id))

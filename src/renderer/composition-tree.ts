@@ -4,6 +4,7 @@ export interface CompositionGroup<Layer> {
   children: CompositionNode<Layer>[]
   id: string
   kind: "group"
+  mask?: unknown
   opacity: number
   visible: boolean
 }

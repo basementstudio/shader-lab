@@ -1,6 +1,7 @@
 "use client"
 
 import { CellPaintControls } from "./cell-paint-controls"
+import { LayerMaskSection } from "./layer-mask-section"
 import { LayerGroupLocation } from "@/components/editor/layer-group-location"
 
 import { TextAlignRightIcon } from "@radix-ui/react-icons"
@@ -35,6 +36,8 @@ import type {
   MaskSource,
   ParameterDefinition,
   ParameterValue,
+  LayerMask,
+  LayerKind,
 } from "@/types/editor"
 import type { AudioLinkControl } from "@/components/editor/audio-link-button"
 import { BlobInnerEffectSection } from "./blob-inner-effect-section"
@@ -248,6 +251,9 @@ function CustomShaderSection({
 export function SelectedLayerPropertiesContent({
   blendMode,
   compositeMode,
+  mask,
+  maskLayerKind,
+  setLayerMask,
   maskConfig,
   setLayerMaskConfig,
   definitionName,
@@ -280,6 +286,9 @@ export function SelectedLayerPropertiesContent({
 }: {
   blendMode: BlendMode
   compositeMode: LayerCompositeMode
+  mask: LayerMask | null | undefined
+  maskLayerKind: LayerKind
+  setLayerMask: (id: string, updates: Partial<LayerMask>) => void
   maskConfig: MaskConfig
   setLayerMaskConfig: (id: string, updates: Partial<MaskConfig>) => void
   definitionName: string
@@ -699,6 +708,15 @@ export function SelectedLayerPropertiesContent({
             )}
           </div>
         </section>
+
+        <LayerMaskSection
+          layerId={layerId}
+          layerKind={maskLayerKind}
+          mask={mask}
+          onInteractionEnd={onInteractionEnd}
+          onInteractionStart={onInteractionStart}
+          setLayerMask={setLayerMask}
+        />
 
         {layerType === "custom-shader" ? (
           <CustomShaderSection

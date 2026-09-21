@@ -77,3 +77,8 @@ The user approved simple general masks (linear/radial gradient, ellipse/circle, 
 Technical annotations are now a prominent artistic direction, rather than only a low-priority Blob Tracking note. Revisit screenshot 19 before choosing their behavior or appearance. Thermal-style color mapping and depth-driven coloring are separate explorations; do not infer how the cover in screenshot 18 was made.
 
 The new low-priority Pattern proposal has no additional supplied image: its concrete brief is user-uploaded SVG/image motifs in a manually ordered light-to-dark sequence (fresh green apple → rotten apple), preserving original colors and exploring explicit SVG recoloring. Do not mistake ordering motifs for generating an animated morph between them. These are roadmap additions, not implemented features or new visual approvals of existing work.
+
+
+## Reusable layer masks
+
+References 17 (cell poster with locally masked pixelation and gradient mapping) and 20 (Lovedance shapes) were reopened before implementing roadmap 1.4. Both frame local treatments with simple geometry or painted regions, which is what the four tools supply: gradient (linear/radial), ellipse, rectangle and brush, with limit-effect and cut-content scopes, invert and feather. No pen tool. This is a compositional tool, not a reproduction of either reference; shape layers with editable colors (2.7) and the local Gradient Map (2.5.2) remain separate slices. User visual acceptance is pending; see [the focused test](tests/composition/LAYER-MASKS-MANUAL-QA.md).

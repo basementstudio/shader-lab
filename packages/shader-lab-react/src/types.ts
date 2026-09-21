@@ -84,6 +84,27 @@ export interface ShaderLabMaskConfig {
   source: ShaderLabMaskSource
 }
 
+export type ShaderLabLayerMaskShape =
+  | "none"
+  | "linear"
+  | "radial"
+  | "ellipse"
+  | "rectangle"
+  | "brush"
+export type ShaderLabLayerMaskScope = "effect" | "content"
+
+export interface ShaderLabLayerMask {
+  shape: ShaderLabLayerMaskShape
+  scope?: ShaderLabLayerMaskScope
+  enabled?: boolean
+  invert?: boolean
+  center?: [number, number]
+  size?: [number, number]
+  rotation?: number
+  feather?: number
+  paint?: string
+}
+
 export type ShaderLabAssetSource =
   | {
       fileName?: string
@@ -165,6 +186,7 @@ export interface ShaderLabLayerConfig {
   blendMode: ShaderLabBlendMode
   compositeMode: ShaderLabCompositeMode
   maskConfig?: ShaderLabMaskConfig
+  mask?: ShaderLabLayerMask | null
   hue: number
   id: string
   kind: ShaderLabLayerKind

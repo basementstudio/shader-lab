@@ -251,6 +251,14 @@ try {
   console.log(
     `PASS photographic cells: ${cells.samples} editor/runtime GPU cases, full-detail interiors, alpha, hydration, runtime export, groups, preview/PNG`
   )
+  const masks = await page.evaluate(() => window.checkLayerMasks())
+  await Bun.write(
+    resolve(artifacts, "layer-masks.png"),
+    Buffer.from(masks.png.split(",")[1], "base64")
+  )
+  console.log(
+    `PASS layer masks: ${masks.samples} editor/runtime GPU cases, group cutouts, brush parity with Cells paint, hydration, history, duplication, export`
+  )
   assert.deepEqual(errors, [], "Browser or GPU errors occurred")
   console.log(
     update

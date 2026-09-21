@@ -126,6 +126,43 @@ export interface MaskConfig {
   source: MaskSource
 }
 
+export const LAYER_MASK_SHAPES = [
+  "none",
+  "linear",
+  "radial",
+  "ellipse",
+  "rectangle",
+  "brush",
+] as const
+export type LayerMaskShape = (typeof LAYER_MASK_SHAPES)[number]
+
+export const LAYER_MASK_SCOPES = ["effect", "content"] as const
+export type LayerMaskScope = (typeof LAYER_MASK_SCOPES)[number]
+
+export interface LayerMask {
+  shape: LayerMaskShape
+  scope: LayerMaskScope
+  enabled: boolean
+  invert: boolean
+  center: [number, number]
+  size: [number, number]
+  rotation: number
+  feather: number
+  paint: string
+}
+
+export const DEFAULT_LAYER_MASK: LayerMask = {
+  shape: "none",
+  scope: "effect",
+  enabled: true,
+  invert: false,
+  center: [0, 0],
+  size: [0.5, 0.5],
+  rotation: 0,
+  feather: 0.01,
+  paint: "",
+}
+
 export const ASSET_KINDS = ["image", "video", "model", "audio"] as const
 export type AssetKind = (typeof ASSET_KINDS)[number]
 
@@ -273,6 +310,7 @@ export interface BaseLayer {
   fluidInteractionEvents?: FluidInteractionEvent[]
   kind: LayerKind
   locked: boolean
+  mask?: LayerMask | null
   maskConfig: MaskConfig
   name: string
   opacity: number

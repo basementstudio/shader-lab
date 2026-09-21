@@ -14,6 +14,7 @@ import {
   vec4,
 } from "three/tsl"
 import { buildBlendNode, type CompositionRole } from "./blend-modes"
+import { LayerMaskNode, type LayerMaskState } from "./layer-mask"
 import type { BloomCompositor } from "./dual-filter-bloom"
 import type { LayerCompositeMode, LayerParameterValues, MaskConfig } from "../types/editor"
 
@@ -61,6 +62,7 @@ export class PassNode {
   private maskSource = "luminance"
   private maskMode = "multiply"
   private maskInvert = false
+  private readonly layerMask = new LayerMaskNode()
   private colorNodeDirty = false
 
   constructor(layerId: string) {
@@ -160,6 +162,16 @@ export class PassNode {
     }
   }
 
+  updateLayerMask(mask: LayerMaskState | null | undefined): void {
+    if (this.layerMask.update(mask)) {
+      this.colorNodeDirty = true
+    }
+  }
+
+  updateMaskLogicalSize(width: number, height: number): void {
+    this.layerMask.updateLogicalSize(width, height)
+  }
+
   flushColorNode(): void {
     if (!this.colorNodeDirty) {
       return
@@ -195,6 +207,7 @@ export class PassNode {
     this.effectSwapGeneration += 1
     this.bloomCompositor?.dispose()
     this.bloomCompositor = null
+    this.layerMask.dispose()
     this.scene.clear()
     this.material.dispose()
     this.compositeGeometry.dispose()
@@ -285,7 +298,7 @@ export class PassNode {
 
   private composeColorNode(effectNode: Node): Node {
     const adjustedEffectNode = this.applySharedColorAdjustments(effectNode)
-    return buildBlendNode(
+    const blended = buildBlendNode(
       this.blendMode,
       this.inputNode,
       adjustedEffectNode,
@@ -300,6 +313,7 @@ export class PassNode {
         : undefined,
       this.compositionRole,
     ) as Node
+    return this.layerMask.apply(this.inputNode, blended, this.compositionRole)
   }
 
   private applySharedColorAdjustments(sourceNode: Node): Node {

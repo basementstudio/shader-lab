@@ -101,7 +101,7 @@ Text layers accept multiline content, `align` (auto follows the anchor), `lineHe
 
 ## Blob Tracking decorations
 
-The tracker now records up to 64 boundary cells per blob; the pass draws them as seeded edge dots, offers corner-bracket frames beside the outline, and formats labels from coordinates, a prefix plus a seeded per-track code, or a user list. `blob-tracking.mjs` checks the tracker's edge points on a synthetic grid, label hashing and atlas coverage, then renders the editor and runtime passes over a synthetic bright block (frame styles at corners versus edge midpoints, legacy `showOutline`, dot density and placement, the three label modes, alpha parity) and the `frameStyle` migration. Manual check: [BLOB-TRACKING-MANUAL-QA.md](BLOB-TRACKING-MANUAL-QA.md). `bun tests/composition/effect-video-performance.mjs --blob` times the pass on video.
+The tracker now records up to 64 boundary cells per blob; the pass draws them as seeded edge dots, offers corner-bracket frames beside the outline, and formats labels from coordinates, a prefix plus a seeded per-track code, or a user list. `blob-tracking.mjs` checks the tracker's edge points on a synthetic grid, label hashing and atlas coverage, then renders the editor and runtime passes over a synthetic bright block (frame styles at corners versus edge midpoints, legacy `showOutline`, dot density and placement, the three label modes, alpha parity) and the `frameStyle` migration. Manual check: [BLOB-TRACKING-MANUAL-QA.md](BLOB-TRACKING-MANUAL-QA.md). `bun tests/composition/effect-video-performance.mjs --blob` times the pass on video, and `blob-motion-probe.mjs` reports blob count, mean area, ID churn and fallback frames on aura.mp4 for tuning motion detection.
 
 ## Neutral projects and global colors
 

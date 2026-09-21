@@ -164,6 +164,48 @@ try {
   assert.equal(layerOf(await save("sway")).params.parallaxMotion, "sway")
   await page.screenshot({ path: ".context/depth-parallax-ui.png" })
 
+  const add = panel.getByRole("button", { name: "Add layer", exact: true })
+  await add.click()
+  const menu = await add.getAttribute("aria-controls")
+  await page
+    .locator(`[id="${menu}"]`)
+    .getByRole("button", { name: /Gradient Map/ })
+    .first()
+    .click()
+  await page.waitForFunction(
+    () =>
+      document.querySelectorAll(
+        '[data-layer-sidebar-panel="true"] [data-layer-row]'
+      ).length >= 2
+  )
+  await ready()
+  const inputSelect = page
+    .getByRole("combobox")
+    .filter({ hasText: /^Luminance$/ })
+    .filter({ visible: true })
+    .first()
+  await inputSelect.click()
+  await page.getByRole("option", { name: "Depth", exact: true }).click()
+  await page.waitForTimeout(400)
+  const maskShape = page
+    .getByRole("combobox", { name: "Mask shape" })
+    .filter({ visible: true })
+    .first()
+  await maskShape.click()
+  await page.getByRole("option", { name: "Depth", exact: true }).click()
+  await page.getByRole("slider", { name: /^Near/ }).filter({ visible: true }).first().waitFor()
+  await page.getByRole("slider", { name: /^Far/ }).filter({ visible: true }).first().waitFor()
+  await page.waitForTimeout(400)
+  const withMap = await save("gradient-map")
+  const mapLayer = withMap.layers.find((l) => l.type === "gradient-map")
+  assert.equal(mapLayer.params.input, "depth", "Input select stores depth")
+  assert.equal(mapLayer.mask.shape, "depth", "Mask shape select stores depth")
+  assert.deepEqual(mapLayer.mask.size, [0.4, 1], "Depth mask starts with a near/far range")
+  await page.screenshot({ path: ".context/depth-parallax-ui-scene-depth.png" })
+  await panel
+    .locator('[data-layer-row="photo"]')
+    .getByText("Photo", { exact: true })
+    .click()
   await page
     .getByRole("button", { name: "Remove", exact: true })
     .filter({ visible: true })
@@ -184,7 +226,7 @@ try {
     .waitFor()
   assert.deepEqual(errors, [])
   console.log(
-    "PASS depth map attach/replace/remove, gated Depth controls, motion select, undo, actual save"
+    "PASS depth map attach/replace/remove, gated Depth controls, motion select, Input → Depth, Depth mask shape, undo, actual save"
   )
 } finally {
   await browser.close()

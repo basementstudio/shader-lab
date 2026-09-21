@@ -64,6 +64,9 @@ export class PassNode {
   private maskInvert = false
   private readonly layerMask = new LayerMaskNode()
   private colorNodeDirty = false
+  protected sceneDepthTexture: THREE.Texture | null = null
+  protected sourceMode: "depth" | "luminance" = "luminance"
+  private effectSourceIsDepth = false
 
   constructor(layerId: string) {
     this.layerId = layerId
@@ -170,6 +173,36 @@ export class PassNode {
 
   updateMaskLogicalSize(width: number, height: number): void {
     this.layerMask.updateLogicalSize(width, height)
+  }
+
+  setSceneDepth(texture: THREE.Texture | null): void {
+    this.sceneDepthTexture = texture
+    this.layerMask.updateSceneDepth(texture)
+    this.syncEffectSource()
+  }
+
+  private syncEffectSource(): void {
+    const next =
+      this.sourceMode === "depth" && this.sceneDepthTexture !== null
+    if (next !== this.effectSourceIsDepth) {
+      this.effectSourceIsDepth = next
+      this.rebuildEffectNode()
+    }
+  }
+
+  getOutputSceneDepth(): THREE.Texture | null {
+    return this.sceneDepthTexture
+  }
+
+  protected updateSourceMode(params: LayerParameterValues): void {
+    this.sourceMode = params.input === "depth" ? "depth" : "luminance"
+    this.syncEffectSource()
+  }
+
+  protected resolveEffectSource(inputTexture: THREE.Texture): THREE.Texture {
+    return this.sourceMode === "depth" && this.sceneDepthTexture
+      ? this.sceneDepthTexture
+      : inputTexture
   }
 
   flushColorNode(): void {

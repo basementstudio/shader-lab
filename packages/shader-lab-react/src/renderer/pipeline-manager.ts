@@ -355,9 +355,12 @@ export class PipelineManager {
 
     let readTarget = this.rtA
     let writeTarget = this.rtB
+    let sceneDepth: THREE.Texture | null = null
 
     for (const pass of activePasses) {
+      pass.setSceneDepth(sceneDepth)
       this.renderPass(pass, readTarget.texture, writeTarget, time, delta)
+      sceneDepth = pass.getOutputSceneDepth()
       const previousRead = readTarget
       readTarget = writeTarget
       writeTarget = previousRead
@@ -402,9 +405,12 @@ export class PipelineManager {
 
     let readTarget = this.rtA
     let writeTarget = this.rtB
+    let sceneDepth: THREE.Texture | null = null
 
     for (const pass of activePasses) {
+      pass.setSceneDepth(sceneDepth)
       this.renderPass(pass, readTarget.texture, writeTarget, time, delta)
+      sceneDepth = pass.getOutputSceneDepth()
       const previousRead = readTarget
       readTarget = writeTarget
       writeTarget = previousRead

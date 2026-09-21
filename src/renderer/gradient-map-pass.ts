@@ -8,6 +8,7 @@ import {
   texture,
   type TSLNode,
   uniform,
+  uv,
   vec2,
   vec3,
   vec4,
@@ -28,6 +29,8 @@ export class GradientMapPass extends PassNode {
   private readonly amountUniform: Node
   private readonly invertUniform: Node
   private readonly lut: THREE.DataTexture
+  private readonly sourceNode: Node
+  private readonly sourcePlaceholder = new THREE.Texture()
   private stopsKey = ""
 
   constructor(layerId: string) {
@@ -44,11 +47,27 @@ export class GradientMapPass extends PassNode {
     this.lut.magFilter = THREE.LinearFilter
     this.lut.minFilter = THREE.LinearFilter
     this.lut.generateMipmaps = false
+    this.sourceNode = texture(
+      this.sourcePlaceholder,
+      vec2(uv().x, float(1).sub(uv().y))
+    )
     this.updateParams({})
     this.rebuildEffectNode()
   }
 
+  override render(
+    renderer: THREE.WebGPURenderer,
+    inputTexture: THREE.Texture,
+    outputTarget: THREE.WebGLRenderTarget,
+    time: number,
+    delta: number
+  ): void {
+    this.sourceNode.value = this.resolveEffectSource(inputTexture)
+    super.render(renderer, inputTexture, outputTarget, time, delta)
+  }
+
   override updateParams(params: LayerParameterValues): void {
+    this.updateSourceMode(params)
     this.amountUniform.value =
       typeof params.amount === "number"
         ? Math.max(0, Math.min(1, params.amount))
@@ -68,9 +87,9 @@ export class GradientMapPass extends PassNode {
       return this.inputNode
     }
     const source = vec3(
-      float(this.inputNode.r),
-      float(this.inputNode.g),
-      float(this.inputNode.b)
+      float(this.sourceNode.r),
+      float(this.sourceNode.g),
+      float(this.sourceNode.b)
     )
     const luma = clamp(dot(source, vec3(0.2126, 0.7152, 0.0722)), 0, 1)
     const perceptual = select(
@@ -92,6 +111,7 @@ export class GradientMapPass extends PassNode {
 
   override dispose(): void {
     this.lut.dispose()
+    this.sourcePlaceholder.dispose()
     super.dispose()
   }
 }

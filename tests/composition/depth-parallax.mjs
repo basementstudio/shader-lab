@@ -222,6 +222,23 @@ async function passChecks(colorUrl, depthUrl) {
       expectNear(at(depthView, 0.72, 0.5)[0], SQUARE.depth, 0.02, `${name}: depth view square`)
       expectNear(at(await render({ depthView: true, depthInvert: true }), CIRCLE.x, CIRCLE.y)[0], 1 - CIRCLE.depth, 0.02, `${name}: inverted depth view`)
       captured[`${name}:depthView`] = depthView
+      await render({})
+      const sceneDepth = pass.getOutputSceneDepth()
+      assert(sceneDepth && sceneDepth !== input, `${name}: depth-bearing image exposes a scene depth texture`)
+      const probeMaterial = new THREE.MeshBasicNodeMaterial({ blending: THREE.NoBlending })
+      probeMaterial.colorNode = texture(sceneDepth, vec2(uv().x, float(1).sub(uv().y)))
+      const probeScene = new THREE.Scene()
+      probeScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), probeMaterial))
+      renderer.setRenderTarget(target)
+      renderer.render(probeScene, new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1))
+      const sceneDepthPixels = Array.from(await renderer.readRenderTargetPixelsAsync(target, 0, 0, N, N))
+      probeMaterial.dispose()
+      const sceneCircle = at(sceneDepthPixels, CIRCLE.x, CIRCLE.y)
+      expectNear(sceneCircle[0], CIRCLE.depth, 0.02, `${name}: scene depth red channel at the circle`)
+      expectNear(sceneCircle[1], CIRCLE.depth, 0.02, `${name}: scene depth is gray`)
+      expectNear(sceneCircle[3], 1, 0.01, `${name}: scene depth alpha marks in-bounds pixels`)
+      expectNear(at(sceneDepthPixels, 0.5, 0.1)[0], 0, 0.02, `${name}: scene depth background`)
+      expectNear(at(sceneDepthPixels, 0.72, 0.5)[0], SQUARE.depth, 0.02, `${name}: scene depth square`)
 
       const shift = 0.5 * 0.25
       const shifted = await render({ parallaxOffset: [0.5, 0], depthRange: 1, depthFocus: 0 })
@@ -284,8 +301,9 @@ async function passChecks(colorUrl, depthUrl) {
       maxDelta = 0
       for (let i = 0; i < base.length; i++) maxDelta = Math.max(maxDelta, Math.abs(base[i] - detached[i]))
       assert(maxDelta < 0.003, `${name}: removing the depth map restores the plain image`)
+      assert(pass.getOutputSceneDepth() === null, `${name}: without depth the image passes no scene depth`)
       pass.dispose()
-      samples += 30
+      samples += 36
     }
     for (const key of ["shifted", "depthView"]) {
       const editor = captured[`editor:${key}`]
@@ -496,6 +514,208 @@ function toPng(pixels) {
   return canvas.toDataURL("image/png")
 }
 
+const RAMP = JSON.stringify([
+  { position: 0, color: "#000000" },
+  { position: 1, color: "#ffffff" },
+])
+
+function srgbPixels(canvas) {
+  const copy = document.createElement("canvas")
+  copy.width = N
+  copy.height = N
+  const context = copy.getContext("2d", { willReadFrequently: true })
+  context.drawImage(canvas, 0, 0)
+  const data = context.getImageData(0, 0, N, N).data
+  return (x, y) => {
+    const i = (Math.round((1 - y) * (N - 1)) * N + Math.round(x * (N - 1))) * 4
+    return [data[i] / 255, data[i + 1] / 255, data[i + 2] / 255, data[i + 3] / 255]
+  }
+}
+
+async function sceneDepthChecks(colorAsset, depthAsset) {
+  const image = { ...createLayer("image"), id: "photo", assetId: colorAsset.id, depthAssetId: depthAsset.id }
+  image.params = { ...image.params, parallaxMotion: "off" }
+  const mapLayer = (extra, id = "map") => {
+    const layer = { ...createLayer("gradient-map"), id }
+    layer.params = { ...layer.params, stops: RAMP, ...extra }
+    return layer
+  }
+  const timeline = { currentTime: 0, duration: 1, isPlaying: false, loop: true, selectedKeyframeId: null, selectedKeyframeIds: [], selectedTrackId: null, tracks: [] }
+  const size = { width: N, height: N }
+  const canvas = document.createElement("canvas")
+  const editor = await createWebGPURenderer(canvas, { strictPassFailures: true })
+  const renderLayers = async (layers) => {
+    const frame = buildRendererFrame({
+      assets: [colorAsset, depthAsset],
+      layers,
+      sceneConfig: DEFAULT_SCENE_CONFIG,
+      timeline,
+      outputSize: size,
+      viewportSize: size,
+      delta: 0,
+      clockTime: 0,
+      pixelRatio: 1,
+    })
+    editor.render(frame)
+    const deadline = performance.now() + 30_000
+    while (editor.hasPendingResources()) {
+      if (performance.now() > deadline) throw new Error("Timed out loading media for scene depth checks")
+      await new Promise((resolve) => setTimeout(resolve, 20))
+    }
+    editor.render(frame)
+    await editor.waitForGpuIdle()
+    return srgbPixels(canvas)
+  }
+  let samples = 0
+  try {
+    await editor.initialize()
+    editor.resize(size, 1)
+    const byLuma = await renderLayers([mapLayer({ input: "luminance" }), image])
+    const byDepth = await renderLayers([mapLayer({ input: "depth" }), image])
+    const circleLuma = byLuma(CIRCLE.x, CIRCLE.y)[0]
+    const circleDepth = byDepth(CIRCLE.x, CIRCLE.y)[0]
+    assert(circleDepth > 0.9, `Depth input maps the near circle to the top of the ramp (${circleDepth})`)
+    assert(circleDepth > circleLuma + 0.15, `Depth input differs from luminance input (${circleDepth} vs ${circleLuma})`)
+    assert(byDepth(0.5, 0.1)[0] < 0.08, `Depth input maps the background to the bottom of the ramp (${byDepth(0.5, 0.1)})`)
+    const square = byDepth(0.72, 0.5)[0]
+    assert(square > 0.45 && square < 0.65, `Depth input maps the far square to a mid tone (${square})`)
+    assert(Math.abs(byDepth(0.72, 0.5)[2] - square) < 0.03, "Depth input output is gray")
+    samples += 5
+
+    const withoutDepth = await renderLayers([mapLayer({ input: "depth" }), { ...image, depthAssetId: null }])
+    expectNear(withoutDepth(CIRCLE.x, CIRCLE.y)[0], circleLuma, 0.03, "Depth input falls back to luminance without a depth map")
+    samples++
+
+    const masked = await renderLayers([
+      { ...mapLayer({ input: "luminance" }), mask: { shape: "depth", scope: "effect", enabled: true, invert: false, center: [0, 0], size: [0.5, 1], rotation: 0, feather: 0.02, paint: "" } },
+      image,
+    ])
+    const maskedCircle = masked(CIRCLE.x, CIRCLE.y)
+    const maskedBackground = masked(0.5, 0.1)
+    const maskedSquare = masked(0.72, 0.5)
+    assert(Math.abs(maskedCircle[0] - maskedCircle[2]) < 0.05 && maskedCircle[0] > 0.4, `Depth mask lets the effect reach the near circle (${maskedCircle})`)
+    assert(maskedBackground[2] > maskedBackground[0] + 0.1, `Depth mask leaves the far background untouched (${maskedBackground})`)
+    expectNear(maskedSquare[0], 128 / 255, 0.05, `Depth mask leaves the mid-depth square untouched (${maskedSquare})`)
+    const inverted = await renderLayers([
+      { ...mapLayer({ input: "luminance" }), mask: { shape: "depth", scope: "effect", enabled: true, invert: true, center: [0, 0], size: [0.5, 1], rotation: 0, feather: 0.02, paint: "" } },
+      image,
+    ])
+    assert(inverted(0.5, 0.1)[0] > 0.08 && Math.abs(inverted(0.5, 0.1)[0] - inverted(0.5, 0.1)[2]) < 0.05, `Inverted depth mask maps the background to gray (${inverted(0.5, 0.1)})`)
+    assert(inverted(CIRCLE.x, CIRCLE.y)[0] > 0.9 && inverted(CIRCLE.x, CIRCLE.y)[1] < 0.2, "Inverted depth mask spares the circle")
+    samples += 5
+
+    const group = { ...createLayer("group"), id: "group" }
+    const insideGroup = await renderLayers([group, { ...mapLayer({ input: "depth" }, "inner"), parentId: "group" }, { ...image, parentId: "group" }])
+    expectNear(insideGroup(CIRCLE.x, CIRCLE.y)[0], circleDepth, 0.03, `Scene depth flows inside a group that holds the image (${insideGroup(CIRCLE.x, CIRCLE.y)})`)
+    const aboveGroup = await renderLayers([mapLayer({ input: "depth" }), group, { ...image, parentId: "group" }])
+    expectNear(aboveGroup(CIRCLE.x, CIRCLE.y)[0], circleDepth, 0.03, `Scene depth leaves a group for effects above it (${aboveGroup(CIRCLE.x, CIRCLE.y)})`)
+    samples += 2
+  } finally {
+    editor.dispose()
+    await editor.destroyDevice()
+  }
+
+  useLayerStore.getState().replaceState([mapLayer({ input: "depth" }), image], "map", null)
+  useAssetStore.getState().replaceAssets([colorAsset, depthAsset])
+  const config = buildShaderExportConfig({
+    assets: useAssetStore.getState().assets,
+    composition: size,
+    layers: useLayerStore.getState().layers,
+    timeline: { duration: 1, loop: true, tracks: [] },
+  })
+  const runtimeConfig = {
+    ...config,
+    layers: config.layers.map((entry) =>
+      entry.type === "image"
+        ? { ...entry, asset: { ...entry.asset, src: colorAsset.url }, depthAsset: { ...entry.depthAsset, src: depthAsset.url } }
+        : entry
+    ),
+  }
+  const renderer = new THREE.WebGPURenderer({ antialias: false })
+  await renderer.init()
+  const compiling = []
+  const compile = renderer.compileAsync.bind(renderer)
+  renderer.compileAsync = (...args) => {
+    const pending = compile(...args)
+    compiling.push(pending)
+    return pending
+  }
+  const headless = createHeadlessRenderer({ renderer, size })
+  const target = new THREE.RenderTarget(N, N, { type: THREE.FloatType, depthBuffer: false })
+  const material = new THREE.MeshBasicNodeMaterial({ blending: THREE.NoBlending })
+  const scene = new THREE.Scene()
+  scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material))
+  try {
+    await headless.initialize()
+    const frame = runtimeFrame(runtimeConfig, 0, 0, 1, size)
+    const deadline = performance.now() + 30_000
+    let circle
+    do {
+      headless.render(frame)
+      while (compiling.length) await Promise.all(compiling.splice(0))
+      material.colorNode = texture(headless.render(frame), vec2(uv().x, float(1).sub(uv().y)))
+      material.needsUpdate = true
+      renderer.setRenderTarget(target)
+      renderer.render(scene, new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1))
+      const pixels = Array.from(await renderer.readRenderTargetPixelsAsync(target, 0, 0, N, N))
+      const i = (Math.round(CIRCLE.y * N) * N + Math.round(CIRCLE.x * N)) * 4
+      circle = pixels.slice(i, i + 4)
+      if (circle[0] > 0.85) break
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    } while (performance.now() < deadline)
+    assert(circle[0] > 0.85 && Math.abs(circle[0] - circle[2]) < 0.05, `Runtime pipeline feeds scene depth to Gradient Map (${circle})`)
+    samples++
+  } finally {
+    headless.dispose()
+    target.dispose()
+    renderer.dispose()
+  }
+  return samples
+}
+
+async function timingChecks(colorUrl, depthUrl) {
+  const renderer = new THREE.WebGPURenderer({ antialias: false })
+  await renderer.init()
+  const input = new THREE.DataTexture(new Float32Array([0, 0, 0, 0]), 1, 1, THREE.RGBAFormat, THREE.FloatType)
+  input.needsUpdate = true
+  const target = new THREE.RenderTarget(1920, 1080, { type: THREE.HalfFloatType, depthBuffer: false })
+  const pass = new MediaPass("depth-timing")
+  pass.updateCompositionRole("source")
+  pass.flushColorNode()
+  pass.resize(1920, 1080)
+  pass.updateLogicalSize(1920, 1080)
+  pass.updateOpacity(1)
+  const defaults = createLayer("image").params
+  const result = {}
+  try {
+    await pass.setMedia({ url: colorUrl, kind: "image", width: SOURCE, height: SOURCE })
+    const time = async (label, params) => {
+      pass.updateParams({ ...defaults, ...params })
+      const times = []
+      for (let frame = 0; frame < 6; frame++) {
+        const start = performance.now()
+        pass.render(renderer, input, target, frame / 30, 1 / 30)
+        await renderer.backend.device.queue.onSubmittedWorkDone()
+        if (frame > 0) times.push(performance.now() - start)
+      }
+      times.sort((a, b) => a - b)
+      result[label] = Number(times[2].toFixed(1))
+    }
+    await time("plain", { parallaxMotion: "off" })
+    await pass.setDepthMedia({ url: depthUrl, width: SOURCE, height: SOURCE })
+    await time("depthMedium", { parallaxMotion: "orbit", parallaxAmount: 1, depthQuality: "medium" })
+    await time("depthHigh", { parallaxMotion: "orbit", parallaxAmount: 1, depthQuality: "high" })
+    await time("depthLow", { parallaxMotion: "orbit", parallaxAmount: 1, depthQuality: "low" })
+    return result
+  } finally {
+    pass.dispose()
+    target.dispose()
+    input.dispose()
+    renderer.dispose()
+    renderer.backend.device.destroy()
+  }
+}
+
 export async function checkDepthParallax() {
   const colorUrl = await paintScene(false)
   const depthUrl = await paintScene(true)
@@ -505,7 +725,9 @@ export async function checkDepthParallax() {
   const model = modelChecks(colorUrl, depthUrl)
   samples += model.samples
   samples += await pipelineChecks(model.config, model.colorAsset, model.depthAsset)
+  samples += await sceneDepthChecks(model.colorAsset, model.depthAsset)
+  const timing = await timingChecks(colorUrl, depthUrl)
   useLayerStore.getState().replaceState([])
   useAssetStore.getState().replaceAssets([])
-  return { samples, png: toPng(passes.png) }
+  return { samples, png: toPng(passes.png), timing }
 }

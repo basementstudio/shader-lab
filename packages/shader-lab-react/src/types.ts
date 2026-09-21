@@ -89,6 +89,7 @@ export interface ShaderLabMaskConfig {
 
 export type ShaderLabLayerMaskShape =
   | "none"
+  | "depth"
   | "linear"
   | "radial"
   | "ellipse"

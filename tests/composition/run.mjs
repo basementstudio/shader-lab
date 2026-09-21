@@ -313,7 +313,10 @@ try {
     Buffer.from(depth.png.split(",")[1], "base64")
   )
   console.log(
-    `PASS depth parallax: ${depth.samples} checks, editor/runtime GPU parity, occlusion march, edges, depth view, motion, hydration, export, both pipelines`
+    `PASS depth parallax: ${depth.samples} checks, editor/runtime GPU parity, occlusion march, edges, depth view, scene depth for effects and masks, motion, hydration, export, both pipelines`
+  )
+  console.log(
+    `Depth media pass at 1080p (software adapter, median ms): ${JSON.stringify(depth.timing)}`
   )
   assert.deepEqual(errors, [], "Browser or GPU errors occurred")
   console.log(

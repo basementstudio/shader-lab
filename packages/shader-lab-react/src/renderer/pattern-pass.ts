@@ -132,8 +132,9 @@ export class PatternPass extends PassNode {
     time: number,
     delta: number,
   ): void {
+    const source = this.resolveEffectSource(inputTexture)
     for (const sourceTextureNode of this.sourceTextureNodes) {
-      sourceTextureNode.value = inputTexture
+      sourceTextureNode.value = source
     }
 
     if (this.atlasTexture) {
@@ -147,6 +148,7 @@ export class PatternPass extends PassNode {
   }
 
   override updateParams(params: LayerParameterValues): void {
+    this.updateSourceMode(params)
     const nextCellSize =
       typeof params.cellSize === "number" ? Math.max(4, Math.round(params.cellSize)) : 12
     const nextPreset = this.resolvePreset(params.preset)

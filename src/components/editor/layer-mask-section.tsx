@@ -22,6 +22,7 @@ export const layerMaskShapeOptions: { label: string; value: LayerMaskShape }[] =
     { label: "Ellipse", value: "ellipse" },
     { label: "Rectangle", value: "rectangle" },
     { label: "Brush", value: "brush" },
+    { label: "Depth", value: "depth" },
   ]
 
 const scopeOptions: { label: string; value: LayerMaskScope }[] = [
@@ -62,7 +63,12 @@ export function LayerMaskSection({
   const geometric = GEOMETRIC.includes(shape)
   const row = "grid items-center gap-[10px] [grid-template-columns:minmax(0,1fr)_132px]"
   const chooseShape = (next: LayerMaskShape) => {
-    setLayerMask(layerId, { shape: next })
+    setLayerMask(
+      layerId,
+      next === "depth" && shape !== "depth"
+        ? { shape: next, size: [0.4, 1], feather: 0.05 }
+        : { shape: next }
+    )
     const paint = useCellPaintStore.getState()
     if (next === "brush") paint.edit(layerId, "mask")
     else if (paint.layerId === layerId && paint.target === "mask")
@@ -203,6 +209,49 @@ export function LayerMaskSection({
               )}
               <Typography tone="muted" variant="caption">
                 Drag the handles on the canvas to move, resize and rotate.
+              </Typography>
+            </>
+          )}
+          {shape === "depth" && (
+            <>
+              <Slider
+                label="Near"
+                min={0}
+                max={1}
+                step={0.01}
+                value={current.size[0]}
+                onInteractionStart={onInteractionStart}
+                onValueChange={(v) =>
+                  setLayerMask(layerId, { size: [v, current.size[1]] })
+                }
+                onValueCommitted={() => onInteractionEnd?.()}
+              />
+              <Slider
+                label="Far"
+                min={0}
+                max={1}
+                step={0.01}
+                value={current.size[1]}
+                onInteractionStart={onInteractionStart}
+                onValueChange={(v) =>
+                  setLayerMask(layerId, { size: [current.size[0], v] })
+                }
+                onValueCommitted={() => onInteractionEnd?.()}
+              />
+              <Slider
+                label="Feather"
+                min={0}
+                max={0.5}
+                step={0.005}
+                value={current.feather}
+                onInteractionStart={onInteractionStart}
+                onValueChange={(v) => setLayerMask(layerId, { feather: v })}
+                onValueCommitted={() => onInteractionEnd?.()}
+              />
+              <Typography tone="muted" variant="caption">
+                Keeps the range between Near and Far of the depth map on the
+                Image layer below. White is near. Without a depth map the mask
+                does nothing.
               </Typography>
             </>
           )}

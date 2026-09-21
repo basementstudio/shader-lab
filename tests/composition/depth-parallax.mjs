@@ -614,12 +614,22 @@ async function sceneDepthChecks(colorAsset, depthAsset) {
     const maskedLayer = { ...mapLayer({ input: "luminance" }), mask: { shape: "depth", scope: "effect", enabled: true, invert: false, center: [0, 0], size: [0.5, 1], rotation: 0, feather: 0.02, paint: "" } }
     const sweep = [
       {
-        binding: { key: "mask.size", kind: "param", label: "Mask Near / Far", valueType: "vec2" },
+        binding: { key: "mask.near", kind: "param", label: "Mask Near", valueType: "number" },
         enabled: true,
-        id: "sweep",
+        id: "sweep-near",
         keyframes: [
-          { id: "k0", time: 0, value: [0.5, 1] },
-          { id: "k1", time: 1, value: [0, 0.2] },
+          { id: "n0", time: 0, value: 0.5 },
+          { id: "n1", time: 1, value: 0 },
+        ],
+        layerId: "map",
+      },
+      {
+        binding: { key: "mask.far", kind: "param", label: "Mask Far", valueType: "number" },
+        enabled: true,
+        id: "sweep-far",
+        keyframes: [
+          { id: "f0", time: 0, value: 1 },
+          { id: "f1", time: 1, value: 0.2 },
         ],
         layerId: "map",
       },
@@ -651,12 +661,22 @@ async function sceneDepthChecks(colorAsset, depthAsset) {
       loop: true,
       tracks: [
         {
-          binding: { key: "mask.size", kind: "param", label: "Mask Near / Far", valueType: "vec2" },
+          binding: { key: "mask.near", kind: "param", label: "Mask Near", valueType: "number" },
           enabled: true,
-          id: "sweep",
+          id: "sweep-near",
           keyframes: [
-            { id: "k0", time: 0, value: [0.5, 1] },
-            { id: "k1", time: 1, value: [0, 0.2] },
+            { id: "n0", time: 0, value: 0.5 },
+            { id: "n1", time: 1, value: 0 },
+          ],
+          layerId: "map",
+        },
+        {
+          binding: { key: "mask.far", kind: "param", label: "Mask Far", valueType: "number" },
+          enabled: true,
+          id: "sweep-far",
+          keyframes: [
+            { id: "f0", time: 0, value: 1 },
+            { id: "f1", time: 1, value: 0.2 },
           ],
           layerId: "map",
         },

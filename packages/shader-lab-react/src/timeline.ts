@@ -302,6 +302,15 @@ export function resolveEvaluatedLayers(
         typeof value === "number"
       ) {
         mask = { ...mask, [field]: value }
+      } else if (
+        (field === "near" || field === "far") &&
+        typeof value === "number"
+      ) {
+        const size = mask.size ?? [0, 1]
+        mask = {
+          ...mask,
+          size: field === "near" ? [value, size[1]] : [size[0], value],
+        }
       }
     }
 

@@ -1,6 +1,7 @@
 "use client"
 
 import { CellPaintControls } from "./cell-paint-controls"
+import { GradientMapControls } from "./gradient-map-controls"
 import { LayerMaskSection } from "./layer-mask-section"
 import { LayerGroupLocation } from "@/components/editor/layer-group-location"
 
@@ -756,6 +757,14 @@ export function SelectedLayerPropertiesContent({
 
         {layerType === "photographic-cells" && values.mode === "paint" && (
           <CellPaintControls layerId={layerId} />
+        )}
+
+        {layerType === "gradient-map" && (
+          <GradientMapControls
+            layerId={layerId}
+            updateLayerParam={updateLayerParam}
+            values={values}
+          />
         )}
 
         {layerType === "gradient" ? (

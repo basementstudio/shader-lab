@@ -22,75 +22,11 @@ import {
   buildCurveLut,
   COLOR_CURVE_CHANNELS,
 } from "@/lib/color-curves"
+import { buildColorMapBytes } from "@/renderer/color-map-lut"
 import type { SceneConfig } from "@/types/editor"
 
 type Node = TSLNode
 const CURVE_LUT_SIZE = 1024
-
-function hexToRgb(hex: string): [number, number, number] {
-  const h = hex.replace("#", "")
-  return [
-    Number.parseInt(h.slice(0, 2), 16) / 255,
-    Number.parseInt(h.slice(2, 4), 16) / 255,
-    Number.parseInt(h.slice(4, 6), 16) / 255,
-  ]
-}
-
-function buildColorMapTexture(
-  stops: { position: number; color: string }[]
-): Uint8Array {
-  const size = 256
-  const data = new Uint8Array(size * 4)
-  const sorted = [...stops].sort((a, b) => a.position - b.position)
-
-  const first = sorted[0]
-  const last = sorted[sorted.length - 1]
-
-  if (!(first && last)) {
-    for (let i = 0; i < size; i++) {
-      data[i * 4] = i
-      data[i * 4 + 1] = i
-      data[i * 4 + 2] = i
-      data[i * 4 + 3] = 255
-    }
-    return data
-  }
-
-  for (let i = 0; i < size; i++) {
-    const t = i / (size - 1)
-    let r = 0
-    let g = 0
-    let b = 0
-
-    if (t <= first.position) {
-      ;[r, g, b] = hexToRgb(first.color)
-    } else if (t >= last.position) {
-      ;[r, g, b] = hexToRgb(last.color)
-    } else {
-      for (let s = 0; s < sorted.length - 1; s++) {
-        const stopA = sorted[s]!
-        const stopB = sorted[s + 1]!
-        if (t >= stopA.position && t <= stopB.position) {
-          const range = stopB.position - stopA.position
-          const localT = range > 0 ? (t - stopA.position) / range : 0
-          const [r0, g0, b0] = hexToRgb(stopA.color)
-          const [r1, g1, b1] = hexToRgb(stopB.color)
-          r = r0 + (r1 - r0) * localT
-          g = g0 + (g1 - g0) * localT
-          b = b0 + (b1 - b0) * localT
-          break
-        }
-      }
-    }
-
-    data[i * 4] = Math.round(r * 255)
-    data[i * 4 + 1] = Math.round(g * 255)
-    data[i * 4 + 2] = Math.round(b * 255)
-    data[i * 4 + 3] = 255
-  }
-
-  return data
-}
 
 function isDefaultConfig(config: SceneConfig): boolean {
   return (
@@ -221,7 +157,7 @@ export class ScenePostProcess {
       ),
     }
 
-    const lutData = buildColorMapTexture([])
+    const lutData = buildColorMapBytes([])
     this.colorMapTexture = new THREE.DataTexture(
       lutData,
       256,
@@ -302,7 +238,7 @@ export class ScenePostProcess {
 
     if (config.colorMap) {
       this.colorMapEnabledUniform.value = 1
-      const lutData = buildColorMapTexture(config.colorMap.stops)
+      const lutData = buildColorMapBytes(config.colorMap.stops)
       ;(this.colorMapTexture.image.data as Uint8Array).set(lutData)
       this.colorMapTexture.needsUpdate = true
     } else {

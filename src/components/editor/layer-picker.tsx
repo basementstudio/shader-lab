@@ -47,6 +47,7 @@ export type AddLayerAction =
   | "fluted-glass"
   | "fluid"
   | "gradient"
+  | "gradient-map"
   | "halftone"
   | "image"
   | "ink"
@@ -128,6 +129,7 @@ const EFFECT_ORDER: readonly AddLayerAction[] = [
   "voxel",
   "posterize",
   "threshold",
+  "gradient-map",
   "bloom",
   "plotter",
   "blob-tracking",

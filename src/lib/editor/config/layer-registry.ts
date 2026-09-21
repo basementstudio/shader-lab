@@ -4194,7 +4194,7 @@ const blobTrackingParams = [
   },
   {
     animatable: false,
-    defaultValue: false,
+    defaultValue: true,
     group: "Shapes",
     key: "squareShapes",
     label: "Lock 1:1",

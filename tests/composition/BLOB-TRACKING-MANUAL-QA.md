@@ -5,7 +5,7 @@ Scope: roadmap 6.3, part 1. Blob Tracking gains corner brackets, edge dots, deco
 ## Motion detection
 
 1. Play a video with a moving subject and set **Detection Mode** to Motion (or leave Auto). Boxes should cover the moving subject as a whole rather than a few thin slivers along its edges, and should not vanish when it slows down briefly. Auto only falls back to luminance when fewer than two grid cells move for a full second.
-2. **Lock 1:1** in Shapes makes every frame a square (or a circle with Shape: Circle) sized to the blob's larger side.
+2. **Lock 1:1** in Shapes (on for new layers) makes every frame a square (or a circle with Shape: Circle) sized to the blob's larger side. Older scenes keep free aspect.
 
 ## Frame
 

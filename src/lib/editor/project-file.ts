@@ -702,6 +702,10 @@ export function migrateLayerParams(
     params.frameStyle = params.showOutline === false ? "none" : "outline"
   }
 
+  if (layer.type === "blob-tracking" && params.squareShapes === undefined) {
+    params.squareShapes = false
+  }
+
   if (layer.type === "ascii" && typeof params.fontWeight === "string") {
     params.fontWeight = LEGACY_ASCII_FONT_WEIGHTS[params.fontWeight] ?? 400
   }

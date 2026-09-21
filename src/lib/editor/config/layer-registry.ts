@@ -4193,6 +4193,15 @@ const blobTrackingParams = [
     type: "number",
   },
   {
+    animatable: false,
+    defaultValue: false,
+    group: "Shapes",
+    key: "squareShapes",
+    label: "Lock 1:1",
+    type: "boolean",
+    description: "Use the larger side for both, so every frame is a square or circle.",
+  },
+  {
     defaultValue: false,
     group: "Shapes",
     key: "invert",
@@ -4408,7 +4417,7 @@ const blobTrackingParams = [
     visibleWhen: { equals: true, key: "connectLines" },
   },
   {
-    defaultValue: 0.35,
+    defaultValue: 0,
     group: "Decorations",
     key: "trailDecay",
     label: "Trail Decay",

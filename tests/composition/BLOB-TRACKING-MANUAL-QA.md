@@ -1,6 +1,11 @@
 # Blob Tracking upgrade — focused manual test
 
-Scope: roadmap 6.3, part 1. Blob Tracking gains corner brackets, edge dots and decorative label modes. Existing scenes render exactly as before: new layers and old files default to Outline, coordinate labels and no dots.
+Scope: roadmap 6.3, part 1. Blob Tracking gains corner brackets, edge dots, decorative label modes, a 1:1 lock and better motion detection. Existing scenes keep their frame, labels and stroke; new layers start with trails off.
+
+## Motion detection
+
+1. Play a video with a moving subject and set **Detection Mode** to Motion (or leave Auto). Boxes should cover the moving subject as a whole rather than a few thin slivers along its edges, and should not vanish when it slows down briefly. Auto only falls back to luminance when fewer than two grid cells move for a full second.
+2. **Lock 1:1** in Shapes makes every frame a square (or a circle with Shape: Circle) sized to the blob's larger side.
 
 ## Frame
 
@@ -23,4 +28,4 @@ Scope: roadmap 6.3, part 1. Blob Tracking gains corner brackets, edge dots and d
 2. Save and reload: frame, label mode, prefix, list and dots return. Export PNG/video and the runtime package match.
 3. On video, IDs and labels should not flicker between frames; compare a persistent-tracking clip with and without the new decorations. SwiftShader numbers are in `.context/blob-video-performance.json`; native timing is still open (7.2).
 
-Limits: dots come from the 64×36 analysis grid, so they sit on a coarse silhouette. Per-element colors and a standalone Annotations layer are part 2.
+Limits: detection runs on a 128×72 analysis grid, so silhouettes and dots are still coarse on very small subjects. Per-element colors and a standalone Annotations layer are part 2.

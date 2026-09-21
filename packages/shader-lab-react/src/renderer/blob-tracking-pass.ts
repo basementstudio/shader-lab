@@ -69,8 +69,8 @@ import type { LayerParameterValues } from "../types/editor"
 
 type Node = TSLNode
 
-const ANALYSIS_WIDTH = 64
-const ANALYSIS_HEIGHT = 36
+const ANALYSIS_WIDTH = 128
+const ANALYSIS_HEIGHT = 72
 const LUMA_MAX_LEVELS = 8
 const MOTION_ENERGY_FLOOR = 0.025
 const DEFAULT_MOTION_PERSISTENCE = 0.82
@@ -447,6 +447,7 @@ export class BlobTrackingPass extends PassNode {
   private readonly edgeSoftUniform: Node = uniform(0.0015)
   private readonly innerActiveUniform: Node = uniform(0)
   private shapeKind: BlobShape = "square"
+  private squareShapes = false
   private maskOutput = false
 
   private decorations: DecorationConfig = { ...DEFAULT_DECORATIONS }
@@ -613,6 +614,11 @@ export class BlobTrackingPass extends PassNode {
       this.shapeScaleUniform.value = nextScale
     }
     this.invertUniform.value = params.invert === true ? 1 : 0
+    const nextSquare = params.squareShapes === true
+    if (nextSquare !== this.squareShapes) {
+      this.squareShapes = nextSquare
+      if (this.latestAnalysis) this.syncTrackerOutputs()
+    }
 
     const nextMaskOutput = params.outputMode === "mask"
     const nextMotionOutput = params.outputMode === "motion"
@@ -1474,9 +1480,28 @@ export class BlobTrackingPass extends PassNode {
     this.analysisPrevNode = prevSample
 
     const luma = float(inputSample.r)
-    const motion = abs(luma.sub(float(prevSample.g))).mul(
-      this.hasHistoryUniform
+    const texel = vec2(1 / ANALYSIS_WIDTH, 1 / ANALYSIS_HEIGHT)
+    const differenceAt = (dx: number, dy: number): Node => {
+      const offset = analysisUv.add(texel.mul(vec2(dx, dy)))
+      return abs(
+        float(inputSample.sample(offset).r).sub(
+          float(prevSample.sample(offset).g)
+        )
+      )
+    }
+    const ring = (radius: number): Node =>
+      max(
+        max(differenceAt(radius, 0), differenceAt(-radius, 0)),
+        max(differenceAt(0, radius), differenceAt(0, -radius))
+      )
+    const diagonal = max(
+      max(differenceAt(1, 1), differenceAt(-1, 1)),
+      max(differenceAt(1, -1), differenceAt(-1, -1))
     )
+    const motion = max(
+      max(differenceAt(0, 0), ring(1)),
+      max(diagonal, ring(2).mul(float(0.85)))
+    ).mul(this.hasHistoryUniform)
     const decayed = max(
       float(prevSample.b)
         .mul(this.motionPersistenceUniform)
@@ -1598,11 +1623,14 @@ export class BlobTrackingPass extends PassNode {
       if (!(blob && entry && meta)) continue
       // Detections describe where the subject was when the readback was queued,
       // so lead the box by the estimated velocity to cancel that latency.
+      const halfWidth = blob.halfWidth * aspect
+      const halfHeight = blob.halfHeight
+      const half = Math.max(halfWidth, halfHeight)
       entry.set(
         blob.cx + blob.vx * VELOCITY_LOOKAHEAD,
         blob.cy + blob.vy * VELOCITY_LOOKAHEAD,
-        blob.halfWidth * aspect,
-        blob.halfHeight
+        this.squareShapes ? half : halfWidth,
+        this.squareShapes ? half : halfHeight
       )
       meta.set(blob.presence, blob.area, blob.vx, blob.vy)
     }

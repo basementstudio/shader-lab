@@ -135,8 +135,18 @@ async function passChecks() {
         const red = (i) => (pixels[i] > 0.5 && pixels[i + 1] < 0.5 ? 1 : 0)
         const alpha = (x, y) => red((y * W + x) * 4)
         let lit = 0
-        for (let i = 0; i < pixels.length; i += 4) lit += red(i)
-        return { alpha, lit }
+        const bounds = { x0: W, y0: H, x1: -1, y1: -1 }
+        for (let i = 0; i < pixels.length; i += 4) {
+          if (!red(i)) continue
+          lit++
+          const px = (i / 4) % W
+          const py = Math.floor(i / 4 / W)
+          bounds.x0 = Math.min(bounds.x0, px)
+          bounds.x1 = Math.max(bounds.x1, px)
+          bounds.y0 = Math.min(bounds.y0, py)
+          bounds.y1 = Math.max(bounds.y1, py)
+        }
+        return { alpha, lit, bounds: JSON.stringify(bounds) }
       }
       const outline = await paint({ frameStyle: "outline" }, "outline")
       assert(outline.lit > 100, `${name}: outline draws a frame (${outline.lit})`)
@@ -147,7 +157,7 @@ async function passChecks() {
       const leftPoints = [-3, -2, -1, 0, 1, 2].map((d) => [RX0 + d, cy])
       const midTop = probe(outline.alpha, topPoints)
       const midLeft = probe(outline.alpha, leftPoints)
-      assert(midTop > 0.5 && midLeft > 0.5, `${name}: outline covers edge midpoints (${midTop}, ${midLeft})`)
+      assert(midTop > 0.5 && midLeft > 0.5, `${name}: outline covers edge midpoints (${midTop}, ${midLeft}) lit=${outline.lit} bounds=${outline.bounds}`)
 
       const brackets = await paint({ frameStyle: "brackets", bracketLength: 0.25 }, "brackets")
       assert(brackets.lit > 20 && brackets.lit < outline.lit, `${name}: brackets draw less than the outline (${brackets.lit} vs ${outline.lit})`)
@@ -213,6 +223,7 @@ export async function checkBlobTracking() {
   samples += await passChecks()
   const fresh = createLayer("blob-tracking")
   assert(fresh.params.frameStyle === "outline" && fresh.params.labelMode === "coordinates" && fresh.params.edgeDots === 0, "New blob layers keep the legacy look")
+  assert(fresh.params.trailDecay === 0 && fresh.params.squareShapes === false, "New blob layers start without trails and with free aspect")
   const legacy = { ...createLayer("blob-tracking"), id: "blob" }
   delete legacy.params.frameStyle
   delete legacy.params.bracketLength

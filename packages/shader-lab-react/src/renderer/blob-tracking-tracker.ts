@@ -46,6 +46,10 @@ export const MOTION_ENERGY_CHANNEL = 2
 
 export const STATIC_STEPS_BEFORE_FALLBACK = 30
 export const MOTION_ENERGY_EPSILON = 0.01
+/** Fewer moving cells than this for STATIC_STEPS_BEFORE_FALLBACK steps means a still scene. */
+export const STATIC_ACTIVE_CELLS = 2
+/** Cells that were on stay on down to this fraction of the threshold. */
+export const MOTION_HYSTERESIS = 0.55
 export const TRACK_GRACE_FRAMES = 10
 export const HISTORY_LENGTH = 16
 export const MAX_MATCH_DISTANCE = 0.25
@@ -112,6 +116,7 @@ export class BlobTracker {
   private priorState: TrackerState | null = null
 
   private binary = new Uint8Array(0)
+  private previousBinary = new Uint8Array(0)
   private visited = new Int32Array(0)
   private stack = new Int32Array(0)
   private visitGeneration = 0
@@ -125,6 +130,7 @@ export class BlobTracker {
     this.tracks = []
     this.priorState = null
     this.visited.fill(0)
+    this.previousBinary.fill(0)
     this.visitGeneration = 0
   }
 
@@ -189,6 +195,7 @@ export class BlobTracker {
       return
     }
     this.binary = new Uint8Array(cellCount)
+    this.previousBinary = new Uint8Array(cellCount)
     this.visited = new Int32Array(cellCount)
     this.stack = new Int32Array(cellCount)
     this.visitGeneration = 0
@@ -205,13 +212,13 @@ export class BlobTracker {
     }
 
     const cellCount = gridWidth * gridHeight
-    let motionSum = 0
+    const cutoff = config.motionThreshold * 255
+    let activeCells = 0
     for (let index = 0; index < cellCount; index += 1) {
-      motionSum += (grid[index * 4 + MOTION_CHANNEL] ?? 0) / 255
+      if ((grid[index * 4 + MOTION_CHANNEL] ?? 0) >= cutoff) activeCells += 1
     }
-    const meanMotion = cellCount > 0 ? motionSum / cellCount : 0
 
-    if (meanMotion < MOTION_ENERGY_EPSILON) {
+    if (activeCells < STATIC_ACTIVE_CELLS) {
       this.staticStepCount += 1
       if (this.staticStepCount >= STATIC_STEPS_BEFORE_FALLBACK) {
         this.luminanceFallbackActive = true
@@ -241,11 +248,15 @@ export class BlobTracker {
       (mode === "motion" ? config.motionThreshold : 1 - config.sensitivity) *
       255
     const binary = this.binary
+    const previous = this.previousBinary
+    const low = mode === "motion" ? threshold * MOTION_HYSTERESIS : threshold
 
     for (let index = 0; index < cellCount; index += 1) {
       const value = grid[index * 4 + channelOffset] ?? 0
-      binary[index] = value >= threshold ? 1 : 0
+      const on = value >= threshold || (value >= low && previous[index] === 1)
+      binary[index] = on ? 1 : 0
     }
+    previous.set(binary)
   }
 
   private detect(

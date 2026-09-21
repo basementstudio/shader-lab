@@ -266,6 +266,7 @@ window.checkExistingProject = async () => {
     if (layer.type === "blob-tracking") {
       layer.params.frameStyle ??=
         layer.params.showOutline === false ? "none" : "outline"
+      layer.params.squareShapes ??= false
       layer.params.bracketLength ??= 0.28
       layer.params.labelMode ??= "coordinates"
       layer.params.labelPrefix ??= "PERSON"

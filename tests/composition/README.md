@@ -1,6 +1,6 @@
 # V3 composition baselines
 
-Regression coverage for roadmap steps 1.1–1.3 and 2.1. The first PR establishes legacy baselines; its stacked successors add transparent media bounds, alpha-aware composition, isolated groups, editor controls/persistence, and transparent text defaults. Transparent scene/export backgrounds remain outstanding. Basic shape masks are postponed; tailored coverage modes will be developed alongside selected artistic effects.
+Regression coverage for roadmap steps 1.1–1.3 and 2.1. The first PR establishes legacy baselines; its stacked successors add transparent media bounds, alpha-aware composition, isolated groups, editor controls/persistence, and transparent text defaults. Transparent scene/export backgrounds remain outstanding. Simple reusable masks are now high priority (gradient, ellipse, rectangle and brush; no pen tool), alongside tailored coverage modes. See V3-ROADMAP.md for the current order.
 
 Integration branch: `git-chad/shader-lab-v3-plan`. Parent PR: [#150](https://github.com/basementstudio/shader-lab/pull/150). The first child, [#151](https://github.com/basementstudio/shader-lab/pull/151), targets integration. Each subsequent stacked PR targets the preceding feature branch, never `main`.
 
@@ -73,9 +73,17 @@ The source/effect distinction prevents repeated filtering from increasing covera
 
 ## Next implementation slice
 
-1. Validate the Displaced Rings prototype with the [focused manual test](DISPLACED-RINGS-MANUAL-QA.md). The user confirmed the transparent-text and focused group checks; retain the broader [group checklist](GROUPS-MANUAL-QA.md) for final regression.
-2. Refine the selected ring direction after visual feedback, then continue the roadmap. Basic circle/rectangle masks remain postponed; Blob Tracking's quality and tailored-mask review is low priority (roadmap 6.3).
-3. Carry alpha through transparent scene backgrounds, preview, and supported exports while keeping these legacy fixtures stable.
+Validate neutral blank projects with [the focused manual check](CLEAN-PROJECTS-MANUAL-QA.md), then continue with reusable masks and local Gradient Map. Retain the broader group, alpha, video/export and hardware performance checks for final V3 validation. The roadmap is authoritative for priorities and user acceptance.
+
+## Neutral projects and global colors
+
+First visits initialize empty stores and neutral global grading without preloading demo media. **Project → New blank project** and **Project → Open demo** are available in the desktop toolbar and mobile Actions. New documents clear prior history, selections, tracks, audio/media and draft/remix associations. The demo keeps its authored settings. A brief empty-canvas hint points to Layers and media drop.
+
+The desktop **Global colors active** button opens Scene settings; the mobile Scene control reads **Colors active**. Scene settings disclose the global scope and offer **Reset all global colors**, covering grading, channel mixer, curves, levels, quantization and Color Map while preserving background, composition and preview quality. Scene settings participate in undo/redo. Imports and scene replacements reset the history boundary, including pending debounced entries.
+
+`clean-projects.mjs` runs first in the composition harness and verifies actual initial stores, independent blank defaults, real demo/blank hydration, reset/history, draft/remix cleanup, empty .lab reopening and selection of empty autosaves. No frozen demo fixture is changed.
+
+With the dev server running, `bun tests/composition/clean-projects-ui.mjs` checks real controls, exported .lab state, no demo-media request on first visit, blank and authored autosave/reload, delayed boot recovery, pending history and mobile access. Artifacts are stored in `.context/clean-projects/`. Empty autosaves are valid documents; starting blank immediately writes the new document instead of deleting other sessions' recovery records. IndexedDB availability/quota limits still apply.
 
 ## Transparent text defaults
 

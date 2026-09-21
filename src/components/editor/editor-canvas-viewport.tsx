@@ -75,6 +75,7 @@ export function EditorCanvasViewport() {
   const [isDragOver, setIsDragOver] = useState(false)
   const [isSpacePressed, setIsSpacePressed] = useState(false)
   const [isPointerPanning, setIsPointerPanning] = useState(false)
+  const isEmpty = useLayerStore((state) => state.layers.length === 0)
   const addLayer = useLayerStore((state) => state.addLayer)
   const setLayerAsset = useLayerStore((state) => state.setLayerAsset)
   const seedDurationFromMedia = useTimelineStore(
@@ -380,6 +381,23 @@ export function EditorCanvasViewport() {
             ) : null}
           </div>
         </div>
+
+        {isEmpty &&
+        isReady &&
+        !pendingSceneSlug &&
+        !immersiveCanvas &&
+        !exportingPreview ? (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
+            <div className="max-w-60 text-center">
+              <p className="text-sm text-[var(--ds-color-text-secondary)]">
+                Add a layer to start
+              </p>
+              <p className="mt-2 text-balance text-xs leading-5 text-[var(--ds-color-text-muted)]">
+                Use + in Layers, or drop an image or video here.
+              </p>
+            </div>
+          </div>
+        ) : null}
 
         {isDragOver ? (
           <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center border-2 border-dashed border-white/30 bg-black/30 backdrop-blur-[2px]">

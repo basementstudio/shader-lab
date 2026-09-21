@@ -102,6 +102,11 @@ try {
   )
 
   console.log(
+    "Clean projects:",
+    await page.evaluate(() => window.checkCleanProjects())
+  )
+
+  console.log(
     "Existing project:",
     await page.evaluate(() => window.checkExistingProject())
   )

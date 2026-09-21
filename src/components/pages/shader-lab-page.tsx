@@ -13,7 +13,6 @@ import {
   SCENE_LOADING_OVERLAY_ID,
   SceneDeepLinkMount,
 } from "@/components/editor/scene-deep-link-mount"
-import { getDefaultProjectPreloadUrls } from "@/lib/editor/default-project"
 
 /* Runs while the static HTML is still parsing, long before hydration:
  * reveals the scene-loading overlay so a `?scene=` deep link never
@@ -21,21 +20,6 @@ import { getDefaultProjectPreloadUrls } from "@/lib/editor/default-project"
 const SCENE_OVERLAY_BOOT_SCRIPT = `if(new URLSearchParams(location.search).has("scene")){var o=document.getElementById(${JSON.stringify(
   SCENE_LOADING_OVERLAY_ID
 )});if(o)o.dataset.active="true"}`
-
-/* Also parse-time: starts the video fetch before the bundle runs. Skipped for
- * `?scene=` deep links, which replace the starter scene. */
-const STARTER_MEDIA_PRELOAD_SCRIPT = `if(!new URLSearchParams(location.search).has("scene")){${JSON.stringify(
-  getDefaultProjectPreloadUrls()
-)}.forEach(function(u){var l=document.createElement("link");l.rel="preload";l.as="video";l.href=u;l.crossOrigin="anonymous";document.head.appendChild(l)})}`
-
-function StarterMediaPreload() {
-  return (
-    <script
-      // biome-ignore lint/security/noDangerouslySetInnerHtml: build-time constant, no user input
-      dangerouslySetInnerHTML={{ __html: STARTER_MEDIA_PRELOAD_SCRIPT }}
-    />
-  )
-}
 
 function SceneLoadingOverlay() {
   return (
@@ -82,7 +66,6 @@ export function ShaderLabPage({
       <h1 className="sr-only">
         Shader Lab — browser-based WebGPU shader editor
       </h1>
-      <StarterMediaPreload />
       <AgentBridgeMount />
       <AutosaveMount />
       <DraftSaveMount />

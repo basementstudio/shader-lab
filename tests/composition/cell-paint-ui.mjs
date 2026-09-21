@@ -48,9 +48,7 @@ try {
     timeout: 120000,
   })
   const panel = page.locator('[data-layer-sidebar-panel="true"]:visible')
-  await panel
-    .getByRole("button", { name: "Reorder Video", exact: true })
-    .waitFor({ timeout: 120000 })
+  await panel.waitFor({ timeout: 120000 })
   async function ready() {
     await page.waitForFunction(
       () =>

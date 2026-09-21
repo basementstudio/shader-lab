@@ -8,9 +8,9 @@
   "selectedLayerId": "cells",
   "sceneConfig": {
     "backgroundColor": "#ffffff",
-    "compositionAspect": "screen",
-    "compositionWidth": 1920,
-    "compositionHeight": 1080,
+    "compositionAspect": "custom",
+    "compositionWidth": 720,
+    "compositionHeight": 960,
     "exposure": 0,
     "brightness": 0,
     "contrast": 0,
@@ -294,7 +294,7 @@
         "mode": "multiply",
         "source": "luminance"
       },
-      "name": "Flora — replace with your photo",
+      "name": "Flora \u2014 replace with your photo",
       "opacity": 1,
       "params": {
         "fitMode": "cover",

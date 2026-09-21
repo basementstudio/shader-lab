@@ -54,8 +54,13 @@ function blankState() {
   equal(useTimelineStore.getState().tracks, [], "Blank retained tracks")
   equal(
     useEditorStore.getState().sceneConfig,
-    DEFAULT_SCENE_CONFIG,
+    getBlankProjectFile().sceneConfig,
     "Blank inherited global settings"
+  )
+  equal(
+    useEditorStore.getState().sceneConfig.compositionAspect,
+    "16:9",
+    "Blank must start on a fixed artboard"
   )
 }
 
@@ -255,7 +260,7 @@ export function checkCleanProjects() {
   )
   equal(
     useEditorStore.getState().sceneConfig,
-    DEFAULT_SCENE_CONFIG,
+    getBlankProjectFile().sceneConfig,
     "Reopening blank changed grading"
   )
 

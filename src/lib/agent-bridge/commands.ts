@@ -1,3 +1,4 @@
+import { getDocumentSize } from "@/lib/editor/composition"
 import { normalizeLayerMask } from "@/renderer/layer-mask"
 import { subscribeToCustomShaderCompiles } from "@/lib/agent-bridge/compile-events"
 import { pumpAgentFrame } from "@/lib/agent-bridge/frame-pump"
@@ -420,7 +421,9 @@ function getProjectState() {
   const editorState = useEditorStore.getState()
 
   return {
-    compositionSize: editorState.outputSize,
+    compositionSize:
+      getDocumentSize(editorState.sceneConfig, editorState.outputSize) ??
+      editorState.outputSize,
     layers: layerState.layers.map(summarizeLayer),
     selectedLayerId: layerState.selectedLayerId,
   }

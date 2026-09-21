@@ -1,3 +1,7 @@
+import {
+  getDocumentSize,
+  normalizeCompositionForDocument,
+} from "@/lib/editor/composition"
 import { CURRENT_PROJECT_FILE_VERSION } from "./project-version"
 import { validateLayerHierarchy } from "@/renderer/layer-hierarchy"
 import { z } from "zod"
@@ -172,7 +176,10 @@ export function buildLabProjectFile(): LabProjectFile {
       .filter((asset) => referenced.has(asset.id))
       .map(toAssetReference),
     audio,
-    composition: structuredClone(editorState.outputSize),
+    composition: structuredClone(
+      getDocumentSize(editorState.sceneConfig, editorState.outputSize) ??
+        editorState.outputSize
+    ),
     exportedAt: new Date().toISOString(),
     format: "shader-lab",
     layers: structuredClone(layerState.layers),
@@ -555,12 +562,15 @@ export function applyLabProjectFile(
 
   const editorStore = useEditorStore.getState()
   if (projectFile.version >= 2 && projectFile.sceneConfig) {
-    editorStore.updateSceneConfig(
-      normalizeSceneConfig(projectFile.sceneConfig as Partial<SceneConfig>)
-    )
     editorStore.setOutputSize(
       projectFile.composition.width,
       projectFile.composition.height
+    )
+    editorStore.updateSceneConfig(
+      normalizeCompositionForDocument(
+        normalizeSceneConfig(projectFile.sceneConfig as Partial<SceneConfig>),
+        projectFile.composition
+      )
     )
   } else {
     editorStore.updateSceneConfig(DEFAULT_SCENE_CONFIG)
@@ -609,7 +619,10 @@ export function buildViewerProjectState(
     layers,
     sceneConfig:
       projectFile.version >= 2 && projectFile.sceneConfig
-        ? normalizeSceneConfig(projectFile.sceneConfig as Partial<SceneConfig>)
+        ? normalizeCompositionForDocument(
+            normalizeSceneConfig(projectFile.sceneConfig as Partial<SceneConfig>),
+            projectFile.composition
+          )
         : DEFAULT_SCENE_CONFIG,
     timeline: {
       currentTime: 0,

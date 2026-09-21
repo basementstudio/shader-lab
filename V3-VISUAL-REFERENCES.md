@@ -87,7 +87,7 @@ References 17 (cell poster with locally masked pixelation and gradient mapping) 
 
 ## Gradient Map layer
 
-Reference 18 (Brockhampton thermal-style cover) was reopened before building the Gradient Map effect. The Thermal preset follows its deep blue → green → yellow → red progression as a tonal palette applied to luminance; it does not infer depth or reproduce the cover's exact distribution. The ramp is fully editable, so the reference guides the default palette only. User visual acceptance is pending; see [the focused test](tests/composition/GRADIENT-MAP-MANUAL-QA.md).
+Reference 18 (Brockhampton thermal-style cover) was reopened before building the Gradient Map effect. The Thermal preset follows its deep blue → green → yellow → red progression as a tonal palette applied to luminance; it does not infer depth or reproduce the cover's exact distribution. The ramp is fully editable, so the reference guides the default palette only. The user accepted the layer on September 22, 2026.
 
 
 ## Shape layers

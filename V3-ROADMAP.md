@@ -283,6 +283,18 @@ Dar protagonismo a los nuevos efectos y menor prominencia a los actuales, manten
 
 **Cierre:** las familias seleccionadas ofrecen una inserción visualmente intencional, controles amplios y combinaciones personalizables; superan pruebas de extremos, transparencia y grupos. La selección definitiva queda explícita antes de integrarlas.
 
+### 3.4 Ideas nuevas compartidas por el usuario (21 de septiembre de 2026)
+
+**Registradas para planificar; ninguna está aprobada para implementar todavía.** Se suman al catálogo artístico de la fase 3 y a la revisión de Blob Tracking (6.3–6.5); la investigación de profundidad/parallax (1.5, 8.2) sigue siendo la prioridad que más entusiasma al usuario.
+
+- **Retrato de puntos conectados** (`21-puntos-conectados-retrato.png`): la imagen se reduce a puntos dispersos coloreados por tono, con enlaces cortos entre vecinos que forman grafos densos en las zonas oscuras y se abren en las claras. Cercano a Particle Grid y a la trama de puntos, pero con conectividad. Decidir si es un pase propio o un modo de Blob Tracking / Particle Grid; medir el coste de la búsqueda de vecinos con video.
+- **Frequency modulation** (referencia TouchDesigner, versión propia): modular la señal de la imagen con ondas de frecuencia variable (desplazamiento o color), con controles de frecuencia, fase y portadora; abrir la referencia antes de definir la apariencia.
+- **Signal rot** (referencia TouchDesigner, versión propia): degradación progresiva de la señal —arrastre, cuantización, pérdida de sincronía— en la línea de `13-arrastre-escaner-rojo.png` y CRT/Circuit Bent; distinguirlo de los efectos existentes antes de añadir un pase.
+- **Lumen print**: apariencia de fotograma solar/cianotipo: virados, halos, bordes quemados y grano orgánico; se conecta con Gradient Map y con `14-rostro-rosa-erosionado.png`.
+- **Blob spur**: mejora de Blob Tracking basada en geometría: desplazamiento por pseudo-grafos de datos, elementos de "visión por computadora" (puntos, cajas, trayectorias, etiquetas) sobre las regiones detectadas; comparte dirección con las anotaciones técnicas de 6.3–6.5 y con `19-feedback-anotaciones-tecnicas.png`.
+
+Para cada una: abrir las referencias, hacer un prototipo pequeño con foto y video, validar visualmente con el usuario y solo entonces integrar al catálogo. Rendimiento con video (7.2) aplica a todas.
+
 ## Fase 4 — Completar el recorrido de modelos 3D
 
 **Dependencia:** requiere la fase 1. Su posición frente a otras ampliaciones artísticas es revisable.

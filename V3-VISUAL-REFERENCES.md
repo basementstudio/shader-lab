@@ -87,3 +87,8 @@ References 17 (cell poster with locally masked pixelation and gradient mapping) 
 ## Gradient Map layer
 
 Reference 18 (Brockhampton thermal-style cover) was reopened before building the Gradient Map effect. The Thermal preset follows its deep blue → green → yellow → red progression as a tonal palette applied to luminance; it does not infer depth or reproduce the cover's exact distribution. The ramp is fully editable, so the reference guides the default palette only. User visual acceptance is pending; see [the focused test](tests/composition/GRADIENT-MAP-MANUAL-QA.md).
+
+
+## Shape layers
+
+References 01 (Lovedance red/blue) and 20 were reopened before building the Shape source layer. The poster's crisp four-blade silhouette in flat red over blue photography, with the photo showing through, is reachable with Shape → Blades plus Multiply/Screen blending over a photo; the Blades preset is an interpretation of that pinwheel, not a reproduction of the artwork. User visual acceptance is pending; see [the focused test](tests/composition/SHAPE-LAYERS-MANUAL-QA.md).

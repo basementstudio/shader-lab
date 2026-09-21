@@ -7,6 +7,7 @@ import {
   ImageIcon,
   MagicWandIcon,
   PlusIcon,
+  StarIcon,
   TextIcon,
   VideoIcon,
 } from "@radix-ui/react-icons"
@@ -57,6 +58,7 @@ export type AddLayerAction =
   | "pixelation"
   | "pixel-trail"
   | "pattern"
+  | "shape"
   | "pixel-sorting"
   | "plotter"
   | "posterize"
@@ -104,6 +106,7 @@ const SOURCE_ICONS: readonly { icon: ElementType; value: AddLayerAction }[] = [
   { icon: CursorArrowIcon, value: "pixel-trail" },
   { icon: CursorArrowIcon, value: "magnify-lens" },
   { icon: MagicWandIcon, value: "gradient" },
+  { icon: StarIcon, value: "shape" },
   { icon: CodeIcon, value: "custom-shader" },
 ] as const
 

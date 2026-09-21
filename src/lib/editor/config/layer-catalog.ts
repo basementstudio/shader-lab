@@ -112,6 +112,11 @@ export const LAYER_CATALOG: Record<LayerType, LayerCatalogEntry> = {
   gradient: {
     label: "Mesh Gradient",
   },
+  shape: {
+    label: "Shape",
+    description:
+      "A flat color silhouette: ellipse, rectangle, triangle, polygon, star, ring or blades. Blend it over photography or mask it.",
+  },
   halftone: {
     category: "core",
     description:

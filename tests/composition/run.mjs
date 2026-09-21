@@ -291,6 +291,10 @@ try {
   console.log(
     `PASS text editing: ${textEditing.samples} editor/runtime checks for multiline, align, line height, rotation, small sizes, geometry helpers, hydration and export`
   )
+  const blob = await page.evaluate(() => window.checkBlobTracking())
+  console.log(
+    `PASS blob tracking: ${blob.samples} tracker edge points, seeded labels, atlas glyphs, editor/runtime frames, brackets, edge dots, label modes, migration`
+  )
   assert.deepEqual(errors, [], "Browser or GPU errors occurred")
   console.log(
     update

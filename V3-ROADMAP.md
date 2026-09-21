@@ -369,6 +369,8 @@ En video, evitar parpadeo y saltos de identificadores/posiciones cuando sea viab
 - Video: las anotaciones derivan con semilla en el tiempo, como Blob Tracking (cuyo rendimiento el usuario considera bueno).
 - Puntos conectados (ref. 21) como modo posterior dentro de Annotations o Particle Grid, tras medir la búsqueda de vecinos en video.
 
+**Parte 1 implementada, pendiente de confirmación del usuario (22 de septiembre de 2026):** el tracker conserva hasta 64 celdas de borde por blob (grilla de análisis 64×36) y las expone como `edge`; el pase añade **Frame** (Outline / Corner brackets / None, con Bracket Length), **Edge Dots** (densidad y tamaño, muestreo por semilla, mismo adelanto por velocidad que las cajas) y **Label Text** (Coordinates / Prefix + ID / Custom list, con Label Seed): los códigos y las palabras se asignan por hash determinista del id de la pista, así no parpadean entre frames. El atlas de etiquetas incorpora letras y puntuación (20 caracteres por etiqueta). `showOutline` queda oculto y migra a `frameStyle` al abrir archivos antiguos. Editor y runtime idénticos salvo imports; escenario `--blob` en el benchmark de video. Referencia 19 revisada. [Prueba manual](tests/composition/BLOB-TRACKING-MANUAL-QA.md). Pendiente para la parte 2: colores por elemento, capa Annotations.
+
 ### 6.4 Profundidad y parallax — investigación aprobada
 
 Investigar primero **imagen + depth map importado** para movimiento sutil de cámara/parallax, desplazamiento y aplicación selectiva de efectos según distancia. Parallax es un resultado que puede usar profundidad; no requiere prometer otra clase de mapa al usuario. Definir alineación, inversión/escala de profundidad y tratamiento de bordes/huecos antes de elegir controles o incorporar el efecto.

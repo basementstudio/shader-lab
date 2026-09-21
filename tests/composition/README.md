@@ -73,7 +73,7 @@ The source/effect distinction prevents repeated filtering from increasing covera
 
 ## Next implementation slice
 
-Neutral blank projects are accepted. Reusable masks are accepted. Gradient Map, the stable artboard and shape layers are accepted. Direct text editing is implemented pending its focused manual check; technical annotations follow. Retain the broader group, alpha, video/export and hardware performance checks for final V3 validation. The roadmap is authoritative for priorities and user acceptance.
+Neutral blank projects are accepted. Reusable masks are accepted. Gradient Map, the stable artboard and shape layers are accepted. Direct text editing is accepted. Blob Tracking part 1 of the annotations direction is implemented pending confirmation; the Annotations layer (part 2) follows. Retain the broader group, alpha, video/export and hardware performance checks for final V3 validation. The roadmap is authoritative for priorities and user acceptance.
 
 ## Layer masks
 
@@ -98,6 +98,10 @@ Every layer and group accepts an optional `mask` (linear/radial gradient, ellips
 ## Direct text editing
 
 Text layers accept multiline content, `align` (auto follows the anchor), `lineHeight`, `rotation` and font sizes down to 8. The layout is shared by editor and runtime (`renderer/text-layout.ts`); single-line text with default values produces the same glyph positions as before, which the legacy PNG baselines guard, and hydration appends the new defaults to older files (mirrored in the existing-project expectation). `text-editing.mjs` checks the layout on both passes (line count, gaps, line height, top/bottom anchors, explicit alignment, 90° rotation about the anchor, 12px rendering, editor/runtime parity), the offset/pivot geometry helpers, editability rules, hydration, export and reopened pixels. Manual check: [TEXT-EDITING-MANUAL-QA.md](TEXT-EDITING-MANUAL-QA.md).
+
+## Blob Tracking decorations
+
+The tracker now records up to 64 boundary cells per blob; the pass draws them as seeded edge dots, offers corner-bracket frames beside the outline, and formats labels from coordinates, a prefix plus a seeded per-track code, or a user list. `blob-tracking.mjs` checks the tracker's edge points on a synthetic grid, label hashing and atlas coverage, then renders the editor and runtime passes over a synthetic bright block (frame styles at corners versus edge midpoints, legacy `showOutline`, dot density and placement, the three label modes, alpha parity) and the `frameStyle` migration. Manual check: [BLOB-TRACKING-MANUAL-QA.md](BLOB-TRACKING-MANUAL-QA.md). `bun tests/composition/effect-video-performance.mjs --blob` times the pass on video, and `blob-motion-probe.mjs` reports blob count, mean area, ID churn and fallback frames on aura.mp4 for tuning motion detection.
 
 ## Neutral projects and global colors
 

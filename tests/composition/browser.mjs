@@ -28,6 +28,7 @@ import { checkGradientMap } from "./gradient-map.mjs"
 import { checkArtboard } from "./artboard.mjs"
 import { checkShapeLayers } from "./shape-layers.mjs"
 import { checkTextEditing } from "./text-editing.mjs"
+import { checkBlobTracking } from "./blob-tracking.mjs"
 import { checkDisplacedRings } from "./displaced-rings.mjs"
 
 function pixels(canvas) {
@@ -262,6 +263,18 @@ window.checkExistingProject = async () => {
       layer.params.lineHeight ??= 1.1
       layer.params.rotation ??= 0
     }
+    if (layer.type === "blob-tracking") {
+      layer.params.frameStyle ??=
+        layer.params.showOutline === false ? "none" : "outline"
+      layer.params.squareShapes ??= false
+      layer.params.bracketLength ??= 0.28
+      layer.params.labelMode ??= "coordinates"
+      layer.params.labelPrefix ??= "PERSON"
+      layer.params.labelList ??= "PERSON\nTARGET\nNOT FOUND\nUNKNOWN"
+      layer.params.labelSeed ??= 7
+      layer.params.edgeDots ??= 0
+      layer.params.dotSize ??= 2
+    }
   }
   // Start from a different editor session so no-op restoration cannot pass
   // merely because the stores already contain their default values.
@@ -428,3 +441,5 @@ window.checkArtboard = checkArtboard
 window.checkShapeLayers = () => checkShapeLayers(renderProject)
 
 window.checkTextEditing = () => checkTextEditing(renderProject)
+
+window.checkBlobTracking = checkBlobTracking

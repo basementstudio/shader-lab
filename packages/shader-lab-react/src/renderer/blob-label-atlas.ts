@@ -1,6 +1,6 @@
 import * as THREE from "three/webgpu"
 
-export const LABEL_CHARS = "0123456789xy:.,- #"
+export const LABEL_CHARS = "0123456789xy:.,- #ABCDEFGHIJKLMNOPQRSTUVWXYZ_/%()[]+?"
 export const LABEL_CELL_ASPECT = 0.55
 
 const CELL_HEIGHT_PX = 64

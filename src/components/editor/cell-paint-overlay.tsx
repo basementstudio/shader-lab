@@ -10,7 +10,13 @@ import {
   paintCellSegment,
   type PaintPoint,
 } from "@/lib/editor/paint/cell-paint-brush"
-import { canPaintCellLayer, useCellPaintStore } from "@/store/cell-paint-store"
+import {
+  canPaintTarget,
+  type PaintTarget,
+  readPaint,
+  useCellPaintStore,
+  writePaint,
+} from "@/store/cell-paint-store"
 import { useEditorStore } from "@/store/editor-store"
 import { useLayerStore } from "@/store/layer-store"
 
@@ -20,7 +26,7 @@ type Stroke = {
   point: PaintPoint
   radius: number
   erase: boolean
-  base: unknown
+  base: string
 }
 export function CellPaintOverlay({
   panning,
@@ -30,15 +36,29 @@ export function CellPaintOverlay({
   disabled: boolean
 }) {
   const id = useCellPaintStore((s) => s.layerId)
+  const target = useCellPaintStore((s) => s.target)
   const allowed = useLayerStore((s) =>
-    canPaintCellLayer(s.layers, id, s.selectedLayerId)
+    canPaintTarget(s.layers, id, s.selectedLayerId, target)
   )
   // Unmount the gesture surface on selection, mode, visibility, lock or export changes.
   return id && allowed && !disabled ? (
-    <PaintSurface key={id} id={id} panning={panning} />
+    <PaintSurface
+      key={`${target}:${id}`}
+      id={id}
+      target={target}
+      panning={panning}
+    />
   ) : null
 }
-function PaintSurface({ id, panning }: { id: string; panning: boolean }) {
+function PaintSurface({
+  id,
+  target,
+  panning,
+}: {
+  id: string
+  target: PaintTarget
+  panning: boolean
+}) {
   const brushSize = useCellPaintStore((s) => s.brushSize)
   const tool = useCellPaintStore((s) => s.tool)
   const surface = useRef<HTMLDivElement>(null)
@@ -56,14 +76,10 @@ function PaintSurface({ id, panning }: { id: string; panning: boolean }) {
         const layer = state.layers.find((l) => l.id === id)
         if (
           commit &&
-          canPaintCellLayer(state.layers, id, state.selectedLayerId) &&
-          layer?.params.paintMask === active.base
+          canPaintTarget(state.layers, id, state.selectedLayerId, target) &&
+          readPaint(layer, target) === active.base
         ) {
-          state.updateLayerParam(
-            id,
-            "paintMask",
-            encodeCellPaintMask(active.mask)
-          )
+          writePaint(id, target, encodeCellPaintMask(active.mask))
         }
         if (surface.current?.hasPointerCapture(active.pointer))
           surface.current.releasePointerCapture(active.pointer)
@@ -71,7 +87,7 @@ function PaintSurface({ id, panning }: { id: string; panning: boolean }) {
       }
       useCellPaintStore.getState().setDraft(null)
     },
-    [id]
+    [id, target]
   )
   useEffect(() => {
     const cancel = () => finish(false)
@@ -98,8 +114,10 @@ function PaintSurface({ id, panning }: { id: string; panning: boolean }) {
     const unsubscribe = useLayerStore.subscribe((s) => {
       if (
         stroke.current &&
-        s.layers.find((l) => l.id === id)?.params.paintMask !==
-          stroke.current.base
+        readPaint(
+          s.layers.find((l) => l.id === id),
+          target
+        ) !== stroke.current.base
       )
         cancel()
     })
@@ -120,7 +138,7 @@ function PaintSurface({ id, panning }: { id: string; panning: boolean }) {
       window.removeEventListener("keydown", key)
       window.removeEventListener("keydown", beforeHistory, true)
     }
-  }, [finish, id])
+  }, [finish, id, target])
   const position = (event: PointerEvent<HTMLDivElement>) => {
     const rect = event.currentTarget.getBoundingClientRect()
     const shorter = Math.max(1, Math.min(rect.width, rect.height))
@@ -168,8 +186,11 @@ function PaintSurface({ id, panning }: { id: string; panning: boolean }) {
     <div
       ref={surface}
       data-cell-paint-overlay="true"
+      data-paint-target={target}
       role="application"
-      aria-label="Paint photographic reveal"
+      aria-label={
+        target === "mask" ? "Paint layer mask" : "Paint photographic reveal"
+      }
       className="absolute inset-0 z-20"
       style={{ touchAction: "none", cursor: panning ? "inherit" : "crosshair" }}
       onPointerDown={(event) => {
@@ -178,8 +199,10 @@ function PaintSurface({ id, panning }: { id: string; panning: boolean }) {
         event.preventDefault()
         event.stopPropagation()
         const { point, width, height } = position(event)
-        const base = useLayerStore.getState().layers.find((l) => l.id === id)
-          ?.params.paintMask
+        const base = readPaint(
+          useLayerStore.getState().layers.find((l) => l.id === id),
+          target
+        )
         const mask = expandCellPaintMask(
           decodeCellPaintMask(base),
           width,

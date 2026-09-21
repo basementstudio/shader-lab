@@ -79,6 +79,7 @@ export function PropertiesSidebar() {
     (state) => state.setLayerCompositeMode
   )
   const setLayerMaskConfig = useLayerStore((state) => state.setLayerMaskConfig)
+  const setLayerMask = useLayerStore((state) => state.setLayerMask)
   const setLayerHue = useLayerStore((state) => state.setLayerHue)
   const setLayerOpacity = useLayerStore((state) => state.setLayerOpacity)
   const randomizeGradientParams = useLayerStore(
@@ -601,6 +602,10 @@ export function PropertiesSidebar() {
         compositeMode: selectedLayer.compositeMode,
         maskConfig: selectedLayer.maskConfig,
         setLayerMaskConfig,
+        mask: selectedLayer.mask ?? null,
+        maskInGroup: !!selectedLayer.parentId,
+        maskLayerKind: selectedLayer.kind,
+        setLayerMask,
         definitionName: selectedDefinition?.defaultName ?? selectedLayer.type,
         expandedParamGroups,
         hue: displayedLayerState?.hue ?? selectedLayer.hue,

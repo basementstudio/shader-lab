@@ -23,6 +23,7 @@ import { checkEditorGroups } from "./editor-groups.mjs"
 import { checkMediaBounds } from "./media-bounds.mjs"
 import { checkTransparentText } from "./transparent-text.mjs"
 import { checkPhotographicCells } from "./photographic-cells.mjs"
+import { checkLayerMasks } from "./layer-masks.mjs"
 import { checkDisplacedRings } from "./displaced-rings.mjs"
 
 function pixels(canvas) {
@@ -397,3 +398,5 @@ window.checkPhotographicCells = () => checkPhotographicCells(renderProject)
 window.checkThresholdColors = () => checkThresholdColors(renderProject)
 
 window.checkCleanProjects = checkCleanProjects
+
+window.checkLayerMasks = () => checkLayerMasks(renderProject)

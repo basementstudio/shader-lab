@@ -37,6 +37,8 @@ import {
   MASK_MODES,
   MASK_SOURCES,
   SOURCE_LAYER_TYPES,
+  LAYER_MASK_SCOPES,
+  LAYER_MASK_SHAPES,
 } from "@/types/editor"
 
 export interface LabProjectFile extends ProjectPresetConfig {
@@ -224,6 +226,18 @@ const maskConfigSchema = z.looseObject({
   source: z.enum(MASK_SOURCES),
 })
 
+const layerMaskSchema = z.looseObject({
+  shape: z.enum(LAYER_MASK_SHAPES),
+  scope: z.enum(LAYER_MASK_SCOPES),
+  enabled: z.boolean(),
+  invert: z.boolean(),
+  center: z.tuple([z.number(), z.number()]),
+  size: z.tuple([z.number(), z.number()]),
+  rotation: z.number(),
+  feather: z.number(),
+  paint: z.string(),
+})
+
 const baseLayerShape = {
   parentId: z.string().nullable().optional(),
   assetId: z.string().nullable(),
@@ -234,6 +248,7 @@ const baseLayerShape = {
   hue: z.number(),
   id: z.string(),
   locked: z.boolean(),
+  mask: layerMaskSchema.nullable().optional(),
   maskConfig: maskConfigSchema.optional(),
   name: z.string(),
   opacity: z.number(),

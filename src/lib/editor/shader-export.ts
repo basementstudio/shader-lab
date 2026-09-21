@@ -220,6 +220,7 @@ function toShaderLabLayerConfig(
     blendMode: supportedLayer.blendMode as ShaderLabBlendMode,
     compositeMode: supportedLayer.compositeMode as ShaderLabCompositeMode,
     maskConfig: supportedLayer.maskConfig,
+    ...(supportedLayer.mask ? { mask: structuredClone(supportedLayer.mask) } : {}),
     hue: supportedLayer.hue,
     id: supportedLayer.id,
     kind: supportedLayer.kind,

@@ -12,6 +12,10 @@ import { Typography } from "@/components/ui/typography"
 import { cn } from "@/lib/cn"
 import { getLayerDefinition } from "@/lib/editor/config/layer-registry"
 import {
+  describeDepthProgress,
+  estimateDepthMap,
+} from "@/lib/editor/depth/estimate-depth-client"
+import {
   getAssetAccept,
   inferFileAssetKind,
   isSvgMediaSource,
@@ -55,6 +59,10 @@ export function PropertiesSidebar() {
     saturation?: number
   }>({ params: {} })
   const [panelHeight, setPanelHeight] = useState<number | null>(null)
+  const [depthEstimation, setDepthEstimation] = useState<{
+    label: string
+    layerId: string
+  } | null>(null)
   const viewResizeObserverRef = useRef<ResizeObserver | null>(null)
   const replaceImageInputRef = useRef<HTMLInputElement | null>(null)
   const replaceImageLayerIdRef = useRef<string | null>(null)
@@ -659,6 +667,51 @@ export function PropertiesSidebar() {
     [loadAsset, removeAsset, setLayerDepthAsset, setLayerRuntimeError]
   )
 
+  const handleEstimateDepthMap = useCallback(async () => {
+    if (!(selectedLayer && selectedAsset && selectedAsset.kind === "image")) {
+      return
+    }
+
+    const layerId = selectedLayer.id
+    const source = selectedAsset
+    setDepthEstimation({ label: "Loading depth model…", layerId })
+
+    try {
+      const result = await estimateDepthMap({
+        height: source.height ?? 0,
+        onProgress: (progress) =>
+          setDepthEstimation({ label: describeDepthProgress(progress), layerId }),
+        url: source.url,
+        width: source.width ?? 0,
+      })
+      const baseName = source.fileName.replace(/\.[^.]+$/, "") || "image"
+      const asset = await loadAsset(
+        new File([result.blob], `${baseName}-depth.png`, { type: "image/png" })
+      )
+      setLayerDepthAsset(layerId, asset.id)
+      updateLayerParam(layerId, "depthInvert", false)
+      setLayerRuntimeError(layerId, null)
+    } catch (error) {
+      if (!(error instanceof DOMException && error.name === "AbortError")) {
+        setLayerRuntimeError(
+          layerId,
+          error instanceof Error ? error.message : "Depth estimation failed."
+        )
+      }
+    } finally {
+      setDepthEstimation((current) =>
+        current?.layerId === layerId ? null : current
+      )
+    }
+  }, [
+    loadAsset,
+    selectedAsset,
+    selectedLayer,
+    setLayerDepthAsset,
+    setLayerRuntimeError,
+    updateLayerParam,
+  ])
+
   const handleRemoveDepthMap = useCallback(() => {
     if (!selectedLayerId) {
       return
@@ -669,9 +722,22 @@ export function PropertiesSidebar() {
 
   const selectedLayerContentProps = selectedLayer
     ? {
+        canEstimateDepthMap: Boolean(
+          selectedAsset &&
+            selectedAsset.kind === "image" &&
+            !isSvgMediaSource({
+              fileName: selectedAsset.fileName,
+              mimeType: selectedAsset.mimeType,
+            })
+        ),
+        depthEstimationLabel:
+          depthEstimation?.layerId === selectedLayer.id
+            ? depthEstimation.label
+            : null,
         depthMapFileName: selectedDepthAsset?.fileName ?? null,
         hasDepthMap: Boolean(selectedLayer.depthAssetId),
         onAttachDepthMap: handleDepthMapPick,
+        onEstimateDepthMap: handleEstimateDepthMap,
         onRemoveDepthMap: handleRemoveDepthMap,
         blendMode: selectedLayer.blendMode,
         compositeMode: selectedLayer.compositeMode,

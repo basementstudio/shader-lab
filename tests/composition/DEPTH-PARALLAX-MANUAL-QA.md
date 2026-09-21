@@ -1,10 +1,16 @@
 # Depth map and parallax — focused manual test
 
-Scope: roadmap 6.4, stage 1. An Image layer accepts a second grayscale image as its depth map. With it attached, the layer gains a **Depth** group: the camera can orbit, sway, nod or dolly over the photo, near content moves more than far content, and nearer content covers what is behind it. Nothing is generated: you bring the depth map, framed like the photo, with white for near by default.
+Scope: roadmap 6.4, stage 1. An Image layer accepts a second grayscale image as its depth map. With it attached, the layer gains a **Depth** group: the camera can orbit, sway, nod or dolly over the photo, near content moves more than far content, and nearer content covers what is behind it. **Estimate** generates the depth map in the browser; you can also attach your own, framed like the photo, with white for near by default.
+
+## Estimating
+
+1. Add a photo (Image layer). In the properties panel, **Source → Depth map → Estimate**. The first run downloads the model (about 100 MB on WebGPU, 27 MB on the WASM fallback) and shows progress; later runs use the browser cache. Inference takes a few seconds on a real GPU.
+2. The result attaches as `<photo name>-depth.png`, Invert Depth is off, and **Show Depth** lets you judge it. **Estimate again** replaces it.
+3. SVG sources cannot be estimated; attach a map instead.
 
 ## Attaching
 
-1. Add a photo (Image layer). In the properties panel, **Source → Depth map → Attach** and pick a grayscale depth image with the same framing.
+1. Alternatively, **Source → Depth map → Attach** and pick a grayscale depth image with the same framing.
 2. The file name shows next to the label, **Replace** and **Remove** appear, and the **Depth** group unfolds below the placement controls.
 3. **Show Depth** previews the depth instead of the photo. If near objects look dark, turn on **Invert Depth**.
 4. Save (.lab) and reopen: the depth map comes back with the photo. Reopening without the depth file reports "Missing depth map" on the layer and keeps the photo.
@@ -20,7 +26,7 @@ Scope: roadmap 6.4, stage 1. An Image layer accepts a second grayscale image as 
 
 - Where a near subject uncovers what was behind it, the pass stretches the subject's edge pixels into the gap, as DepthFlow does without inpainting. Soft depth edges hide this; hard-edged depth maps show it as a short smear on the trailing side.
 - The depth map is sampled with the photo's UVs; it is not realigned or rescaled to match.
-- Video layers do not accept a depth map yet, and there is no depth generation.
+- Video layers do not accept a depth map yet. Estimation is a single still-image pass, never per frame.
 
 ## Export and runtime
 

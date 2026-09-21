@@ -2,7 +2,7 @@ import { create } from "zustand"
 import type { EditorLayer } from "@/types/editor"
 import { useLayerStore } from "@/store/layer-store"
 
-export type PaintTarget = "cells" | "mask"
+export type PaintTarget = "cells" | "mask" | "annotations"
 
 type CellPaintState = {
   layerId: string | null
@@ -71,15 +71,32 @@ export function canPaintMaskLayer(
   return editableChain(layers, layer)
 }
 
+export function canPaintAnnotationsLayer(
+  layers: EditorLayer[],
+  id: string | null,
+  selectedId: string | null
+): boolean {
+  const layer = layers.find((item) => item.id === id)
+  if (
+    !layer ||
+    id !== selectedId ||
+    layer.type !== "annotations" ||
+    layer.params.placement !== "painted"
+  )
+    return false
+  return editableChain(layers, layer)
+}
+
 export function canPaintTarget(
   layers: EditorLayer[],
   id: string | null,
   selectedId: string | null,
   target: PaintTarget
 ): boolean {
-  return target === "mask"
-    ? canPaintMaskLayer(layers, id, selectedId)
-    : canPaintCellLayer(layers, id, selectedId)
+  if (target === "mask") return canPaintMaskLayer(layers, id, selectedId)
+  if (target === "annotations")
+    return canPaintAnnotationsLayer(layers, id, selectedId)
+  return canPaintCellLayer(layers, id, selectedId)
 }
 
 export function readPaint(
@@ -122,6 +139,11 @@ export function withCellPaintPreview(
       return state.draft === null || !layer.mask
         ? layer
         : { ...layer, mask: { ...layer.mask, paint: state.draft } }
+    }
+    if (state.target === "annotations") {
+      return state.draft === null
+        ? layer
+        : { ...layer, params: { ...layer.params, paintMask: state.draft } }
     }
     return {
       ...layer,

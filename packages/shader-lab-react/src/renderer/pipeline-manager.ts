@@ -45,6 +45,7 @@ import { SmearPass } from "./smear-pass"
 import { TextPass } from "./text-pass"
 import { ThresholdPass } from "./threshold-pass"
 import { GradientMapPass } from "./gradient-map-pass"
+import { AnnotationsPass } from "./annotations-pass"
 import { VoxelPass } from "./voxel-pass"
 
 type LayerPassNode =
@@ -80,6 +81,7 @@ type LayerPassNode =
   | SmearPass
   | ThresholdPass
   | GradientMapPass
+  | AnnotationsPass
   | TextPass
   | VoxelPass
 
@@ -633,6 +635,8 @@ export class PipelineManager {
           return new ThresholdPass(layer.id)
         case "gradient-map":
           return new GradientMapPass(layer.id)
+        case "annotations":
+          return new AnnotationsPass(layer.id)
         case "pixel-sorting":
           return new PixelSortingPass(layer.id)
         case "photographic-cells":

@@ -22,6 +22,7 @@ export type ShaderLabSourceLayerType =
 export type ShaderLabEffectLayerType =
   | "photographic-cells"
   | "displaced-rings"
+  | "annotations"
   | "ascii"
   | "blob-tracking"
   | "bloom"

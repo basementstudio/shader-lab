@@ -29,6 +29,7 @@ import { checkArtboard } from "./artboard.mjs"
 import { checkShapeLayers } from "./shape-layers.mjs"
 import { checkTextEditing } from "./text-editing.mjs"
 import { checkBlobTracking } from "./blob-tracking.mjs"
+import { checkAnnotations } from "./annotations.mjs"
 import { checkDisplacedRings } from "./displaced-rings.mjs"
 
 function pixels(canvas) {
@@ -443,3 +444,5 @@ window.checkShapeLayers = () => checkShapeLayers(renderProject)
 window.checkTextEditing = () => checkTextEditing(renderProject)
 
 window.checkBlobTracking = checkBlobTracking
+
+window.checkAnnotations = () => checkAnnotations(renderProject)

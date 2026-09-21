@@ -37,6 +37,7 @@ export type SourceLayerType = (typeof SOURCE_LAYER_TYPES)[number]
 export const EFFECT_LAYER_TYPES = [
   "photographic-cells",
   "displaced-rings",
+  "annotations",
   "ascii",
   "blob-tracking",
   "bloom",

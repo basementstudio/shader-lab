@@ -33,6 +33,13 @@ export const LAYER_CATALOG: Record<LayerType, LayerCatalogEntry> = {
     label: "ASCII",
     previewSrc: "/examples/ascii.webp",
   },
+  annotations: {
+    category: "core",
+    description:
+      "Decorative technical marks: target rings, dashed circles and boxes, crosshairs, rulers, connectors, readouts and metadata blocks. Placed by seed, along edges or inside your brush strokes. Nothing is recognized.",
+    label: "Annotations",
+    previewSrc: "/examples/annotations.webp",
+  },
   "blob-tracking": {
     category: "distort",
     description:

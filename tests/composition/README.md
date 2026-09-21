@@ -73,7 +73,7 @@ The source/effect distinction prevents repeated filtering from increasing covera
 
 ## Next implementation slice
 
-Neutral blank projects are accepted. Reusable masks are accepted. Gradient Map, the stable artboard and shape layers are accepted. Direct text editing is accepted. Blob Tracking part 1 of the annotations direction is implemented pending confirmation; the Annotations layer (part 2) follows. Retain the broader group, alpha, video/export and hardware performance checks for final V3 validation. The roadmap is authoritative for priorities and user acceptance.
+Neutral blank projects are accepted. Reusable masks are accepted. Gradient Map, the stable artboard and shape layers are accepted. Direct text editing is accepted. Blob Tracking part 1 is confirmed; the Annotations layer (part 2) is implemented pending its focused manual check. Depth/parallax research follows. Retain the broader group, alpha, video/export and hardware performance checks for final V3 validation. The roadmap is authoritative for priorities and user acceptance.
 
 ## Layer masks
 
@@ -102,6 +102,10 @@ Text layers accept multiline content, `align` (auto follows the anchor), `lineHe
 ## Blob Tracking decorations
 
 The tracker now records up to 64 boundary cells per blob; the pass draws them as seeded edge dots, offers corner-bracket frames beside the outline, and formats labels from coordinates, a prefix plus a seeded per-track code, or a user list. `blob-tracking.mjs` checks the tracker's edge points on a synthetic grid, label hashing and atlas coverage, then renders the editor and runtime passes over a synthetic bright block (frame styles at corners versus edge midpoints, legacy `showOutline`, dot density and placement, the three label modes, alpha parity) and the `frameStyle` migration. Manual check: [BLOB-TRACKING-MANUAL-QA.md](BLOB-TRACKING-MANUAL-QA.md). `bun tests/composition/effect-video-performance.mjs --blob` times the pass on video, and `blob-motion-probe.mjs` reports blob count, mean area, ID churn and fallback frames on aura.mp4 for tuning motion detection.
+
+## Annotations layer
+
+`annotations` lays out a bounded set of decorative marks on the CPU from a seed (`renderer/annotations-layout.ts`, shared by editor and runtime) and draws them as instanced SDF quads plus atlas glyphs into a transparent target composited as an effect. Placement is seeded, edge-guided (128×72 Sobel field read back asynchronously) or painted (the `pc1` brush codec). `annotations.mjs` checks determinism, density, drift, the target rings and snap, painted and edge placement, text and palette parsing, editor/runtime renders (marks present, everything-off empty, target position, palette color, parity), hydration, brush eligibility, save/reopen, export, reopened pixels and the catalog preview. Manual check: [ANNOTATIONS-MANUAL-QA.md](ANNOTATIONS-MANUAL-QA.md).
 
 ## Neutral projects and global colors
 

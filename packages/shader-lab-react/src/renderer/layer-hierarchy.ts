@@ -37,6 +37,7 @@ export function validateLayerHierarchy(
 export function buildCompositionTree<
   Layer extends HierarchyLayer & {
     blendMode: string
+    mask?: unknown
     opacity: number
     visible: boolean
   },
@@ -58,6 +59,7 @@ export function buildCompositionTree<
         id: layer.id,
         kind: "group",
         blendMode: layer.blendMode,
+        mask: layer.mask ?? null,
         opacity: layer.opacity,
         visible: true,
         children: nested,

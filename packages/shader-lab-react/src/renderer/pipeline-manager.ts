@@ -5,6 +5,7 @@ import {
   isCompositionGroup,
 } from "./composition-tree"
 import { GroupPass } from "./group-pass"
+import { layerMaskSignature, normalizeLayerMask } from "./layer-mask"
 import { float, type TSLNode, texture as tslTexture, uv, vec2 } from "three/tsl"
 import * as THREE from "three/webgpu"
 import type { ShaderLabCompositeMode, ShaderLabLayerConfig } from "../types"
@@ -117,6 +118,7 @@ function createLayerSignature(layer: ShaderLabLayerConfig): string {
       layer.maskConfig?.source ?? "luminance",
       layer.maskConfig?.mode ?? "multiply",
       layer.maskConfig?.invert ? "1" : "0",
+    layerMaskSignature(normalizeLayerMask(layer.mask)),
       typeof layer.params.sourceRevision === "number"
         ? String(layer.params.sourceRevision)
         : "0",
@@ -148,6 +150,7 @@ function createLayerSignature(layer: ShaderLabLayerConfig): string {
     layer.maskConfig?.source ?? "luminance",
     layer.maskConfig?.mode ?? "multiply",
     layer.maskConfig?.invert ? "1" : "0",
+    layerMaskSignature(normalizeLayerMask(layer.mask)),
     parameterValuesSignature(layer.params),
   ].join("|")
 }
@@ -246,7 +249,12 @@ export class PipelineManager {
       const layerId = getId(node)
       const group = isCompositionGroup(node)
       const signature = group
-        ? JSON.stringify([node.visible, node.opacity, node.blendMode])
+        ? JSON.stringify([
+            node.visible,
+            node.opacity,
+            node.blendMode,
+            layerMaskSignature(normalizeLayerMask(node.mask)),
+          ])
         : createLayerSignature(node)
       let pass = this.passMap.get(layerId)
 
@@ -270,6 +278,7 @@ export class PipelineManager {
           : this.createPass(node)
         pass.resize(this.width, this.height)
         pass.updateLogicalSize(this.logicalWidth, this.logicalHeight)
+        pass.updateMaskLogicalSize(this.logicalWidth, this.logicalHeight)
         this.passMap.set(layerId, pass)
         this.dirty = true
       }
@@ -281,6 +290,7 @@ export class PipelineManager {
           pass.enabled = node.visible
           pass.updateOpacity(clampUnit(node.opacity))
           pass.updateBlendMode(node.blendMode)
+          pass.updateLayerMask(normalizeLayerMask(node.mask))
           pass.flushColorNode()
         } else {
           this.applyLayerState(pass, node)
@@ -432,6 +442,7 @@ export class PipelineManager {
 
     for (const pass of this.passMap.values()) {
       pass.updateLogicalSize(this.logicalWidth, this.logicalHeight)
+      pass.updateMaskLogicalSize(this.logicalWidth, this.logicalHeight)
     }
 
     this.dirty = true
@@ -522,6 +533,7 @@ export class PipelineManager {
       layer.compositeMode === "mask" ? "mask" : "filter"
     pass.updateCompositeMode(compositeMode)
     pass.updateMaskConfig(layer.maskConfig ?? DEFAULT_MASK_CONFIG)
+    pass.updateLayerMask(normalizeLayerMask(layer.mask))
     pass.updateLayerColorAdjustments(layer.hue, layer.saturation)
     pass.updateParams(layer.params)
     pass.flushColorNode()

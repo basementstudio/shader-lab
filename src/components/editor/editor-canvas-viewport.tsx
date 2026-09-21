@@ -11,6 +11,7 @@ import {
   useSyncExternalStore,
 } from "react"
 import { CellPaintOverlay } from "./cell-paint-overlay"
+import { MaskHandlesOverlay } from "./mask-handles-overlay"
 import { MadeByBasement } from "@/components/editor/made-by-basement"
 import { useMobileCanvasFit } from "@/components/editor/use-mobile-canvas-fit"
 import { useEditorRenderer } from "@/hooks/use-editor-renderer"
@@ -351,6 +352,10 @@ export function EditorCanvasViewport() {
               className="absolute inset-0 h-full w-full [image-rendering:pixelated]"
             />
             <CellPaintOverlay
+              panning={isSpacePressed}
+              disabled={exportingPreview || !isReady || !!pendingSceneSlug}
+            />
+            <MaskHandlesOverlay
               panning={isSpacePressed}
               disabled={exportingPreview || !isReady || !!pendingSceneSlug}
             />

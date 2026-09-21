@@ -33,8 +33,9 @@ import type {
   LayerType,
   MaskConfig,
   ParameterValue,
+  LayerMask,
 } from "@/types/editor"
-import { DEFAULT_MASK_CONFIG } from "@/types/editor"
+import { DEFAULT_LAYER_MASK, DEFAULT_MASK_CONFIG } from "@/types/editor"
 
 export interface LayerStoreState {
   hoveredLayerId: string | null
@@ -78,6 +79,7 @@ export interface LayerStoreActions {
   setLayerBlendMode: (id: string, blendMode: BlendMode) => void
   setLayerCompositeMode: (id: string, compositeMode: LayerCompositeMode) => void
   setLayerMaskConfig: (id: string, updates: Partial<MaskConfig>) => void
+  setLayerMask: (id: string, updates: Partial<LayerMask>) => void
   setLayerExpanded: (id: string, expanded: boolean) => void
   setFluidInteractionEvents: (
     id: string,
@@ -966,6 +968,19 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
       layers: state.layers.map((layer) =>
         layer.id === id
           ? { ...layer, maskConfig: { ...layer.maskConfig, ...updates } }
+          : layer
+      ),
+    }))
+  },
+
+  setLayerMask: (id, updates) => {
+    set((state) => ({
+      layers: state.layers.map((layer) =>
+        layer.id === id
+          ? {
+              ...layer,
+              mask: { ...DEFAULT_LAYER_MASK, ...(layer.mask ?? {}), ...updates },
+            }
           : layer
       ),
     }))

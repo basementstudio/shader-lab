@@ -31,6 +31,14 @@ const scopeOptions: { label: string; value: LayerMaskScope }[] = [
 
 const GEOMETRIC: LayerMaskShape[] = ["linear", "radial", "ellipse", "rectangle"]
 
+function scopeCaption(inGroup: boolean, scope: LayerMaskScope): string {
+  if (!inGroup)
+    return "Put this effect in a group to cut content: transparency reveals the layers outside the group."
+  if (scope === "content")
+    return "Outside the mask the group becomes transparent, revealing layers outside it."
+  return "Outside the mask the image below stays untouched."
+}
+
 export function LayerMaskSection({
   layerId,
   layerKind,
@@ -105,11 +113,7 @@ export function LayerMaskSection({
                 />
               </div>
               <Typography tone="muted" variant="caption">
-                {inGroup
-                  ? current.scope === "content"
-                    ? "Outside the mask the group becomes transparent, revealing layers outside it."
-                    : "Outside the mask the image below stays untouched."
-                  : "Put this effect in a group to cut content: transparency reveals the layers outside the group."}
+                {scopeCaption(inGroup, current.scope)}
               </Typography>
             </>
           ) : (

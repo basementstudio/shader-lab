@@ -1,4 +1,5 @@
 // Bounded, opt-in pass benchmark. Software-adapter numbers are not native FPS.
+import { BlobTrackingPass } from "@/renderer/blob-tracking-pass"
 import {
   emptyCellPaintMask,
   encodeCellPaintMask,
@@ -7,7 +8,7 @@ import { paintCellSegment } from "@/lib/editor/paint/cell-paint-brush"
 import * as THREE from "three/webgpu"
 import { DisplacedRingsPass } from "@/renderer/displaced-rings-pass"
 import { PhotographicCellsPass } from "@/renderer/photographic-cells-pass"
-window.run = async ({ scatterOnly = false } = {}) => {
+window.run = async ({ scatterOnly = false, blobOnly = false } = {}) => {
   const renderer = new THREE.WebGPURenderer({ antialias: false })
   await renderer.init()
   renderer.toneMapping = THREE.NoToneMapping
@@ -47,6 +48,9 @@ window.run = async ({ scatterOnly = false } = {}) => {
     type: THREE.HalfFloatType,
     depthBuffer: false,
   })
+  const blob = new BlobTrackingPass("blob")
+  blob.updateCompositionRole("effect")
+  blob.flushColorNode()
   const adapter = await navigator.gpu.requestAdapter()
   const results = []
   const mask = emptyCellPaintMask(2, 1)
@@ -63,7 +67,13 @@ window.run = async ({ scatterOnly = false } = {}) => {
       pass.updateLogicalSize(width, height)
       rings.resize(width, height)
       rings.updateLogicalSize(width, height)
-      for (const scenario of scatterOnly
+      blob.resize(width, height)
+      blob.updateLogicalSize(width, height)
+      const scenarios = blobOnly
+        ? ["blob-outline", "blob-brackets-dots-labels"]
+        : null
+      for (const scenario of scenarios ??
+        (scatterOnly
         ? [
             "cells-random",
             "cells-random-scatter",
@@ -79,7 +89,26 @@ window.run = async ({ scatterOnly = false } = {}) => {
             "cells-paint",
             "combined",
             "combined-paint",
-          ]) {
+          ])) {
+        if (scenario.startsWith("blob")) {
+          blob.updateParams({
+            detectionMode: "luminance",
+            sensitivity: 0.7,
+            blobAmount: 12,
+            minBlobSize: 2,
+            persistentTracking: true,
+            smoothing: 0.6,
+            frameStyle: scenario.includes("brackets") ? "brackets" : "outline",
+            edgeDots: scenario.includes("dots") ? 1 : 0,
+            dotSize: 2,
+            showLabels: true,
+            labelMode: scenario.includes("labels") ? "id" : "coordinates",
+            labelPrefix: "PERSON",
+            connectLines: true,
+            centerShape: "dot",
+            trailDecay: 0.35,
+          })
+        }
         const selection = scenario.startsWith("cells-light")
           ? "light"
           : "random"
@@ -112,7 +141,9 @@ window.run = async ({ scatterOnly = false } = {}) => {
           const start = performance.now()
           context.drawImage(video, 0, 0)
           input.needsUpdate = true
-          if (scenario === "rings")
+          if (scenario.startsWith("blob")) {
+            blob.render(renderer, input, target, frame / 30, 1 / 30, frame / 30)
+          } else if (scenario === "rings")
             rings.render(renderer, input, target, frame / 30, 1 / 30)
           else if (scenario.startsWith("combined")) {
             rings.render(renderer, input, intermediate, frame / 30, 1 / 30)

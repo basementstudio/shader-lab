@@ -20,6 +20,7 @@ export interface Blob {
   area: number
   cx: number
   cy: number
+  edge: BlobPoint[]
   halfHeight: number
   halfWidth: number
   history: BlobPoint[]
@@ -56,11 +57,13 @@ export const VELOCITY_BLEND = 0.35
  * two frames ago. Extrapolating by the estimated velocity cancels that lag.
  */
 export const VELOCITY_LOOKAHEAD = 1.5
+export const MAX_EDGE_POINTS = 64
 
 type Detection = {
   area: number
   cx: number
   cy: number
+  edge: BlobPoint[]
   halfHeight: number
   halfWidth: number
 }
@@ -78,6 +81,7 @@ type Track = {
   area: number
   cx: number
   cy: number
+  edge: BlobPoint[]
   halfHeight: number
   halfWidth: number
   history: BlobPoint[]
@@ -275,6 +279,7 @@ export class BlobTracker {
         visited[startIndex] = generation
         stack[0] = startIndex
         let stackSize = 1
+        const boundary: number[] = []
 
         while (stackSize > 0) {
           stackSize -= 1
@@ -289,6 +294,18 @@ export class BlobTracker {
           if (x > maxX) maxX = x
           if (y < minY) minY = y
           if (y > maxY) maxY = y
+          if (
+            x === 0 ||
+            y === 0 ||
+            x === gridWidth - 1 ||
+            y === gridHeight - 1 ||
+            binary[index - 1] !== 1 ||
+            binary[index + 1] !== 1 ||
+            binary[index - gridWidth] !== 1 ||
+            binary[index + gridWidth] !== 1
+          ) {
+            boundary.push(index)
+          }
 
           if (x > 0) {
             const neighbor = index - 1
@@ -330,10 +347,26 @@ export class BlobTracker {
 
         const boxWidth = maxX - minX + 1
         const boxHeight = maxY - minY + 1
+        const stride = Math.max(1, Math.ceil(boundary.length / MAX_EDGE_POINTS))
+        const edge: BlobPoint[] = []
+        for (
+          let i = 0;
+          i < boundary.length && edge.length < MAX_EDGE_POINTS;
+          i += stride
+        ) {
+          const cell = boundary[i] as number
+          const bx = cell % gridWidth
+          const by = (cell - bx) / gridWidth
+          edge.push({
+            x: clamp01((bx + 0.5) / gridWidth),
+            y: clamp01((by + 0.5) / gridHeight),
+          })
+        }
         detections.push({
           area,
           cx: clamp01((sumX / area + 0.5) / gridWidth),
           cy: clamp01((sumY / area + 0.5) / gridHeight),
+          edge,
           halfHeight: boxHeight / 2 / gridHeight,
           halfWidth: boxWidth / 2 / gridWidth,
         })
@@ -352,6 +385,7 @@ export class BlobTracker {
       area: detection.area,
       cx: detection.cx,
       cy: detection.cy,
+      edge: detection.edge,
       halfHeight: detection.halfHeight,
       halfWidth: detection.halfWidth,
       history: [{ x: detection.cx, y: detection.cy }],
@@ -410,6 +444,7 @@ export class BlobTracker {
         bestTrack.halfHeight +=
           (detection.halfHeight - bestTrack.halfHeight) * blend
         bestTrack.area = detection.area
+        bestTrack.edge = detection.edge
         bestTrack.active = true
         bestTrack.missedFrames = 0
         bestTrack.ageFrames += 1
@@ -424,6 +459,7 @@ export class BlobTracker {
           area: detection.area,
           cx: detection.cx,
           cy: detection.cy,
+          edge: detection.edge,
           halfHeight: detection.halfHeight,
           halfWidth: detection.halfWidth,
           history: [{ x: detection.cx, y: detection.cy }],
@@ -458,6 +494,7 @@ export class BlobTracker {
       area: track.area,
       cx: track.cx,
       cy: track.cy,
+      edge: track.edge,
       halfHeight: track.halfHeight,
       halfWidth: track.halfWidth,
       history: track.history.slice(),

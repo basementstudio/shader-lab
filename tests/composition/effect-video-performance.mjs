@@ -20,6 +20,12 @@ const server = Bun.serve({
     })
   },
 })
+function outputFile(blobOnly, scatterOnly) {
+  if (blobOnly) return ".context/blob-video-performance.json"
+  if (scatterOnly) return ".context/scatter-video-performance.json"
+  return ".context/effect-video-performance.json"
+}
+
 const browser = await chromium.launch({
   headless: true,
   args: ["--enable-unsafe-webgpu"],
@@ -30,15 +36,14 @@ try {
   await page.goto(server.url.href)
   await page.waitForFunction(() => window.run)
   const scatterOnly = process.argv.includes("--scatter")
+  const blobOnly = process.argv.includes("--blob")
   const result = await page.evaluate(
-    (scatterOnly) => window.run({ scatterOnly }),
-    scatterOnly
+    ({ scatterOnly, blobOnly }) => window.run({ scatterOnly, blobOnly }),
+    { scatterOnly, blobOnly }
   )
   console.log(JSON.stringify(result, null, 2))
   await Bun.write(
-    scatterOnly
-      ? ".context/scatter-video-performance.json"
-      : ".context/effect-video-performance.json",
+    outputFile(blobOnly, scatterOnly),
     JSON.stringify(result, null, 2)
   )
 } finally {

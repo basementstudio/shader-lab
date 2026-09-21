@@ -93,3 +93,8 @@ Reference 18 (Brockhampton thermal-style cover) was reopened before building the
 ## Shape layers
 
 References 01 (Lovedance red/blue) and 20 were reopened before building the Shape source layer. The poster's crisp four-blade silhouette in flat red over blue photography, with the photo showing through, is reachable with Shape → Blades plus Multiply/Screen blending over a photo; the Blades preset is an interpretation of that pinwheel, not a reproduction of the artwork. User visual acceptance is pending; see [the focused test](tests/composition/SHAPE-LAYERS-MANUAL-QA.md).
+
+
+## Technical annotations, part 1 (Blob Tracking)
+
+References 19, 03, 10 and 21 were reopened for the design discussion; 19 drove this slice. Its left image (orange dots along a silhouette, boxes with a long connector) maps to Edge Dots plus the existing connectors; its right image (red `PERSON 01XX` boxes on figures) maps to corner brackets or outlines with Prefix + ID labels. These remain decorative: no recognition is performed, and custom lists let the user fake any vocabulary. User confirmation is pending; see [the focused test](tests/composition/BLOB-TRACKING-MANUAL-QA.md). The standalone Annotations layer (rulers, target circles, metadata blocks from 03 and 10) is part 2.

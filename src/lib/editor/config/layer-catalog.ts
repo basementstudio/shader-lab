@@ -36,7 +36,7 @@ export const LAYER_CATALOG: Record<LayerType, LayerCatalogEntry> = {
   "blob-tracking": {
     category: "distort",
     description:
-      "Tracks moving regions and frames them with CCTV-style shapes, labels, and an inner effect.",
+      "Tracks moving regions and frames them with CCTV-style shapes, corner brackets, edge dots, labels, and an inner effect. Labels are decorative, not recognition.",
     label: "Blob Tracking",
     previewSrc: "/examples/blob-tracking.webp",
   },

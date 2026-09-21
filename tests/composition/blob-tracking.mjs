@@ -61,7 +61,7 @@ function trackerChecks() {
     assert(gx >= 4 && gx <= 19 && gy >= 4 && gy <= 19 && onBorder, `Edge point lies on the blob border (${gx}, ${gy})`)
   }
   const small = blobs.find((b) => b.area === 240)
-  assert(small && small.edge.every((p) => p.x > 0.6), "Second blob keeps its own edge points")
+  assert(small?.edge.every((p) => p.x > 0.6), "Second blob keeps its own edge points")
   tracker.step(grid, gridW, gridH, 1 / 30, config)
   const again = tracker.getBlobs()
   assert(again.length === 2 && again.every((b) => b.edge.length > 0), "Persistent tracks refresh edge points")
@@ -223,12 +223,13 @@ export async function checkBlobTracking() {
   samples += await passChecks()
   const fresh = createLayer("blob-tracking")
   assert(fresh.params.frameStyle === "outline" && fresh.params.labelMode === "coordinates" && fresh.params.edgeDots === 0, "New blob layers keep the legacy look")
-  assert(fresh.params.trailDecay === 0 && fresh.params.squareShapes === false, "New blob layers start without trails and with free aspect")
+  assert(fresh.params.trailDecay === 0 && fresh.params.squareShapes === true, "New blob layers start without trails and locked to 1:1")
   const legacy = { ...createLayer("blob-tracking"), id: "blob" }
   delete legacy.params.frameStyle
   delete legacy.params.bracketLength
   delete legacy.params.labelMode
   delete legacy.params.edgeDots
+  delete legacy.params.squareShapes
   legacy.params.showOutline = false
   const project = {
     format: "shader-lab",
@@ -243,6 +244,7 @@ export async function checkBlobTracking() {
   applyLabProjectFile(parseLabProjectFileValue(project), [])
   const hydrated = useLayerStore.getState().getLayerById("blob").params
   assert(hydrated.frameStyle === "none" && hydrated.labelMode === "coordinates" && hydrated.edgeDots === 0, `Legacy showOutline=false migrates to frame none (${hydrated.frameStyle})`)
+  assert(hydrated.squareShapes === false, "Legacy layers keep free aspect instead of the new 1:1 default")
   legacy.params.showOutline = true
   applyLabProjectFile(parseLabProjectFileValue(project), [])
   assert(useLayerStore.getState().getLayerById("blob").params.frameStyle === "outline", "Legacy showOutline=true migrates to outline")

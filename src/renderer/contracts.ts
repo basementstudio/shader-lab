@@ -3,6 +3,10 @@ import {
   applyAudioModulation,
   type AudioModulationInput,
 } from "@/lib/editor/audio/links"
+import {
+  applyMaskOverrides,
+  stripMaskParams,
+} from "@/lib/editor/mask-animation"
 import { cloneParameterValues } from "@/lib/editor/parameter-schema"
 import { evaluateTimelineForLayers } from "@/lib/editor/timeline/evaluate"
 import { createProjectClock } from "@/renderer/project-clock"
@@ -111,8 +115,12 @@ export function buildRendererFrame(
   const layers = input.layers.map((layer) => {
     const evaluation = evaluatedById.get(layer.id)
     const params = evaluation
-      ? { ...getCachedClone(layer.params), ...evaluation.params }
+      ? stripMaskParams({ ...getCachedClone(layer.params), ...evaluation.params })
       : getCachedClone(layer.params)
+    const mask =
+      evaluation && layer.mask
+        ? applyMaskOverrides(layer.mask, evaluation.params)
+        : layer.mask
 
     return {
       asset: layer.assetId ? (assetById.get(layer.assetId) ?? null) : null,
@@ -121,6 +129,7 @@ export function buildRendererFrame(
         : null,
       layer: {
         ...layer,
+        ...(mask !== layer.mask ? { mask } : {}),
         hue:
           typeof evaluation?.properties.hue === "number"
             ? evaluation.properties.hue

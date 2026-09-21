@@ -1,5 +1,6 @@
 "use client"
 
+import { getMaskParameterDefinition } from "@/lib/editor/mask-animation"
 import { CellPaintControls } from "./cell-paint-controls"
 import { AnnotationsControls } from "./annotations-controls"
 import { GradientMapControls } from "./gradient-map-controls"
@@ -744,6 +745,16 @@ export function SelectedLayerPropertiesContent({
           onInteractionEnd={onInteractionEnd}
           onInteractionStart={onInteractionStart}
           setLayerMask={setLayerMask}
+          timelineControl={(key, value) =>
+            buildTimelineControl(
+              createParamTimelineBinding(
+                getMaskParameterDefinition(mask?.shape ?? "none", key) ??
+                  ({ defaultValue: 0, key, label: key, type: "number" } as const)
+              ),
+              value
+            )
+          }
+          updateLayerParam={updateLayerParam}
         />
 
         {layerType === "custom-shader" ? (

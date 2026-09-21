@@ -273,8 +273,41 @@ export function resolveEvaluatedLayers(
       }
     }
 
+    const params: Record<string, ShaderLabParameterValue> = {
+      ...layer.params,
+    }
+    let mask = layer.mask
+
+    for (const [key, value] of Object.entries(evaluated.params)) {
+      if (!key.startsWith("mask.")) {
+        params[key] = value
+        continue
+      }
+
+      if (!mask) {
+        continue
+      }
+
+      const field = key.slice(5)
+      if (
+        (field === "center" || field === "size") &&
+        Array.isArray(value) &&
+        value.length === 2 &&
+        typeof value[0] === "number" &&
+        typeof value[1] === "number"
+      ) {
+        mask = { ...mask, [field]: [value[0], value[1]] }
+      } else if (
+        (field === "rotation" || field === "feather") &&
+        typeof value === "number"
+      ) {
+        mask = { ...mask, [field]: value }
+      }
+    }
+
     return {
       ...layer,
+      ...(mask !== layer.mask ? { mask } : {}),
       hue:
         typeof evaluated.properties.hue === "number"
           ? evaluated.properties.hue
@@ -283,10 +316,7 @@ export function resolveEvaluatedLayers(
         typeof evaluated.properties.opacity === "number"
           ? evaluated.properties.opacity
           : layer.opacity,
-      params: {
-        ...layer.params,
-        ...evaluated.params,
-      },
+      params,
       saturation:
         typeof evaluated.properties.saturation === "number"
           ? evaluated.properties.saturation

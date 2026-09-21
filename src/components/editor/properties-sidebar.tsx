@@ -12,6 +12,12 @@ import { Typography } from "@/components/ui/typography"
 import { cn } from "@/lib/cn"
 import { getLayerDefinition } from "@/lib/editor/config/layer-registry"
 import {
+  applyMaskOverrides,
+  getMaskParameterDefinition,
+  isMaskParamKey,
+  maskFieldOf,
+} from "@/lib/editor/mask-animation"
+import {
   describeDepthProgress,
   estimateDepthMap,
 } from "@/lib/editor/depth/estimate-depth-client"
@@ -31,6 +37,7 @@ import {
 } from "@/store/timeline-store"
 import type {
   AnimatedPropertyBinding,
+  LayerMask,
   ParameterDefinition,
   ParameterValue,
 } from "@/types/editor"
@@ -467,7 +474,10 @@ export function PropertiesSidebar() {
       }
 
       const definition =
-        selectedVisibleParams.find((param) => param.key === key) ?? null
+        selectedVisibleParams.find((param) => param.key === key) ??
+        (isMaskParamKey(key)
+          ? getMaskParameterDefinition(selectedLayer.mask?.shape ?? "none", key)
+          : null)
       const binding = definition ? createParamTimelineBinding(definition) : null
 
       if (
@@ -496,6 +506,12 @@ export function PropertiesSidebar() {
         return
       }
 
+      const maskField = maskFieldOf(key)
+      if (maskField) {
+        setLayerMask(selectedLayer.id, { [maskField]: value } as Partial<LayerMask>)
+        return
+      }
+
       updateLayerParam(selectedLayer.id, key, value)
 
       if (selectedLayer.type === "photographic-cells" && key === "mode") {
@@ -519,6 +535,7 @@ export function PropertiesSidebar() {
       selectedLayer,
       selectedLayerTracks,
       selectedVisibleParams,
+      setLayerMask,
       timelineAutoKey,
       updateLayerParam,
       upsertKeyframe,
@@ -743,7 +760,10 @@ export function PropertiesSidebar() {
         compositeMode: selectedLayer.compositeMode,
         maskConfig: selectedLayer.maskConfig,
         setLayerMaskConfig,
-        mask: selectedLayer.mask ?? null,
+        mask: applyMaskOverrides(
+          selectedLayer.mask ?? null,
+          displayedLayerState?.params ?? selectedLayer.params
+        ),
         maskInGroup: !!selectedLayer.parentId,
         maskLayerKind: selectedLayer.kind,
         setLayerMask,

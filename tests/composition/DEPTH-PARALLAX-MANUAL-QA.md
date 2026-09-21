@@ -27,7 +27,7 @@ Scope: roadmap 6.4, stage 1. An Image layer accepts a second grayscale image as 
 1. With a depth map on the photo, add **ASCII** (or Halftone, Pattern, Gradient Map) above it and set **Input → Depth**. The effect now reads distance instead of brightness, drawn over the photo. No duplicate layer needed.
 2. Add any effect above the photo and set **Mask → Shape → Depth**. **Near** and **Far** pick the band of depth the effect reaches; **Feather** softens the band; **Invert** flips it.
 3. Both keep working when the photo and the effect sit inside a group, and when the photo is inside a group and the effect above it. Remove the depth map: Input falls back to luminance and the mask stops masking.
-4. **Contour sweep.** Set a thin band (Near 0.95, Far 0.9), open the timeline panel and press the keyframe rhombus next to Near. Move to the end, set Near 0.05 and Far 0, keyframe again. Play: the slice travels through the subject. Every mask control has the same button; the tracks read **Mask Near / Far**, **Mask Feather** and, for geometric shapes, **Mask Center**, **Mask Size**, **Mask Rotation**.
+4. **Contour sweep.** Set a thin band (Near 0.95, Far 0.9), open the timeline panel and press the keyframe rhombus next to Near. Move to the end, set Near 0.05 and Far 0, keyframe again. Play: the slice travels through the subject. Near and Far are separate tracks so they can move at different speeds. Every mask control has the same button; the tracks read **Mask Near**, **Mask Far**, **Mask Feather** and, for geometric shapes, **Mask Center**, **Mask Size**, **Mask Rotation**.
 
 ## Expected limits
 

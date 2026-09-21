@@ -208,18 +208,22 @@ try {
     .click()
   await page.waitForTimeout(600)
   await page
-    .getByRole("button", { name: "Create keyframe for Mask Near / Far", exact: true })
+    .getByRole("button", { name: "Create keyframe for Mask Near", exact: true })
     .filter({ visible: true })
     .first()
     .click()
   await page.waitForTimeout(400)
   const keyed = await save("mask-keyframe")
-  const rangeTrack = keyed.timeline.tracks.find(
-    (track) => track.layerId === mapLayer.id && track.binding.key === "mask.size"
+  const nearTrack = keyed.timeline.tracks.find(
+    (track) => track.layerId === mapLayer.id && track.binding.key === "mask.near"
   )
-  assert.ok(rangeTrack, "The keyframe button on Near creates a Mask Near / Far track")
-  assert.equal(rangeTrack.keyframes.length, 1)
-  assert.deepEqual(rangeTrack.keyframes[0].value, [0.4, 1])
+  assert.ok(nearTrack, "The keyframe button on Near creates a Mask Near track")
+  assert.equal(nearTrack.keyframes.length, 1)
+  assert.equal(nearTrack.keyframes[0].value, 0.4)
+  assert.ok(
+    !keyed.timeline.tracks.some((track) => track.binding.key === "mask.far"),
+    "Far stays independent of Near"
+  )
   await page.screenshot({ path: ".context/depth-parallax-ui-scene-depth.png" })
   await panel
     .locator('[data-layer-row="photo"]')

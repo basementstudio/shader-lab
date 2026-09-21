@@ -11,6 +11,8 @@ export const MASK_PARAM_PREFIX = "mask."
 export const MASK_ANIMATABLE_FIELDS = [
   "center",
   "size",
+  "near",
+  "far",
   "rotation",
   "feather",
 ] as const
@@ -54,14 +56,24 @@ export function getMaskParameterDefinitions(
   } else if (shape === "depth") {
     definitions = [
       {
-        defaultValue: [0.4, 1],
+        defaultValue: 0.4,
         group: "Mask",
-        key: maskParamKey("size"),
-        label: "Mask Near / Far",
+        key: maskParamKey("near"),
+        label: "Mask Near",
         max: 1,
         min: 0,
         step: 0.01,
-        type: "vec2",
+        type: "number",
+      },
+      {
+        defaultValue: 1,
+        group: "Mask",
+        key: maskParamKey("far"),
+        label: "Mask Far",
+        max: 1,
+        min: 0,
+        step: 0.01,
+        type: "number",
       },
       {
         defaultValue: 0.05,
@@ -168,6 +180,10 @@ export function applyMaskOverrides<T extends Partial<LayerMask> | null>(
     if ((field === "center" || field === "size") && isPair(value)) {
       next ??= { ...mask }
       next[field] = [value[0], value[1]]
+    } else if ((field === "near" || field === "far") && typeof value === "number") {
+      next ??= { ...mask }
+      const size = next.size ?? mask.size ?? [0, 1]
+      next.size = field === "near" ? [value, size[1]] : [size[0], value]
     } else if (
       (field === "rotation" || field === "feather") &&
       typeof value === "number"
@@ -178,6 +194,22 @@ export function applyMaskOverrides<T extends Partial<LayerMask> | null>(
   }
 
   return (next ?? mask) as T
+}
+
+export function maskUpdatesFor(
+  field: MaskAnimatableField,
+  value: ParameterValue,
+  current: Pick<LayerMask, "size">
+): Partial<LayerMask> {
+  if (field === "near" && typeof value === "number") {
+    return { size: [value, current.size[1]] }
+  }
+
+  if (field === "far" && typeof value === "number") {
+    return { size: [current.size[0], value] }
+  }
+
+  return { [field]: value } as Partial<LayerMask>
 }
 
 export function stripMaskParams(

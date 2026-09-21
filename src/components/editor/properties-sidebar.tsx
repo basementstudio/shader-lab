@@ -16,6 +16,7 @@ import {
   getMaskParameterDefinition,
   isMaskParamKey,
   maskFieldOf,
+  maskUpdatesFor,
 } from "@/lib/editor/mask-animation"
 import {
   describeDepthProgress,
@@ -35,11 +36,11 @@ import {
   createLayerPropertyBinding,
   useTimelineStore,
 } from "@/store/timeline-store"
-import type {
-  AnimatedPropertyBinding,
-  LayerMask,
-  ParameterDefinition,
-  ParameterValue,
+import {
+  type AnimatedPropertyBinding,
+  DEFAULT_LAYER_MASK,
+  type ParameterDefinition,
+  type ParameterValue,
 } from "@/types/editor"
 import {
   EmptyPropertiesContent,
@@ -508,7 +509,10 @@ export function PropertiesSidebar() {
 
       const maskField = maskFieldOf(key)
       if (maskField) {
-        setLayerMask(selectedLayer.id, { [maskField]: value } as Partial<LayerMask>)
+        setLayerMask(
+          selectedLayer.id,
+          maskUpdatesFor(maskField, value, selectedLayer.mask ?? DEFAULT_LAYER_MASK)
+        )
         return
       }
 

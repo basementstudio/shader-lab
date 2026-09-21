@@ -17,7 +17,11 @@ import {
   renderFieldLabel,
   type TimelineKeyframeControl,
 } from "./properties-sidebar-fields"
-import { maskParamKey } from "@/lib/editor/mask-animation"
+import {
+  type MaskAnimatableField,
+  maskParamKey,
+  maskUpdatesFor,
+} from "@/lib/editor/mask-animation"
 import type { ParameterValue } from "@/types/editor"
 
 export const layerMaskShapeOptions: { label: string; value: LayerMaskShape }[] =
@@ -72,17 +76,14 @@ export function LayerMaskSection({
 }) {
   const current = mask ?? DEFAULT_LAYER_MASK
   const shape = current.shape
-  const setField = (
-    field: "center" | "size" | "rotation" | "feather",
-    value: ParameterValue
-  ) => {
+  const setField = (field: MaskAnimatableField, value: ParameterValue) => {
     if (updateLayerParam) {
       updateLayerParam(layerId, maskParamKey(field), value)
     } else {
-      setLayerMask(layerId, { [field]: value } as Partial<LayerMask>)
+      setLayerMask(layerId, maskUpdatesFor(field, value, current))
     }
   }
-  const keyed = (label: string, field: "center" | "size" | "rotation" | "feather", value: ParameterValue) =>
+  const keyed = (label: string, field: MaskAnimatableField, value: ParameterValue) =>
     timelineControl
       ? renderFieldLabel(label, timelineControl(maskParamKey(field), value))
       : label
@@ -236,23 +237,23 @@ export function LayerMaskSection({
           {shape === "depth" && (
             <>
               <Slider
-                label={keyed("Near", "size", current.size)}
+                label={keyed("Near", "near", current.size[0])}
                 min={0}
                 max={1}
                 step={0.01}
                 value={current.size[0]}
                 onInteractionStart={onInteractionStart}
-                onValueChange={(v) => setField("size", [v, current.size[1]])}
+                onValueChange={(v) => setField("near", v)}
                 onValueCommitted={() => onInteractionEnd?.()}
               />
               <Slider
-                label={keyed("Far", "size", current.size)}
+                label={keyed("Far", "far", current.size[1])}
                 min={0}
                 max={1}
                 step={0.01}
                 value={current.size[1]}
                 onInteractionStart={onInteractionStart}
-                onValueChange={(v) => setField("size", [current.size[0], v])}
+                onValueChange={(v) => setField("far", v)}
                 onValueCommitted={() => onInteractionEnd?.()}
               />
               <Slider

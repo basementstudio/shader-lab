@@ -295,6 +295,18 @@ try {
   console.log(
     `PASS blob tracking: ${blob.samples} tracker edge points, seeded labels, atlas glyphs, editor/runtime frames, brackets, edge dots, label modes, migration`
   )
+  const annotations = await page.evaluate(() => window.checkAnnotations())
+  await Bun.write(
+    resolve(artifacts, "annotations.png"),
+    Buffer.from(annotations.png.split(",")[1], "base64")
+  )
+  await Bun.write(
+    resolve(artifacts, "annotations-preview.webp"),
+    Buffer.from(annotations.previewWebp.split(",")[1], "base64")
+  )
+  console.log(
+    `PASS annotations: ${annotations.samples} layout, placement, text, palette, editor/runtime render, hydration and export checks`
+  )
   assert.deepEqual(errors, [], "Browser or GPU errors occurred")
   console.log(
     update

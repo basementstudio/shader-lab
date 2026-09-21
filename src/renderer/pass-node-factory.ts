@@ -1,3 +1,4 @@
+import { AnnotationsPass } from "@/renderer/annotations-pass"
 import { AsciiPass } from "@/renderer/ascii-pass"
 import { BlobTrackingPass } from "@/renderer/blob-tracking-pass"
 import { BloomPass } from "@/renderer/bloom-pass"
@@ -32,6 +33,8 @@ export function createPassNode(
   type: EffectLayerType
 ): PassNode {
   switch (type) {
+    case "annotations":
+      return new AnnotationsPass(layerId)
     case "ascii":
       return new AsciiPass(layerId)
     case "blob-tracking":

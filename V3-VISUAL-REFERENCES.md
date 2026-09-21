@@ -72,6 +72,8 @@ The four screenshots shared on September 17 were opened and reviewed. They suppl
 | `19-feedback-anotaciones-tecnicas.png` | `.context/attachments/dAIoad/image.png` | Orange points, red boxes, crosshairs, labels and connections: prominent annotation/Blob Tracking direction. |
 | `20-feedback-formas-lovedance.png` | `.context/attachments/aByVza/image.png` | Lovedance: colored shape layers, photographic blends, masking and type. |
 | `21-puntos-conectados-retrato.png` | `.context/attachments/TB1qSd/image.png` | Portrait as a tone-colored point cloud with short neighbor links: dense dark graphs, sparse light dots on gray. Shared September 21, 2026 with the new effect ideas in roadmap 3.4. |
+| `22-usuario-runner-anotaciones.jpg` | `.context/attachments/aSHVq1/image.jpg` | User result, September 22, 2026: motion-blurred runner with the Annotations target, dashed connectors, magenta Pattern grid, labels. Shared as proof the direction reads. |
+| `23-usuario-radiografia-humanos.jpg` | `.context/attachments/yS7643/image.jpg` | User result: false-color X-ray hand (Gradient Map) with Blob Tracking edge dots and `HUMAN xxxx` labels plus Annotations rings. |
 
 The user approved simple general masks (linear/radial gradient, ellipse/circle, rectangle/square, brush), replacing the earlier postponement. No pen tool. Reuse the accepted Cells brush interaction while implementing general effect masking separately from content cutouts. Automatic selection remains later work.
 
@@ -98,3 +100,8 @@ References 01 (Lovedance red/blue) and 20 were reopened before building the Shap
 ## Technical annotations, part 1 (Blob Tracking)
 
 References 19, 03, 10 and 21 were reopened for the design discussion; 19 drove this slice. Its left image (orange dots along a silhouette, boxes with a long connector) maps to Edge Dots plus the existing connectors; its right image (red `PERSON 01XX` boxes on figures) maps to corner brackets or outlines with Prefix + ID labels. These remain decorative: no recognition is performed, and custom lists let the user fake any vocabulary. User confirmation is pending; see [the focused test](tests/composition/BLOB-TRACKING-MANUAL-QA.md). The standalone Annotations layer (rulers, target circles, metadata blocks from 03 and 10) is part 2.
+
+
+## Technical annotations, part 2 (Annotations layer)
+
+Reference 03 (frog) was reopened as the model: concentric solid and dashed rings around a reticle on one point of interest, angle and value readouts, tick rulers with a boxed counter, a `NOT FOUND` tag, corner metadata blocks, a gradient swatch, sparse dashed circles in empty space, all in one pale ink over false color. References 10 and 19 supplied the dense marginalia and the surveillance vocabulary. The layer reproduces these families procedurally with presets and editable text; the organic cracks and scanned noise of 03 are out of scope. The user shared two own compositions (22, 23) on September 22, 2026 saying the results come close to the original references; treated as visual acceptance of #170 and #172.

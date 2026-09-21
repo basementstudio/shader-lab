@@ -359,6 +359,16 @@ Explorar colocación guiada por bordes/regiones y colocación decorativa con sem
 
 En video, evitar parpadeo y saltos de identificadores/posiciones cuando sea viable; medir estabilidad y carga sostenida antes de prometer seguimiento. Conservar la apariencia de escenas anteriores, historial, persistencia y paridad de exportación. Los modos de máscara derivados de detección siguen como extensión posterior a las cuatro máscaras manuales de 1.4; distinguir visualización, efecto localizado y recorte de cobertura.
 
+**Decisiones del usuario (22 de septiembre de 2026), tras revisar las referencias 19, 03, 10 y 21:**
+
+- Dos entregas: **parte 1**, revisión y mejora de Blob Tracking (etiquetas tipo `PERSON 01XX` con IDs por semilla, esquinas/corner brackets como estilo de marco, nube de puntos sobre el borde de cada blob, estabilidad de IDs/cajas en video, medición con el benchmark de video). **Parte 2**, capa **Annotations** independiente y decorativa, solo cuando el usuario confirme la parte 1.
+- Annotations combina **colocación guiada por bordes** (campo de bordes/luminancia reducido de las capas inferiores) **y** aleatoria con semilla; ambas requeridas.
+- Etiquetas: un vocabulario preset (PERSON, TARGET, NOT FOUND, coordenadas, frecuencias) **y** un modo custom con lista de etiquetas del usuario. Sin detección real: la "detección" se simula con las etiquetas del usuario y la interfaz lo dice.
+- Color: monocromo por capa **y** por familia de elementos; reutilizar el editor de rampa/parada de Gradient Map para afinar.
+- Tipografía: fuentes de la capa Text (Geist Mono), tamaños pequeños ahora que el mínimo es 8.
+- Video: las anotaciones derivan con semilla en el tiempo, como Blob Tracking (cuyo rendimiento el usuario considera bueno).
+- Puntos conectados (ref. 21) como modo posterior dentro de Annotations o Particle Grid, tras medir la búsqueda de vecinos en video.
+
 ### 6.4 Profundidad y parallax — investigación aprobada
 
 Investigar primero **imagen + depth map importado** para movimiento sutil de cámara/parallax, desplazamiento y aplicación selectiva de efectos según distancia. Parallax es un resultado que puede usar profundidad; no requiere prometer otra clase de mapa al usuario. Definir alineación, inversión/escala de profundidad y tratamiento de bordes/huecos antes de elegir controles o incorporar el efecto.

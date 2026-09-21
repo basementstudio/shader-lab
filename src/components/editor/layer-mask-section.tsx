@@ -13,6 +13,12 @@ import {
   type LayerMaskShape,
 } from "@/types/editor"
 import { PaintBrushControls } from "./paint-brush-controls"
+import {
+  renderFieldLabel,
+  type TimelineKeyframeControl,
+} from "./properties-sidebar-fields"
+import { maskParamKey } from "@/lib/editor/mask-animation"
+import type { ParameterValue } from "@/types/editor"
 
 export const layerMaskShapeOptions: { label: string; value: LayerMaskShape }[] =
   [
@@ -46,6 +52,8 @@ export function LayerMaskSection({
   inGroup,
   mask,
   setLayerMask,
+  timelineControl,
+  updateLayerParam,
   onInteractionStart,
   onInteractionEnd,
 }: {
@@ -54,11 +62,30 @@ export function LayerMaskSection({
   inGroup: boolean
   mask: LayerMask | null | undefined
   setLayerMask: (id: string, updates: Partial<LayerMask>) => void
+  timelineControl?: (
+    key: string,
+    value: ParameterValue
+  ) => TimelineKeyframeControl | null
+  updateLayerParam?: (id: string, key: string, value: ParameterValue) => void
   onInteractionStart?: (() => void) | undefined
   onInteractionEnd?: (() => void) | undefined
 }) {
   const current = mask ?? DEFAULT_LAYER_MASK
   const shape = current.shape
+  const setField = (
+    field: "center" | "size" | "rotation" | "feather",
+    value: ParameterValue
+  ) => {
+    if (updateLayerParam) {
+      updateLayerParam(layerId, maskParamKey(field), value)
+    } else {
+      setLayerMask(layerId, { [field]: value } as Partial<LayerMask>)
+    }
+  }
+  const keyed = (label: string, field: "center" | "size" | "rotation" | "feather", value: ParameterValue) =>
+    timelineControl
+      ? renderFieldLabel(label, timelineControl(maskParamKey(field), value))
+      : label
   const isEffect = layerKind === "effect"
   const geometric = GEOMETRIC.includes(shape)
   const row = "grid items-center gap-[10px] [grid-template-columns:minmax(0,1fr)_132px]"
@@ -147,63 +174,57 @@ export function LayerMaskSection({
           {geometric && (
             <>
               <XYPad
-                label="Center"
+                label={keyed("Center", "center", current.center)}
                 min={-1}
                 max={1}
                 step={0.005}
                 value={[current.center[0], -current.center[1]]}
                 onInteractionStart={onInteractionStart}
                 onInteractionEnd={onInteractionEnd}
-                onValueChange={([x, y]) =>
-                  setLayerMask(layerId, { center: [x, -y] })
-                }
+                onValueChange={([x, y]) => setField("center", [x, -y])}
               />
               <Slider
-                label={shape === "linear" ? "Length" : "Width"}
+                label={keyed(shape === "linear" ? "Length" : "Width", "size", current.size)}
                 min={0.01}
                 max={3}
                 step={0.01}
                 value={current.size[0]}
                 onInteractionStart={onInteractionStart}
-                onValueChange={(v) =>
-                  setLayerMask(layerId, { size: [v, current.size[1]] })
-                }
+                onValueChange={(v) => setField("size", [v, current.size[1]])}
                 onValueCommitted={() => onInteractionEnd?.()}
               />
               {shape !== "linear" && (
                 <Slider
-                  label="Height"
+                  label={keyed("Height", "size", current.size)}
                   min={0.01}
                   max={3}
                   step={0.01}
                   value={current.size[1]}
                   onInteractionStart={onInteractionStart}
-                  onValueChange={(v) =>
-                    setLayerMask(layerId, { size: [current.size[0], v] })
-                  }
+                  onValueChange={(v) => setField("size", [current.size[0], v])}
                   onValueCommitted={() => onInteractionEnd?.()}
                 />
               )}
               <Slider
-                label="Rotation"
+                label={keyed("Rotation", "rotation", current.rotation)}
                 min={-180}
                 max={180}
                 step={1}
                 value={current.rotation}
                 valueSuffix="°"
                 onInteractionStart={onInteractionStart}
-                onValueChange={(v) => setLayerMask(layerId, { rotation: v })}
+                onValueChange={(v) => setField("rotation", v)}
                 onValueCommitted={() => onInteractionEnd?.()}
               />
               {(shape === "ellipse" || shape === "rectangle") && (
                 <Slider
-                  label="Feather"
+                  label={keyed("Feather", "feather", current.feather)}
                   min={0}
                   max={0.25}
                   step={0.005}
                   value={current.feather}
                   onInteractionStart={onInteractionStart}
-                  onValueChange={(v) => setLayerMask(layerId, { feather: v })}
+                  onValueChange={(v) => setField("feather", v)}
                   onValueCommitted={() => onInteractionEnd?.()}
                 />
               )}
@@ -215,37 +236,33 @@ export function LayerMaskSection({
           {shape === "depth" && (
             <>
               <Slider
-                label="Near"
+                label={keyed("Near", "size", current.size)}
                 min={0}
                 max={1}
                 step={0.01}
                 value={current.size[0]}
                 onInteractionStart={onInteractionStart}
-                onValueChange={(v) =>
-                  setLayerMask(layerId, { size: [v, current.size[1]] })
-                }
+                onValueChange={(v) => setField("size", [v, current.size[1]])}
                 onValueCommitted={() => onInteractionEnd?.()}
               />
               <Slider
-                label="Far"
+                label={keyed("Far", "size", current.size)}
                 min={0}
                 max={1}
                 step={0.01}
                 value={current.size[1]}
                 onInteractionStart={onInteractionStart}
-                onValueChange={(v) =>
-                  setLayerMask(layerId, { size: [current.size[0], v] })
-                }
+                onValueChange={(v) => setField("size", [current.size[0], v])}
                 onValueCommitted={() => onInteractionEnd?.()}
               />
               <Slider
-                label="Feather"
+                label={keyed("Feather", "feather", current.feather)}
                 min={0}
                 max={0.5}
                 step={0.005}
                 value={current.feather}
                 onInteractionStart={onInteractionStart}
-                onValueChange={(v) => setLayerMask(layerId, { feather: v })}
+                onValueChange={(v) => setField("feather", v)}
                 onValueCommitted={() => onInteractionEnd?.()}
               />
               <Typography tone="muted" variant="caption">

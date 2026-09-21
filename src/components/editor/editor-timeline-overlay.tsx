@@ -1,6 +1,10 @@
 "use client"
 
 import {
+  getMaskParameterDefinitions,
+  isMaskParamKey,
+} from "@/lib/editor/mask-animation"
+import {
   CaretDownIcon,
   CaretUpIcon,
   CircleIcon,
@@ -188,6 +192,14 @@ function getVisibleParams(layer: EditorLayer): ParameterDefinition[] {
   )
 }
 
+function propertyColor(definition: ParameterDefinition): string {
+  if (isMaskParamKey(definition.key)) {
+    return "#7FD1AE"
+  }
+
+  return definition.type === "color" ? "#FF8CAB" : "#B697FF"
+}
+
 function buildTimelineProperties(
   layer: EditorLayer | null,
   tracks: TimelineTrack[],
@@ -218,7 +230,12 @@ function buildTimelineProperties(
     }
   )
 
-  for (const definition of getVisibleParams(layer)) {
+  const maskDefinitions =
+    layer.mask?.enabled && layer.mask.shape !== "none"
+      ? getMaskParameterDefinitions(layer.mask.shape)
+      : []
+
+  for (const definition of [...getVisibleParams(layer), ...maskDefinitions]) {
     const binding = createParamBinding(layer, definition.key)
 
     if (!binding) {
@@ -229,7 +246,7 @@ function buildTimelineProperties(
     properties.push({
       audioLink: findAudioLink(audioLinks, layer.id, binding),
       binding,
-      color: definition.type === "color" ? "#FF8CAB" : "#B697FF",
+      color: propertyColor(definition),
       id,
       kind: "param",
       label: definition.label,

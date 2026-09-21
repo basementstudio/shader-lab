@@ -201,6 +201,25 @@ try {
   assert.equal(mapLayer.params.input, "depth", "Input select stores depth")
   assert.equal(mapLayer.mask.shape, "depth", "Mask shape select stores depth")
   assert.deepEqual(mapLayer.mask.size, [0.4, 1], "Depth mask starts with a near/far range")
+  await page
+    .getByRole("button", { name: "Expand timeline panel", exact: true })
+    .filter({ visible: true })
+    .first()
+    .click()
+  await page.waitForTimeout(600)
+  await page
+    .getByRole("button", { name: "Create keyframe for Mask Near / Far", exact: true })
+    .filter({ visible: true })
+    .first()
+    .click()
+  await page.waitForTimeout(400)
+  const keyed = await save("mask-keyframe")
+  const rangeTrack = keyed.timeline.tracks.find(
+    (track) => track.layerId === mapLayer.id && track.binding.key === "mask.size"
+  )
+  assert.ok(rangeTrack, "The keyframe button on Near creates a Mask Near / Far track")
+  assert.equal(rangeTrack.keyframes.length, 1)
+  assert.deepEqual(rangeTrack.keyframes[0].value, [0.4, 1])
   await page.screenshot({ path: ".context/depth-parallax-ui-scene-depth.png" })
   await panel
     .locator('[data-layer-row="photo"]')
@@ -226,7 +245,7 @@ try {
     .waitFor()
   assert.deepEqual(errors, [])
   console.log(
-    "PASS depth map attach/replace/remove, gated Depth controls, motion select, Input → Depth, Depth mask shape, undo, actual save"
+    "PASS depth map attach/replace/remove, gated Depth controls, motion select, Input → Depth, Depth mask shape, mask keyframe, undo, actual save"
   )
 } finally {
   await browser.close()

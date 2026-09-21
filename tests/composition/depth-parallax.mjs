@@ -544,16 +544,16 @@ async function sceneDepthChecks(colorAsset, depthAsset) {
   const size = { width: N, height: N }
   const canvas = document.createElement("canvas")
   const editor = await createWebGPURenderer(canvas, { strictPassFailures: true })
-  const renderLayers = async (layers) => {
+  const renderLayers = async (layers, tracks = [], time = 0) => {
     const frame = buildRendererFrame({
       assets: [colorAsset, depthAsset],
       layers,
       sceneConfig: DEFAULT_SCENE_CONFIG,
-      timeline,
+      timeline: { ...timeline, currentTime: time, tracks },
+      clockTime: time,
       outputSize: size,
       viewportSize: size,
       delta: 0,
-      clockTime: 0,
       pixelRatio: 1,
     })
     editor.render(frame)
@@ -610,18 +610,58 @@ async function sceneDepthChecks(colorAsset, depthAsset) {
     const aboveGroup = await renderLayers([mapLayer({ input: "depth" }), group, { ...image, parentId: "group" }])
     expectNear(aboveGroup(CIRCLE.x, CIRCLE.y)[0], circleDepth, 0.03, `Scene depth leaves a group for effects above it (${aboveGroup(CIRCLE.x, CIRCLE.y)})`)
     samples += 2
+
+    const maskedLayer = { ...mapLayer({ input: "luminance" }), mask: { shape: "depth", scope: "effect", enabled: true, invert: false, center: [0, 0], size: [0.5, 1], rotation: 0, feather: 0.02, paint: "" } }
+    const sweep = [
+      {
+        binding: { key: "mask.size", kind: "param", label: "Mask Near / Far", valueType: "vec2" },
+        enabled: true,
+        id: "sweep",
+        keyframes: [
+          { id: "k0", time: 0, value: [0.5, 1] },
+          { id: "k1", time: 1, value: [0, 0.2] },
+        ],
+        layerId: "map",
+      },
+    ]
+    const sweepStart = await renderLayers([maskedLayer, image], sweep, 0)
+    const sweepEnd = await renderLayers([maskedLayer, image], sweep, 1)
+    assert(Math.abs(sweepStart(CIRCLE.x, CIRCLE.y)[0] - sweepStart(CIRCLE.x, CIRCLE.y)[2]) < 0.05, `Keyframed mask range at t=0 maps the near circle (${sweepStart(CIRCLE.x, CIRCLE.y)})`)
+    assert(sweepEnd(CIRCLE.x, CIRCLE.y)[0] > 0.9 && sweepEnd(CIRCLE.x, CIRCLE.y)[1] < 0.2, `Keyframed mask range at t=1 leaves the circle red (${sweepEnd(CIRCLE.x, CIRCLE.y)})`)
+    assert(sweepEnd(0.5, 0.1)[2] - sweepEnd(0.5, 0.1)[0] < 0.15 && sweepStart(0.5, 0.1)[2] - sweepStart(0.5, 0.1)[0] > 0.15, `Keyframed mask range at t=1 reaches the far background (${sweepEnd(0.5, 0.1)} vs ${sweepStart(0.5, 0.1)})`)
+    const sweepEarly = await renderLayers([maskedLayer, image], sweep, 0.1)
+    assert(Math.abs(sweepEarly(CIRCLE.x, CIRCLE.y)[0] - sweepEarly(CIRCLE.x, CIRCLE.y)[2]) < 0.05, `Interpolated range at t=0.1 still covers the circle (${sweepEarly(CIRCLE.x, CIRCLE.y)})`)
+    const sweepLate = await renderLayers([maskedLayer, image], sweep, 0.3)
+    assert(sweepLate(CIRCLE.x, CIRCLE.y)[0] > 0.9 && sweepLate(CIRCLE.x, CIRCLE.y)[1] < 0.2, `Interpolated range at t=0.3 has passed the circle (${sweepLate(CIRCLE.x, CIRCLE.y)})`)
+    samples += 4
   } finally {
     editor.dispose()
     await editor.destroyDevice()
   }
 
-  useLayerStore.getState().replaceState([mapLayer({ input: "depth" }), image], "map", null)
+  const runtimeMasked = { ...mapLayer({ input: "depth" }), mask: { shape: "depth", scope: "effect", enabled: true, invert: false, center: [0, 0], size: [0.5, 1], rotation: 0, feather: 0.02, paint: "" } }
+  useLayerStore.getState().replaceState([runtimeMasked, image], "map", null)
   useAssetStore.getState().replaceAssets([colorAsset, depthAsset])
   const config = buildShaderExportConfig({
     assets: useAssetStore.getState().assets,
     composition: size,
     layers: useLayerStore.getState().layers,
-    timeline: { duration: 1, loop: true, tracks: [] },
+    timeline: {
+      duration: 1,
+      loop: true,
+      tracks: [
+        {
+          binding: { key: "mask.size", kind: "param", label: "Mask Near / Far", valueType: "vec2" },
+          enabled: true,
+          id: "sweep",
+          keyframes: [
+            { id: "k0", time: 0, value: [0.5, 1] },
+            { id: "k1", time: 1, value: [0, 0.2] },
+          ],
+          layerId: "map",
+        },
+      ],
+    },
   })
   const runtimeConfig = {
     ...config,
@@ -647,10 +687,8 @@ async function sceneDepthChecks(colorAsset, depthAsset) {
   scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material))
   try {
     await headless.initialize()
-    const frame = runtimeFrame(runtimeConfig, 0, 0, 1, size)
-    const deadline = performance.now() + 30_000
-    let circle
-    do {
+    const readAt = async (time) => {
+      const frame = runtimeFrame(runtimeConfig, time, 0, 1, size)
       headless.render(frame)
       while (compiling.length) await Promise.all(compiling.splice(0))
       material.colorNode = texture(headless.render(frame), vec2(uv().x, float(1).sub(uv().y)))
@@ -658,13 +696,23 @@ async function sceneDepthChecks(colorAsset, depthAsset) {
       renderer.setRenderTarget(target)
       renderer.render(scene, new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1))
       const pixels = Array.from(await renderer.readRenderTargetPixelsAsync(target, 0, 0, N, N))
-      const i = (Math.round(CIRCLE.y * N) * N + Math.round(CIRCLE.x * N)) * 4
-      circle = pixels.slice(i, i + 4)
+      return (x, y) => {
+        const i = (Math.round(y * N) * N + Math.round(x * N)) * 4
+        return pixels.slice(i, i + 4)
+      }
+    }
+    const deadline = performance.now() + 30_000
+    let circle
+    do {
+      circle = (await readAt(0))(CIRCLE.x, CIRCLE.y)
       if (circle[0] > 0.85) break
       await new Promise((resolve) => setTimeout(resolve, 50))
     } while (performance.now() < deadline)
-    assert(circle[0] > 0.85 && Math.abs(circle[0] - circle[2]) < 0.05, `Runtime pipeline feeds scene depth to Gradient Map (${circle})`)
-    samples++
+    assert(circle[0] > 0.85 && Math.abs(circle[0] - circle[2]) < 0.05, `Runtime pipeline feeds scene depth to Gradient Map inside the mask range (${circle})`)
+    const runtimeEnd = await readAt(1)
+    const endCircle = runtimeEnd(CIRCLE.x, CIRCLE.y)
+    assert(endCircle[0] > 0.9 && endCircle[1] < 0.2, `Runtime keyframed mask range leaves the circle red at t=1 (${endCircle})`)
+    samples += 2
   } finally {
     headless.dispose()
     target.dispose()

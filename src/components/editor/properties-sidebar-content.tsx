@@ -762,6 +762,8 @@ export function SelectedLayerPropertiesContent({
         {layerType === "gradient-map" && (
           <GradientMapControls
             layerId={layerId}
+            onInteractionEnd={onInteractionEnd}
+            onInteractionStart={onInteractionStart}
             updateLayerParam={updateLayerParam}
             values={values}
           />

@@ -3,6 +3,7 @@ import { GradientRamp } from "@/components/ui/gradient-ramp"
 import { Select } from "@/components/ui/select"
 import { Typography } from "@/components/ui/typography"
 import {
+  canonicalGradientMapStops,
   GRADIENT_MAP_PRESETS,
   parseGradientMapStops,
   serializeGradientMapStops,
@@ -21,16 +22,20 @@ export function GradientMapControls({
   layerId,
   values,
   updateLayerParam,
+  onInteractionStart,
+  onInteractionEnd,
 }: {
   layerId: string
   values: LayerParameterValues
   updateLayerParam: (id: string, key: string, value: ParameterValue) => void
+  onInteractionStart?: (() => void) | undefined
+  onInteractionEnd?: (() => void) | undefined
 }) {
   const stops = parseGradientMapStops(values.stops)
-  const serialized = serializeGradientMapStops(stops)
+  const canonical = canonicalGradientMapStops(stops)
   const preset =
     GRADIENT_MAP_PRESETS.find(
-      (entry) => serializeGradientMapStops(entry.stops) === serialized
+      (entry) => canonicalGradientMapStops(entry.stops) === canonical
     )?.id ?? "custom"
   const write = (next: typeof stops) =>
     updateLayerParam(layerId, "stops", serializeGradientMapStops(next))
@@ -58,7 +63,13 @@ export function GradientMapControls({
           }}
         />
       </div>
-      <GradientRamp label="Dark to light" onChange={write} stops={stops} />
+      <GradientRamp
+        label="Dark to light"
+        onChange={write}
+        onInteractionEnd={onInteractionEnd}
+        onInteractionStart={onInteractionStart}
+        stops={stops}
+      />
       <Typography tone="muted" variant="caption">
         Dark tones take the left colors, light tones the right. Click the bar
         to add a stop, double-click a stop to remove it.

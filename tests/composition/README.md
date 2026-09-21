@@ -73,13 +73,19 @@ The source/effect distinction prevents repeated filtering from increasing covera
 
 ## Next implementation slice
 
-Neutral blank projects are accepted. Reusable masks are implemented pending the [focused manual check](LAYER-MASKS-MANUAL-QA.md); the local Gradient Map effect follows. Retain the broader group, alpha, video/export and hardware performance checks for final V3 validation. The roadmap is authoritative for priorities and user acceptance.
+Neutral blank projects are accepted. Reusable masks are accepted. The local Gradient Map effect is implemented pending its [focused manual check](GRADIENT-MAP-MANUAL-QA.md); shapes and text composition tools follow. Retain the broader group, alpha, video/export and hardware performance checks for final V3 validation. The roadmap is authoritative for priorities and user acceptance.
 
 ## Layer masks
 
 Every layer and group accepts an optional `mask` (linear/radial gradient, ellipse, rectangle, brush) in centered shorter-edge composition units, the same space as Cells paint. It is separate from the legacy `compositeMode: "mask"`, whose frozen samples are unchanged. Effects choose between limiting the effect and cutting coverage; sources and groups always cut their own contribution through premultiplied interpolation, so transparent inputs never produce dark halos.
 
 `layer-masks.mjs` renders the editor and runtime `PassNode` with a solid effect over opaque and transparent inputs for every shape, inversion, feather, rotation, scope and disabled state, and checks that a painted brush string lands on the same row as Cells paint. Pipeline cases cover group cutouts with an untouched external layer, effect limiting and cutting inside isolated groups, uniform-only moves versus structural rebuilds. It also checks hydration, history, `setLayerMask` merging, duplication, mask draft previews, save/reopen, shader export, runtime group nodes and editor/runtime pixel parity of a hydrated project. The manual check is [LAYER-MASKS-MANUAL-QA.md](LAYER-MASKS-MANUAL-QA.md).
+
+## Gradient Map layer
+
+`gradient-map` is a coverage-preserving effect that samples a 256-entry linear LUT by Rec.709 luminance, with Amount, Invert and JSON `stops` parsed defensively (invalid input falls back to the Thermal preset). The LUT sampling code is shared with the global Color Map, whose byte LUT and behavior are unchanged.
+
+`gradient-map.mjs` checks stop parsing/serialization, the editor and runtime pass over a luminance ramp for presets, custom stops, Amount, Invert and alpha, a grouped/masked project where only the masked photo region is recolored and external layers stay untouched, hydration, history, duplication, save/reopen, shader export and runtime pixel parity. It also renders the catalog preview. Manual check: [GRADIENT-MAP-MANUAL-QA.md](GRADIENT-MAP-MANUAL-QA.md).
 
 ## Neutral projects and global colors
 

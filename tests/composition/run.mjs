@@ -259,6 +259,18 @@ try {
   console.log(
     `PASS layer masks: ${masks.samples} editor/runtime GPU cases, group cutouts, brush parity with Cells paint, hydration, history, duplication, export`
   )
+  const gradientMap = await page.evaluate(() => window.checkGradientMap())
+  await Bun.write(
+    resolve(artifacts, "gradient-map.png"),
+    Buffer.from(gradientMap.png.split(",")[1], "base64")
+  )
+  await Bun.write(
+    resolve(artifacts, "gradient-map-preview.webp"),
+    Buffer.from(gradientMap.previewWebp.split(",")[1], "base64")
+  )
+  console.log(
+    `PASS gradient map: ${gradientMap.samples} editor/runtime GPU cases, presets, amount, invert, masked group scope, hydration, export, catalog preview`
+  )
   assert.deepEqual(errors, [], "Browser or GPU errors occurred")
   console.log(
     update

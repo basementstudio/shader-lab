@@ -47,6 +47,7 @@ export const EFFECT_LAYER_TYPES = [
   "plotter",
   "posterize",
   "threshold",
+  "gradient-map",
   "crt",
   "dithering",
   "halftone",

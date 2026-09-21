@@ -204,6 +204,13 @@ export const LAYER_CATALOG: Record<LayerType, LayerCatalogEntry> = {
     label: "Threshold",
     previewSrc: "/examples/threshold.webp",
   },
+  "gradient-map": {
+    category: "core",
+    description:
+      "Recolors the image by tone with an editable ramp. Unlike the Gradient layer, it maps existing colors instead of painting a field. Scope it with groups and masks.",
+    label: "Gradient Map",
+    previewSrc: "/examples/gradient-map.webp",
+  },
   video: {
     label: "Video",
   },

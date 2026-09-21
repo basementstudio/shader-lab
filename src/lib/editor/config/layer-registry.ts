@@ -3,6 +3,10 @@ import {
   CUSTOM_SHADER_INTERNAL_VISIBILITY,
   CUSTOM_SHADER_STARTER,
 } from "@/lib/editor/custom-shader/shared"
+import {
+  DEFAULT_GRADIENT_MAP_STOPS,
+  serializeGradientMapStops,
+} from "@/renderer/color-map-lut"
 import { GLYPH_FONT_OPTIONS, TEXT_FONT_OPTIONS } from "@/lib/editor/text-fonts"
 import type {
   EffectLayerType,
@@ -2775,6 +2779,34 @@ const thresholdParams = [
   },
 ] as const satisfies ParameterDefinitions
 
+const gradientMapParams = [
+  {
+    key: "stops",
+    label: "Ramp",
+    type: "text",
+    defaultValue: serializeGradientMapStops(DEFAULT_GRADIENT_MAP_STOPS),
+    animatable: false,
+    visibleWhen: { key: "__internal", equals: "gradient-map" },
+  },
+  {
+    defaultValue: 1,
+    key: "amount",
+    label: "Amount",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description: "Blend between the original colors and the mapped ramp.",
+  },
+  {
+    defaultValue: false,
+    key: "invert",
+    label: "Invert",
+    type: "boolean",
+    description: "Map dark tones to the end of the ramp.",
+  },
+] as const satisfies ParameterDefinitions
+
 const smearParams = [
   {
     defaultValue: 0,
@@ -4200,6 +4232,12 @@ const layerDefinitions: Record<LayerType, LayerDefinition> = {
     kind: "effect",
     params: thresholdParams,
     type: "threshold",
+  },
+  "gradient-map": {
+    defaultName: "Gradient Map",
+    kind: "effect",
+    params: gradientMapParams,
+    type: "gradient-map",
   },
   smear: {
     defaultName: "Progressive Blur",

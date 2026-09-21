@@ -36,6 +36,7 @@ const SUPPORTED_SHADER_EXPORT_LAYER_TYPES = new Set<LayerType>([
   "pattern",
   "posterize",
   "threshold",
+  "gradient-map",
   "crt",
   "chromatic-aberration",
   "dithering",

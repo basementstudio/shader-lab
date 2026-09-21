@@ -9,6 +9,7 @@ import { DisplacementMapPass } from "@/renderer/displacement-map-pass"
 import { DitheringPass } from "@/renderer/dithering-pass"
 import { EdgeDetectPass } from "@/renderer/edge-detect-pass"
 import { FlutedGlassPass } from "@/renderer/fluted-glass-pass"
+import { GradientMapPass } from "@/renderer/gradient-map-pass"
 import { HalftonePass } from "@/renderer/halftone-pass"
 import { InkPass } from "@/renderer/ink-pass"
 import { ParticleGridPass } from "@/renderer/particle-grid-pass"
@@ -69,6 +70,8 @@ export function createPassNode(
       return new PosterizePass(layerId)
     case "threshold":
       return new ThresholdPass(layerId)
+    case "gradient-map":
+      return new GradientMapPass(layerId)
     case "pixel-sorting":
       return new PixelSortingPass(layerId)
     case "photographic-cells":

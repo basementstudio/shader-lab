@@ -34,6 +34,7 @@ const GEOMETRIC: LayerMaskShape[] = ["linear", "radial", "ellipse", "rectangle"]
 export function LayerMaskSection({
   layerId,
   layerKind,
+  inGroup,
   mask,
   setLayerMask,
   onInteractionStart,
@@ -41,6 +42,7 @@ export function LayerMaskSection({
 }: {
   layerId: string
   layerKind: LayerKind | string
+  inGroup: boolean
   mask: LayerMask | null | undefined
   setLayerMask: (id: string, updates: Partial<LayerMask>) => void
   onInteractionStart?: (() => void) | undefined
@@ -84,22 +86,32 @@ export function LayerMaskSection({
       {shape !== "none" && (
         <>
           {isEffect ? (
-            <div className={row}>
-              <Typography className="min-w-0" tone="secondary" variant="label">
-                Applies to
+            <>
+              <div className={row}>
+                <Typography className="min-w-0" tone="secondary" variant="label">
+                  Applies to
+                </Typography>
+                <Select
+                  triggerAriaLabel="Mask scope"
+                  className="w-[132px]"
+                  triggerClassName="w-[132px]"
+                  disabled={!inGroup}
+                  value={inGroup ? current.scope : "effect"}
+                  options={scopeOptions}
+                  onValueChange={(value) => {
+                    if (value === "effect" || value === "content")
+                      setLayerMask(layerId, { scope: value })
+                  }}
+                />
+              </div>
+              <Typography tone="muted" variant="caption">
+                {inGroup
+                  ? current.scope === "content"
+                    ? "Outside the mask the group becomes transparent, revealing layers outside it."
+                    : "Outside the mask the image below stays untouched."
+                  : "Put this effect in a group to cut content: transparency reveals the layers outside the group."}
               </Typography>
-              <Select
-                triggerAriaLabel="Mask scope"
-                className="w-[132px]"
-                triggerClassName="w-[132px]"
-                value={current.scope}
-                options={scopeOptions}
-                onValueChange={(value) => {
-                  if (value === "effect" || value === "content")
-                    setLayerMask(layerId, { scope: value })
-                }}
-              />
-            </div>
+            </>
           ) : (
             <Typography tone="muted" variant="caption">
               Cuts this layer's content. Lower layers show through outside the

@@ -1,6 +1,6 @@
 # Layer masks — focused manual test
 
-Scope: roadmap 1.4. Four tools only: linear/radial gradient, ellipse, rectangle and brush. No pen tool. Masks are per layer (groups included) and separate from the older **Mode → Mask** option, which is unchanged.
+Scope: roadmap 1.4. **Cut content** is available only for effects inside a group, because transparency can only reveal layers outside that group; at the root the control is disabled with an explanation. Four tools only: linear/radial gradient, ellipse, rectangle and brush. No pen tool. Masks are per layer (groups included) and separate from the older **Mode → Mask** option, which is unchanged.
 
 ## Limit an effect
 

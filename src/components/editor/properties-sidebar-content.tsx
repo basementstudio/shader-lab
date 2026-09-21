@@ -252,6 +252,7 @@ export function SelectedLayerPropertiesContent({
   blendMode,
   compositeMode,
   mask,
+  maskInGroup,
   maskLayerKind,
   setLayerMask,
   maskConfig,
@@ -287,6 +288,7 @@ export function SelectedLayerPropertiesContent({
   blendMode: BlendMode
   compositeMode: LayerCompositeMode
   mask: LayerMask | null | undefined
+  maskInGroup: boolean
   maskLayerKind: LayerKind
   setLayerMask: (id: string, updates: Partial<LayerMask>) => void
   maskConfig: MaskConfig
@@ -711,6 +713,7 @@ export function SelectedLayerPropertiesContent({
 
         <LayerMaskSection
           layerId={layerId}
+          inGroup={maskInGroup}
           layerKind={maskLayerKind}
           mask={mask}
           onInteractionEnd={onInteractionEnd}

@@ -603,6 +603,7 @@ export function PropertiesSidebar() {
         maskConfig: selectedLayer.maskConfig,
         setLayerMaskConfig,
         mask: selectedLayer.mask ?? null,
+        maskInGroup: !!selectedLayer.parentId,
         maskLayerKind: selectedLayer.kind,
         setLayerMask,
         definitionName: selectedDefinition?.defaultName ?? selectedLayer.type,

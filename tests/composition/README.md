@@ -73,7 +73,7 @@ The source/effect distinction prevents repeated filtering from increasing covera
 
 ## Next implementation slice
 
-Neutral blank projects are accepted. Reusable masks are accepted. Gradient Map, the stable artboard and shape layers are implemented pending their focused manual checks; direct text editing follows. Retain the broader group, alpha, video/export and hardware performance checks for final V3 validation. The roadmap is authoritative for priorities and user acceptance.
+Neutral blank projects are accepted. Reusable masks are accepted. Gradient Map, the stable artboard and shape layers are accepted. Direct text editing is implemented pending its focused manual check; technical annotations follow. Retain the broader group, alpha, video/export and hardware performance checks for final V3 validation. The roadmap is authoritative for priorities and user acceptance.
 
 ## Layer masks
 
@@ -94,6 +94,10 @@ Every layer and group accepts an optional `mask` (linear/radial gradient, ellips
 ## Shape layers
 
 `shape` is a source layer that evaluates seven signed-distance silhouettes in one shader (ellipse, rectangle with corner radius, triangle, polygon, star, ring, blades) in centered shorter-edge composition units, with color, outline and softness (edge antialiasing at 0). `shape-layers.mjs` renders the editor and runtime pass over a backdrop for every shape, rotation, offset, outline, softness, color and multiply blending, then checks a masked multiplied Blades project for hydration, history, duplication, save/reopen, export and runtime parity. Manual check: [SHAPE-LAYERS-MANUAL-QA.md](SHAPE-LAYERS-MANUAL-QA.md).
+
+## Direct text editing
+
+Text layers accept multiline content, `align` (auto follows the anchor), `lineHeight`, `rotation` and font sizes down to 8. The layout is shared by editor and runtime (`renderer/text-layout.ts`); single-line text with default values produces the same glyph positions as before, which the legacy PNG baselines guard, and hydration appends the new defaults to older files (mirrored in the existing-project expectation). `text-editing.mjs` checks the layout on both passes (line count, gaps, line height, top/bottom anchors, explicit alignment, 90° rotation about the anchor, 12px rendering, editor/runtime parity), the offset/pivot geometry helpers, editability rules, hydration, export and reopened pixels. Manual check: [TEXT-EDITING-MANUAL-QA.md](TEXT-EDITING-MANUAL-QA.md).
 
 ## Neutral projects and global colors
 

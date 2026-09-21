@@ -126,10 +126,14 @@ La inspección inicial confirmó que `layers.ts` creaba texto en modo máscara y
 
 La grilla de la fase 8 se conecta con esta edición y con las formas de 2.7: sirve de referencia para márgenes, columnas y alineaciones. El snapping debe poder desactivarse y conservar colocación libre. La edición directa y la alineación básica deben seguir siendo útiles sin activar una grilla; su carácter opcional no cambia por esta conexión.
 
+
+**Implementado, pendiente de aceptación del usuario (22 de septiembre de 2026):** doble clic en el lienzo edita el texto en su lugar (fuente, tamaño y posición reales); Enter agrega línea, Cmd+Enter o clic afuera confirma, Esc restaura; toda la edición es un paso de historial. Manijas compartidas con máscaras y formas: centro mueve (actualiza Offset), eje X rota, eje Y cambia Font Size. Botón **Edit text** en el panel; el campo Text es multilínea. La posición depende del artboard estable (2.8), así que preview y export coinciden.
 ### 2.3 Ampliar controles tipográficos útiles
 
 Conservar fuente, tamaño, peso, espaciado, color, anclaje y desplazamiento. Incorporar etiquetas más pequeñas y texto multilínea; revisar el límite de 32 caracteres y el mínimo de 48px, que impiden anotaciones finas en los estudios actuales. Definir límites útiles al implementar, sin prometer un motor tipográfico completo. Mantener claro el control de fondo transparente/sólido y comprobar composición, edición y exportación con bloques de texto.
 
+
+**Implementado, pendiente de aceptación del usuario (22 de septiembre de 2026):** Font Size mínimo 8 (antes 48), Align (Follow anchor / Left / Center / Right), Line Height y Rotation alrededor del punto de anclaje; texto multilínea con saltos manuales. El trazado vive en `renderer/text-layout.ts`, compartido por editor y runtime; con una sola línea y valores por defecto la salida es idéntica a la anterior, y los fixtures antiguos no cambian. Pendiente: ajuste automático de línea, recorte de texto muy grande rotado en el borde del canvas. [Prueba manual](tests/composition/TEXT-EDITING-MANUAL-QA.md).
 ### 2.4 Ajustar halftone como primer efecto
 
 Ajustar parámetros sobre el material de prueba hasta lograr resultados útiles con luces y detalles diversos. Introducir pequeñas mejoras algorítmicas solo si las pruebas lo justifican; no plantear una reescritura general.

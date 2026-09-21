@@ -13,6 +13,8 @@ import {
 import { CellPaintOverlay } from "./cell-paint-overlay"
 import { MaskHandlesOverlay } from "./mask-handles-overlay"
 import { ShapeHandlesOverlay } from "./shape-handles-overlay"
+import { TextEditOverlay } from "./text-edit-overlay"
+import { TextHandlesOverlay } from "./text-handles-overlay"
 import { MadeByBasement } from "@/components/editor/made-by-basement"
 import { useMobileCanvasFit } from "@/components/editor/use-mobile-canvas-fit"
 import { useEditorRenderer } from "@/hooks/use-editor-renderer"
@@ -33,6 +35,7 @@ import { useAssetStore } from "@/store/asset-store"
 import { useEditorStore } from "@/store/editor-store"
 import { useLayerStore } from "@/store/layer-store"
 import { useTimelineStore } from "@/store/timeline-store"
+import { findTextLayerToEdit, useTextEditStore } from "@/store/text-edit-store"
 
 export function EditorCanvasViewport() {
   const { canvasRef, fallbackMessage, isReady, viewportRef } =
@@ -312,6 +315,18 @@ export function EditorCanvasViewport() {
         style={{
           cursor: viewportCursor,
         }}
+        onDoubleClick={(event) => {
+          if (isSpacePressed || !isReady) return
+          const state = useLayerStore.getState()
+          const id = findTextLayerToEdit(state.layers, state.selectedLayerId)
+          if (!id) return
+          event.preventDefault()
+          if (state.selectedLayerId !== id) state.selectLayer(id)
+          const layer = state.layers.find((l) => l.id === id)
+          useTextEditStore
+            .getState()
+            .edit(id, typeof layer?.params.text === "string" ? layer.params.text : "")
+        }}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
@@ -361,6 +376,13 @@ export function EditorCanvasViewport() {
               />
               <ShapeHandlesOverlay
                 panning={isSpacePressed}
+                disabled={exportingPreview || !isReady || !!pendingSceneSlug}
+              />
+              <TextHandlesOverlay
+                panning={isSpacePressed}
+                disabled={exportingPreview || !isReady || !!pendingSceneSlug}
+              />
+              <TextEditOverlay
                 disabled={exportingPreview || !isReady || !!pendingSceneSlug}
               />
             </div>

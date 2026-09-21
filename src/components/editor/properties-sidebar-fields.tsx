@@ -474,6 +474,28 @@ function ParameterFieldImpl({
       )
 
     case "text":
+      if ((definition as TextParameterDefinition).multiline) {
+        return (
+          <label className="flex flex-col gap-2">
+            {renderFieldLabelStack(
+              fieldLabel,
+              definition.description,
+              timelineControl,
+              audioControl
+            )}
+            <textarea
+              className="min-h-[72px] w-full resize-y appearance-none rounded-[var(--ds-radius-control)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-[10px] py-2 font-[var(--ds-font-mono)] text-[12px] leading-4 text-[var(--ds-color-text-primary)] outline-none transition-[border-color,background-color] duration-120 ease-[ease] focus:border-[var(--ds-color-text-secondary)] placeholder:text-[var(--ds-color-text-muted)]"
+              maxLength={(definition as TextParameterDefinition).maxLength}
+              onChange={(event) =>
+                onChange(layerId, definition.key, event.currentTarget.value)
+              }
+              rows={3}
+              spellCheck={false}
+              value={toTextValue(value, definition.defaultValue)}
+            />
+          </label>
+        )
+      }
       return (
         <label className="flex flex-col gap-2">
           {renderFieldLabelStack(

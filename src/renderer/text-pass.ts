@@ -1,4 +1,10 @@
 import {
+  drawTextBlock,
+  resolveLineHeight,
+  resolveTextAlign,
+  resolveTextRotation,
+} from "@/renderer/text-layout"
+import {
   float,
   type TSLNode,
   texture as tslTexture,
@@ -27,17 +33,6 @@ import type {
 type Node = TSLNode
 type HorizontalAnchor = "left" | "center" | "right"
 type VerticalAnchor = "top" | "center" | "bottom"
-
-type TextMetrics = {
-  ascent: number
-  descent: number
-}
-
-type GlyphLayout = {
-  advance: number
-  char: string
-  x: number
-}
 
 function resolveTextAnchor(value: unknown): TextAnchor {
   switch (value) {
@@ -88,26 +83,6 @@ function getAnchorPlacement(anchor: TextAnchor): {
   }
 }
 
-function getTextMetrics(
-  context: CanvasRenderingContext2D,
-  text: string,
-  fontSize: number
-): TextMetrics {
-  const measured = context.measureText(text)
-  const fallbackAscent = fontSize * 0.78
-  const fallbackDescent = fontSize * 0.22
-
-  return {
-    ascent:
-      measured.actualBoundingBoxAscent > 0
-        ? measured.actualBoundingBoxAscent
-        : fallbackAscent,
-    descent:
-      measured.actualBoundingBoxDescent > 0
-        ? measured.actualBoundingBoxDescent
-        : fallbackDescent,
-  }
-}
 
 export class TextPass extends PassNode {
   private readonly placeholder: THREE.Texture
@@ -268,7 +243,7 @@ export class TextPass extends PassNode {
         : "basement.studio"
     const baseFontSize =
       typeof this.params.fontSize === "number"
-        ? Math.max(48, this.params.fontSize)
+        ? Math.max(4, this.params.fontSize)
         : 280
     const fontSize = Math.round(baseFontSize * scaleFactor)
     const fontFamilyValue =
@@ -313,39 +288,6 @@ export class TextPass extends PassNode {
     context.textAlign = "left"
     context.textBaseline = "alphabetic"
     context.font = `${normalizedFontWeight} ${fontSize}px ${fontFamily}`
-
-    const characters = [...text]
-    const spacing = fontSize * letterSpacing
-    const glyphLayout: GlyphLayout[] = []
-    let visualLeft = Number.POSITIVE_INFINITY
-    let visualRight = Number.NEGATIVE_INFINITY
-    let cursorX = 0
-
-    for (const [index, char] of characters.entries()) {
-      const metrics = context.measureText(char)
-      const advance = metrics.width
-      const glyphLeft = cursorX - Math.max(0, metrics.actualBoundingBoxLeft)
-      const glyphRight =
-        cursorX + Math.max(metrics.actualBoundingBoxRight, advance)
-
-      glyphLayout.push({
-        advance,
-        char,
-        x: cursorX,
-      })
-      visualLeft = Math.min(visualLeft, glyphLeft)
-      visualRight = Math.max(visualRight, glyphRight)
-      cursorX += advance
-
-      if (index < characters.length - 1) {
-        cursorX += spacing
-      }
-    }
-
-    if (!Number.isFinite(visualLeft)) {
-      visualLeft = 0
-      visualRight = 0
-    }
 
     const sceneCropFrame = getCompositionFrame(
       {
@@ -407,8 +349,6 @@ export class TextPass extends PassNode {
     const cropY = combinedCropFrame.y
     const cropWidth = combinedCropFrame.width
     const cropHeight = combinedCropFrame.height
-    const metrics = getTextMetrics(context, text, fontSize)
-
     let anchorX = cropX + cropWidth * 0.5
     if (horizontal === "left") {
       anchorX = cropX
@@ -425,24 +365,18 @@ export class TextPass extends PassNode {
 
     const offsetX = offset[0] * cropWidth
     const offsetY = offset[1] * cropHeight
-
-    let startX = anchorX + offsetX - (visualLeft + visualRight) * 0.5
-    if (horizontal === "left") {
-      startX = anchorX + offsetX - visualLeft
-    } else if (horizontal === "right") {
-      startX = anchorX + offsetX - visualRight
-    }
-
-    let baselineY = anchorY - offsetY + (metrics.ascent - metrics.descent) * 0.5
-    if (vertical === "top") {
-      baselineY = anchorY - offsetY + metrics.ascent
-    } else if (vertical === "bottom") {
-      baselineY = anchorY - offsetY - metrics.descent
-    }
-
-    for (const glyph of glyphLayout) {
-      context.fillText(glyph.char, startX + glyph.x, baselineY)
-    }
+    drawTextBlock(context, {
+      text,
+      fontSize,
+      letterSpacing,
+      lineHeight: resolveLineHeight(this.params.lineHeight),
+      align: resolveTextAlign(this.params.align),
+      rotation: resolveTextRotation(this.params.rotation),
+      horizontal,
+      vertical,
+      pivotX: anchorX + offsetX,
+      pivotY: anchorY - offsetY,
+    })
 
     if (!this.textTexture) {
       this.textTexture = new THREE.CanvasTexture(canvas)

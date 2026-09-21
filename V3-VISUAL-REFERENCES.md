@@ -81,4 +81,9 @@ The new low-priority Pattern proposal has no additional supplied image: its conc
 
 ## Reusable layer masks
 
-References 17 (cell poster with locally masked pixelation and gradient mapping) and 20 (Lovedance shapes) were reopened before implementing roadmap 1.4. Both frame local treatments with simple geometry or painted regions, which is what the four tools supply: gradient (linear/radial), ellipse, rectangle and brush, with limit-effect and cut-content scopes, invert and feather. No pen tool. This is a compositional tool, not a reproduction of either reference; shape layers with editable colors (2.7) and the local Gradient Map (2.5.2) remain separate slices. User visual acceptance is pending; see [the focused test](tests/composition/LAYER-MASKS-MANUAL-QA.md).
+References 17 (cell poster with locally masked pixelation and gradient mapping) and 20 (Lovedance shapes) were reopened before implementing roadmap 1.4. Both frame local treatments with simple geometry or painted regions, which is what the four tools supply: gradient (linear/radial), ellipse, rectangle and brush, with limit-effect and cut-content scopes, invert and feather. No pen tool. This is a compositional tool, not a reproduction of either reference; shape layers with editable colors (2.7) and the local Gradient Map (2.5.2) remain separate slices. The user accepted the masks after testing them.
+
+
+## Gradient Map layer
+
+Reference 18 (Brockhampton thermal-style cover) was reopened before building the Gradient Map effect. The Thermal preset follows its deep blue → green → yellow → red progression as a tonal palette applied to luminance; it does not infer depth or reproduce the cover's exact distribution. The ramp is fully editable, so the reference guides the default palette only. User visual acceptance is pending; see [the focused test](tests/composition/GRADIENT-MAP-MANUAL-QA.md).

@@ -156,6 +156,8 @@ Ejemplo de aceptación: Gradient Map recolorea únicamente la foto de su grupo; 
 
 Explorar una paleta de apariencia térmica a partir de la referencia Brockhampton compartida. El falso color tonal puede funcionar sin profundidad; colorear un depth map es otra interpretación. No afirmar que un mapa de profundidad mide temperatura ni que reproduce automáticamente la distribución de color de esa portada.
 
+**Implementado, pendiente de aceptación visual del usuario:** nueva capa de efecto **Gradient Map** (catálogo Core, tras Threshold) con rampa editable (2–5 paradas, GradientRamp compartido con el ajuste global), presets Thermal / Duotone / Sepia / Neon / Grayscale (los valores iniciales quedan a cargo del usuario), Amount e Invert. Mapea la luminancia Rec.709 con una LUT lineal de 256 muestras compartida con el Color Map global (`renderer/color-map-lut.ts`), preserva la cobertura de entrada y respeta grupos y máscaras; el ajuste global y los proyectos existentes no cambian. Editor/runtime, persistencia, duplicado, historial, export y MCP por parámetros normales. Referencia 18 revisada: paleta de apariencia térmica sin inferir profundidad. [Prueba manual](tests/composition/GRADIENT-MAP-MANUAL-QA.md). Pendiente: paradas animables.
+
 ### 2.6 Preservar las composiciones guardadas
 
 Aplicar los nuevos valores únicamente a capas recién creadas y comparar proyectos anteriores con sus resultados de referencia, incluidos textos con fondo sólido, máscaras y modos de mezcla elegidos previamente.

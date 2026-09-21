@@ -19,6 +19,8 @@ type GradientRampProps = {
   label?: ReactNode
   maxStops?: number
   onChange: (stops: GradientStop[]) => void
+  onInteractionEnd?: (() => void) | undefined
+  onInteractionStart?: (() => void) | undefined
   stops: GradientStop[]
   uiSoundEnd?: UISoundId | "none"
   uiSoundStart?: UISoundId | "none"
@@ -41,6 +43,8 @@ export function GradientRamp({
   label,
   maxStops = 5,
   onChange,
+  onInteractionEnd,
+  onInteractionStart,
   stops,
   uiSoundEnd = "generic.dragEnd",
   uiSoundStart = "generic.dragStart",
@@ -66,9 +70,10 @@ export function GradientRamp({
       ;(e.target as HTMLButtonElement).setPointerCapture(e.pointerId)
       setDragIndex(index)
       setSelectedIndex(index)
+      onInteractionStart?.()
       playOptionalUISound(uiSoundStart)
     },
-    [uiSoundStart]
+    [onInteractionStart, uiSoundStart]
   )
 
   const handlePointerMove = useCallback(
@@ -86,9 +91,10 @@ export function GradientRamp({
   const handlePointerUp = useCallback(() => {
     if (dragIndex !== null) {
       playOptionalUISound(uiSoundEnd)
+      onInteractionEnd?.()
     }
     setDragIndex(null)
-  }, [dragIndex, uiSoundEnd])
+  }, [dragIndex, onInteractionEnd, uiSoundEnd])
 
   const handleBarClick = useCallback(
     (e: PointerEvent<HTMLDivElement>) => {

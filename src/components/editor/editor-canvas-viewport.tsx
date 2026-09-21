@@ -11,6 +11,7 @@ import {
   useSyncExternalStore,
 } from "react"
 import { CellPaintOverlay } from "./cell-paint-overlay"
+import { AnnotationHandlesOverlay } from "./annotation-handles-overlay"
 import { MaskHandlesOverlay } from "./mask-handles-overlay"
 import { ShapeHandlesOverlay } from "./shape-handles-overlay"
 import { TextEditOverlay } from "./text-edit-overlay"
@@ -379,6 +380,10 @@ export function EditorCanvasViewport() {
                 disabled={exportingPreview || !isReady || !!pendingSceneSlug}
               />
               <TextHandlesOverlay
+                panning={isSpacePressed}
+                disabled={exportingPreview || !isReady || !!pendingSceneSlug}
+              />
+              <AnnotationHandlesOverlay
                 panning={isSpacePressed}
                 disabled={exportingPreview || !isReady || !!pendingSceneSlug}
               />

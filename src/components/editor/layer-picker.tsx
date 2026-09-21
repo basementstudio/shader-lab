@@ -34,6 +34,7 @@ import {
 } from "@/lib/editor/config/layer-catalog"
 
 export type AddLayerAction =
+  | "annotations"
   | "ascii"
   | "blob-tracking"
   | "bloom"
@@ -121,6 +122,7 @@ const SOURCE_ITEMS: readonly SourceItem[] = SOURCE_ICONS.map(
 const EFFECT_ORDER: readonly AddLayerAction[] = [
   "photographic-cells",
   "displaced-rings",
+  "annotations",
   "ascii",
   "ink",
   "pattern",

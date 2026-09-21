@@ -1,6 +1,7 @@
 "use client"
 
 import { CellPaintControls } from "./cell-paint-controls"
+import { AnnotationsControls } from "./annotations-controls"
 import { GradientMapControls } from "./gradient-map-controls"
 import { LayerMaskSection } from "./layer-mask-section"
 import { useTextEditStore } from "@/store/text-edit-store"
@@ -758,6 +759,16 @@ export function SelectedLayerPropertiesContent({
 
         {layerType === "photographic-cells" && values.mode === "paint" && (
           <CellPaintControls layerId={layerId} />
+        )}
+
+        {layerType === "annotations" && (
+          <AnnotationsControls
+            layerId={layerId}
+            onInteractionEnd={onInteractionEnd}
+            onInteractionStart={onInteractionStart}
+            updateLayerParam={updateLayerParam}
+            values={values}
+          />
         )}
 
         {layerType === "gradient-map" && (

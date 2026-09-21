@@ -87,6 +87,10 @@ Every layer and group accepts an optional `mask` (linear/radial gradient, ellips
 
 `gradient-map.mjs` checks stop parsing/serialization, the editor and runtime pass over a luminance ramp for presets, custom stops, Amount, Invert and alpha, a grouped/masked project where only the masked photo region is recolored and external layers stay untouched, hydration, history, duplication, save/reopen, shader export and runtime pixel parity. It also renders the catalog preview. Manual check: [GRADIENT-MAP-MANUAL-QA.md](GRADIENT-MAP-MANUAL-QA.md).
 
+## Stable artboard
+
+`compositionAspect: "screen"` remains the adaptive mode (canvas follows the viewport, logical size = viewport). Every other aspect is a fixed document whose size is the saved `composition`; the editor fits and centers the canvas and passes receive the document as `logicalSize`, matching exports. `artboard.mjs` checks document resolution and cropping, viewport fitting, the store's composition update rules, save/reopen, the legacy fixture staying adaptive, and the new blank default. Manual check: [ARTBOARD-MANUAL-QA.md](ARTBOARD-MANUAL-QA.md).
+
 ## Neutral projects and global colors
 
 First visits initialize empty stores and neutral global grading without preloading demo media. **Project → New blank project** and **Project → Open demo** are available in the desktop toolbar and mobile Actions. New documents clear prior history, selections, tracks, audio/media and draft/remix associations. The demo keeps its authored settings. A brief empty-canvas hint points to Layers and media drop.

@@ -1,5 +1,6 @@
 "use client"
 
+import { getDocumentSize } from "@/lib/editor/composition"
 import {
   CopyIcon,
   Cross2Icon,
@@ -217,7 +218,10 @@ export function EditorExportDialog({
   const outputSize = useEditorStore((state) => state.outputSize)
   const sceneConfig = useEditorStore((state) => state.sceneConfig)
   const liveCanvas = useEditorStore((state) => state.liveCanvas)
-  const compositionSize = outputSize
+  const compositionSize = useMemo(
+    () => getDocumentSize(sceneConfig, outputSize) ?? outputSize,
+    [sceneConfig, outputSize]
+  )
   const suggestedAspectPreset = useMemo(
     () => getSuggestedExportAspectPreset(sceneConfig),
     [sceneConfig]
@@ -1898,7 +1902,9 @@ function buildRenderProjectState() {
   return {
     assets,
     audio: selectAudioModulationInput(useAudioStore.getState()),
-    compositionSize: editorState.outputSize,
+    compositionSize:
+      getDocumentSize(editorState.sceneConfig, editorState.outputSize) ??
+      editorState.outputSize,
     layers,
     sceneConfig: editorState.sceneConfig,
     timeline: {

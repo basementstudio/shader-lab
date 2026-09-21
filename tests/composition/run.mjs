@@ -271,6 +271,10 @@ try {
   console.log(
     `PASS gradient map: ${gradientMap.samples} editor/runtime GPU cases, presets, amount, invert, masked group scope, hydration, export, catalog preview`
   )
+  const artboard = await page.evaluate(() => window.checkArtboard())
+  console.log(
+    `PASS artboard: ${artboard.samples} document size, fit, composition update, save/reopen and legacy checks`
+  )
   assert.deepEqual(errors, [], "Browser or GPU errors occurred")
   console.log(
     update

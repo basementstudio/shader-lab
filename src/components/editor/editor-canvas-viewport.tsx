@@ -15,7 +15,7 @@ import { MaskHandlesOverlay } from "./mask-handles-overlay"
 import { MadeByBasement } from "@/components/editor/made-by-basement"
 import { useMobileCanvasFit } from "@/components/editor/use-mobile-canvas-fit"
 import { useEditorRenderer } from "@/hooks/use-editor-renderer"
-import { getCompositionFrame } from "@/lib/editor/composition"
+import { getDocumentSize } from "@/lib/editor/composition"
 import { isEditableTarget } from "@/lib/editor/is-editable-target"
 import { inferFileAssetKind } from "@/lib/editor/media-file"
 import {
@@ -53,25 +53,11 @@ export function EditorCanvasViewport() {
   const sceneConfig = useEditorStore((state) => state.sceneConfig)
   const canvasSize = useEditorStore((state) => state.canvasSize)
 
-  const compositionOverlay = useMemo(() => {
-    if (canvasSize.width === 0 || canvasSize.height === 0) return null
-
-    const frame = getCompositionFrame(sceneConfig, canvasSize)
-
-    if (
-      frame.x === 0 &&
-      frame.y === 0 &&
-      frame.width === canvasSize.width &&
-      frame.height === canvasSize.height
-    ) {
-      return null
-    }
-
-    return {
-      heightPercent: (frame.height / canvasSize.height) * 100,
-      widthPercent: (frame.width / canvasSize.width) * 100,
-    }
-  }, [canvasSize, sceneConfig])
+  const outputSize = useEditorStore((state) => state.outputSize)
+  const fixedArtboard = useMemo(
+    () => getDocumentSize(sceneConfig, outputSize) !== null,
+    [sceneConfig, outputSize]
+  )
 
   const [isDragOver, setIsDragOver] = useState(false)
   const [isSpacePressed, setIsSpacePressed] = useState(false)
@@ -346,30 +332,33 @@ export function EditorCanvasViewport() {
               transformOrigin: "center center",
             }}
           >
-            <canvas
-              data-editor-canvas="true"
-              ref={canvasRef}
-              className="absolute inset-0 h-full w-full [image-rendering:pixelated]"
-            />
-            <CellPaintOverlay
-              panning={isSpacePressed}
-              disabled={exportingPreview || !isReady || !!pendingSceneSlug}
-            />
-            <MaskHandlesOverlay
-              panning={isSpacePressed}
-              disabled={exportingPreview || !isReady || !!pendingSceneSlug}
-            />
-            {compositionOverlay && (
-              <div
-                aria-hidden="true"
-                className="pointer-events-none absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 border border-white/20"
-                style={{
-                  width: `${compositionOverlay.widthPercent}%`,
-                  height: `${compositionOverlay.heightPercent}%`,
-                  boxShadow: "0 0 0 9999px rgba(0, 0, 0, 0.55)",
-                }}
+            <div
+              data-artboard={fixedArtboard ? "fixed" : "screen"}
+              className={
+                fixedArtboard
+                  ? "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-[0_0_0_1px_rgb(255_255_255_/_0.08),0_24px_80px_rgb(0_0_0_/_0.45)]"
+                  : "absolute inset-0"
+              }
+              style={
+                fixedArtboard
+                  ? { width: canvasSize.width, height: canvasSize.height }
+                  : undefined
+              }
+            >
+              <canvas
+                data-editor-canvas="true"
+                ref={canvasRef}
+                className="absolute inset-0 h-full w-full [image-rendering:pixelated]"
               />
-            )}
+              <CellPaintOverlay
+                panning={isSpacePressed}
+                disabled={exportingPreview || !isReady || !!pendingSceneSlug}
+              />
+              <MaskHandlesOverlay
+                panning={isSpacePressed}
+                disabled={exportingPreview || !isReady || !!pendingSceneSlug}
+              />
+            </div>
             {immersiveCanvas ? (
               <>
                 <div

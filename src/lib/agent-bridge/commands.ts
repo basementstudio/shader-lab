@@ -180,6 +180,7 @@ function isInternalParameter(definition: ParameterDefinition): boolean {
 function summarizeLayer(layer: EditorLayer, index: number) {
   return {
     assetId: layer.assetId,
+    depthAssetId: layer.depthAssetId ?? null,
     blendMode: layer.blendMode,
     compositeMode: layer.compositeMode,
     id: layer.id,

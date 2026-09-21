@@ -306,6 +306,7 @@ export const DEFAULT_MASK_CONFIG: MaskConfig = {
 export interface BaseLayer {
   parentId?: string | null
   assetId: string | null
+  depthAssetId?: string | null
   blendMode: BlendMode
   compositeMode: LayerCompositeMode
   expanded: boolean

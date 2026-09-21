@@ -197,7 +197,10 @@ export function buildShaderExportConfig(
     layers: input.layers.map((layer) =>
       toShaderLabLayerConfig(
         layer,
-        layer.assetId ? (assetById.get(layer.assetId) ?? null) : null
+        layer.assetId ? (assetById.get(layer.assetId) ?? null) : null,
+        layer.depthAssetId
+          ? (assetById.get(layer.depthAssetId) ?? null)
+          : null
       )
     ),
     timeline: {
@@ -212,7 +215,8 @@ export function buildShaderExportConfig(
 
 function toShaderLabLayerConfig(
   layer: EditorLayer,
-  asset: EditorAsset | null
+  asset: EditorAsset | null,
+  depthAsset: EditorAsset | null
 ): ShaderLabLayerConfig {
   const supportedLayer = assertSupportedShaderExportLayer(layer)
   const sketch =
@@ -239,6 +243,15 @@ function toShaderLabLayerConfig(
 
   if (assetSource) {
     baseLayer.asset = assetSource
+  }
+
+  if (supportedLayer.type === "image" && supportedLayer.depthAssetId) {
+    const depthFileName = depthAsset?.fileName || "depth.png"
+    baseLayer.depthAsset = {
+      ...(depthAsset?.fileName ? { fileName: depthAsset.fileName } : {}),
+      kind: "image",
+      src: buildAssetPlaceholderPath("image", depthFileName),
+    }
   }
 
   if (sketch) {

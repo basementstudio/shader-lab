@@ -71,6 +71,7 @@ The four screenshots shared on September 17 were opened and reviewed. They suppl
 | `18-feedback-paleta-termica.png` | `.context/attachments/Snglqt/image.png` | Thermal-style false color: tonal palette study, not evidence of depth or temperature data. |
 | `19-feedback-anotaciones-tecnicas.png` | `.context/attachments/dAIoad/image.png` | Orange points, red boxes, crosshairs, labels and connections: prominent annotation/Blob Tracking direction. |
 | `20-feedback-formas-lovedance.png` | `.context/attachments/aByVza/image.png` | Lovedance: colored shape layers, photographic blends, masking and type. |
+| `21-puntos-conectados-retrato.png` | `.context/attachments/TB1qSd/image.png` | Portrait as a tone-colored point cloud with short neighbor links: dense dark graphs, sparse light dots on gray. Shared September 21, 2026 with the new effect ideas in roadmap 3.4. |
 
 The user approved simple general masks (linear/radial gradient, ellipse/circle, rectangle/square, brush), replacing the earlier postponement. No pen tool. Reuse the accepted Cells brush interaction while implementing general effect masking separately from content cutouts. Automatic selection remains later work.
 
@@ -86,4 +87,9 @@ References 17 (cell poster with locally masked pixelation and gradient mapping) 
 
 ## Gradient Map layer
 
-Reference 18 (Brockhampton thermal-style cover) was reopened before building the Gradient Map effect. The Thermal preset follows its deep blue → green → yellow → red progression as a tonal palette applied to luminance; it does not infer depth or reproduce the cover's exact distribution. The ramp is fully editable, so the reference guides the default palette only. User visual acceptance is pending; see [the focused test](tests/composition/GRADIENT-MAP-MANUAL-QA.md).
+Reference 18 (Brockhampton thermal-style cover) was reopened before building the Gradient Map effect. The Thermal preset follows its deep blue → green → yellow → red progression as a tonal palette applied to luminance; it does not infer depth or reproduce the cover's exact distribution. The ramp is fully editable, so the reference guides the default palette only. The user accepted the layer on September 22, 2026.
+
+
+## Shape layers
+
+References 01 (Lovedance red/blue) and 20 were reopened before building the Shape source layer. The poster's crisp four-blade silhouette in flat red over blue photography, with the photo showing through, is reachable with Shape → Blades plus Multiply/Screen blending over a photo; the Blades preset is an interpretation of that pinwheel, not a reproduction of the artwork. User visual acceptance is pending; see [the focused test](tests/composition/SHAPE-LAYERS-MANUAL-QA.md).

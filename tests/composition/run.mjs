@@ -275,6 +275,14 @@ try {
   console.log(
     `PASS artboard: ${artboard.samples} document size, fit, composition update, save/reopen and legacy checks`
   )
+  const shapes = await page.evaluate(() => window.checkShapeLayers())
+  await Bun.write(
+    resolve(artifacts, "shape-layers.png"),
+    Buffer.from(shapes.png.split(",")[1], "base64")
+  )
+  console.log(
+    `PASS shape layers: ${shapes.samples} editor/runtime GPU cases across seven shapes, outline, softness, blend, mask, hydration, export`
+  )
   assert.deepEqual(errors, [], "Browser or GPU errors occurred")
   console.log(
     update

@@ -24,6 +24,7 @@ import { EdgeDetectPass } from "./edge-detect-pass"
 import { FlutedGlassPass } from "./fluted-glass-pass"
 import { FluidPass } from "./fluid-pass"
 import { GradientPass } from "./gradient-pass"
+import { ShapePass } from "./shape-pass"
 import { HalftonePass } from "./halftone-pass"
 import { InkPass } from "./ink-pass"
 import { LivePass } from "./live-pass"
@@ -61,6 +62,7 @@ type LayerPassNode =
   | FlutedGlassPass
   | FluidPass
   | GradientPass
+  | ShapePass
   | HalftonePass
   | InkPass
   | LivePass
@@ -655,6 +657,10 @@ export class PipelineManager {
 
     if (layer.kind === "source" && layer.type === "gradient") {
       return new GradientPass(layer.id)
+    }
+
+    if (layer.kind === "source" && layer.type === "shape") {
+      return new ShapePass(layer.id)
     }
 
     if (layer.kind === "source" && layer.type === "fluid") {

@@ -13,6 +13,7 @@ import type { RenderableLayerPass } from "@/renderer/contracts"
 import { CustomShaderPass } from "@/renderer/custom-shader-pass"
 import { FluidPass } from "@/renderer/fluid-pass"
 import { GradientPass } from "@/renderer/gradient-pass"
+import { ShapePass } from "@/renderer/shape-pass"
 import {
   describeCameraFailure,
   describeMediaLoadFailure,
@@ -722,6 +723,10 @@ export class PipelineManager {
 
     if (layer.kind === "source" && layer.type === "gradient") {
       return new GradientPass(layer.id)
+    }
+
+    if (layer.kind === "source" && layer.type === "shape") {
+      return new ShapePass(layer.id)
     }
 
     if (layer.kind === "source" && layer.type === "fluid") {

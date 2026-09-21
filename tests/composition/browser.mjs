@@ -26,6 +26,7 @@ import { checkPhotographicCells } from "./photographic-cells.mjs"
 import { checkLayerMasks } from "./layer-masks.mjs"
 import { checkGradientMap } from "./gradient-map.mjs"
 import { checkArtboard } from "./artboard.mjs"
+import { checkShapeLayers } from "./shape-layers.mjs"
 import { checkDisplacedRings } from "./displaced-rings.mjs"
 
 function pixels(canvas) {
@@ -406,3 +407,5 @@ window.checkLayerMasks = () => checkLayerMasks(renderProject)
 window.checkGradientMap = () => checkGradientMap(renderProject)
 
 window.checkArtboard = checkArtboard
+
+window.checkShapeLayers = () => checkShapeLayers(renderProject)

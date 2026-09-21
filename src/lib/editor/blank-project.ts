@@ -1,7 +1,11 @@
 import { createDefaultAudioBands } from "@/lib/editor/audio/bands"
 import type { LabProjectFile } from "@/lib/editor/project-file"
 import { CURRENT_PROJECT_FILE_VERSION } from "@/lib/editor/project-version"
-import { DEFAULT_SCENE_CONFIG, type EditorAudioSnapshot } from "@/types/editor"
+import {
+  DEFAULT_SCENE_CONFIG,
+  type EditorAudioSnapshot,
+  type SceneConfig,
+} from "@/types/editor"
 
 export function getBlankProjectAudio(): EditorAudioSnapshot {
   return {
@@ -9,6 +13,15 @@ export function getBlankProjectAudio(): EditorAudioSnapshot {
     links: [],
     offsetSeconds: 0,
     source: null,
+  }
+}
+
+export function getBlankSceneConfig(): SceneConfig {
+  return {
+    ...structuredClone(DEFAULT_SCENE_CONFIG),
+    compositionAspect: "16:9",
+    compositionWidth: 1920,
+    compositionHeight: 1080,
   }
 }
 
@@ -21,7 +34,7 @@ export function getBlankProjectFile(): LabProjectFile {
     exportedAt: new Date().toISOString(),
     format: "shader-lab",
     layers: [],
-    sceneConfig: structuredClone(DEFAULT_SCENE_CONFIG),
+    sceneConfig: getBlankSceneConfig(),
     selectedLayerId: null,
     timeline: { duration: 10, loop: true, tracks: [] },
     version: CURRENT_PROJECT_FILE_VERSION,

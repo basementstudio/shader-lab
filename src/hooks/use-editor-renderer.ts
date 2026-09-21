@@ -8,6 +8,7 @@ import { RendererBootTrace } from "@/lib/renderer-boot"
 import { gpuSnapshot } from "@/lib/webgpu-diagnostics"
 import { withCellPaintPreview } from "@/store/cell-paint-store"
 import { buildRendererFrame, type EditorRenderer } from "@/renderer/contracts"
+import { fitDocumentToViewport, getDocumentSize } from "@/lib/editor/composition"
 import { errorFingerprint } from "@/renderer/pass-failure"
 import { browserSupportsWebGPU } from "@/renderer/webgpu-support"
 import { useAssetStore } from "@/store/asset-store"
@@ -113,6 +114,7 @@ export function useEditorRenderer() {
     let frameInFlight = false
     let unregisterFramePump: (() => void) | null = null
     let unsubscribeRenderScale: (() => void) | null = null
+    let unsubscribeDocument: (() => void) | null = null
     let unsubscribeSceneRevision: (() => void) | null = null
     let consecutiveFrameFailures = 0
     let loopHalted = false
@@ -158,9 +160,22 @@ export function useEditorRenderer() {
           return
         }
 
-        const initialSize = measureElement(viewportElement)
-        editorStore.setCanvasSize(initialSize.width, initialSize.height)
-        renderer.resize(initialSize, getPixelRatio())
+        let viewportSize = measureElement(viewportElement)
+        const documentSignature = () => {
+          const state = useEditorStore.getState()
+          const document = getDocumentSize(state.sceneConfig, state.outputSize)
+          return document ? `${document.width}x${document.height}` : "screen"
+        }
+        const fitCanvas = () => {
+          const state = useEditorStore.getState()
+          const document = getDocumentSize(state.sceneConfig, state.outputSize)
+          const nextSize = document
+            ? fitDocumentToViewport(document, viewportSize)
+            : viewportSize
+          state.setCanvasSize(nextSize.width, nextSize.height)
+          renderer.resize(nextSize, getPixelRatio())
+        }
+        fitCanvas()
         editorStore.setWebGPUStatus("ready")
         revealDeadline = performance.now() + SCENE_REVEAL_TIMEOUT_MS
 
@@ -169,18 +184,22 @@ export function useEditorRenderer() {
             return
           }
 
-          const nextSize = {
+          viewportSize = {
             height: Math.max(1, Math.round(entry.contentRect.height)),
             width: Math.max(1, Math.round(entry.contentRect.width)),
           }
-
-          useEditorStore
-            .getState()
-            .setCanvasSize(nextSize.width, nextSize.height)
-          renderer.resize(nextSize, getPixelRatio())
+          fitCanvas()
         })
 
         resizeObserver.observe(viewportElement)
+
+        let lastDocumentSignature = documentSignature()
+        unsubscribeDocument = useEditorStore.subscribe(() => {
+          const next = documentSignature()
+          if (next === lastDocumentSignature) return
+          lastDocumentSignature = next
+          fitCanvas()
+        })
 
         let lastRenderScale = useEditorStore.getState().renderScale
         unsubscribeRenderScale = useEditorStore.subscribe((state) => {
@@ -352,6 +371,10 @@ export function useEditorRenderer() {
           useTimelineStore.getState().setLastRenderedClockTime(clockTime)
           renderer.setPreviewFrozen(true)
 
+          const documentSize = getDocumentSize(
+            editorState.sceneConfig,
+            editorState.outputSize
+          )
           const frame = buildRendererFrame({
             assets: assetState.assets,
             audio: selectAudioModulationInput(useAudioStore.getState()),
@@ -361,7 +384,8 @@ export function useEditorRenderer() {
               layerState.layers,
               layerState.selectedLayerId
             ),
-            outputSize: editorState.outputSize,
+            ...(documentSize ? { logicalSize: documentSize } : {}),
+            outputSize: documentSize ?? editorState.outputSize,
             pixelRatio: getPixelRatio(),
             sceneConfig: editorState.sceneConfig,
             timeline: timelineState,
@@ -426,6 +450,7 @@ export function useEditorRenderer() {
       boot.dispose()
       unregisterFramePump?.()
       unsubscribeRenderScale?.()
+      unsubscribeDocument?.()
       unsubscribeSceneRevision?.()
 
       if (resizeObserver) {

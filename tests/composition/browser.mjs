@@ -25,6 +25,7 @@ import { checkTransparentText } from "./transparent-text.mjs"
 import { checkPhotographicCells } from "./photographic-cells.mjs"
 import { checkLayerMasks } from "./layer-masks.mjs"
 import { checkGradientMap } from "./gradient-map.mjs"
+import { checkArtboard } from "./artboard.mjs"
 import { checkDisplacedRings } from "./displaced-rings.mjs"
 
 function pixels(canvas) {
@@ -403,3 +404,5 @@ window.checkCleanProjects = checkCleanProjects
 window.checkLayerMasks = () => checkLayerMasks(renderProject)
 
 window.checkGradientMap = () => checkGradientMap(renderProject)
+
+window.checkArtboard = checkArtboard

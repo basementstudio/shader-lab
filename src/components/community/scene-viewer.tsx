@@ -1,5 +1,6 @@
 "use client"
 
+import { fitDocumentToViewport, getDocumentSize } from "@/lib/editor/composition"
 import { PlayIcon } from "@radix-ui/react-icons"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Typography } from "@/components/ui/typography"
@@ -155,19 +156,30 @@ export function SceneViewer({
         }
 
         const pixelRatio = Math.min(window.devicePixelRatio || 1, 2)
-        let viewportSize = measureElement(container)
-        renderer.resize(viewportSize, pixelRatio)
+        const documentSize = getDocumentSize(
+          project.sceneConfig,
+          project.composition
+        )
+        const fit = (bounds: Size): Size =>
+          documentSize ? fitDocumentToViewport(documentSize, bounds, 0) : bounds
+        let viewportSize = fit(measureElement(container))
+        const applyCanvasSize = () => {
+          canvas.style.width = `${viewportSize.width}px`
+          canvas.style.height = `${viewportSize.height}px`
+          renderer.resize(viewportSize, pixelRatio)
+        }
+        applyCanvasSize()
 
         resizeObserver = new ResizeObserver(([entry]) => {
           if (!entry) {
             return
           }
 
-          viewportSize = {
+          viewportSize = fit({
             height: Math.max(1, Math.round(entry.contentRect.height)),
             width: Math.max(1, Math.round(entry.contentRect.width)),
-          }
-          renderer.resize(viewportSize, pixelRatio)
+          })
+          applyCanvasSize()
         })
 
         resizeObserver.observe(container)
@@ -199,6 +211,7 @@ export function SceneViewer({
               clockTime,
               delta,
               layers: project.layers,
+              ...(documentSize ? { logicalSize: documentSize } : {}),
               outputSize: project.composition,
               pixelRatio,
               sceneConfig: project.sceneConfig,
@@ -366,7 +379,7 @@ export function SceneViewer({
       <canvas
         aria-hidden={!revealed}
         className={cn(
-          "h-full w-full transition-opacity duration-300 ease-out",
+          "absolute top-1/2 left-1/2 h-full w-full -translate-x-1/2 -translate-y-1/2 transition-opacity duration-300 ease-out",
           revealed ? "opacity-100" : "opacity-0"
         )}
         ref={canvasRef}

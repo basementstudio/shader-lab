@@ -58,6 +58,8 @@ export function PropertiesSidebar() {
   const viewResizeObserverRef = useRef<ResizeObserver | null>(null)
   const replaceImageInputRef = useRef<HTMLInputElement | null>(null)
   const replaceImageLayerIdRef = useRef<string | null>(null)
+  const depthMapInputRef = useRef<HTMLInputElement | null>(null)
+  const depthMapLayerIdRef = useRef<string | null>(null)
   const rightSidebarVisible = useEditorStore((state) => state.sidebars.right)
   const mobilePanel = useEditorStore((state) => state.mobilePanel)
   const sidebarView = useEditorStore((state) => state.sidebarView)
@@ -88,6 +90,9 @@ export function PropertiesSidebar() {
   const setLayerSaturation = useLayerStore((state) => state.setLayerSaturation)
   const updateLayerParam = useLayerStore((state) => state.updateLayerParam)
   const setLayerAsset = useLayerStore((state) => state.setLayerAsset)
+  const setLayerDepthAsset = useLayerStore(
+    (state) => state.setLayerDepthAsset
+  )
   const setLayerRuntimeError = useLayerStore(
     (state) => state.setLayerRuntimeError
   )
@@ -124,6 +129,9 @@ export function PropertiesSidebar() {
   const selectedAsset = selectedLayer
     ? getSelectedAsset(assetById, selectedLayer.assetId)
     : null
+  const selectedDepthAsset = selectedLayer
+    ? getSelectedAsset(assetById, selectedLayer.depthAssetId ?? null)
+    : null
   const selectedDefinition = selectedLayer
     ? getLayerDefinition(selectedLayer.type)
     : null
@@ -143,6 +151,10 @@ export function PropertiesSidebar() {
           })
         )
       ) {
+        return false
+      }
+
+      if (param.group === "Depth" && !selectedLayer.depthAssetId) {
         return false
       }
 
@@ -596,8 +608,71 @@ export function PropertiesSidebar() {
     [loadAsset, removeAsset, setLayerAsset, setLayerRuntimeError]
   )
 
+  const handleDepthMapPick = useCallback(() => {
+    if (!selectedLayerId) {
+      return
+    }
+
+    depthMapLayerIdRef.current = selectedLayerId
+    depthMapInputRef.current?.click()
+  }, [selectedLayerId])
+
+  const handleDepthMapChange = useCallback(
+    async (event: ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0]
+      const layerId = depthMapLayerIdRef.current
+
+      event.currentTarget.value = ""
+      depthMapLayerIdRef.current = null
+
+      if (!(file && layerId)) {
+        return
+      }
+
+      if (inferFileAssetKind(file) !== "image") {
+        setLayerRuntimeError(layerId, "Expected an image file for the depth map.")
+
+        return
+      }
+
+      try {
+        const asset = await loadAsset(file)
+
+        if (asset.kind !== "image") {
+          removeAsset(asset.id)
+          setLayerRuntimeError(
+            layerId,
+            "Expected an image file for the depth map."
+          )
+
+          return
+        }
+
+        setLayerDepthAsset(layerId, asset.id)
+      } catch (error) {
+        setLayerRuntimeError(
+          layerId,
+          error instanceof Error ? error.message : "Failed to load depth map."
+        )
+      }
+    },
+    [loadAsset, removeAsset, setLayerDepthAsset, setLayerRuntimeError]
+  )
+
+  const handleRemoveDepthMap = useCallback(() => {
+    if (!selectedLayerId) {
+      return
+    }
+
+    setLayerDepthAsset(selectedLayerId, null)
+  }, [selectedLayerId, setLayerDepthAsset])
+
   const selectedLayerContentProps = selectedLayer
     ? {
+        depthMapFileName: selectedDepthAsset?.fileName ?? null,
+        hasDepthMap: Boolean(selectedLayer.depthAssetId),
+        onAttachDepthMap: handleDepthMapPick,
+        onRemoveDepthMap: handleRemoveDepthMap,
         blendMode: selectedLayer.blendMode,
         compositeMode: selectedLayer.compositeMode,
         maskConfig: selectedLayer.maskConfig,
@@ -700,6 +775,14 @@ export function PropertiesSidebar() {
         className="hidden"
         onChange={handleReplaceImageChange}
         ref={replaceImageInputRef}
+        type="file"
+      />
+      <input
+        accept={getAssetAccept("image")}
+        className="hidden"
+        data-testid="depth-map-input"
+        onChange={handleDepthMapChange}
+        ref={depthMapInputRef}
         type="file"
       />
 

@@ -265,12 +265,16 @@ export function SelectedLayerPropertiesContent({
   hue,
   onInteractionEnd,
   onInteractionStart,
+  depthMapFileName,
+  hasDepthMap,
   layerId,
   layerKind,
   layerName,
   layerRuntimeError,
   layerSubtitle,
   layerType,
+  onAttachDepthMap,
+  onRemoveDepthMap,
   onReplaceImage,
   onToggleParamGroup,
   onTimelineKeyframe,
@@ -307,6 +311,10 @@ export function SelectedLayerPropertiesContent({
   layerRuntimeError: string | null
   layerSubtitle: string
   layerType: LayerType
+  depthMapFileName: string | null
+  hasDepthMap: boolean
+  onAttachDepthMap: () => void
+  onRemoveDepthMap: () => void
   onReplaceImage: () => void
   onToggleParamGroup: (groupId: string) => void
   onTimelineKeyframe: (
@@ -753,6 +761,37 @@ export function SelectedLayerPropertiesContent({
               >
                 Replace
               </Button>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 flex-col gap-0.5">
+                <Typography tone="secondary" variant="caption">
+                  Depth map
+                </Typography>
+                <Typography className="truncate" tone="muted" variant="caption">
+                  {hasDepthMap
+                    ? (depthMapFileName ?? "Attached")
+                    : "Grayscale image with the same framing. White is near."}
+                </Typography>
+              </div>
+              <div className="flex shrink-0 items-center gap-1.5">
+                <Button
+                  onClick={onAttachDepthMap}
+                  size="compact"
+                  uiSound="action.relinkAsset"
+                  variant="secondary"
+                >
+                  {hasDepthMap ? "Replace" : "Attach"}
+                </Button>
+                {hasDepthMap ? (
+                  <Button
+                    onClick={onRemoveDepthMap}
+                    size="compact"
+                    variant="ghost"
+                  >
+                    Remove
+                  </Button>
+                ) : null}
+              </div>
             </div>
           </section>
         ) : null}

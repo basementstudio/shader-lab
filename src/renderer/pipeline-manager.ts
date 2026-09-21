@@ -112,6 +112,8 @@ function createLayerSignature(layer: RenderableLayerPass): string {
     layer.layer.type,
     layer.asset?.id ?? "no-asset",
     layer.asset?.url ?? "no-url",
+    layer.depthAsset?.id ?? "no-depth",
+    layer.depthAsset?.url ?? "no-depth-url",
     layer.layer.visible ? "1" : "0",
     layer.layer.opacity.toFixed(4),
     layer.layer.hue.toFixed(4),
@@ -570,6 +572,35 @@ export class PipelineManager {
       } else {
         this.pendingMediaLoads.delete(pass.layerId)
         pass.clearMedia()
+      }
+
+      const depthAsset = renderableLayer.depthAsset
+      if (depthAsset?.kind === "image") {
+        const depthLoadId = `${pass.layerId}:depth`
+        this.pendingMediaLoads.add(depthLoadId)
+        void pass
+          .setDepthMedia({
+            height: depthAsset.height,
+            isSvg: isSvgMediaSource(depthAsset),
+            url: depthAsset.url,
+            width: depthAsset.width,
+          })
+          .then(() => {
+            this.markDirty()
+          })
+          .catch(() => {
+            setLayerMediaError(
+              pass.layerId,
+              describeMediaLoadFailure(depthAsset.fileName)
+            )
+            this.markDirty()
+          })
+          .finally(() => {
+            this.pendingMediaLoads.delete(depthLoadId)
+          })
+      } else {
+        this.pendingMediaLoads.delete(`${pass.layerId}:depth`)
+        pass.clearDepthMedia()
       }
     }
 

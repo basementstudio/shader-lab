@@ -307,6 +307,14 @@ try {
   console.log(
     `PASS annotations: ${annotations.samples} layout, placement, text, palette, editor/runtime render, hydration and export checks`
   )
+  const depth = await page.evaluate(() => window.checkDepthParallax())
+  await Bun.write(
+    resolve(artifacts, "depth-parallax.png"),
+    Buffer.from(depth.png.split(",")[1], "base64")
+  )
+  console.log(
+    `PASS depth parallax: ${depth.samples} checks, editor/runtime GPU parity, occlusion march, edges, depth view, motion, hydration, export, both pipelines`
+  )
   assert.deepEqual(errors, [], "Browser or GPU errors occurred")
   console.log(
     update

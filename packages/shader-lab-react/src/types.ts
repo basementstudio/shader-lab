@@ -186,6 +186,7 @@ export interface ShaderLabLayerConfig {
   /** Parent group ID. Layers are stored in top-first, depth-first order. */
   parentId?: string | null
   asset?: ShaderLabAssetSource
+  depthAsset?: Extract<ShaderLabAssetSource, { kind: "image" }>
   blendMode: ShaderLabBlendMode
   compositeMode: ShaderLabCompositeMode
   maskConfig?: ShaderLabMaskConfig

@@ -27,6 +27,7 @@ export interface ProjectClock {
 
 export interface RenderableLayerPass {
   asset: EditorAsset | null
+  depthAsset: EditorAsset | null
   layer: EditorLayer
   params: LayerParameterValues
 }
@@ -115,6 +116,9 @@ export function buildRendererFrame(
 
     return {
       asset: layer.assetId ? (assetById.get(layer.assetId) ?? null) : null,
+      depthAsset: layer.depthAssetId
+        ? (assetById.get(layer.depthAssetId) ?? null)
+        : null,
       layer: {
         ...layer,
         hue:

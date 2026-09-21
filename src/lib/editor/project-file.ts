@@ -84,6 +84,10 @@ export function collectReferencedAssetIds(input: {
     if (layer.assetId) {
       referenced.add(layer.assetId)
     }
+
+    if (layer.depthAssetId) {
+      referenced.add(layer.depthAssetId)
+    }
   }
 
   if (input.audioSource?.kind === "asset") {
@@ -248,6 +252,7 @@ const layerMaskSchema = z.looseObject({
 const baseLayerShape = {
   parentId: z.string().nullable().optional(),
   assetId: z.string().nullable(),
+  depthAssetId: z.string().nullable().optional(),
   blendMode: z.enum(BLEND_MODES),
   compositeMode: z.enum(LAYER_COMPOSITE_MODES),
   expanded: z.boolean(),
@@ -738,12 +743,20 @@ function hydrateImportedLayer(
   version: number
 ): EditorLayer {
   const params = migrateLayerParams(layer, version)
+  const depthAssetId =
+    layer.depthAssetId && assetIds.has(layer.depthAssetId)
+      ? layer.depthAssetId
+      : null
 
   if (!(layer.assetId && !assetIds.has(layer.assetId))) {
     return {
       ...layer,
+      ...(layer.depthAssetId !== undefined ? { depthAssetId } : {}),
       params,
-      runtimeError: layer.runtimeError ?? null,
+      runtimeError:
+        layer.depthAssetId && !depthAssetId
+          ? `Missing depth map: ${assetRefById.get(layer.depthAssetId)?.fileName ?? "unknown file"}`
+          : (layer.runtimeError ?? null),
     }
   }
 
@@ -751,6 +764,7 @@ function hydrateImportedLayer(
 
   return {
     ...layer,
+    ...(layer.depthAssetId !== undefined ? { depthAssetId } : {}),
     params,
     runtimeError: assetRef
       ? `Missing asset: ${assetRef.fileName}`

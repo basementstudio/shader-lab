@@ -147,6 +147,7 @@ function createLayerSignature(layer: ShaderLabLayerConfig): string {
     layer.type,
     layer.asset?.kind ?? "no-asset",
     layer.asset?.src ?? "no-src",
+    layer.depthAsset?.src ?? "no-depth",
     layer.visible ? "1" : "0",
     layer.opacity.toFixed(4),
     layer.hue.toFixed(4),
@@ -562,6 +563,24 @@ export class PipelineManager {
           })
       } else {
         pass.clearMedia()
+      }
+
+      if (layer.depthAsset?.kind === "image") {
+        void pass
+          .setDepthMedia(layer.depthAsset.src)
+          .then(() => {
+            this.dirty = true
+          })
+          .catch((error) => {
+            this.onRuntimeError?.(
+              error instanceof Error
+                ? error.message
+                : "Failed to load depth map."
+            )
+            this.dirty = true
+          })
+      } else {
+        pass.clearDepthMedia()
       }
     }
 

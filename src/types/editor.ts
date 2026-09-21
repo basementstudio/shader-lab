@@ -24,6 +24,7 @@ export const SOURCE_LAYER_TYPES = [
   "image",
   "video",
   "gradient",
+  "shape",
   "text",
   "fluid",
   "pixel-trail",

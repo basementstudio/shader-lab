@@ -15,6 +15,7 @@ export type ShaderLabSourceLayerType =
   | "live"
   | "magnify-lens"
   | "pixel-trail"
+  | "shape"
   | "text"
   | "video"
 

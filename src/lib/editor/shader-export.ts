@@ -24,6 +24,7 @@ const SUPPORTED_SHADER_EXPORT_LAYER_TYPES = new Set<LayerType>([
   "image",
   "video",
   "gradient",
+  "shape",
   "fluid",
   "text",
   "live",

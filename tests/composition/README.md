@@ -73,7 +73,7 @@ The source/effect distinction prevents repeated filtering from increasing covera
 
 ## Next implementation slice
 
-Neutral blank projects are accepted. Reusable masks are accepted. The local Gradient Map effect is implemented pending its [focused manual check](GRADIENT-MAP-MANUAL-QA.md); shapes and text composition tools follow. Retain the broader group, alpha, video/export and hardware performance checks for final V3 validation. The roadmap is authoritative for priorities and user acceptance.
+Neutral blank projects are accepted. Reusable masks are accepted. Gradient Map, the stable artboard and shape layers are implemented pending their focused manual checks; direct text editing follows. Retain the broader group, alpha, video/export and hardware performance checks for final V3 validation. The roadmap is authoritative for priorities and user acceptance.
 
 ## Layer masks
 
@@ -90,6 +90,10 @@ Every layer and group accepts an optional `mask` (linear/radial gradient, ellips
 ## Stable artboard
 
 `compositionAspect: "screen"` remains the adaptive mode (canvas follows the viewport, logical size = viewport). Every other aspect is a fixed document whose size is the saved `composition`; the editor fits and centers the canvas and passes receive the document as `logicalSize`, matching exports. `artboard.mjs` checks document resolution and cropping, viewport fitting, the store's composition update rules, save/reopen, the legacy fixture staying adaptive, and the new blank default. Manual check: [ARTBOARD-MANUAL-QA.md](ARTBOARD-MANUAL-QA.md).
+
+## Shape layers
+
+`shape` is a source layer that evaluates seven signed-distance silhouettes in one shader (ellipse, rectangle with corner radius, triangle, polygon, star, ring, blades) in centered shorter-edge composition units, with color, outline and softness (edge antialiasing at 0). `shape-layers.mjs` renders the editor and runtime pass over a backdrop for every shape, rotation, offset, outline, softness, color and multiply blending, then checks a masked multiplied Blades project for hydration, history, duplication, save/reopen, export and runtime parity. Manual check: [SHAPE-LAYERS-MANUAL-QA.md](SHAPE-LAYERS-MANUAL-QA.md).
 
 ## Neutral projects and global colors
 

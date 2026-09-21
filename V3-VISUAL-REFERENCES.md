@@ -71,6 +71,7 @@ The four screenshots shared on September 17 were opened and reviewed. They suppl
 | `18-feedback-paleta-termica.png` | `.context/attachments/Snglqt/image.png` | Thermal-style false color: tonal palette study, not evidence of depth or temperature data. |
 | `19-feedback-anotaciones-tecnicas.png` | `.context/attachments/dAIoad/image.png` | Orange points, red boxes, crosshairs, labels and connections: prominent annotation/Blob Tracking direction. |
 | `20-feedback-formas-lovedance.png` | `.context/attachments/aByVza/image.png` | Lovedance: colored shape layers, photographic blends, masking and type. |
+| `21-puntos-conectados-retrato.png` | `.context/attachments/TB1qSd/image.png` | Portrait as a tone-colored point cloud with short neighbor links: dense dark graphs, sparse light dots on gray. Shared September 21, 2026 with the new effect ideas in roadmap 3.4. |
 
 The user approved simple general masks (linear/radial gradient, ellipse/circle, rectangle/square, brush), replacing the earlier postponement. No pen tool. Reuse the accepted Cells brush interaction while implementing general effect masking separately from content cutouts. Automatic selection remains later work.
 

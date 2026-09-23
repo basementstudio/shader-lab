@@ -124,6 +124,12 @@ export function layerMaskSignature(
 
 export type LayerMaskRole = "source" | "effect" | "transform"
 
+const BRUSH_FEATHER_RINGS = [
+  [0.35, 6, 0.9],
+  [0.7, 10, 0.6],
+  [1, 14, 0.3],
+] as const
+
 export class LayerMaskNode {
   private readonly center = uniform(new THREE.Vector2(0, 0))
   private readonly size = uniform(new THREE.Vector2(0.5, 0.5))
@@ -254,10 +260,36 @@ export class LayerMaskNode {
           .and(paintUv.x.lessThan(1))
           .and(paintUv.y.greaterThanEqual(0))
           .and(paintUv.y.lessThan(1))
-        const sampled = this.paintTexture
-          ? texture(this.paintTexture).sample(paintUv).level(0).r
-          : float(0)
-        value = select(inside, sampled, float(0))
+        const paint = this.paintTexture
+        const tap = (offset: TSLNode): TSLNode => {
+          if (!paint) return float(0)
+          const at = paintUv.add(offset.div(this.paintAspect))
+          const within = at.x
+            .greaterThanEqual(0)
+            .and(at.x.lessThan(1))
+            .and(at.y.greaterThanEqual(0))
+            .and(at.y.lessThan(1))
+          return select(within, texture(paint).sample(at).level(0).r, float(0))
+        }
+        const reach = this.feather
+        let total: TSLNode = tap(vec2(0, 0))
+        let weight = 1
+        for (const [ring, count, ringWeight] of BRUSH_FEATHER_RINGS) {
+          for (let index = 0; index < count; index += 1) {
+            const angle = ((index + ring * 0.5) / count) * Math.PI * 2
+            total = total.add(
+              tap(vec2(Math.cos(angle), Math.sin(angle)).mul(reach.mul(ring))).mul(
+                ringWeight
+              )
+            )
+            weight += ringWeight
+          }
+        }
+        value = select(
+          reach.greaterThan(0.0005),
+          total.div(weight),
+          select(inside, tap(vec2(0, 0)), float(0))
+        )
         break
       }
       default: {

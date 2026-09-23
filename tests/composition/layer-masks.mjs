@@ -242,6 +242,26 @@ async function passChecks() {
       results["brush row"] ??= {}
       results["brush row"][name] = paintedRow
 
+      const strokeY = paintedRow === 0 ? -0.3 : 0.3
+      const side = Math.sign(strokeY)
+      const redness = (p) => (p[0] - input[0]) / (1 - input[0])
+      at = await render("effect", mask({ shape: "brush", paint: painted, feather: 0 }))
+      const hardEdge = [0.05, 0.08, 0.11, 0.14].map((d) => redness(at(0, strokeY + side * d)))
+      assert(
+        hardEdge.every((v) => v < 0.05 || v > 0.95),
+        `${name}: brush feather 0 keeps a hard edge (${hardEdge})`
+      )
+      at = await render("effect", mask({ shape: "brush", paint: painted, feather: 0.12 }))
+      const softEdge = [0.02, 0.06, 0.1, 0.14].map((d) => redness(at(0, strokeY + side * d)))
+      assert(
+        softEdge.some((v) => v > 0.1 && v < 0.9) &&
+          softEdge.every((v, i) => i === 0 || v <= softEdge[i - 1] + 0.02),
+        `${name}: brush feather fades the stroke edge outward (${softEdge})`
+      )
+      check("brush feather far outside", at(0, -strokeY), input)
+      results["brush feather"] ??= {}
+      results["brush feather"][name] = softEdge
+
       const cells = new Cells(`cells-${name}`)
       cells.updateCompositionRole("transform")
       cells.resize(N, N)

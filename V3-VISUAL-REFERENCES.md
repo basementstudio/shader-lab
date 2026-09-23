@@ -168,3 +168,8 @@ Reference 31 was reopened: razor-sharp and hugely blurred parts of the same blac
 ## Glass
 
 References 26 to 30 were reopened. Real textured glass transmits: its surface shows only as thin bright rims, fine dark grooves and the distortion itself, while every flute or cell shows its own squeezed, shifted or flipped piece of the scene, blurred by how far the scene is behind the glass. The first render looked like plastic (cylinder shading on every flute, glittery frost, bubble-wrap hammered cells); reducing the surface to rims and pixel-width grooves, flattening hammered cells into shallow facets and softening frost fixed it. Reeded now reads like 26 and 29 (the depth study keeps near forms sharp and sliced, far forms melted), Hammered like 27, Pyramid shows mini images like 28, Hex is a fine soft cell like 30. The user accepted it on September 23, 2026 ("I love it").
+
+
+## Connected Dots
+
+Reference 21 was reopened: evenly spread but irregular points colored by tone from a small flat palette, links that thicken and multiply in the darks until dots and links merge into organic black masses with holes, and a background with no points at all. Portrait Graph reproduces that progression on photos and on a synthetic study (loose lilac dots on gray, colored threads at the edges, dense dark graphs with holes inside the forms); the first render's links were too wide and filled the shadows solid. Ink Blobs, Plexus and Constellation extend the same engine. User visual acceptance is pending.

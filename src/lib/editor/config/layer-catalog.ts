@@ -124,6 +124,13 @@ export const LAYER_CATALOG: Record<LayerType, LayerCatalogEntry> = {
     description:
       "A flat color silhouette: ellipse, rectangle, triangle, polygon, star, ring or blades. Blend it over photography or mask it.",
   },
+  "connected-dots": {
+    category: "core",
+    description:
+      "The image becomes points linked to their neighbors: tone-colored graphs, ink blobs that melt together in the darks, or plexus lines that fade with distance. Points can drift so links form and break over time.",
+    label: "Connected Dots",
+    previewSrc: "/examples/connected-dots.webp",
+  },
   "dot-grid": {
     category: "core",
     description:

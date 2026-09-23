@@ -46,6 +46,7 @@ const SUPPORTED_SHADER_EXPORT_LAYER_TYPES = new Set<LayerType>([
   "flares",
   "focus-blur",
   "glass",
+  "connected-dots",
   "annotations",
   "crt",
   "chromatic-aberration",

@@ -58,6 +58,7 @@ export type AddLayerAction =
   | "flares"
   | "focus-blur"
   | "glass"
+  | "connected-dots"
   | "halftone"
   | "image"
   | "ink"
@@ -138,6 +139,7 @@ const EFFECT_ORDER: readonly AddLayerAction[] = [
   "dithering",
   "halftone",
   "dot-grid",
+  "connected-dots",
   "relief",
   "particle-grid",
   "pixelation",

@@ -19,6 +19,7 @@ import { ReliefPass } from "@/renderer/relief-pass"
 import { FlaresPass } from "@/renderer/flares-pass"
 import { FocusBlurPass } from "@/renderer/focus-blur-pass"
 import { GlassPass } from "@/renderer/glass-pass"
+import { ConnectedDotsPass } from "@/renderer/connected-dots-pass"
 import { HalftonePass } from "@/renderer/halftone-pass"
 import { InkPass } from "@/renderer/ink-pass"
 import { ParticleGridPass } from "@/renderer/particle-grid-pass"
@@ -99,6 +100,8 @@ export function createPassNode(
       return new FocusBlurPass(layerId)
     case "glass":
       return new GlassPass(layerId)
+    case "connected-dots":
+      return new ConnectedDotsPass(layerId)
     case "pixel-sorting":
       return new PixelSortingPass(layerId)
     case "photographic-cells":

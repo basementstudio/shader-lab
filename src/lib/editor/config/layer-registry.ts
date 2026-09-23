@@ -39,6 +39,10 @@ import {
   DEFAULT_GLASS_STYLE,
   glassStyleParams,
 } from "@/lib/editor/config/glass-styles"
+import {
+  connectedDotsStyleParams,
+  DEFAULT_CONNECTED_DOTS_STYLE,
+} from "@/lib/editor/config/connected-dots-styles"
 import { GLYPH_FONT_OPTIONS, TEXT_FONT_OPTIONS } from "@/lib/editor/text-fonts"
 import type {
   EffectLayerType,
@@ -4599,6 +4603,285 @@ const glassParams = [
   },
 ] as const satisfies ParameterDefinitions
 
+const dotsDefaults = connectedDotsStyleParams(DEFAULT_CONNECTED_DOTS_STYLE)
+
+const connectedDotsParams = [
+  {
+    key: "stops",
+    label: "Palette",
+    type: "text",
+    defaultValue: dotsDefaults.stops as string,
+    animatable: false,
+    visibleWhen: { key: "__internal", equals: "connected-dots" },
+  },
+  {
+    animatable: false,
+    defaultValue: dotsDefaults.mode as string,
+    key: "mode",
+    label: "Mode",
+    options: [
+      { label: "Graph", value: "graph" },
+      { label: "Blobs", value: "blobs" },
+      { label: "Plexus", value: "plexus" },
+    ],
+    type: "select",
+    description:
+      "Graph links neighbors by tone; Blobs melts dark areas into organic shapes; Plexus draws thin lines that fade with distance.",
+  },
+  {
+    defaultValue: dotsDefaults.spacing as number,
+    key: "spacing",
+    label: "Spacing",
+    max: 120,
+    min: 3,
+    step: 1,
+    type: "number",
+    description:
+      "Distance between points, in document pixels.",
+  },
+  {
+    defaultValue: dotsDefaults.jitter as number,
+    key: "jitter",
+    label: "Jitter",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "0 is a regular grid; 1 scatters points evenly but irregularly.",
+  },
+  {
+    defaultValue: dotsDefaults.cutoff as number,
+    key: "cutoff",
+    label: "Cutoff",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Tones lighter than this get no points, so the background can drop out.",
+  },
+  {
+    defaultValue: dotsDefaults.invert as boolean,
+    key: "invert",
+    label: "Invert",
+    type: "boolean",
+    description: "Light areas get the points and links instead of dark ones.",
+  },
+  {
+    animatable: false,
+    defaultValue: dotsDefaults.dotShape as string,
+    group: "Dots",
+    key: "dotShape",
+    label: "Dot Shape",
+    options: [
+      { label: "Circle", value: "circle" },
+      { label: "Square", value: "square" },
+      { label: "Plus", value: "plus" },
+      { label: "Ring", value: "ring" },
+    ],
+    type: "select",
+    description:
+      "Shape of every point.",
+  },
+  {
+    defaultValue: dotsDefaults.minSize as number,
+    group: "Dots",
+    key: "minSize",
+    label: "Min Size",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Dot size in light areas, as a share of the spacing.",
+  },
+  {
+    defaultValue: dotsDefaults.maxSize as number,
+    group: "Dots",
+    key: "maxSize",
+    label: "Max Size",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Dot size in dark areas.",
+  },
+  {
+    defaultValue: dotsDefaults.links as number,
+    group: "Links",
+    visibleWhen: { key: "mode", notEquals: "plexus" },
+    key: "links",
+    label: "Links",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "How many neighbors connect in dark areas.",
+  },
+  {
+    defaultValue: dotsDefaults.linkThreshold as number,
+    group: "Links",
+    visibleWhen: { key: "mode", notEquals: "plexus" },
+    key: "linkThreshold",
+    label: "Link Threshold",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Tone where links start to appear.",
+  },
+  {
+    defaultValue: dotsDefaults.linkMin as number,
+    group: "Links",
+    visibleWhen: { key: "mode", notEquals: "plexus" },
+    key: "linkMin",
+    label: "Thin Links",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Link width in light areas, as a share of the spacing.",
+  },
+  {
+    defaultValue: dotsDefaults.linkMax as number,
+    group: "Links",
+    visibleWhen: { key: "mode", notEquals: "plexus" },
+    key: "linkMax",
+    label: "Thick Links",
+    max: 1.5,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Link width in dark areas. Wide links merge into masses.",
+  },
+  {
+    defaultValue: dotsDefaults.blobiness as number,
+    group: "Links",
+    visibleWhen: { key: "mode", equals: "blobs" },
+    key: "blobiness",
+    label: "Blobiness",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "How much dots and links melt together.",
+  },
+  {
+    defaultValue: dotsDefaults.range as number,
+    group: "Links",
+    visibleWhen: { key: "mode", equals: "plexus" },
+    key: "range",
+    label: "Range",
+    max: 2.9,
+    min: 1,
+    step: 0.01,
+    type: "number",
+    description:
+      "How far plexus lines reach, in spacings. Longer lines fade.",
+  },
+  {
+    defaultValue: dotsDefaults.lineWidth as number,
+    group: "Links",
+    visibleWhen: { key: "mode", equals: "plexus" },
+    key: "lineWidth",
+    label: "Line Width",
+    max: 6,
+    min: 0.25,
+    step: 0.05,
+    type: "number",
+    description:
+      "Plexus line width, in document pixels.",
+  },
+  {
+    animatable: false,
+    defaultValue: dotsDefaults.colorMode as string,
+    group: "Color",
+    key: "colorMode",
+    label: "Color",
+    options: [
+      { label: "Palette by tone", value: "palette" },
+      { label: "Source colors", value: "source" },
+      { label: "Ink", value: "ink" },
+    ],
+    type: "select",
+    description:
+      "Palette gives each tone a flat color from the ramp; Source uses the image; Ink is one color.",
+  },
+  {
+    defaultValue: dotsDefaults.ink as string,
+    group: "Color",
+    key: "ink",
+    label: "Ink",
+    type: "color",
+    visibleWhen: { key: "colorMode", equals: "ink" },
+  },
+  {
+    animatable: false,
+    defaultValue: dotsDefaults.background as string,
+    group: "Color",
+    key: "background",
+    label: "Background",
+    options: [
+      { label: "Color", value: "color" },
+      { label: "Image", value: "image" },
+      { label: "Transparent", value: "transparent" },
+    ],
+    type: "select",
+    description:
+      "What shows between the points.",
+  },
+  {
+    defaultValue: dotsDefaults.backgroundColor as string,
+    group: "Color",
+    key: "backgroundColor",
+    label: "Background Color",
+    type: "color",
+    visibleWhen: { key: "background", equals: "color" },
+  },
+  {
+    defaultValue: 0,
+    group: "Motion",
+    key: "drift",
+    label: "Drift",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Points wander around their place; links form and break as they move.",
+  },
+  {
+    defaultValue: 0.5,
+    group: "Motion",
+    key: "speed",
+    label: "Speed",
+    max: 4,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "How fast the points drift.",
+  },
+  {
+    defaultValue: 0,
+    group: "Motion",
+    key: "seed",
+    label: "Seed",
+    max: 999,
+    min: 0,
+    step: 1,
+    type: "number",
+    description: "Rearranges points and links.",
+  },
+] as const satisfies ParameterDefinitions
+
 const smearParams = [
   {
     defaultValue: 0,
@@ -6499,6 +6782,12 @@ const layerDefinitions: Record<LayerType, LayerDefinition> = {
     kind: "effect",
     params: glassParams,
     type: "glass",
+  },
+  "connected-dots": {
+    defaultName: "Connected Dots",
+    kind: "effect",
+    params: connectedDotsParams,
+    type: "connected-dots",
   },
   smear: {
     defaultName: "Progressive Blur",

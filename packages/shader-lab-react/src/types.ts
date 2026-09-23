@@ -54,6 +54,7 @@ export type ShaderLabEffectLayerType =
   | "flares"
   | "focus-blur"
   | "glass"
+  | "connected-dots"
   | "voxel"
 
 export type ShaderLabLayerType =

@@ -114,3 +114,8 @@ Depth (roadmap 6.4): references 24 and 25 are the user's own results with estima
 ## Lumen Print
 
 References 06 (washed cyan, diffuse light, grain), 07 (crushed blacks, highlights burned to red/orange/yellow, red halos), 12 (partial inversion with bright contour rims, silver tone) and 14 (highlights eaten into paper along a ragged grainy edge, magenta stain) were opened before designing the layer; 10 informed the washed false color. Each maps to a style with its own palette and values. Renders of all six styles on the bundled flora photo were compared side by side: Burned, Sabattier and Washed read close to 07, 12 and 06; Cyanotype and Lumen read as sun prints; Eroded erodes into paper but is harsher and flatter than 14. The user tried the layer in the dev server on September 23, 2026 and called it "freaking amazing"; default tuning remains theirs.
+
+
+## Signal Rot
+
+Reference 13 was opened before designing the layer: long streaks where the scanner held a line while the paper moved, those streaks snaking sideways with uneven scan speed, torn horizontal bands and white areas where the paper lifted off the glass, all in red/black/white. Scanner Drag maps to held segments with wavy fronts, wobble, stretch, ragged tears and white dropouts from one edge; Torn Scan pushes the dropouts. The Signal Rot style adds the electronic side (row jitter, chroma drift, crushed levels) that the TouchDesigner idea described without an image. First renders exposed axis mistakes in line noise/chroma and rectangular, sawtooth drag fronts; both were corrected before review. The streak richness of 13 depends on busy source imagery; flat skies give flat streaks. The user accepted the styles on September 23, 2026 and asked to drop a fourth, Tape Wobble.

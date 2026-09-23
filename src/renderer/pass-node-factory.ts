@@ -12,6 +12,7 @@ import { EdgeDetectPass } from "@/renderer/edge-detect-pass"
 import { FlutedGlassPass } from "@/renderer/fluted-glass-pass"
 import { GradientMapPass } from "@/renderer/gradient-map-pass"
 import { LumenPrintPass } from "@/renderer/lumen-print-pass"
+import { SignalRotPass } from "@/renderer/signal-rot-pass"
 import { HalftonePass } from "@/renderer/halftone-pass"
 import { InkPass } from "@/renderer/ink-pass"
 import { ParticleGridPass } from "@/renderer/particle-grid-pass"
@@ -78,6 +79,8 @@ export function createPassNode(
       return new GradientMapPass(layerId)
     case "lumen-print":
       return new LumenPrintPass(layerId)
+    case "signal-rot":
+      return new SignalRotPass(layerId)
     case "pixel-sorting":
       return new PixelSortingPass(layerId)
     case "photographic-cells":

@@ -11,6 +11,10 @@ import {
   DEFAULT_LUMEN_PRINT_STYLE,
   lumenPrintStyleParams,
 } from "@/lib/editor/config/lumen-print-styles"
+import {
+  DEFAULT_SIGNAL_ROT_STYLE,
+  signalRotStyleParams,
+} from "@/lib/editor/config/signal-rot-styles"
 import { GLYPH_FONT_OPTIONS, TEXT_FONT_OPTIONS } from "@/lib/editor/text-fonts"
 import type {
   EffectLayerType,
@@ -3365,6 +3369,185 @@ const lumenPrintParams = [
   },
 ] as const satisfies ParameterDefinitions
 
+const signalRotDefaults = signalRotStyleParams(DEFAULT_SIGNAL_ROT_STYLE)
+
+const signalRotParams = [
+  {
+    animatable: false,
+    defaultValue: signalRotDefaults.direction as string,
+    key: "direction",
+    label: "Streaks",
+    options: [
+      { label: "Vertical", value: "vertical" },
+      { label: "Horizontal", value: "horizontal" },
+    ],
+    type: "select",
+    description: "Direction the scan drags the image.",
+  },
+  {
+    defaultValue: signalRotDefaults.drag as number,
+    group: "Drag",
+    key: "drag",
+    label: "Drag",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "How much of the image is held and dragged into long streaks.",
+  },
+  {
+    defaultValue: signalRotDefaults.dragLength as number,
+    group: "Drag",
+    key: "dragLength",
+    label: "Drag Length",
+    max: 1,
+    min: 0.01,
+    step: 0.01,
+    type: "number",
+    description:
+      "Length of each streak, as a share of the frame.",
+  },
+  {
+    defaultValue: signalRotDefaults.stretch as number,
+    group: "Drag",
+    key: "stretch",
+    label: "Stretch",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Uneven scan speed that compresses and stretches the image along the streaks.",
+  },
+  {
+    defaultValue: signalRotDefaults.wobble as number,
+    group: "Drag",
+    key: "wobble",
+    label: "Wobble",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "The image snakes sideways as the scan drifts.",
+  },
+  {
+    defaultValue: signalRotDefaults.wobbleScale as number,
+    group: "Drag",
+    key: "wobbleScale",
+    label: "Wobble Scale",
+    max: 2,
+    min: 0.02,
+    step: 0.01,
+    type: "number",
+    description:
+      "Length of the wobble waves; small values shake, large values sway.",
+  },
+  {
+    defaultValue: signalRotDefaults.tear as number,
+    group: "Tear",
+    key: "tear",
+    label: "Tear",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Bands with ragged edges shift sideways.",
+  },
+  {
+    defaultValue: signalRotDefaults.bandSize as number,
+    group: "Tear",
+    key: "bandSize",
+    label: "Band Size",
+    max: 0.5,
+    min: 0.01,
+    step: 0.01,
+    type: "number",
+    description:
+      "Height of the torn bands, as a share of the frame.",
+  },
+  {
+    defaultValue: signalRotDefaults.dropout as number,
+    group: "Tear",
+    key: "dropout",
+    label: "Dropout",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Parts of some bands drop out to the dropout color, like paper lifting off the glass.",
+  },
+  {
+    defaultValue: signalRotDefaults.dropoutColor as string,
+    group: "Tear",
+    key: "dropoutColor",
+    label: "Dropout Color",
+    type: "color",
+  },
+  {
+    defaultValue: signalRotDefaults.chroma as number,
+    group: "Signal",
+    key: "chroma",
+    label: "Chroma Shift",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Red and blue drift apart along the streaks.",
+  },
+  {
+    defaultValue: signalRotDefaults.crush as number,
+    group: "Signal",
+    key: "crush",
+    label: "Crush",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Quantizes tones into fewer levels.",
+  },
+  {
+    defaultValue: signalRotDefaults.lineNoise as number,
+    group: "Signal",
+    key: "lineNoise",
+    label: "Line Noise",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Individual scan lines jump along the streaks and flicker in brightness.",
+  },
+  {
+    defaultValue: signalRotDefaults.speed as number,
+    group: "Motion",
+    key: "speed",
+    label: "Speed",
+    max: 4,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "0 freezes the damage; higher values make the signal rot over time.",
+  },
+  {
+    defaultValue: 0,
+    group: "Motion",
+    key: "seed",
+    label: "Seed",
+    max: 999,
+    min: 0,
+    step: 1,
+    type: "number",
+    description: "Picks a different arrangement of streaks, tears and dropouts.",
+  },
+] as const satisfies ParameterDefinitions
+
 const smearParams = [
   {
     defaultValue: 0,
@@ -5128,6 +5311,12 @@ const layerDefinitions: Record<LayerType, LayerDefinition> = {
     kind: "effect",
     params: lumenPrintParams,
     type: "lumen-print",
+  },
+  "signal-rot": {
+    defaultName: "Signal Rot",
+    kind: "effect",
+    params: signalRotParams,
+    type: "signal-rot",
   },
   smear: {
     defaultName: "Progressive Blur",

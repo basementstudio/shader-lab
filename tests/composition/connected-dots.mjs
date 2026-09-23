@@ -203,6 +203,22 @@ async function passChecks() {
       record("drift", b)
       samples += 4
 
+      px = await render("black", { ...BASE, mode: "mesh", wire: 0, meshFill: 1 })
+      assert(inked(px) > 0.97, `${name}: mesh fills the frame with triangles (${inked(px)})`)
+      record("mesh fill", px)
+      px = await render("black", { ...BASE, mode: "mesh", wire: 1, meshFill: 0, wireColor: "#000000", lineWidth: 1 })
+      const wired = inked(px)
+      assert(wired > 0.05 && wired < 0.6, `${name}: mesh wire draws the triangle edges (${wired})`)
+      record("mesh wire", px)
+      px = await render("ramp", { ...BASE, mode: "mesh", wire: 0, colorMode: "source", cutoff: 0, spacing: 24 })
+      const facets = new Set()
+      for (let i = 0; i < px.length; i += 4) facets.add(px[i].toFixed(3))
+      assert(facets.size < 200, `${name}: mesh triangles are flat (${facets.size} tones)`)
+      record("mesh flat", px)
+      px = await render("white", { ...BASE, mode: "mesh", wire: 1 })
+      close(px, Array.from({ length: S * S }, () => [1, 1, 1, 1]).flat(), `${name}: mesh drops cut-off areas`, 0.001)
+      samples += 1
+
       for (const style of CONNECTED_DOTS_STYLES) {
         px = await render("ramp", connectedDotsStyleParams(style))
         assert(px.every(Number.isFinite), `${name}: ${style.id} produced non-finite output`)

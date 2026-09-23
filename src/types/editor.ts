@@ -52,6 +52,7 @@ export const EFFECT_LAYER_TYPES = [
   "gradient-map",
   "lumen-print",
   "signal-rot",
+  "dot-grid",
   "crt",
   "dithering",
   "halftone",

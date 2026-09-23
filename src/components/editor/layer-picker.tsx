@@ -52,6 +52,7 @@ export type AddLayerAction =
   | "gradient-map"
   | "lumen-print"
   | "signal-rot"
+  | "dot-grid"
   | "halftone"
   | "image"
   | "ink"
@@ -131,6 +132,7 @@ const EFFECT_ORDER: readonly AddLayerAction[] = [
   "crt",
   "dithering",
   "halftone",
+  "dot-grid",
   "particle-grid",
   "pixelation",
   "voxel",

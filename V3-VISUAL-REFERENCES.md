@@ -119,3 +119,8 @@ References 06 (washed cyan, diffuse light, grain), 07 (crushed blacks, highlight
 ## Signal Rot
 
 Reference 13 was opened before designing the layer: long streaks where the scanner held a line while the paper moved, those streaks snaking sideways with uneven scan speed, torn horizontal bands and white areas where the paper lifted off the glass, all in red/black/white. Scanner Drag maps to held segments with wavy fronts, wobble, stretch, ragged tears and white dropouts from one edge; Torn Scan pushes the dropouts. The Signal Rot style adds the electronic side (row jitter, chroma drift, crushed levels) that the TouchDesigner idea described without an image. First renders exposed axis mistakes in line noise/chroma and rectangular, sawtooth drag fronts; both were corrected before review. The streak richness of 13 depends on busy source imagery; flat skies give flat streaks. The user accepted the styles on September 23, 2026 and asked to drop a fourth, Tape Wobble.
+
+
+## Dot Grid
+
+Reference 04 was reopened: one exact grid of dots covers the whole sheet, tiny uniform specks on the empty pale blue paper and large solid dots only inside the dark shapes, which fade out into smaller dots at their edges over a soft blurred halo. The user asked for a standalone layer instead of changing Halftone, because these dots are nearly perfect and grid-like while Halftone simulates print. Coordinate follows 04 with a pale blue ground, near-black ink, a raised Level so light areas stay at the minimum speck, softened tone and a blurred underlay. The first render gave medium dots in a light sky; Level corrected it. The cross-shaped orange flares are not part of this layer. User visual acceptance is pending.

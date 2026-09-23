@@ -297,6 +297,19 @@ try {
   console.log(
     `PASS signal rot: ${signalRot.samples} editor/runtime GPU cases, identity, drag both directions, tear, dropout, chroma, crush, wobble, speed, styles, hydration, history, export, photo renders`
   )
+  const dotGrid = await page.evaluate(() => window.checkDotGrid())
+  for (const [style, png] of Object.entries(dotGrid.styles))
+    await Bun.write(
+      resolve(artifacts, `dot-grid-${style}.png`),
+      Buffer.from(png.split(",")[1], "base64")
+    )
+  await Bun.write(
+    resolve(artifacts, "dot-grid-preview.webp"),
+    Buffer.from(dotGrid.previewWebp.split(",")[1], "base64")
+  )
+  console.log(
+    `PASS dot grid: ${dotGrid.samples} editor/runtime GPU cases, exact cells, coverage, shapes, min dot, invert, tone, source ink, underlay, styles, hydration, history, export, photo renders`
+  )
   const artboard = await page.evaluate(() => window.checkArtboard())
   console.log(
     `PASS artboard: ${artboard.samples} document size, fit, composition update, save/reopen and legacy checks`

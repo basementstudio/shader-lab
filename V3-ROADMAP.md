@@ -289,7 +289,7 @@ Dar protagonismo a los nuevos efectos y menor prominencia a los actuales, manten
 
 ### 3.4 Ideas nuevas compartidas por el usuario (21 de septiembre de 2026)
 
-**Registradas para planificar; Lumen Print se aprobó como próxima entrega el 23 de septiembre de 2026 (ver consolidación abajo); las demás siguen sin aprobar.** Se suman al catálogo artístico de la fase 3 y a la revisión de Blob Tracking (6.3–6.5); la investigación de profundidad/parallax (1.5, 8.2) sigue siendo la prioridad que más entusiasma al usuario.
+**Registradas para planificar; agrupadas el 23 de septiembre de 2026 (ver consolidación abajo); Lumen Print es la primera candidata, pendiente de iniciar.** Se suman al catálogo artístico de la fase 3 y a la revisión de Blob Tracking (6.3–6.5); la investigación de profundidad/parallax (1.5, 8.2) sigue siendo la prioridad que más entusiasma al usuario.
 
 - **Retrato de puntos conectados** (`21-puntos-conectados-retrato.png`): la imagen se reduce a puntos dispersos coloreados por tono, con enlaces cortos entre vecinos que forman grafos densos en las zonas oscuras y se abren en las claras. Cercano a Particle Grid y a la trama de puntos, pero con conectividad. Decidir si es un pase propio o un modo de Blob Tracking / Particle Grid; medir el coste de la búsqueda de vecinos con video.
 - **Frequency modulation** (referencia TouchDesigner, versión propia): modular la señal de la imagen con ondas de frecuencia variable (desplazamiento o color), con controles de frecuencia, fase y portadora; abrir la referencia antes de definir la apariencia.

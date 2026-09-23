@@ -19,4 +19,9 @@ Scope: roadmap 3.4 idea "Retrato de puntos conectados". Reference: 21.
 
 Group it with a photo. Save/reload, duplicate, undo a style change. Export PNG and video: identical to the canvas; with Drift the export animates.
 
-Limits: each point links only to its 8 grid neighbors, so Plexus range tops out below three spacings. Mesh (triangulated fills) and snapping points to edges are planned as a second pass.
+## Mesh and new styles
+
+- **Mode: Mesh** splits the space between points into triangles, each filled flat with the average tone or color of its corners. **Fill** and **Wire** set triangle and edge opacity; **Wire Color**, **Line Width**. Cutoff drops triangles in light areas.
+- New styles: **Molecule** (ring atoms and bonds on navy), **Circuit** (grid-snapped square pads and traces in green), **Neural** (glowing source-colored plexus), **Riso** (blue and pink two-ink print on cream), **Low Poly** (flat triangles in the photo's colors), **Wireframe** (white triangle edges on black).
+
+Limits: each point links only to its 8 grid neighbors, so Plexus range tops out below three spacings. Snapping points to edges is still open.

@@ -28,9 +28,9 @@ import {
   reliefStyleParams,
 } from "@/lib/editor/config/relief-styles"
 import {
-  colorHalosStyleParams,
-  DEFAULT_COLOR_HALOS_STYLE,
-} from "@/lib/editor/config/color-halos-styles"
+  DEFAULT_FLARES_STYLE,
+  flaresStyleParams,
+} from "@/lib/editor/config/flares-styles"
 import { GLYPH_FONT_OPTIONS, TEXT_FONT_OPTIONS } from "@/lib/editor/text-fonts"
 import type {
   EffectLayerType,
@@ -4046,133 +4046,13 @@ const reliefParams = [
   },
 ] as const satisfies ParameterDefinitions
 
-const colorHalosDefaults = colorHalosStyleParams(DEFAULT_COLOR_HALOS_STYLE)
+const flaresDefaults = flaresStyleParams(DEFAULT_FLARES_STYLE)
 
-const colorHalosParams = [
+const flaresParams = [
   {
-    key: "stops",
-    label: "Halo Ramp",
-    type: "text",
-    defaultValue: colorHalosDefaults.stops as string,
-    animatable: false,
-    visibleWhen: { key: "__internal", equals: "color-halos" },
-  },
-  {
-    animatable: false,
-    defaultValue: colorHalosDefaults.glowFrom as string,
-    key: "glowFrom",
-    label: "Glow From",
-    options: [
-      { label: "Dark shapes", value: "dark" },
-      { label: "Light shapes", value: "light" },
-      { label: "Cutout", value: "alpha" },
-    ],
-    type: "select",
-    description:
-      "What gets a halo: dark shapes on a light ground, light shapes on a dark ground, or text and transparent images.",
-  },
-  {
-    defaultValue: colorHalosDefaults.threshold as number,
+    defaultValue: 0.85,
     key: "threshold",
     label: "Threshold",
-    max: 1,
-    min: 0,
-    step: 0.01,
-    type: "number",
-    description:
-      "How dark (or light) a tone must be to glow. Keeps the paper itself from tinting.",
-  },
-  {
-    defaultValue: colorHalosDefaults.spread as number,
-    key: "spread",
-    label: "Spread",
-    max: 400,
-    min: 1,
-    step: 1,
-    type: "number",
-    description:
-      "Size of the halo, in document pixels.",
-  },
-  {
-    defaultValue: colorHalosDefaults.intensity as number,
-    key: "intensity",
-    label: "Intensity",
-    max: 6,
-    min: 0.1,
-    step: 0.01,
-    type: "number",
-    description:
-      "Pushes the halo outward: higher values reach farther and widen the inner colors.",
-  },
-  {
-    defaultValue: colorHalosDefaults.reach as number,
-    key: "reach",
-    label: "Fade",
-    max: 1,
-    min: 0.001,
-    step: 0.001,
-    type: "number",
-    description:
-      "How softly the outer edge of the halo fades into the image.",
-  },
-  {
-    defaultValue: colorHalosDefaults.bands as number,
-    key: "bands",
-    label: "Bands",
-    max: 24,
-    min: 0,
-    step: 1,
-    type: "number",
-    description:
-      "0 keeps smooth gradients; higher values split the halo into flat contour bands.",
-  },
-  {
-    defaultValue: colorHalosDefaults.keepShape as boolean,
-    key: "keepShape",
-    label: "Keep Shape",
-    type: "boolean",
-    description: "Draws the crisp original shape on top of its halo, like the letters in the reference.",
-  },
-  {
-    defaultValue: 1,
-    key: "amount",
-    label: "Amount",
-    max: 1,
-    min: 0,
-    step: 0.01,
-    type: "number",
-    description:
-      "Strength of the halo over the image.",
-  },
-  {
-    defaultValue: colorHalosDefaults.flare as number,
-    group: "Cross Flare",
-    key: "flare",
-    label: "Flare",
-    max: 4,
-    min: 0,
-    step: 0.01,
-    type: "number",
-    description:
-      "Cross-shaped streaks from the brightest points.",
-  },
-  {
-    defaultValue: colorHalosDefaults.flareLength as number,
-    group: "Cross Flare",
-    key: "flareLength",
-    label: "Flare Length",
-    max: 800,
-    min: 4,
-    step: 1,
-    type: "number",
-    description:
-      "Length of the streaks, in document pixels.",
-  },
-  {
-    defaultValue: colorHalosDefaults.flareThreshold as number,
-    group: "Cross Flare",
-    key: "flareThreshold",
-    label: "Flare Threshold",
     max: 1,
     min: 0,
     step: 0.01,
@@ -4181,11 +4061,159 @@ const colorHalosParams = [
       "How bright a point must be to flare.",
   },
   {
-    defaultValue: colorHalosDefaults.flareColor as string,
-    group: "Cross Flare",
-    key: "flareColor",
-    label: "Flare Color",
+    defaultValue: 10,
+    key: "isolation",
+    label: "Isolation",
+    max: 120,
+    min: 0,
+    step: 1,
+    type: "number",
+    description:
+      "Only points brighter than their surroundings this far away flare, so large bright areas stay clean. In document pixels.",
+  },
+  {
+    defaultValue: flaresDefaults.intensity as number,
+    key: "intensity",
+    label: "Intensity",
+    max: 12,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Brightness of the flares.",
+  },
+  {
+    defaultValue: flaresDefaults.rays as number,
+    group: "Shape",
+    key: "rays",
+    label: "Rays",
+    max: 16,
+    min: 1,
+    step: 1,
+    type: "number",
+    description:
+      "Number of rays from each point: 4 is a cross, 8 a star, 2 a single streak.",
+  },
+  {
+    defaultValue: flaresDefaults.rotation as number,
+    group: "Shape",
+    key: "rotation",
+    label: "Rotation",
+    max: 180,
+    min: -180,
+    step: 1,
+    type: "number",
+    description:
+      "Turns every flare.",
+  },
+  {
+    defaultValue: flaresDefaults.length as number,
+    group: "Shape",
+    key: "length",
+    label: "Length",
+    max: 1200,
+    min: 4,
+    step: 1,
+    type: "number",
+    description:
+      "Length of the rays, in document pixels.",
+  },
+  {
+    defaultValue: flaresDefaults.secondaryLength as number,
+    group: "Shape",
+    key: "secondaryLength",
+    label: "Secondary Rays",
+    max: 2,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Length of every other ray, relative to the main ones. Below 1 gives a star.",
+  },
+  {
+    defaultValue: flaresDefaults.lengthJitter as number,
+    group: "Shape",
+    key: "lengthJitter",
+    label: "Length Jitter",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Randomizes each ray's length for a starburst.",
+  },
+  {
+    defaultValue: flaresDefaults.thickness as number,
+    group: "Shape",
+    key: "thickness",
+    label: "Thickness",
+    max: 16,
+    min: 0,
+    step: 0.1,
+    type: "number",
+    description:
+      "Width of the rays, in document pixels.",
+  },
+  {
+    defaultValue: flaresDefaults.falloff as number,
+    group: "Shape",
+    key: "falloff",
+    label: "Falloff",
+    max: 6,
+    min: 0.2,
+    step: 0.01,
+    type: "number",
+    description:
+      "How quickly the rays fade toward their tips.",
+  },
+  {
+    defaultValue: 0,
+    group: "Shape",
+    key: "seed",
+    label: "Seed",
+    max: 999,
+    min: 0,
+    step: 1,
+    type: "number",
+    description: "Picks different ray lengths when Length Jitter is on.",
+  },
+  {
+    defaultValue: flaresDefaults.color as string,
+    group: "Color",
+    key: "color",
+    label: "Ray Color",
     type: "color",
+  },
+  {
+    defaultValue: flaresDefaults.coreColor as string,
+    group: "Color",
+    key: "coreColor",
+    label: "Core Color",
+    type: "color",
+  },
+  {
+    defaultValue: flaresDefaults.coreGlow as number,
+    group: "Color",
+    key: "coreGlow",
+    label: "Core Glow",
+    max: 4,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Round glow at the center of each flare.",
+  },
+  {
+    defaultValue: flaresDefaults.coreSize as number,
+    group: "Color",
+    key: "coreSize",
+    label: "Core Size",
+    max: 80,
+    min: 0,
+    step: 0.5,
+    type: "number",
+    description:
+      "Radius of the core glow, in document pixels.",
   },
 ] as const satisfies ParameterDefinitions
 
@@ -5977,11 +6005,11 @@ const layerDefinitions: Record<LayerType, LayerDefinition> = {
     params: reliefParams,
     type: "relief",
   },
-  "color-halos": {
-    defaultName: "Color Halos",
+  flares: {
+    defaultName: "Flares",
     kind: "effect",
-    params: colorHalosParams,
-    type: "color-halos",
+    params: flaresParams,
+    type: "flares",
   },
   smear: {
     defaultName: "Progressive Blur",

@@ -128,7 +128,6 @@ declare module "three/tsl" {
   export function dFdx(value: unknown): TSLNode
   export function dFdy(value: unknown): TSLNode
   export function fract(value: unknown): TSLNode
-  export function fwidth(value: unknown): TSLNode
   export function If(
     condition: TSLNode,
     callback: () => unknown

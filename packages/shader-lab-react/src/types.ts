@@ -51,7 +51,7 @@ export type ShaderLabEffectLayerType =
   | "dot-grid"
   | "erosion"
   | "relief"
-  | "color-halos"
+  | "flares"
   | "voxel"
 
 export type ShaderLabLayerType =

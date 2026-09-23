@@ -1,16 +1,15 @@
-import { ColorHalosPass as RuntimeColorHalos } from "@runtime/renderer/color-halos-pass"
+import { FlaresPass as RuntimeFlares } from "@runtime/renderer/flares-pass"
 import { buildRendererFrame as runtimeFrame } from "@runtime/renderer/contracts"
 import { createHeadlessRenderer } from "@runtime/renderer/create-headless-renderer"
 import { float, texture, uv, vec2 } from "three/tsl"
 import * as THREE from "three/webgpu"
-import { ColorHalosPass } from "@/renderer/color-halos-pass"
-import { serializeGradientMapStops } from "@/renderer/color-map-lut"
+import { FlaresPass } from "@/renderer/flares-pass"
 import {
-  COLOR_HALOS_STYLES,
-  colorHalosStyleParams,
-  DEFAULT_COLOR_HALOS_STYLE,
-  matchColorHalosStyle,
-} from "@/lib/editor/config/color-halos-styles"
+  DEFAULT_FLARES_STYLE,
+  FLARES_STYLES,
+  flaresStyleParams,
+  matchFlaresStyle,
+} from "@/lib/editor/config/flares-styles"
 import { createLayer } from "@/lib/editor/layers"
 import {
   applyLabProjectFile,
@@ -38,44 +37,43 @@ function close(actual, expected, label, tolerance = 0.01) {
     )
   })
 }
+const linear = (v) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)
 const N = 64
 
-const linear = (v) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)
-const RAMP = [
-  { position: 0, color: "#0000ff" },
-  { position: 1, color: "#ff0000" },
-]
 const BASE = {
-  stops: serializeGradientMapStops(RAMP),
-  glowFrom: "dark",
-  threshold: 0.5,
-  spread: 6,
-  intensity: 1.6,
-  reach: 0.05,
-  bands: 0,
-  keepShape: false,
-  amount: 1,
-  flare: 0,
-  flareLength: 40,
-  flareThreshold: 0.8,
-  flareColor: "#ffffff",
+  threshold: 0.8,
+  isolation: 10,
+  intensity: 4,
+  rays: 4,
+  rotation: 0,
+  length: 28,
+  secondaryLength: 1,
+  lengthJitter: 0,
+  thickness: 1,
+  falloff: 1,
+  seed: 0,
+  color: "#ff7a3d",
+  coreColor: "#ffffff",
+  coreGlow: 0,
+  coreSize: 4,
 }
 
 function unitChecks() {
-  const entry = getLayerCatalogEntry("color-halos")
-  assert(entry.label === "Color Halos" && entry.category === "core", "Catalog entry")
-  const layer = createLayer("color-halos")
-  assert(
-    matchColorHalosStyle(layer.params) === DEFAULT_COLOR_HALOS_STYLE.id,
-    "New layers start on the Gradient Maps style"
-  )
-  for (const style of COLOR_HALOS_STYLES)
+  const entry = getLayerCatalogEntry("flares")
+  assert(entry.label === "Flares" && entry.category === "core", "Catalog entry")
+  const layer = createLayer("flares")
+  assert(matchFlaresStyle(layer.params) === DEFAULT_FLARES_STYLE.id, "New layers start on the Cross style")
+  for (const style of FLARES_STYLES)
     assert(
-      matchColorHalosStyle({ ...layer.params, ...colorHalosStyleParams(style) }) === style.id,
+      matchFlaresStyle({ ...layer.params, ...flaresStyleParams(style) }) === style.id,
       `${style.id}: applying a style must select it`
     )
-  assert(matchColorHalosStyle({ ...layer.params, keepShape: false }) === "custom", "Editing shows Custom")
-  return 3 + COLOR_HALOS_STYLES.length
+  assert(matchFlaresStyle({ ...layer.params, rays: 5 }) === "custom", "Editing shows Custom")
+  assert(
+    matchFlaresStyle({ ...layer.params, threshold: 0.5 }) === DEFAULT_FLARES_STYLE.id,
+    "Threshold is not part of a style"
+  )
+  return 4 + FLARES_STYLES.length
 }
 
 function makeInput(fn) {
@@ -94,22 +92,24 @@ async function passChecks() {
   const renderer = new THREE.WebGPURenderer({ antialias: false })
   await renderer.init()
   renderer.toneMapping = THREE.NoToneMapping
-  const inSquare = (x, y) => x >= 26 && x < 38 && y >= 26 && y < 38
+  const dot = (x, y) => Math.hypot(x - 31.5, y - 31.5) < 2
   const inputs = {
-    white: makeInput(() => [1, 1, 1]),
-    square: makeInput((x, y) => (inSquare(x, y) ? [0, 0, 0] : [1, 1, 1])),
-    lightSquare: makeInput((x, y) => (inSquare(x, y) ? [1, 1, 1] : [0, 0, 0])),
-    dot: makeInput((x, y) => (Math.hypot(x - 31.5, y - 31.5) < 2 ? [1, 1, 1] : [0, 0, 0])),
+    dark: makeInput(() => [0.05, 0.05, 0.05]),
+    dot: makeInput((x, y) => (dot(x, y) ? [1, 1, 1] : [0.02, 0.02, 0.02])),
+    square: makeInput((x, y) =>
+      x >= 20 && x < 44 && y >= 20 && y < 44 ? [1, 1, 1] : [0.02, 0.02, 0.02]
+    ),
+    clearDot: makeInput((x, y) => (dot(x, y) ? [1, 1, 1, 1] : [0, 0, 0, 0])),
   }
   const target = new THREE.RenderTarget(N, N, { type: THREE.FloatType, depthBuffer: false })
   const results = {}
   let samples = 0
   try {
     for (const [name, Pass] of [
-      ["editor", ColorHalosPass],
-      ["runtime", RuntimeColorHalos],
+      ["editor", FlaresPass],
+      ["runtime", RuntimeFlares],
     ]) {
-      const pass = new Pass(`color-halos-${name}`)
+      const pass = new Pass(`flares-${name}`)
       pass.updateCompositionRole("transform")
       pass.flushColorNode()
       const render = async (input, params) => {
@@ -124,60 +124,64 @@ async function passChecks() {
         results[label][name] = pixels
         samples++
       }
-      const at = (px, x, y) => px.slice((y * N + x) * 4, (y * N + x) * 4 + 3)
+      const at = (px, x, y) => px.slice((y * N + x) * 4, (y * N + x) * 4 + 4)
+      const glow = (px, x, y) => at(px, x, y)[0]
 
-      let px = await render("square", { ...BASE, amount: 0 })
-      close(px, Array.from(inputs.square.image.data), `${name}: amount 0 passes the image through`, 0.001)
+      let px = await render("dark", BASE)
+      close(px, Array.from(inputs.dark.image.data), `${name}: no bright points, no flares`, 0.0005)
+      record("dark", px)
 
-      px = await render("white", BASE)
-      close(px, Array.from(inputs.white.image.data), `${name}: paper above the threshold stays untouched`, 0.001)
-      record("paper", px)
+      px = await render("dot", BASE)
+      const axis = Math.max(glow(px, 44, 32), glow(px, 20, 32), glow(px, 32, 44), glow(px, 32, 20))
+      const diagonal = glow(px, 41, 41)
+      assert(axis > 0.15 && axis > diagonal * 4, `${name}: four rays form a cross (${axis} vs ${diagonal})`)
+      const far = glow(px, 60, 32)
+      assert(far < glow(px, 40, 32), `${name}: rays fade toward their tips`)
+      record("cross", px)
 
-      px = await render("square", { ...BASE, intensity: 3 })
-      close(at(px, 2, 2), [1, 1, 1], `${name}: far from the shape the image is unchanged`, 0.01)
-      const core = at(px, 32, 32)
-      assert(core[0] > 0.8 && core[2] < 0.2, `${name}: the halo core takes the right end of the ramp (${core})`)
-      const rim = [12, 14, 16, 18, 20].map((x) => at(px, x, 32))
+      px = await render("dot", { ...BASE, rotation: 45 })
+      assert(glow(px, 41, 41) > glow(px, 44, 32) * 2, `${name}: rotation turns the cross`)
+      record("rotation", px)
+
+      px = await render("dot", { ...BASE, rays: 8 })
+      assert(glow(px, 41, 41) > 0.05 && glow(px, 44, 32) > 0.05, `${name}: eight rays reach the diagonals too (${glow(px, 41, 41)}, ${glow(px, 44, 32)})`)
+      record("star", px)
+
+      px = await render("dot", { ...BASE, rays: 8, secondaryLength: 0.2 })
+      assert(glow(px, 44, 44) < glow(px, 44, 32) * 0.5, `${name}: short secondary rays make a star`)
+      record("secondary", px)
+
+      px = await render("dot", { ...BASE, rays: 2 })
+      assert(glow(px, 44, 32) > glow(px, 32, 44) * 4, `${name}: two rays make a single streak`)
+      record("streak", px)
+
+      const isolated = await render("square", BASE)
+      const flooded = await render("square", { ...BASE, isolation: 0 })
       assert(
-        rim.some((p) => p[2] > p[0] && p[2] > 0.3),
-        `${name}: the outer halo takes the left end of the ramp (${JSON.stringify(rim)})`
+        glow(flooded, 32, 10) > glow(isolated, 32, 10) + 0.05,
+        `${name}: isolation keeps large bright areas from flaring`
       )
-      record("halo", px)
+      record("isolation", isolated)
 
-      px = await render("square", { ...BASE, keepShape: true })
-      close(at(px, 32, 32), [0, 0, 0], `${name}: keep shape draws the crisp original on top`, 0.02)
-      assert(at(px, 22, 32)[2] > 0.3, `${name}: keep shape leaves the halo around it`)
-      record("keep shape", px)
+      px = await render("dot", BASE)
+      const near = at(px, 36, 32)
+      const tail = at(px, 50, 32)
+      assert(
+        near[2] / Math.max(near[0], 0.001) > tail[2] / Math.max(tail[0], 0.001),
+        `${name}: the core end of a ray is whiter than its colored tail`
+      )
+      samples++
 
-      px = await render("square", { ...BASE, bands: 3 })
-      const counts = new Map()
-      let haloPixels = 0
-      for (let y = 10; y < 54; y++)
-        for (let x = 10; x < 54; x++) {
-          const p = at(px, x, y)
-          if (p[0] > 0.99 && p[1] > 0.99 && p[2] > 0.99) continue
-          haloPixels++
-          const key = p.map((v) => v.toFixed(2)).join()
-          counts.set(key, (counts.get(key) ?? 0) + 1)
-        }
-      const dominant = [...counts.values()].sort((a, b) => b - a).slice(0, 4)
-      const share = dominant.reduce((sum, v) => sum + v, 0) / haloPixels
-      assert(share > 0.6, `${name}: bands flatten the halo into a few flat colors (${share})`)
-      record("bands", px)
+      px = await render("clearDot", BASE)
+      assert(at(px, 44, 32)[3] > 0.1 && at(px, 5, 5)[3] < 0.01, `${name}: flares add coverage over transparency`)
+      record("transparent", px)
 
-      px = await render("lightSquare", { ...BASE, glowFrom: "light" })
-      assert(at(px, 20, 32)[2] > 0.3, `${name}: light mode haloes light shapes`)
-      record("light", px)
+      px = await render("dot", { ...BASE, coreGlow: 2, coreSize: 6 })
+      assert(glow(px, 36, 36) > glow(await render("dot", BASE), 36, 36), `${name}: core glow brightens around the point`)
+      record("core", px)
 
-      px = await render("dot", { ...BASE, glowFrom: "light", amount: 0, flare: 1, flareLength: 40 })
-      const axis = at(px, 12, 32)[0]
-      const diagonal = at(px, 18, 18)[0]
-      assert(axis > 0.05 && axis > diagonal * 3, `${name}: flares streak along the axes (${axis} vs ${diagonal})`)
-      record("flare", px)
-      samples += 3
-
-      for (const style of COLOR_HALOS_STYLES) {
-        px = await render("square", colorHalosStyleParams(style))
+      for (const style of FLARES_STYLES) {
+        px = await render("dot", { ...BASE, ...flaresStyleParams(style) })
         assert(px.every(Number.isFinite), `${name}: ${style.id} produced non-finite output`)
         record(`style ${style.id}`, px)
       }
@@ -209,6 +213,31 @@ function solid(id, color) {
       ...Object.fromEntries([1, 2, 3, 4, 5].map((i) => [`point${i}Color`, color])),
     },
   }
+}
+
+function previewLayers(style, base) {
+  const flares = { ...base, id: "preview-grid", params: { ...base.params, ...flaresStyleParams(style) } }
+  return [
+    flares,
+    ...[
+      [-0.35, 0.18, 0.03],
+      [0.05, -0.12, 0.022],
+      [0.4, 0.22, 0.026],
+      [0.15, 0.3, 0.015],
+    ].map(([x, y, r], index) => ({
+      ...createLayer("shape"),
+      id: `spot-${index}`,
+      params: {
+        ...createLayer("shape").params,
+        shape: "ellipse",
+        center: [x, y],
+        size: [r, r],
+        color: "#ffffff",
+        softness: 0.01,
+      },
+    })),
+    solid("night", "#0b0d12"),
+  ]
 }
 
 function stripes(id) {
@@ -266,52 +295,11 @@ function toWebp(image) {
   return canvas.toDataURL("image/webp", 0.85)
 }
 
-function previewLayers(style, base, asset) {
-  const halos = { ...base, id: "preview-grid", params: { ...base.params, ...colorHalosStyleParams(style) } }
-  const photo = { ...createLayer("image"), id: "photo", assetId: asset.id }
-  if (style.id === "cross-flare")
-    return [
-      halos,
-      ...[
-        [-0.4, 0.15, 0.05, "#ffffff"],
-        [0.1, -0.2, 0.035, "#ffffff"],
-        [0.45, 0.25, 0.045, "#ffffff"],
-        [-0.15, 0.05, 0.22, "#101418"],
-        [0.3, -0.05, 0.16, "#101418"],
-      ].map(([x, y, r, color], index) => ({
-        ...createLayer("shape"),
-        id: `spot-${index}`,
-        params: {
-          ...createLayer("shape").params,
-          shape: "ellipse",
-          center: [x, y],
-          size: [r, r],
-          color,
-          softness: 0.02,
-        },
-      })),
-      solid("paper", "#cfe0ea"),
-    ]
-  if (style.id === "gradient-maps")
-    return [
-      { ...createLayer("group"), id: "type-group" },
-      { ...halos, parentId: "type-group" },
-      {
-        ...createLayer("text"),
-        id: "type",
-        parentId: "type-group",
-        params: { ...createLayer("text").params, text: "HALO", fontSize: 200, textColor: "#1c1417" },
-      },
-      photo,
-    ]
-  return [halos, photo]
-}
-
-export async function checkColorHalos(renderProject) {
+export async function checkFlares(renderProject) {
   let samples = unitChecks()
   samples += await passChecks()
 
-  const grid = { ...createLayer("color-halos"), id: "grid" }
+  const grid = { ...createLayer("flares"), id: "grid" }
   const project = {
     format: "shader-lab",
     version: 7,
@@ -325,18 +313,18 @@ export async function checkColorHalos(renderProject) {
   applyLabProjectFile(parseLabProjectFileValue(project), [])
   const store = () => useLayerStore.getState()
   const before = buildEditorHistorySnapshot()
-  const aura = COLOR_HALOS_STYLES.find((s) => s.id === "aura")
-  for (const [key, value] of Object.entries(colorHalosStyleParams(aura)))
+  const star = FLARES_STYLES.find((s) => s.id === "star")
+  for (const [key, value] of Object.entries(flaresStyleParams(star)))
     store().updateLayerParam(grid.id, key, value)
-  assert(matchColorHalosStyle(store().getLayerById(grid.id).params) === "aura", "Style edits reach the store")
+  assert(matchFlaresStyle(store().getLayerById(grid.id).params) === "star", "Style edits reach the store")
   applyEditorHistorySnapshot(before)
   assert(
-    matchColorHalosStyle(store().getLayerById(grid.id).params) === DEFAULT_COLOR_HALOS_STYLE.id,
-    "History lost color halos settings"
+    matchFlaresStyle(store().getLayerById(grid.id).params) === DEFAULT_FLARES_STYLE.id,
+    "History lost flares settings"
   )
   const duplicateId = store().duplicateLayer(grid.id)
-  store().updateLayerParam(duplicateId, "color-halos", "deboss")
-  assert(store().getLayerById(grid.id).params.glowFrom === "dark", "Duplicate must be independent")
+  store().updateLayerParam(duplicateId, "flares", "deboss")
+  assert(store().getLayerById(grid.id).params.rays === 4, "Duplicate must be independent")
   applyEditorHistorySnapshot(before)
   const saved = buildLabProjectFile()
   store().replaceState([])
@@ -344,11 +332,11 @@ export async function checkColorHalos(renderProject) {
   const reopened = buildLabProjectFile()
   const reopenedGrid = reopened.layers.find((l) => l.id === grid.id)
   assert(
-    reopenedGrid.type === "color-halos" && matchColorHalosStyle(reopenedGrid.params) === DEFAULT_COLOR_HALOS_STYLE.id,
-    "Save/reopen changed the color halos"
+    reopenedGrid.type === "flares" && matchFlaresStyle(reopenedGrid.params) === DEFAULT_FLARES_STYLE.id,
+    "Save/reopen changed the flares"
   )
   const config = buildShaderExportConfig(reopened)
-  assert(config.layers.find((l) => l.id === grid.id).type === "color-halos", "Shader export type")
+  assert(config.layers.find((l) => l.id === grid.id).type === "flares", "Shader export type")
   samples += 4
 
   const first = await renderProject(saved)
@@ -361,7 +349,7 @@ export async function checkColorHalos(renderProject) {
       const v = value / 255
       return i % 4 === 3 ? v : linear(v)
     }),
-    "Exported runtime color halos parity",
+    "Exported runtime flares parity",
     0.02
   )
   samples += 2
@@ -375,13 +363,13 @@ export async function checkColorHalos(renderProject) {
     height: 908,
   }
   const styles = {}
-  for (const style of COLOR_HALOS_STYLES) {
-    const base = createLayer("color-halos")
+  for (const style of FLARES_STYLES) {
+    const base = createLayer("flares")
     const rendered = await renderProject({
       ...saved,
       composition: { width: 756, height: 454 },
       assets: [asset],
-      layers: previewLayers(style, base, asset),
+      layers: previewLayers(style, base),
       selectedLayerId: "preview-grid",
     })
     styles[style.id] = rendered.png
@@ -392,7 +380,7 @@ export async function checkColorHalos(renderProject) {
     composition: { width: 480, height: 600 },
     assets: [asset],
     layers: [
-      { ...createLayer("color-halos"), id: "catalog-grid" },
+      { ...createLayer("flares"), id: "catalog-grid" },
       { ...createLayer("image"), id: "photo", assetId: asset.id },
     ],
     selectedLayerId: "catalog-grid",

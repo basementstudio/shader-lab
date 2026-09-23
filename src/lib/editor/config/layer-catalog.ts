@@ -258,12 +258,12 @@ export const LAYER_CATALOG: Record<LayerType, LayerCatalogEntry> = {
     label: "Lumen Print",
     previewSrc: "/examples/lumen-print.webp",
   },
-  "color-halos": {
+  flares: {
     category: "core",
     description:
-      "Soft multicolor halos that follow the shapes in the image, mapped through an editable ramp, with optional contour bands and cross-shaped flares from bright points. Keep Shape draws the crisp original on top.",
-    label: "Color Halos",
-    previewSrc: "/examples/color-halos.webp",
+      "Light flares from the brightest small points in the image: crosses, stars, starbursts or long anamorphic streaks, with a hot core and colored rays. Large bright areas stay clean.",
+    label: "Flares",
+    previewSrc: "/examples/flares.webp",
   },
   video: {
     label: "Video",

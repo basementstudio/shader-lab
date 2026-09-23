@@ -54,6 +54,7 @@ export type AddLayerAction =
   | "signal-rot"
   | "dot-grid"
   | "erosion"
+  | "relief"
   | "halftone"
   | "image"
   | "ink"
@@ -134,6 +135,7 @@ const EFFECT_ORDER: readonly AddLayerAction[] = [
   "dithering",
   "halftone",
   "dot-grid",
+  "relief",
   "particle-grid",
   "pixelation",
   "voxel",

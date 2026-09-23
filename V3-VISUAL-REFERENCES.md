@@ -129,3 +129,8 @@ Reference 04 was reopened: one exact grid of dots covers the whole sheet, tiny u
 ## Erosion
 
 References 09 and 14 were reopened. In 09 the orange photographic figure disintegrates at its silhouette into grainy pixel speckle, with crumbs of its color scattered into the white ground; in 14 the highlights are eaten into paper along a ragged, grainy boundary. The first render only punched white holes along every textured edge; fragments that survive the throw and a stronger contour threshold brought Disintegrate close to 09, where plant silhouettes crumble into speckle while flat interiors stay intact. Paper Erosion dissolves light tones into paper with a speckled edge like 14, rougher than Lumen Print's smooth Washout. Crumbled Cutout was checked on grouped text over a photo: letters crumble with holes and scattered crumbs. The user accepted it on September 23, 2026 as good enough.
+
+
+## Relief
+
+Reference 15 was reopened: one silver heightfield lit from the top left, bright rims on one side of every raised line and shadow on the other, a radial burst of engraved lines, a stippled metallic grain. Silver Plate follows it with radial engraving that fades out toward the center (the first render converged into moiré there), grain and a gray metal with specular. The user asked for both emboss and deboss; the Relief switch flips the height so the lit and shaded rims swap, and Letterpress (deboss on paper) was checked on grouped text. The user accepted it on September 23, 2026 ("pretty decent").

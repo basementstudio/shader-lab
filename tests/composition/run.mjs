@@ -323,6 +323,19 @@ try {
   console.log(
     `PASS erosion: ${erosion.samples} editor/runtime GPU cases, identity, edge, light, dark and cutout modes, speckle blocks, transparent holes, scatter, speed, styles, hydration, history, export, photo renders`
   )
+  const relief = await page.evaluate(() => window.checkRelief())
+  for (const [style, png] of Object.entries(relief.styles))
+    await Bun.write(
+      resolve(artifacts, `relief-${style}.png`),
+      Buffer.from(png.split(",")[1], "base64")
+    )
+  await Bun.write(
+    resolve(artifacts, "relief-preview.webp"),
+    Buffer.from(relief.previewWebp.split(",")[1], "base64")
+  )
+  console.log(
+    `PASS relief: ${relief.samples} editor/runtime GPU cases, flat identity, emboss, deboss, light angle and elevation, cutout and depth height, engraving, grain, styles, hydration, history, export, photo renders`
+  )
   const artboard = await page.evaluate(() => window.checkArtboard())
   console.log(
     `PASS artboard: ${artboard.samples} document size, fit, composition update, save/reopen and legacy checks`

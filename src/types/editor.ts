@@ -54,6 +54,7 @@ export const EFFECT_LAYER_TYPES = [
   "signal-rot",
   "dot-grid",
   "erosion",
+  "relief",
   "crt",
   "dithering",
   "halftone",

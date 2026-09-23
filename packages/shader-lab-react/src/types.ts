@@ -50,6 +50,7 @@ export type ShaderLabEffectLayerType =
   | "signal-rot"
   | "dot-grid"
   | "erosion"
+  | "relief"
   | "voxel"
 
 export type ShaderLabLayerType =

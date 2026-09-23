@@ -1,5 +1,7 @@
 import * as THREE from "three/webgpu"
 import {
+  abs,
+  atan,
   cos,
   float,
   Fn,
@@ -11,6 +13,7 @@ import {
   max,
   min,
   mix,
+  mod,
   pow,
   select,
   sin,
@@ -28,6 +31,10 @@ import { PassNode } from "./pass-node"
 import type { LayerParameterValues } from "../types/editor"
 
 type Node = TSLNode
+
+function clamp01(value: Node): Node {
+  return min(max(value, float(0)), float(1))
+}
 
 function number(
   value: unknown,
@@ -56,6 +63,15 @@ export class DisplacedRingsPass extends PassNode {
   private readonly cutout = uniform(0)
   private readonly pattern = uniform(0)
   private readonly seed = uniform(1)
+  private readonly sides = uniform(0)
+  private readonly rotationJitter = uniform(0)
+  private readonly widthJitter = uniform(0)
+  private readonly lineMode = uniform(0)
+  private readonly lineWidth = uniform(0.002)
+  private readonly lineColor = uniform(new THREE.Color("#2f7bff"))
+  private readonly lineOpacity = uniform(1)
+  private lineWidthPixels = 1.5
+  private shortSide = 1
   private readonly aspect = uniform(new THREE.Vector2(1, 1))
   private readonly resolution = uniform(new THREE.Vector2(1, 1))
   private readonly source: Node
@@ -92,6 +108,8 @@ export class DisplacedRingsPass extends PassNode {
 
   override updateLogicalSize(width: number, height: number): void {
     const shorter = Math.max(1, Math.min(width, height))
+    this.shortSide = shorter
+    this.lineWidth.value = this.lineWidthPixels / shorter
     ;(this.aspect.value as THREE.Vector2).set(
       Math.max(1, width) / shorter,
       Math.max(1, height) / shorter
@@ -125,6 +143,54 @@ export class DisplacedRingsPass extends PassNode {
     if (params.pattern === "progressive") this.pattern.value = 1
     if (params.pattern === "random") this.pattern.value = 2
     this.seed.value = number(params.seed, 1, 0, 1000)
+    const sides: Record<string, number> = { square: 4, triangle: 3 }
+    this.sides.value =
+      params.ringShape === "polygon"
+        ? Math.round(number(params.sides, 6, 3, 12))
+        : (sides[String(params.ringShape)] ?? 0)
+    this.rotationJitter.value =
+      (number(params.rotationJitter, 0, 0, 180) * Math.PI) / 180
+    this.widthJitter.value = number(params.widthJitter, 0, 0, 1)
+    const lineModes: Record<string, number> = { bands: 1, extended: 2 }
+    this.lineMode.value = lineModes[String(params.lines)] ?? 0
+    this.lineWidthPixels = number(params.lineWidth, 1.5, 0.25, 12)
+    this.lineWidth.value = this.lineWidthPixels / this.shortSide
+    ;(this.lineColor.value as THREE.Color).set(
+      typeof params.lineColor === "string" ? params.lineColor : "#2f7bff"
+    )
+    this.lineOpacity.value = number(params.lineOpacity, 1, 0, 1)
+  }
+
+  private random(index: Node, salt: number): Node {
+    return fract(
+      sin(index.mul(127.1 + salt).add(this.seed.mul(311.7 + salt * 3))).mul(
+        43758.5453
+      )
+    )
+  }
+
+  private boundary(index: Node): Node {
+    const count = this.count
+    const at = (k: Node) =>
+      pow(clamp01(k.div(count)), this.distribution).mul(this.radius)
+    const base = at(index)
+    const room = min(at(index.add(1)).sub(base), base.sub(at(index.sub(1))))
+    const interior = index.greaterThan(0.5).and(index.lessThan(count.sub(0.5)))
+    const shift = this.random(index, 17.3)
+      .sub(0.5)
+      .mul(this.widthJitter)
+      .mul(room)
+      .mul(0.9)
+    return select(interior, base.add(shift), base)
+  }
+
+  private shapeDistance(local: Node): Node {
+    const n = max(this.sides, float(3))
+    const segment = float(Math.PI * 2).div(n)
+    const theta = atan(local.y, local.x).add(Math.PI / 2)
+    const folded = mod(theta, segment).sub(segment.mul(0.5))
+    const polygon = length(local).mul(cos(folded)).div(cos(segment.mul(0.5)))
+    return select(this.sides.lessThan(2.5), length(local), polygon)
   }
 
   protected override buildEffectNode(): Node {
@@ -158,6 +224,10 @@ export class DisplacedRingsPass extends PassNode {
         .and(this.softness.equal(0))
         .and(length(this.offset).equal(0))
         .and(this.halfDiscs.equal(0))
+        .and(this.sides.lessThan(2.5))
+        .and(this.rotationJitter.equal(0).or(this.sides.lessThan(2.5)))
+      const lines = float(0).toVar()
+      const lineHalf = this.lineWidth.mul(0.5)
       Loop({ start: 0, end: int(this.count), type: "int" }, ({ i }) => {
         const index = this.count.sub(1).sub(float(i))
         const progress = index.div(max(this.count.sub(1), 1))
@@ -181,19 +251,27 @@ export class DisplacedRingsPass extends PassNode {
           )
         )
         const moved = point.sub(this.offset.mul(displacement))
-        const angle = this.rotation.add(this.rotationStep.mul(index))
+        const angle = this.rotation
+          .add(this.rotationStep.mul(index))
+          .add(this.random(index, 5.1).mul(2).sub(1).mul(this.rotationJitter))
         const c = cos(angle)
         const s = sin(angle)
         const local = vec2(
           moved.x.mul(c).add(moved.y.mul(s)),
           moved.y.mul(c).sub(moved.x.mul(s))
         )
-        const distance = length(local)
-        const inner = pow(index.div(this.count), this.distribution).mul(
-          this.radius
+        const distance = this.shapeDistance(local)
+        const inner = this.boundary(index)
+        const outer = this.boundary(index.add(1))
+        const edgeLine = float(1).sub(
+          smoothstep(
+            lineHalf.sub(edge),
+            lineHalf.add(edge),
+            abs(distance.sub(outer))
+          )
         )
-        const outer = pow(index.add(1).div(this.count), this.distribution).mul(
-          this.radius
+        lines.assign(
+          max(lines, edgeLine.mul(step(float(0.5), this.lineMode)))
         )
         const inset = outer.sub(inner).mul(this.gap).mul(0.5)
         const softOuter = float(1).sub(
@@ -262,9 +340,30 @@ export class DisplacedRingsPass extends PassNode {
           )
         })
       })
+      const baseAngle = this.rotation
+      const baseLocal = vec2(
+        point.x.mul(cos(baseAngle)).add(point.y.mul(sin(baseAngle))),
+        point.y.mul(cos(baseAngle)).sub(point.x.mul(sin(baseAngle)))
+      )
+      const beyond = this.shapeDistance(baseLocal).sub(this.radius)
+      const spacing = max(
+        this.radius.sub(this.boundary(this.count.sub(1))),
+        this.lineWidth.mul(4)
+      )
+      const phase = abs(fract(beyond.div(spacing).add(0.5)).sub(0.5)).mul(spacing)
+      const outerLines = float(1)
+        .sub(smoothstep(lineHalf.sub(edge), lineHalf.add(edge), phase))
+        .mul(step(float(0), beyond))
+        .mul(step(float(1.5), this.lineMode))
+      const line = max(lines, outerLines).mul(this.lineOpacity)
+      const straight = rgb.div(select(alpha.greaterThan(0), alpha, float(1)))
+      const finalAlpha = min(alpha, 1)
+      const withLines = finalAlpha.mul(float(1).sub(line)).add(line)
       return vec4(
-        rgb.div(select(alpha.greaterThan(0), alpha, float(1))),
-        min(alpha, 1)
+        mix(straight.mul(finalAlpha), vec3(this.lineColor), line).div(
+          select(withLines.greaterThan(0), withLines, float(1))
+        ),
+        withLines
       )
     })()
   }

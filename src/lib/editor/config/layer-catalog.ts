@@ -265,6 +265,13 @@ export const LAYER_CATALOG: Record<LayerType, LayerCatalogEntry> = {
     label: "Blur",
     previewSrc: "/examples/focus-blur.webp",
   },
+  glass: {
+    category: "distort",
+    description:
+      "Textured glass in front of the image: reeded flutes, hammered, pyramid or hex cells and frost. Every cell is a small lens, the scene blurs with its distance behind the glass, and edges catch the light.",
+    label: "Glass",
+    previewSrc: "/examples/glass.webp",
+  },
   flares: {
     category: "core",
     description:

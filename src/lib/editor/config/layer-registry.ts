@@ -35,6 +35,10 @@ import {
   DEFAULT_FOCUS_BLUR_STYLE,
   focusBlurStyleParams,
 } from "@/lib/editor/config/focus-blur-styles"
+import {
+  DEFAULT_GLASS_STYLE,
+  glassStyleParams,
+} from "@/lib/editor/config/glass-styles"
 import { GLYPH_FONT_OPTIONS, TEXT_FONT_OPTIONS } from "@/lib/editor/text-fonts"
 import type {
   EffectLayerType,
@@ -4400,6 +4404,201 @@ const focusBlurParams = [
   },
 ] as const satisfies ParameterDefinitions
 
+const glassDefaults = glassStyleParams(DEFAULT_GLASS_STYLE)
+
+const glassParams = [
+  {
+    animatable: false,
+    defaultValue: glassDefaults.pattern as string,
+    key: "pattern",
+    label: "Pattern",
+    options: [
+      { label: "Reeded", value: "reeded" },
+      { label: "Hammered", value: "hammered" },
+      { label: "Pyramid", value: "pyramid" },
+      { label: "Hex", value: "hex" },
+      { label: "Frosted", value: "frosted" },
+    ],
+    type: "select",
+    description: "Texture of the glass. Every flute or cell is a small lens.",
+  },
+  {
+    animatable: false,
+    defaultValue: glassDefaults.profile as string,
+    key: "profile",
+    label: "Profile",
+    options: [
+      { label: "Round", value: "round" },
+      { label: "Sharp", value: "sharp" },
+    ],
+    type: "select",
+    visibleWhen: { key: "pattern", equals: "reeded" },
+    description: "Round flutes squeeze the image toward their edges; sharp prisms split it into two copies.",
+  },
+  {
+    defaultValue: glassDefaults.cellSize as number,
+    key: "cellSize",
+    label: "Cell Size",
+    max: 240,
+    min: 3,
+    step: 1,
+    type: "number",
+    description:
+      "Width of each flute or cell, in document pixels.",
+  },
+  {
+    defaultValue: 0,
+    key: "angle",
+    label: "Angle",
+    max: 180,
+    min: -180,
+    step: 1,
+    type: "number",
+    description:
+      "Direction of the flutes and grid.",
+  },
+  {
+    defaultValue: glassDefaults.irregularity as number,
+    visibleWhen: { key: "pattern", equals: "hammered" },
+    key: "irregularity",
+    label: "Irregularity",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "How uneven the hammered cells are.",
+  },
+  {
+    defaultValue: glassDefaults.refraction as number,
+    key: "refraction",
+    label: "Refraction",
+    max: 3,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "How strongly each cell bends the image. Low values magnify, 0.5 focuses a cell to a line, 1 mirrors it into a flipped mini image.",
+  },
+  {
+    defaultValue: glassDefaults.distance as number,
+    group: "Behind the Glass",
+    key: "distance",
+    label: "Distance",
+    max: 240,
+    min: 0,
+    step: 1,
+    type: "number",
+    description:
+      "How far the scene sits behind the glass: more distance, more blur.",
+  },
+  {
+    animatable: false,
+    defaultValue: "uniform",
+    group: "Behind the Glass",
+    key: "distanceFrom",
+    label: "Distance From",
+    options: [
+      { label: "Uniform", value: "uniform" },
+      { label: "Depth", value: "depth" },
+    ],
+    type: "select",
+    description:
+      "Depth uses the depth map of the Image layer below: near things touch the glass and stay sharp, far things melt.",
+  },
+  {
+    defaultValue: glassDefaults.frost as number,
+    group: "Surface",
+    key: "frost",
+    label: "Frost",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Crinkled frosted texture on the glass.",
+  },
+  {
+    defaultValue: glassDefaults.frostSize as number,
+    group: "Surface",
+    key: "frostSize",
+    label: "Frost Size",
+    max: 8,
+    min: 0.5,
+    step: 0.05,
+    type: "number",
+    description:
+      "Size of the frost texture, in document pixels.",
+  },
+  {
+    defaultValue: glassDefaults.highlights as number,
+    group: "Surface",
+    key: "highlights",
+    label: "Highlights",
+    max: 3,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Light catching the flute and facet edges.",
+  },
+  {
+    defaultValue: 135,
+    group: "Surface",
+    key: "lightAngle",
+    label: "Light Angle",
+    max: 360,
+    min: 0,
+    step: 1,
+    type: "number",
+    description:
+      "Direction the light comes from; 135 is the top left.",
+  },
+  {
+    defaultValue: glassDefaults.edges as number,
+    group: "Surface",
+    key: "edges",
+    label: "Edges",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Dark grooves where flutes and cells meet.",
+  },
+  {
+    defaultValue: glassDefaults.dispersion as number,
+    group: "Surface",
+    key: "dispersion",
+    label: "Dispersion",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Red and blue separate slightly where the glass bends light.",
+  },
+  {
+    defaultValue: "#ffffff",
+    group: "Surface",
+    key: "tint",
+    label: "Tint",
+    type: "color",
+  },
+  {
+    defaultValue: 0,
+    group: "Surface",
+    key: "tintAmount",
+    label: "Tint Amount",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Colors the glass.",
+  },
+] as const satisfies ParameterDefinitions
+
 const smearParams = [
   {
     defaultValue: 0,
@@ -6294,6 +6493,12 @@ const layerDefinitions: Record<LayerType, LayerDefinition> = {
     kind: "effect",
     params: focusBlurParams,
     type: "focus-blur",
+  },
+  glass: {
+    defaultName: "Glass",
+    kind: "effect",
+    params: glassParams,
+    type: "glass",
   },
   smear: {
     defaultName: "Progressive Blur",

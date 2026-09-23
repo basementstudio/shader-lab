@@ -1,6 +1,5 @@
 import {
   abs,
-  add,
   clamp,
   cos,
   dot,
@@ -9,7 +8,6 @@ import {
   Fn,
   fract,
   If,
-  log2,
   Loop,
   max,
   min,
@@ -28,13 +26,12 @@ import {
   vec4,
 } from "three/tsl"
 import * as THREE from "three/webgpu"
+import { BlurPyramid } from "./blur-pyramid"
 import { PassNode } from "./pass-node"
 import type { LayerParameterValues } from "../types/editor"
 
 type Node = TSLNode
 
-const LEVELS = 7
-const LEVEL_RADIUS = 1.2
 const LENS_TAPS = 24
 const MOTION_TAPS = 24
 const GOLDEN_ANGLE = 2.399963229728653
@@ -48,17 +45,6 @@ const SOURCE_MODES: Record<string, number> = {
 }
 const KIND_MODES: Record<string, number> = { gaussian: 0, lens: 1, motion: 2 }
 
-const TARGET_OPTIONS = {
-  depthBuffer: false,
-  format: THREE.RGBAFormat,
-  generateMipmaps: false,
-  magFilter: THREE.LinearFilter,
-  minFilter: THREE.LinearFilter,
-  stencilBuffer: false,
-  type: THREE.HalfFloatType,
-  wrapS: THREE.ClampToEdgeWrapping,
-  wrapT: THREE.ClampToEdgeWrapping,
-} as const
 
 function renderTargetUv(): Node {
   return vec2(uv().x, float(1).sub(uv().y))
@@ -94,11 +80,6 @@ function readNumber(
     : fallback
 }
 
-type Stage = {
-  input: Node
-  material: THREE.MeshBasicNodeMaterial
-  scene: THREE.Scene
-}
 
 export class FocusBlurPass extends PassNode {
   private readonly sourceUniform: Node
@@ -119,15 +100,9 @@ export class FocusBlurPass extends PassNode {
   private readonly outputPerDocumentUniform: Node
   private readonly aspectUniform: Node
   private readonly documentSizeUniform: Node
-  private readonly levelTexelUniforms: Node[] = []
-  private readonly inputTexelUniform: Node = uniform(new THREE.Vector2(1, 1))
   private readonly placeholder = new THREE.Texture()
   private readonly depthPlaceholder = new THREE.Texture()
-  private readonly stageCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
-  private readonly geometry = new THREE.PlaneGeometry(2, 2)
-  private readonly targets: THREE.WebGLRenderTarget[] = []
-  private readonly stages: Stage[] = []
-  private levelNodes: Node[] = []
+  private readonly pyramid = new BlurPyramid()
   private colorNode: Node | null = null
   private depthNode: Node | null = null
   private outputWidth = 1
@@ -154,81 +129,12 @@ export class FocusBlurPass extends PassNode {
     this.outputPerDocumentUniform = uniform(1)
     this.aspectUniform = uniform(new THREE.Vector2(1, 1))
     this.documentSizeUniform = uniform(new THREE.Vector2(1, 1))
-    for (let level = 0; level < LEVELS; level += 1) {
-      this.targets.push(new THREE.WebGLRenderTarget(1, 1, TARGET_OPTIONS))
-      this.levelTexelUniforms.push(uniform(new THREE.Vector2(1, 1)))
-      const stage = this.createStage()
-      stage.material.colorNode = this.buildDownsampleNode(
-        stage.input,
-        level === 0,
-        level === 0
-          ? this.inputTexelUniform
-          : (this.levelTexelUniforms[level - 1] as Node)
-      )
-      this.stages.push(stage)
-    }
     this.rebuildEffectNode()
-  }
-
-  private createStage(): Stage {
-    const material = new THREE.MeshBasicNodeMaterial()
-    material.blending = THREE.NoBlending
-    const mesh = new THREE.Mesh(this.geometry, material)
-    mesh.frustumCulled = false
-    const scene = new THREE.Scene()
-    scene.add(mesh)
-    return {
-      input: tslTexture(this.placeholder, renderTargetUv()),
-      material,
-      scene,
-    }
-  }
-
-  private buildDownsampleNode(
-    input: Node,
-    premultiply: boolean,
-    texel: Node
-  ): Node {
-    const sourceUv = renderTargetUv()
-    const tap = (dx: number, dy: number): Node => {
-      const sample = input.sample(
-        sourceUv.add(vec2(texel.x.mul(dx), texel.y.mul(dy)))
-      )
-      return premultiply
-        ? vec4(vec3(sample.r, sample.g, sample.b).mul(sample.a), sample.a)
-        : sample
-    }
-    const center = tap(0, 0)
-    const inner = add(add(tap(-1, -1), tap(1, -1)), add(tap(-1, 1), tap(1, 1)))
-    const cardinal = add(add(tap(-2, 0), tap(2, 0)), add(tap(0, -2), tap(0, 2)))
-    const corners = add(add(tap(-2, -2), tap(2, -2)), add(tap(-2, 2), tap(2, 2)))
-    return center
-      .mul(0.125)
-      .add(inner.mul(0.125))
-      .add(cardinal.mul(0.0625))
-      .add(corners.mul(0.03125))
   }
 
   override resize(width: number, height: number): void {
     this.outputWidth = Math.max(1, width)
-    ;(this.inputTexelUniform.value as THREE.Vector2).set(
-      1 / this.outputWidth,
-      1 / Math.max(1, height)
-    )
-    let levelWidth = this.outputWidth
-    let levelHeight = Math.max(1, height)
-    for (let level = 0; level < LEVELS; level += 1) {
-      levelWidth = Math.max(1, Math.floor(levelWidth / 2))
-      levelHeight = Math.max(1, Math.floor(levelHeight / 2))
-      ;(this.targets[level] as THREE.WebGLRenderTarget).setSize(
-        levelWidth,
-        levelHeight
-      )
-      ;(this.levelTexelUniforms[level]?.value as THREE.Vector2).set(
-        1 / levelWidth,
-        1 / levelHeight
-      )
-    }
+    this.pyramid.resize(width, height)
     this.syncScale()
   }
 
@@ -281,18 +187,7 @@ export class FocusBlurPass extends PassNode {
     time: number,
     delta: number
   ): void {
-    let source: THREE.Texture = inputTexture
-    for (let level = 0; level < LEVELS; level += 1) {
-      const stage = this.stages[level] as Stage
-      const target = this.targets[level] as THREE.WebGLRenderTarget
-      stage.input.value = source
-      renderer.setRenderTarget(target)
-      renderer.render(stage.scene, this.stageCamera)
-      source = target.texture
-    }
-    this.levelNodes.forEach((node, index) => {
-      node.value = (this.targets[index] as THREE.WebGLRenderTarget).texture
-    })
+    this.pyramid.render(renderer, inputTexture)
     if (this.colorNode) this.colorNode.value = inputTexture
     const depth = this.sceneDepthTexture
     this.hasDepthUniform.value = depth ? 1 : 0
@@ -300,65 +195,18 @@ export class FocusBlurPass extends PassNode {
     super.render(renderer, inputTexture, outputTarget, time, delta)
   }
 
-  private sampleBicubic(level: number, point: Node): Node {
-    const node = this.levelNodes[level] as Node
-    const texel = this.levelTexelUniforms[level] as Node
-    const size = vec2(float(1).div(texel.x), float(1).div(texel.y))
-    const coord = point.mul(size).sub(0.5)
-    const base = floor(coord)
-    const f = coord.sub(base)
-    const f2 = f.mul(f)
-    const f3 = f2.mul(f)
-    const w0 = vec2(1).sub(f).mul(vec2(1).sub(f)).mul(vec2(1).sub(f)).div(6)
-    const w1 = f3.mul(3).sub(f2.mul(6)).add(4).div(6)
-    const w2 = f3.mul(-3).add(f2.mul(3)).add(f.mul(3)).add(1).div(6)
-    const w3 = f3.div(6)
-    const g0 = w0.add(w1)
-    const g1 = w2.add(w3)
-    const h0 = base.sub(0.5).add(w1.div(g0)).mul(texel)
-    const h1 = base.add(1.5).add(w3.div(g1)).mul(texel)
-    const s00 = node.sample(vec2(h0.x, h0.y)).level(0)
-    const s10 = node.sample(vec2(h1.x, h0.y)).level(0)
-    const s01 = node.sample(vec2(h0.x, h1.y)).level(0)
-    const s11 = node.sample(vec2(h1.x, h1.y)).level(0)
-    return mix(mix(s00, s10, g1.x), mix(s01, s11, g1.x), g1.y)
-  }
-
   private sampleLevel(point: Node, level: Node, smooth: boolean): Node {
-    const color = this.colorNode as Node
-    const full = color.sample(point).level(0)
-    const premultiplied = vec4(vec3(full.r, full.g, full.b).mul(full.a), full.a)
-    const result = vec4(0).toVar()
-    const clamped = clamp(level, 0, LEVELS)
-    const index = floor(clamped)
-    const fraction = clamped.sub(index)
-    const pick = (k: number): Node => {
-      if (k === 0) return premultiplied
-      if (smooth) return this.sampleBicubic(k - 1, point)
-      return (this.levelNodes[k - 1] as Node).sample(point).level(0)
-    }
-    for (let k = 0; k < LEVELS; k += 1) {
-      If(index.equal(float(k)), () => {
-        result.assign(mix(pick(k), pick(k + 1), fraction))
-      })
-    }
-    If(index.greaterThanEqual(float(LEVELS)), () => {
-      result.assign(pick(LEVELS))
-    })
-    return result
+    return this.pyramid.sample(this.colorNode as Node, point, level, smooth)
   }
 
   private levelFor(radiusOutput: Node): Node {
-    return log2(max(radiusOutput.div(LEVEL_RADIUS), float(1)))
+    return this.pyramid.levelFor(radiusOutput)
   }
 
   protected override buildEffectNode(): Node {
     if (!this.grainFollowUniform) {
       return this.inputNode
     }
-    this.levelNodes = this.targets.map((target) =>
-      tslTexture(target.texture, renderTargetUv())
-    )
     const colorNode = tslTexture(this.placeholder, renderTargetUv())
     this.colorNode = colorNode
     const depthNode = tslTexture(this.depthPlaceholder, renderTargetUv())
@@ -474,12 +322,7 @@ export class FocusBlurPass extends PassNode {
   }
 
   override dispose(): void {
-    for (const target of this.targets) target.dispose()
-    for (const stage of this.stages) {
-      stage.material.dispose()
-      stage.scene.clear()
-    }
-    this.geometry.dispose()
+    this.pyramid.dispose()
     this.placeholder.dispose()
     this.depthPlaceholder.dispose()
     super.dispose()

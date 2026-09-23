@@ -53,6 +53,7 @@ export type AddLayerAction =
   | "lumen-print"
   | "signal-rot"
   | "dot-grid"
+  | "erosion"
   | "halftone"
   | "image"
   | "ink"
@@ -148,6 +149,7 @@ const EFFECT_ORDER: readonly AddLayerAction[] = [
   "pixel-sorting",
   "slice",
   "signal-rot",
+  "erosion",
   "edge-detect",
   "displacement-map",
   "chromatic-aberration",

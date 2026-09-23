@@ -53,6 +53,7 @@ export const EFFECT_LAYER_TYPES = [
   "lumen-print",
   "signal-rot",
   "dot-grid",
+  "erosion",
   "crt",
   "dithering",
   "halftone",

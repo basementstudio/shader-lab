@@ -507,7 +507,8 @@ export class PipelineManager {
     pass.enabled = renderableLayer.layer.visible
     if (
       renderableLayer.layer.type === "displaced-rings" ||
-      renderableLayer.layer.type === "photographic-cells"
+      renderableLayer.layer.type === "photographic-cells" ||
+      renderableLayer.layer.type === "erosion"
     ) {
       pass.updateCompositionRole("transform")
     } else {

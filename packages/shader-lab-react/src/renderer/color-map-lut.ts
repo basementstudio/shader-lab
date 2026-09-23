@@ -56,6 +56,13 @@ export const GRADIENT_MAP_PRESETS: {
 
 export const DEFAULT_GRADIENT_MAP_STOPS = GRADIENT_MAP_PRESETS[0]!.stops
 
+export const DEFAULT_LUMEN_PRINT_STOPS: GradientMapStop[] = [
+  { position: 0, color: "#2a0f2e" },
+  { position: 0.35, color: "#7a2f5e" },
+  { position: 0.7, color: "#d58c78" },
+  { position: 1, color: "#f4e6d4" },
+]
+
 const HEX = /^#[0-9a-f]{6}$/i
 
 export function hexToRgb(hex: string): [number, number, number] {

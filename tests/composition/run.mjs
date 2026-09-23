@@ -271,6 +271,19 @@ try {
   console.log(
     `PASS gradient map: ${gradientMap.samples} editor/runtime GPU cases, presets, amount, invert, masked group scope, hydration, export, catalog preview`
   )
+  const lumenPrint = await page.evaluate(() => window.checkLumenPrint())
+  for (const [style, png] of Object.entries(lumenPrint.styles))
+    await Bun.write(
+      resolve(artifacts, `lumen-print-${style}.png`),
+      Buffer.from(png.split(",")[1], "base64")
+    )
+  await Bun.write(
+    resolve(artifacts, "lumen-print-preview.webp"),
+    Buffer.from(lumenPrint.previewWebp.split(",")[1], "base64")
+  )
+  console.log(
+    `PASS lumen print: ${lumenPrint.samples} editor/runtime GPU cases, identity, solarize, washout, grain, styles, hydration, history, export, photo renders`
+  )
   const artboard = await page.evaluate(() => window.checkArtboard())
   console.log(
     `PASS artboard: ${artboard.samples} document size, fit, composition update, save/reopen and legacy checks`

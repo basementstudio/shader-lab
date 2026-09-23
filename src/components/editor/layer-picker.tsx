@@ -50,6 +50,7 @@ export type AddLayerAction =
   | "fluid"
   | "gradient"
   | "gradient-map"
+  | "lumen-print"
   | "halftone"
   | "image"
   | "ink"
@@ -135,6 +136,7 @@ const EFFECT_ORDER: readonly AddLayerAction[] = [
   "posterize",
   "threshold",
   "gradient-map",
+  "lumen-print",
   "bloom",
   "plotter",
   "blob-tracking",

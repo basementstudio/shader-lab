@@ -8,6 +8,7 @@ import {
   floor,
   Fn,
   fract,
+  If,
   Loop,
   length,
   max,
@@ -39,7 +40,7 @@ import type { LayerParameterValues } from "@/types/editor"
 
 type Node = TSLNode
 
-const MODES: Record<string, number> = { blobs: 1, graph: 0, plexus: 2 }
+const MODES: Record<string, number> = { blobs: 1, graph: 0, mesh: 3, plexus: 2 }
 const SHAPES: Record<string, number> = { circle: 0, plus: 2, ring: 3, square: 1 }
 const COLOR_MODES: Record<string, number> = { ink: 2, palette: 0, source: 1 }
 const BACKGROUNDS: Record<string, number> = { color: 0, image: 1, transparent: 2 }
@@ -119,6 +120,9 @@ export class ConnectedDotsPass extends PassNode {
   private readonly backgroundModeUniform: Node
   private readonly backgroundUniform: Node
   private readonly driftUniform: Node
+  private readonly fillUniform: Node
+  private readonly wireUniform: Node
+  private readonly wireColorUniform: Node
   private readonly seedUniform: Node
   private readonly timeUniform: Node
   private readonly documentSizeUniform: Node
@@ -150,6 +154,9 @@ export class ConnectedDotsPass extends PassNode {
     this.backgroundModeUniform = uniform(0)
     this.backgroundUniform = uniform(new THREE.Color("#c4c4c4"))
     this.driftUniform = uniform(0)
+    this.fillUniform = uniform(1)
+    this.wireUniform = uniform(0.6)
+    this.wireColorUniform = uniform(new THREE.Color("#ffffff"))
     this.seedUniform = uniform(0)
     this.timeUniform = uniform(0)
     this.documentSizeUniform = uniform(new THREE.Vector2(1, 1))
@@ -199,6 +206,11 @@ export class ConnectedDotsPass extends PassNode {
       typeof params.backgroundColor === "string" ? params.backgroundColor : "#c4c4c4"
     )
     this.driftUniform.value = readNumber(params.drift, 0, 0, 1)
+    this.fillUniform.value = readNumber(params.meshFill, 1, 0, 1)
+    this.wireUniform.value = readNumber(params.wire, 0.6, 0, 1)
+    ;(this.wireColorUniform.value as THREE.Color).set(
+      typeof params.wireColor === "string" ? params.wireColor : "#ffffff"
+    )
     this.seedUniform.value = readNumber(params.seed, 0, 0, 999)
     this.speed = readNumber(params.speed, 0, 0, 4)
     const stops =
@@ -323,6 +335,56 @@ export class ConnectedDotsPass extends PassNode {
         colorSum.addAssign(color.mul(weight))
       }
 
+      const mesh = mode.greaterThan(2.5)
+      const meshCoverage = float(0).toVar()
+      const meshColor = vec3(0).toVar()
+      const meshEdge = float(1e5).toVar()
+      const meshTone = float(0).toVar()
+      If(mesh, () => {
+        Loop({ start: 0, end: 9, type: "int", name: "quadIndex" }, (quadInputs) => {
+          const index = float((quadInputs as unknown as Record<string, Node>).quadIndex)
+          const cell = base.add(vec2(index.mod(3).sub(1), floor(index.div(3)).sub(1)))
+          const p00 = this.point(cell, colorNode)
+          const p10 = this.point(cell.add(vec2(1, 0)), colorNode)
+          const p01 = this.point(cell.add(vec2(0, 1)), colorNode)
+          const p11 = this.point(cell.add(vec2(1, 1)), colorNode)
+          for (const [a, b, c] of [
+            [p00, p10, p11],
+            [p00, p11, p01],
+          ] as const) {
+            const cross = (u: Node, v: Node, w: Node) =>
+              v.x.sub(u.x).mul(w.y.sub(u.y)).sub(v.y.sub(u.y).mul(w.x.sub(u.x)))
+            const d1 = cross(a.position, b.position, pixel)
+            const d2 = cross(b.position, c.position, pixel)
+            const d3 = cross(c.position, a.position, pixel)
+            const inside = d1
+              .greaterThanEqual(0)
+              .and(d2.greaterThanEqual(0))
+              .and(d3.greaterThanEqual(0))
+              .or(d1.lessThanEqual(0).and(d2.lessThanEqual(0)).and(d3.lessThanEqual(0)))
+            const segment = (u: Node, v: Node) => {
+              const edge = v.sub(u)
+              const t = clamp(dot(pixel.sub(u), edge).div(max(dot(edge, edge), float(0.0001))), 0, 1)
+              return length(pixel.sub(u).sub(edge.mul(t)))
+            }
+            const edgeDistance = min(
+              min(segment(a.position, b.position), segment(b.position, c.position)),
+              segment(c.position, a.position)
+            )
+            const tone = a.tone.add(b.tone).add(c.tone).div(3)
+            const color = a.color.add(b.color).add(c.color).div(3)
+            const present = a.present.mul(b.present).mul(c.present)
+            If(inside, () => {
+              meshCoverage.assign(present)
+              meshColor.assign(color)
+              meshTone.assign(tone)
+              meshEdge.assign(select(present.greaterThan(0.5), edgeDistance, float(1e5)))
+            })
+          }
+        })
+      })
+
+      If(mode.lessThan(2.5), () => {
       Loop({ start: 0, end: 9, type: "int", name: "centerIndex" }, (centerInputs) => {
         const index = float((centerInputs as unknown as Record<string, Node>).centerIndex)
         const offset = vec2(index.mod(3).sub(1), floor(index.div(3)).sub(1))
@@ -374,6 +436,7 @@ export class ConnectedDotsPass extends PassNode {
           lineCoverage.assign(max(lineCoverage, line))
         })
       })
+      })
 
       const coverage = float(1).sub(smoothstep(-0.7, 0.7, field))
       const tone = toneSum.div(max(weightSum, float(0.0001)))
@@ -402,7 +465,18 @@ export class ConnectedDotsPass extends PassNode {
       const linesAlpha = mix(backgroundAlpha, float(1), lineCoverage)
       const premultiplied = mix(withLines, dotColor, coverage)
       const alpha = mix(linesAlpha, float(1), coverage)
-      return vec4(premultiplied.div(max(alpha, float(0.0001))), alpha)
+      const facet = pick(meshTone, meshColor)
+      const wire = float(1)
+        .sub(smoothstep(this.lineWidthUniform.mul(0.5).sub(0.6), this.lineWidthUniform.mul(0.5).add(0.6), meshEdge))
+        .mul(this.wireUniform)
+      const fillAmount = meshCoverage.mul(this.fillUniform)
+      const meshFilled = mix(backgroundRgb.mul(backgroundAlpha), facet, fillAmount)
+      const meshFillAlpha = mix(backgroundAlpha, float(1), fillAmount)
+      const meshRgb = mix(meshFilled, vec3(this.wireColorUniform), wire)
+      const meshAlpha = mix(meshFillAlpha, float(1), wire)
+      const finalRgb = select(mesh, meshRgb, premultiplied)
+      const finalAlpha = select(mesh, meshAlpha, alpha)
+      return vec4(finalRgb.div(max(finalAlpha, float(0.0001))), finalAlpha)
     })()
   }
 

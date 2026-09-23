@@ -200,7 +200,7 @@ La base principal son las dieciséis imágenes elegidas, más Lovedance —forma
 | --- | --- |
 | Anillos desplazados y rotados | Bandas circulares transformables; afiche fotográfico azul y negro con círculos concéntricos desalineados (`16-anillos-desfasados-azules.png`). Incluir en la exploración semidiscos de diferentes tamaños y desplazamientos, con huecos transparentes como modo propio del efecto. |
 | Recortes por celdas o bloques | Revelar bloques con detalle fotográfico interior y contornos opcionales. El puente presenta siluetas escalonadas, no grandes píxeles planos; el afiche blanco combina regiones de color, bordes celulares y puntos finos. |
-| Revelado fotográfico alterado | Inversiones tonales parciales, expansión de luces y sombras, neblina y erosión; James Blake verde, retrato azul difuso con anotaciones y retrato gris de apariencia solarizada. |
+| Revelado fotográfico alterado | Inversiones tonales parciales, expansión de luces y sombras, neblina y erosión; James Blake verde, retrato azul difuso con anotaciones y retrato gris de apariencia solarizada. **Se entrega dentro de Lumen Print (ver consolidación en 3.4).** |
 
 Los nombres describen resultados; no establecen las técnicas originales de producción.
 
@@ -289,7 +289,7 @@ Dar protagonismo a los nuevos efectos y menor prominencia a los actuales, manten
 
 ### 3.4 Ideas nuevas compartidas por el usuario (21 de septiembre de 2026)
 
-**Registradas para planificar; ninguna está aprobada para implementar todavía.** Se suman al catálogo artístico de la fase 3 y a la revisión de Blob Tracking (6.3–6.5); la investigación de profundidad/parallax (1.5, 8.2) sigue siendo la prioridad que más entusiasma al usuario.
+**Registradas para planificar; Lumen Print se aprobó como próxima entrega el 23 de septiembre de 2026 (ver consolidación abajo); las demás siguen sin aprobar.** Se suman al catálogo artístico de la fase 3 y a la revisión de Blob Tracking (6.3–6.5); la investigación de profundidad/parallax (1.5, 8.2) sigue siendo la prioridad que más entusiasma al usuario.
 
 - **Retrato de puntos conectados** (`21-puntos-conectados-retrato.png`): la imagen se reduce a puntos dispersos coloreados por tono, con enlaces cortos entre vecinos que forman grafos densos en las zonas oscuras y se abren en las claras. Cercano a Particle Grid y a la trama de puntos, pero con conectividad. Decidir si es un pase propio o un modo de Blob Tracking / Particle Grid; medir el coste de la búsqueda de vecinos con video.
 - **Frequency modulation** (referencia TouchDesigner, versión propia): modular la señal de la imagen con ondas de frecuencia variable (desplazamiento o color), con controles de frecuencia, fase y portadora; abrir la referencia antes de definir la apariencia.
@@ -298,6 +298,17 @@ Dar protagonismo a los nuevos efectos y menor prominencia a los actuales, manten
 - **Blob spur**: mejora de Blob Tracking basada en geometría: desplazamiento por pseudo-grafos de datos, elementos de "visión por computadora" (puntos, cajas, trayectorias, etiquetas) sobre las regiones detectadas; comparte dirección con las anotaciones técnicas de 6.3–6.5 y con `19-feedback-anotaciones-tecnicas.png`.
 
 Para cada una: abrir las referencias, hacer un prototipo pequeño con foto y video, validar visualmente con el usuario y solo entonces integrar al catálogo. Rendimiento con video (7.2) aplica a todas.
+
+**Consolidación acordada con el usuario (23 de septiembre de 2026):** estas ideas y las familias candidatas pendientes se agrupan en menos capas, diseñadas unificadas desde el inicio (separar un modo después es barato; fusionar capas ya publicadas obliga a migrar proyectos y catálogo). Cada capa unificada ofrece un selector de estilo/modo con valores iniciales propios y controles avanzados plegados; si un modo termina necesitando un conjunto de controles totalmente distinto, se separa durante el prototipo, antes de persistir escenas.
+
+| Capa | Absorbe | Orden |
+| --- | --- | --- |
+| **Lumen Print** | Lumen print, Revelado fotográfico alterado (3.2) y Falso color y mapeo tonal quemado (6.1 #1) | 1 — primera entrega |
+| **Signal Rot** | Signal rot y Arrastre de escáner (6.1 #4); distinguir de CRT y Circuit Bent existentes | 2 |
+| **Erosión y grano** | Tramas, grano y erosión (6.1 #2), complementando Halftone | 3 |
+| Posteriores | Halos de color (6.1 #3), Frequency modulation, Retrato de puntos conectados, Relieve grabado (6.1 #5, puede usar profundidad de 6.4) | 4 |
+
+Blob spur queda cubierto en gran parte por Blob Tracking y Annotations (6.3). Diferencia con Gradient Map (2.5.2): Gradient Map solo reasigna color por luminancia; Lumen Print transforma el tono y la superficie (inversión parcial, curvas quemadas, halos, bordes y grano) y puede reutilizar la LUT de color como etapa final. El usuario decidió priorizar estas capas antes de la fase 4 (3D).
 
 ## Fase 4 — Completar el recorrido de modelos 3D
 
@@ -339,10 +350,10 @@ Derivar geometría de los contornos y ofrecer profundidad de extrusión, bisel, 
 
 | Orden | Familia | Resultado y referencias |
 | --- | --- | --- |
-| 1 | Falso color y mapeo tonal quemado | Recoloración selectiva y pérdida de detalle; rana oscura con amarillo, naranja y azul, y fotografía industrial negra y naranja. |
+| 1 | Falso color y mapeo tonal quemado — **dentro de Lumen Print (3.4)** | Recoloración selectiva y pérdida de detalle; rana oscura con amarillo, naranja y azul, y fotografía industrial negra y naranja. |
 | 2 | Tramas, grano y erosión | Puntos, desintegración y vacíos; afiche celeste punteado, collage cromático denso y rostro u ojos rosados que desaparecen en una página casi vacía. |
 | 3 | Halos de color | Bandas difusas alrededor de figuras o texto; estrella con zonas azules, amarillas y rojas. |
-| 4 | Arrastre de escáner | Estiramiento, compresión y desplazamiento irregular de bandas; afiche rojo distorsionado. |
+| 4 | Arrastre de escáner — **dentro de Signal Rot (3.4)** | Estiramiento, compresión y desplazamiento irregular de bandas; afiche rojo distorsionado. |
 | 5 | Relieve grabado | Volumen superficial aparente mediante luces y sombras; composición gris y plateada. |
 
 ### 6.2 Integrar la selección y ampliar combinaciones

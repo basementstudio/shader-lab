@@ -55,6 +55,7 @@ export type AddLayerAction =
   | "dot-grid"
   | "erosion"
   | "relief"
+  | "flares"
   | "halftone"
   | "image"
   | "ink"
@@ -143,6 +144,7 @@ const EFFECT_ORDER: readonly AddLayerAction[] = [
   "threshold",
   "gradient-map",
   "lumen-print",
+  "flares",
   "bloom",
   "plotter",
   "blob-tracking",

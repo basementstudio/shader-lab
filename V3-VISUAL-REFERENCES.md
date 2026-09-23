@@ -134,3 +134,8 @@ References 09 and 14 were reopened. In 09 the orange photographic figure disinte
 ## Relief
 
 Reference 15 was reopened: one silver heightfield lit from the top left, bright rims on one side of every raised line and shadow on the other, a radial burst of engraved lines, a stippled metallic grain. Silver Plate follows it with radial engraving that fades out toward the center (the first render converged into moiré there), grain and a gray metal with specular. The user asked for both emboss and deboss; the Relief switch flips the height so the lit and shaded rims swap, and Letterpress (deboss on paper) was checked on grouped text. The user accepted it on September 23, 2026 ("pretty decent").
+
+
+## Flares (Color Halos dropped)
+
+References 08 and 04 were reopened for a Color Halos prototype. The user tested it, kept only the cross flares (their own skull composition: thin orange crosses with white cores on the eye, nose and teeth highlights) and asked to drop the halos, which did not pair well with the flares. The layer became Flares: the Cross style reproduces that composition's rays; Star, Starburst, Asterisk and Anamorphic vary the ray count, secondary lengths, jitter and color. First renders showed dotted rays and a nested-loop index clash; both were fixed. The user accepted the reworked layer on September 23, 2026 ("way more useful").

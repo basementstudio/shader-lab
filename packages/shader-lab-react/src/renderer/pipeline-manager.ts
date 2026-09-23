@@ -50,6 +50,7 @@ import { SignalRotPass } from "./signal-rot-pass"
 import { DotGridPass } from "./dot-grid-pass"
 import { ErosionPass } from "./erosion-pass"
 import { ReliefPass } from "./relief-pass"
+import { FlaresPass } from "./flares-pass"
 import { AnnotationsPass } from "./annotations-pass"
 import { VoxelPass } from "./voxel-pass"
 
@@ -91,6 +92,7 @@ type LayerPassNode =
   | DotGridPass
   | ErosionPass
   | ReliefPass
+  | FlaresPass
   | AnnotationsPass
   | TextPass
   | VoxelPass
@@ -540,7 +542,8 @@ export class PipelineManager {
     if (
       layer.type === "displaced-rings" ||
       layer.type === "photographic-cells" ||
-      layer.type === "erosion"
+      layer.type === "erosion" ||
+      layer.type === "flares"
     ) {
       pass.updateCompositionRole("transform")
     } else {
@@ -681,6 +684,8 @@ export class PipelineManager {
           return new ErosionPass(layer.id)
         case "relief":
           return new ReliefPass(layer.id)
+        case "flares":
+          return new FlaresPass(layer.id)
         case "annotations":
           return new AnnotationsPass(layer.id)
         case "pixel-sorting":

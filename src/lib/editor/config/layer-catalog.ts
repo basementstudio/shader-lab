@@ -258,6 +258,13 @@ export const LAYER_CATALOG: Record<LayerType, LayerCatalogEntry> = {
     label: "Lumen Print",
     previewSrc: "/examples/lumen-print.webp",
   },
+  flares: {
+    category: "core",
+    description:
+      "Light flares from the brightest small points in the image: crosses, stars, starbursts or long anamorphic streaks, with a hot core and colored rays. Large bright areas stay clean.",
+    label: "Flares",
+    previewSrc: "/examples/flares.webp",
+  },
   video: {
     label: "Video",
   },

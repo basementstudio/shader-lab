@@ -508,7 +508,8 @@ export class PipelineManager {
     if (
       renderableLayer.layer.type === "displaced-rings" ||
       renderableLayer.layer.type === "photographic-cells" ||
-      renderableLayer.layer.type === "erosion"
+      renderableLayer.layer.type === "erosion" ||
+      renderableLayer.layer.type === "flares"
     ) {
       pass.updateCompositionRole("transform")
     } else {

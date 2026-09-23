@@ -27,6 +27,10 @@ import {
   DEFAULT_RELIEF_STYLE,
   reliefStyleParams,
 } from "@/lib/editor/config/relief-styles"
+import {
+  DEFAULT_FLARES_STYLE,
+  flaresStyleParams,
+} from "@/lib/editor/config/flares-styles"
 import { GLYPH_FONT_OPTIONS, TEXT_FONT_OPTIONS } from "@/lib/editor/text-fonts"
 import type {
   EffectLayerType,
@@ -4042,6 +4046,177 @@ const reliefParams = [
   },
 ] as const satisfies ParameterDefinitions
 
+const flaresDefaults = flaresStyleParams(DEFAULT_FLARES_STYLE)
+
+const flaresParams = [
+  {
+    defaultValue: 0.85,
+    key: "threshold",
+    label: "Threshold",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "How bright a point must be to flare.",
+  },
+  {
+    defaultValue: 10,
+    key: "isolation",
+    label: "Isolation",
+    max: 120,
+    min: 0,
+    step: 1,
+    type: "number",
+    description:
+      "Only points brighter than their surroundings this far away flare, so large bright areas stay clean. In document pixels.",
+  },
+  {
+    defaultValue: flaresDefaults.intensity as number,
+    key: "intensity",
+    label: "Intensity",
+    max: 12,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Brightness of the flares.",
+  },
+  {
+    defaultValue: flaresDefaults.rays as number,
+    group: "Shape",
+    key: "rays",
+    label: "Rays",
+    max: 16,
+    min: 1,
+    step: 1,
+    type: "number",
+    description:
+      "Number of rays from each point: 4 is a cross, 8 a star, 2 a single streak.",
+  },
+  {
+    defaultValue: flaresDefaults.rotation as number,
+    group: "Shape",
+    key: "rotation",
+    label: "Rotation",
+    max: 180,
+    min: -180,
+    step: 1,
+    type: "number",
+    description:
+      "Turns every flare.",
+  },
+  {
+    defaultValue: flaresDefaults.length as number,
+    group: "Shape",
+    key: "length",
+    label: "Length",
+    max: 1200,
+    min: 4,
+    step: 1,
+    type: "number",
+    description:
+      "Length of the rays, in document pixels.",
+  },
+  {
+    defaultValue: flaresDefaults.secondaryLength as number,
+    group: "Shape",
+    key: "secondaryLength",
+    label: "Secondary Rays",
+    max: 2,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Length of every other ray, relative to the main ones. Below 1 gives a star.",
+  },
+  {
+    defaultValue: flaresDefaults.lengthJitter as number,
+    group: "Shape",
+    key: "lengthJitter",
+    label: "Length Jitter",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Randomizes each ray's length for a starburst.",
+  },
+  {
+    defaultValue: flaresDefaults.thickness as number,
+    group: "Shape",
+    key: "thickness",
+    label: "Thickness",
+    max: 16,
+    min: 0,
+    step: 0.1,
+    type: "number",
+    description:
+      "Width of the rays, in document pixels.",
+  },
+  {
+    defaultValue: flaresDefaults.falloff as number,
+    group: "Shape",
+    key: "falloff",
+    label: "Falloff",
+    max: 6,
+    min: 0.2,
+    step: 0.01,
+    type: "number",
+    description:
+      "How quickly the rays fade toward their tips.",
+  },
+  {
+    defaultValue: 0,
+    group: "Shape",
+    key: "seed",
+    label: "Seed",
+    max: 999,
+    min: 0,
+    step: 1,
+    type: "number",
+    description: "Picks different ray lengths when Length Jitter is on.",
+  },
+  {
+    defaultValue: flaresDefaults.color as string,
+    group: "Color",
+    key: "color",
+    label: "Ray Color",
+    type: "color",
+  },
+  {
+    defaultValue: flaresDefaults.coreColor as string,
+    group: "Color",
+    key: "coreColor",
+    label: "Core Color",
+    type: "color",
+  },
+  {
+    defaultValue: flaresDefaults.coreGlow as number,
+    group: "Color",
+    key: "coreGlow",
+    label: "Core Glow",
+    max: 4,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Round glow at the center of each flare.",
+  },
+  {
+    defaultValue: flaresDefaults.coreSize as number,
+    group: "Color",
+    key: "coreSize",
+    label: "Core Size",
+    max: 80,
+    min: 0,
+    step: 0.5,
+    type: "number",
+    description:
+      "Radius of the core glow, in document pixels.",
+  },
+] as const satisfies ParameterDefinitions
+
 const smearParams = [
   {
     defaultValue: 0,
@@ -5829,6 +6004,12 @@ const layerDefinitions: Record<LayerType, LayerDefinition> = {
     kind: "effect",
     params: reliefParams,
     type: "relief",
+  },
+  flares: {
+    defaultName: "Flares",
+    kind: "effect",
+    params: flaresParams,
+    type: "flares",
   },
   smear: {
     defaultName: "Progressive Blur",

@@ -336,6 +336,19 @@ try {
   console.log(
     `PASS relief: ${relief.samples} editor/runtime GPU cases, flat identity, emboss, deboss, light angle and elevation, cutout and depth height, engraving, grain, styles, hydration, history, export, photo renders`
   )
+  const flares = await page.evaluate(() => window.checkFlares())
+  for (const [style, png] of Object.entries(flares.styles))
+    await Bun.write(
+      resolve(artifacts, `flares-${style}.png`),
+      Buffer.from(png.split(",")[1], "base64")
+    )
+  await Bun.write(
+    resolve(artifacts, "flares-preview.webp"),
+    Buffer.from(flares.previewWebp.split(",")[1], "base64")
+  )
+  console.log(
+    `PASS flares: ${flares.samples} editor/runtime GPU cases, no false flares, cross, rotation, star, secondary rays, streak, isolation, core color, transparency, core glow, styles, hydration, history, export, renders`
+  )
   const artboard = await page.evaluate(() => window.checkArtboard())
   console.log(
     `PASS artboard: ${artboard.samples} document size, fit, composition update, save/reopen and legacy checks`

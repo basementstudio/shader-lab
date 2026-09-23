@@ -30,6 +30,7 @@ import { checkSignalRot } from "./signal-rot.mjs"
 import { checkDotGrid } from "./dot-grid.mjs"
 import { checkErosion } from "./erosion.mjs"
 import { checkRelief } from "./relief.mjs"
+import { checkFlares } from "./flares.mjs"
 import { checkArtboard } from "./artboard.mjs"
 import { checkShapeLayers } from "./shape-layers.mjs"
 import { checkTextEditing } from "./text-editing.mjs"
@@ -467,6 +468,8 @@ window.checkDotGrid = () => checkDotGrid(renderProject)
 window.checkErosion = () => checkErosion(renderProject)
 
 window.checkRelief = () => checkRelief(renderProject)
+
+window.checkFlares = () => checkFlares(renderProject)
 
 window.checkArtboard = checkArtboard
 

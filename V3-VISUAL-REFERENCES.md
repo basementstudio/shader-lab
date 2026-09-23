@@ -144,3 +144,17 @@ References 08 and 04 were reopened for a Color Halos prototype. The user tested 
 ## Displaced Rings, second pass
 
 Reference 16 was reopened because the user felt the layer was missing something. The difference: 16 turns each band of the same photograph by its own irregular angle with uneven band widths, and ties the fragments together with thin concentric hairlines that run across the whole black poster; our layer used a regular per-ring rotation step, equal widths and no linework. Rotation Jitter, Width Jitter and Lines (edges and beyond) close that gap; new Triangle, Square and Polygon shapes extend it. A circle study with a blue Threshold inside the group reads close to 16. User visual acceptance is pending.
+
+
+## Blur and glass references (September 23, 2026)
+
+Shared by the user after calling the current blurs and Fluted Glass "terrible". Workspace backups in `.context/v3-references/`:
+
+| Backup | What to inspect |
+| --- | --- |
+| `26-vidrio-acanalado-naranja.png` | Reeded glass, everything far behind it: every flute a soft vertical sliver, bright rims on the flute edges, crinkled frost texture. |
+| `27-vidrio-martillado.png` | Hammered glass: irregular faceted cells, each refracting its own patch, lit facet edges. |
+| `28-vidrio-piramides.png` | Square pyramid glass: a mini inverted image in every cell, sparkling facets. |
+| `29-vidrio-acanalado-helecho.png` | Reeded glass over a fern: leaves touching the glass stay sharp and sliced into offset strips, leaves further back melt into soft smears. Distance behind the glass drives the blur. |
+| `30-vidrio-hexagonal.png` | Hex-cell glass: tiny cells, glitter highlights, soft image behind. |
+| `31-golden-horse-profundidad.png` | Golden Horse poster: depth of field on 3D forms, razor-sharp and hugely blurred parts side by side, smooth large radii, fine grain, black on yellow. |

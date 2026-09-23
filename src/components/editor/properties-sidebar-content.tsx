@@ -5,6 +5,7 @@ import { CellPaintControls } from "./cell-paint-controls"
 import { AnnotationsControls } from "./annotations-controls"
 import { GradientMapControls } from "./gradient-map-controls"
 import { LumenPrintControls } from "./lumen-print-controls"
+import { SignalRotControls } from "./signal-rot-controls"
 import { LayerMaskSection } from "./layer-mask-section"
 import { useTextEditStore } from "@/store/text-edit-store"
 import { LayerGroupLocation } from "@/components/editor/layer-group-location"
@@ -862,6 +863,14 @@ export function SelectedLayerPropertiesContent({
             layerId={layerId}
             onInteractionEnd={onInteractionEnd}
             onInteractionStart={onInteractionStart}
+            updateLayerParam={updateLayerParam}
+            values={values}
+          />
+        )}
+
+        {layerType === "signal-rot" && (
+          <SignalRotControls
+            layerId={layerId}
             updateLayerParam={updateLayerParam}
             values={values}
           />

@@ -46,6 +46,7 @@ import { TextPass } from "./text-pass"
 import { ThresholdPass } from "./threshold-pass"
 import { GradientMapPass } from "./gradient-map-pass"
 import { LumenPrintPass } from "./lumen-print-pass"
+import { SignalRotPass } from "./signal-rot-pass"
 import { AnnotationsPass } from "./annotations-pass"
 import { VoxelPass } from "./voxel-pass"
 
@@ -83,6 +84,7 @@ type LayerPassNode =
   | ThresholdPass
   | GradientMapPass
   | LumenPrintPass
+  | SignalRotPass
   | AnnotationsPass
   | TextPass
   | VoxelPass
@@ -664,6 +666,8 @@ export class PipelineManager {
           return new GradientMapPass(layer.id)
         case "lumen-print":
           return new LumenPrintPass(layer.id)
+        case "signal-rot":
+          return new SignalRotPass(layer.id)
         case "annotations":
           return new AnnotationsPass(layer.id)
         case "pixel-sorting":

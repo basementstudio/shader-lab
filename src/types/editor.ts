@@ -51,6 +51,7 @@ export const EFFECT_LAYER_TYPES = [
   "threshold",
   "gradient-map",
   "lumen-print",
+  "signal-rot",
   "crt",
   "dithering",
   "halftone",

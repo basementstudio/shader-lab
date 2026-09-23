@@ -371,6 +371,20 @@ try {
   console.log(
     `PASS blur: ${focusBlur.samples} editor/runtime GPU cases, identity, flat color, smooth wide radii without ringing, linear, radial, invert, depth with and without a map, lens, motion, alpha edges, grain, styles, hydration, history, export, renders`
   )
+  const glass = await page.evaluate(() => window.checkGlass())
+  for (const [style, png] of Object.entries(glass.styles))
+    await Bun.write(
+      resolve(artifacts, `glass-${style}.png`),
+      Buffer.from(png.split(",")[1], "base64")
+    )
+  await Bun.write(
+    resolve(artifacts, "glass-preview.webp"),
+    Buffer.from(glass.previewWebp.split(",")[1], "base64")
+  )
+  if (glass.failure) throw new Error(glass.failure)
+  console.log(
+    `PASS glass: ${glass.samples} editor/runtime GPU cases, identity for every pattern, flute flip, sharp prisms, distance blur, depth, edges, highlights, cell refraction, dispersion, frost, tint, styles, hydration, history, export, renders`
+  )
   const artboard = await page.evaluate(() => window.checkArtboard())
   console.log(
     `PASS artboard: ${artboard.samples} document size, fit, composition update, save/reopen and legacy checks`

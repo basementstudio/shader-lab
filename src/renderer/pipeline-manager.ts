@@ -510,7 +510,8 @@ export class PipelineManager {
       renderableLayer.layer.type === "photographic-cells" ||
       renderableLayer.layer.type === "erosion" ||
       renderableLayer.layer.type === "flares" ||
-      renderableLayer.layer.type === "focus-blur"
+      renderableLayer.layer.type === "focus-blur" ||
+      renderableLayer.layer.type === "glass"
     ) {
       pass.updateCompositionRole("transform")
     } else {

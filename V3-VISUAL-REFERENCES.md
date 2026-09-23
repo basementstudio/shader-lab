@@ -163,3 +163,8 @@ Shared by the user after calling the current blurs and Fluted Glass "terrible". 
 ## Blur
 
 Reference 31 was reopened: razor-sharp and hugely blurred parts of the same black forms side by side on flat yellow, smooth radii over 100 px and fine grain. A synthetic study of tubes and spheres at known depths, rendered through Blur's Depth of Field style, keeps the nearest ball and tube ends sharp and dissolves the rest into large grainy shadows, close to 31. On photographs the Tilt-Shift, Vignette and Motion styles stay smooth at large radii. A sharp near object does not bleed over blurred background (per-pixel gather). The user accepted it on September 23, 2026 ("looks awesome").
+
+
+## Glass
+
+References 26 to 30 were reopened. Real textured glass transmits: its surface shows only as thin bright rims, fine dark grooves and the distortion itself, while every flute or cell shows its own squeezed, shifted or flipped piece of the scene, blurred by how far the scene is behind the glass. The first render looked like plastic (cylinder shading on every flute, glittery frost, bubble-wrap hammered cells); reducing the surface to rims and pixel-width grooves, flattening hammered cells into shallow facets and softening frost fixed it. Reeded now reads like 26 and 29 (the depth study keeps near forms sharp and sliced, far forms melted), Hammered like 27, Pyramid shows mini images like 28, Hex is a fine soft cell like 30. The user accepted it on September 23, 2026 ("I love it").

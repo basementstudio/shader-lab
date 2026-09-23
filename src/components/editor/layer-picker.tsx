@@ -57,6 +57,7 @@ export type AddLayerAction =
   | "relief"
   | "flares"
   | "focus-blur"
+  | "glass"
   | "halftone"
   | "image"
   | "ink"
@@ -147,6 +148,7 @@ const EFFECT_ORDER: readonly AddLayerAction[] = [
   "lumen-print",
   "flares",
   "focus-blur",
+  "glass",
   "bloom",
   "plotter",
   "blob-tracking",

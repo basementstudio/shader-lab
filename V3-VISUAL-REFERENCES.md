@@ -74,6 +74,8 @@ The four screenshots shared on September 17 were opened and reviewed. They suppl
 | `21-puntos-conectados-retrato.png` | `.context/attachments/TB1qSd/image.png` | Portrait as a tone-colored point cloud with short neighbor links: dense dark graphs, sparse light dots on gray. Shared September 21, 2026 with the new effect ideas in roadmap 3.4. |
 | `22-usuario-runner-anotaciones.jpg` | `.context/attachments/aSHVq1/image.jpg` | User result, September 22, 2026: motion-blurred runner with the Annotations target, dashed connectors, magenta Pattern grid, labels. Shared as proof the direction reads. |
 | `23-usuario-radiografia-humanos.jpg` | `.context/attachments/yS7643/image.jpg` | User result: false-color X-ray hand (Gradient Map) with Blob Tracking edge dots and `HUMAN xxxx` labels plus Annotations rings. |
+| `24-usuario-radiografia-ascii-profundidad.png` | `.context/attachments/ikDfpO/image.png` | User composition, September 23, 2026: X-ray hand with ASCII driven by the estimated depth map (the duplicate-layer workaround that motivated scene depth) and Blob Tracking labels. |
+| `25-usuario-ojo-corte-profundidad.png` | `.context/attachments/VYbhSW/image.png` | User composition, September 23, 2026: cat-eye triptych with a thin Depth mask band (Near 0.45, Far 0.37) on a thermal Gradient Map, a depth contour slice; the origin of the contour sweep. |
 
 The user approved simple general masks (linear/radial gradient, ellipse/circle, rectangle/square, brush), replacing the earlier postponement. No pen tool. Reuse the accepted Cells brush interaction while implementing general effect masking separately from content cutouts. Automatic selection remains later work.
 
@@ -105,3 +107,5 @@ References 19, 03, 10 and 21 were reopened for the design discussion; 19 drove t
 ## Technical annotations, part 2 (Annotations layer)
 
 Reference 03 (frog) was reopened as the model: concentric solid and dashed rings around a reticle on one point of interest, angle and value readouts, tick rulers with a boxed counter, a `NOT FOUND` tag, corner metadata blocks, a gradient swatch, sparse dashed circles in empty space, all in one pale ink over false color. References 10 and 19 supplied the dense marginalia and the surveillance vocabulary. The layer reproduces these families procedurally with presets and editable text; the organic cracks and scanned noise of 03 are out of scope. The user shared two own compositions (22, 23) on September 22, 2026 saying the results come close to the original references; treated as visual acceptance of #170 and #172.
+
+Depth (roadmap 6.4): references 24 and 25 are the user's own results with estimated depth maps. The user accepted parallax, in-app estimation, scene depth for effect inputs and depth masks, and keyframable masks on September 23, 2026 ("works perfectly, has a lot of potential").

@@ -28,6 +28,7 @@ import { checkGradientMap } from "./gradient-map.mjs"
 import { checkArtboard } from "./artboard.mjs"
 import { checkShapeLayers } from "./shape-layers.mjs"
 import { checkTextEditing } from "./text-editing.mjs"
+import { checkDepthParallax } from "./depth-parallax.mjs"
 import { checkBlobTracking } from "./blob-tracking.mjs"
 import { checkAnnotations } from "./annotations.mjs"
 import { checkDisplacedRings } from "./displaced-rings.mjs"
@@ -259,6 +260,21 @@ window.checkExistingProject = async () => {
     if (layer.type === "image" || layer.type === "video") {
       layer.params.transparentBounds = false
     }
+    if (["ascii", "halftone", "pattern", "gradient-map"].includes(layer.type)) {
+      layer.params.input ??= "luminance"
+    }
+    if (layer.type === "image") {
+      layer.params.depthInvert ??= false
+      layer.params.depthRange ??= 0.3
+      layer.params.depthFocus ??= 0.5
+      layer.params.parallaxMotion ??= "orbit"
+      layer.params.parallaxAmount ??= 0.3
+      layer.params.parallaxSpeed ??= 0.5
+      layer.params.parallaxOffset ??= [0, 0]
+      layer.params.depthEdges ??= "stretch"
+      layer.params.depthQuality ??= "medium"
+      layer.params.depthView ??= false
+    }
     if (layer.type === "text") {
       layer.params.align ??= "auto"
       layer.params.lineHeight ??= 1.1
@@ -446,3 +462,4 @@ window.checkTextEditing = () => checkTextEditing(renderProject)
 window.checkBlobTracking = checkBlobTracking
 
 window.checkAnnotations = () => checkAnnotations(renderProject)
+window.checkDepthParallax = checkDepthParallax

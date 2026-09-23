@@ -81,6 +81,7 @@ declare module "three/tsl" {
     mulAssign(value: unknown): TSLNode
     negate(): TSLNode
     level(value: unknown): TSLNode
+    grad(gradX: unknown, gradY: unknown): TSLNode
     load(uv: unknown): TSLNode
     normalize(): TSLNode
     sample(uv: unknown): TSLNode
@@ -124,6 +125,8 @@ declare module "three/tsl" {
     callback: (inputs: LoopInputs) => unknown
   ): TSLNode
   export function exp(value: unknown): TSLNode
+  export function dFdx(value: unknown): TSLNode
+  export function dFdy(value: unknown): TSLNode
   export function fract(value: unknown): TSLNode
   export function If(
     condition: TSLNode,

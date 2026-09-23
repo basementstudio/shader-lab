@@ -136,6 +136,7 @@ export const LAYER_MASK_SHAPES = [
   "ellipse",
   "rectangle",
   "brush",
+  "depth",
 ] as const
 export type LayerMaskShape = (typeof LAYER_MASK_SHAPES)[number]
 
@@ -306,6 +307,7 @@ export const DEFAULT_MASK_CONFIG: MaskConfig = {
 export interface BaseLayer {
   parentId?: string | null
   assetId: string | null
+  depthAssetId?: string | null
   blendMode: BlendMode
   compositeMode: LayerCompositeMode
   expanded: boolean

@@ -147,6 +147,7 @@ function createLayerSignature(layer: ShaderLabLayerConfig): string {
     layer.type,
     layer.asset?.kind ?? "no-asset",
     layer.asset?.src ?? "no-src",
+    layer.depthAsset?.src ?? "no-depth",
     layer.visible ? "1" : "0",
     layer.opacity.toFixed(4),
     layer.hue.toFixed(4),
@@ -354,9 +355,12 @@ export class PipelineManager {
 
     let readTarget = this.rtA
     let writeTarget = this.rtB
+    let sceneDepth: THREE.Texture | null = null
 
     for (const pass of activePasses) {
+      pass.setSceneDepth(sceneDepth)
       this.renderPass(pass, readTarget.texture, writeTarget, time, delta)
+      sceneDepth = pass.getOutputSceneDepth()
       const previousRead = readTarget
       readTarget = writeTarget
       writeTarget = previousRead
@@ -401,9 +405,12 @@ export class PipelineManager {
 
     let readTarget = this.rtA
     let writeTarget = this.rtB
+    let sceneDepth: THREE.Texture | null = null
 
     for (const pass of activePasses) {
+      pass.setSceneDepth(sceneDepth)
       this.renderPass(pass, readTarget.texture, writeTarget, time, delta)
+      sceneDepth = pass.getOutputSceneDepth()
       const previousRead = readTarget
       readTarget = writeTarget
       writeTarget = previousRead
@@ -562,6 +569,24 @@ export class PipelineManager {
           })
       } else {
         pass.clearMedia()
+      }
+
+      if (layer.depthAsset?.kind === "image") {
+        void pass
+          .setDepthMedia(layer.depthAsset.src)
+          .then(() => {
+            this.dirty = true
+          })
+          .catch((error) => {
+            this.onRuntimeError?.(
+              error instanceof Error
+                ? error.message
+                : "Failed to load depth map."
+            )
+            this.dirty = true
+          })
+      } else {
+        pass.clearDepthMedia()
       }
     }
 

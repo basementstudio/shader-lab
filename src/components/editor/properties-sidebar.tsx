@@ -12,6 +12,17 @@ import { Typography } from "@/components/ui/typography"
 import { cn } from "@/lib/cn"
 import { getLayerDefinition } from "@/lib/editor/config/layer-registry"
 import {
+  applyMaskOverrides,
+  getMaskParameterDefinition,
+  isMaskParamKey,
+  maskFieldOf,
+  maskUpdatesFor,
+} from "@/lib/editor/mask-animation"
+import {
+  describeDepthProgress,
+  estimateDepthMap,
+} from "@/lib/editor/depth/estimate-depth-client"
+import {
   getAssetAccept,
   inferFileAssetKind,
   isSvgMediaSource,
@@ -25,10 +36,11 @@ import {
   createLayerPropertyBinding,
   useTimelineStore,
 } from "@/store/timeline-store"
-import type {
-  AnimatedPropertyBinding,
-  ParameterDefinition,
-  ParameterValue,
+import {
+  type AnimatedPropertyBinding,
+  DEFAULT_LAYER_MASK,
+  type ParameterDefinition,
+  type ParameterValue,
 } from "@/types/editor"
 import {
   EmptyPropertiesContent,
@@ -55,9 +67,15 @@ export function PropertiesSidebar() {
     saturation?: number
   }>({ params: {} })
   const [panelHeight, setPanelHeight] = useState<number | null>(null)
+  const [depthEstimation, setDepthEstimation] = useState<{
+    label: string
+    layerId: string
+  } | null>(null)
   const viewResizeObserverRef = useRef<ResizeObserver | null>(null)
   const replaceImageInputRef = useRef<HTMLInputElement | null>(null)
   const replaceImageLayerIdRef = useRef<string | null>(null)
+  const depthMapInputRef = useRef<HTMLInputElement | null>(null)
+  const depthMapLayerIdRef = useRef<string | null>(null)
   const rightSidebarVisible = useEditorStore((state) => state.sidebars.right)
   const mobilePanel = useEditorStore((state) => state.mobilePanel)
   const sidebarView = useEditorStore((state) => state.sidebarView)
@@ -88,6 +106,9 @@ export function PropertiesSidebar() {
   const setLayerSaturation = useLayerStore((state) => state.setLayerSaturation)
   const updateLayerParam = useLayerStore((state) => state.updateLayerParam)
   const setLayerAsset = useLayerStore((state) => state.setLayerAsset)
+  const setLayerDepthAsset = useLayerStore(
+    (state) => state.setLayerDepthAsset
+  )
   const setLayerRuntimeError = useLayerStore(
     (state) => state.setLayerRuntimeError
   )
@@ -124,6 +145,9 @@ export function PropertiesSidebar() {
   const selectedAsset = selectedLayer
     ? getSelectedAsset(assetById, selectedLayer.assetId)
     : null
+  const selectedDepthAsset = selectedLayer
+    ? getSelectedAsset(assetById, selectedLayer.depthAssetId ?? null)
+    : null
   const selectedDefinition = selectedLayer
     ? getLayerDefinition(selectedLayer.type)
     : null
@@ -143,6 +167,10 @@ export function PropertiesSidebar() {
           })
         )
       ) {
+        return false
+      }
+
+      if (param.group === "Depth" && !selectedLayer.depthAssetId) {
         return false
       }
 
@@ -447,7 +475,10 @@ export function PropertiesSidebar() {
       }
 
       const definition =
-        selectedVisibleParams.find((param) => param.key === key) ?? null
+        selectedVisibleParams.find((param) => param.key === key) ??
+        (isMaskParamKey(key)
+          ? getMaskParameterDefinition(selectedLayer.mask?.shape ?? "none", key)
+          : null)
       const binding = definition ? createParamTimelineBinding(definition) : null
 
       if (
@@ -476,6 +507,15 @@ export function PropertiesSidebar() {
         return
       }
 
+      const maskField = maskFieldOf(key)
+      if (maskField) {
+        setLayerMask(
+          selectedLayer.id,
+          maskUpdatesFor(maskField, value, selectedLayer.mask ?? DEFAULT_LAYER_MASK)
+        )
+        return
+      }
+
       updateLayerParam(selectedLayer.id, key, value)
 
       if (selectedLayer.type === "photographic-cells" && key === "mode") {
@@ -499,6 +539,7 @@ export function PropertiesSidebar() {
       selectedLayer,
       selectedLayerTracks,
       selectedVisibleParams,
+      setLayerMask,
       timelineAutoKey,
       updateLayerParam,
       upsertKeyframe,
@@ -596,13 +637,137 @@ export function PropertiesSidebar() {
     [loadAsset, removeAsset, setLayerAsset, setLayerRuntimeError]
   )
 
+  const handleDepthMapPick = useCallback(() => {
+    if (!selectedLayerId) {
+      return
+    }
+
+    depthMapLayerIdRef.current = selectedLayerId
+    depthMapInputRef.current?.click()
+  }, [selectedLayerId])
+
+  const handleDepthMapChange = useCallback(
+    async (event: ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0]
+      const layerId = depthMapLayerIdRef.current
+
+      event.currentTarget.value = ""
+      depthMapLayerIdRef.current = null
+
+      if (!(file && layerId)) {
+        return
+      }
+
+      if (inferFileAssetKind(file) !== "image") {
+        setLayerRuntimeError(layerId, "Expected an image file for the depth map.")
+
+        return
+      }
+
+      try {
+        const asset = await loadAsset(file)
+
+        if (asset.kind !== "image") {
+          removeAsset(asset.id)
+          setLayerRuntimeError(
+            layerId,
+            "Expected an image file for the depth map."
+          )
+
+          return
+        }
+
+        setLayerDepthAsset(layerId, asset.id)
+      } catch (error) {
+        setLayerRuntimeError(
+          layerId,
+          error instanceof Error ? error.message : "Failed to load depth map."
+        )
+      }
+    },
+    [loadAsset, removeAsset, setLayerDepthAsset, setLayerRuntimeError]
+  )
+
+  const handleEstimateDepthMap = useCallback(async () => {
+    if (!(selectedLayer && selectedAsset && selectedAsset.kind === "image")) {
+      return
+    }
+
+    const layerId = selectedLayer.id
+    const source = selectedAsset
+    setDepthEstimation({ label: "Loading depth model…", layerId })
+
+    try {
+      const result = await estimateDepthMap({
+        height: source.height ?? 0,
+        onProgress: (progress) =>
+          setDepthEstimation({ label: describeDepthProgress(progress), layerId }),
+        url: source.url,
+        width: source.width ?? 0,
+      })
+      const baseName = source.fileName.replace(/\.[^.]+$/, "") || "image"
+      const asset = await loadAsset(
+        new File([result.blob], `${baseName}-depth.png`, { type: "image/png" })
+      )
+      setLayerDepthAsset(layerId, asset.id)
+      updateLayerParam(layerId, "depthInvert", false)
+      setLayerRuntimeError(layerId, null)
+    } catch (error) {
+      if (!(error instanceof DOMException && error.name === "AbortError")) {
+        setLayerRuntimeError(
+          layerId,
+          error instanceof Error ? error.message : "Depth estimation failed."
+        )
+      }
+    } finally {
+      setDepthEstimation((current) =>
+        current?.layerId === layerId ? null : current
+      )
+    }
+  }, [
+    loadAsset,
+    selectedAsset,
+    selectedLayer,
+    setLayerDepthAsset,
+    setLayerRuntimeError,
+    updateLayerParam,
+  ])
+
+  const handleRemoveDepthMap = useCallback(() => {
+    if (!selectedLayerId) {
+      return
+    }
+
+    setLayerDepthAsset(selectedLayerId, null)
+  }, [selectedLayerId, setLayerDepthAsset])
+
   const selectedLayerContentProps = selectedLayer
     ? {
+        canEstimateDepthMap: Boolean(
+          selectedAsset &&
+            selectedAsset.kind === "image" &&
+            !isSvgMediaSource({
+              fileName: selectedAsset.fileName,
+              mimeType: selectedAsset.mimeType,
+            })
+        ),
+        depthEstimationLabel:
+          depthEstimation?.layerId === selectedLayer.id
+            ? depthEstimation.label
+            : null,
+        depthMapFileName: selectedDepthAsset?.fileName ?? null,
+        hasDepthMap: Boolean(selectedLayer.depthAssetId),
+        onAttachDepthMap: handleDepthMapPick,
+        onEstimateDepthMap: handleEstimateDepthMap,
+        onRemoveDepthMap: handleRemoveDepthMap,
         blendMode: selectedLayer.blendMode,
         compositeMode: selectedLayer.compositeMode,
         maskConfig: selectedLayer.maskConfig,
         setLayerMaskConfig,
-        mask: selectedLayer.mask ?? null,
+        mask: applyMaskOverrides(
+          selectedLayer.mask ?? null,
+          displayedLayerState?.params ?? selectedLayer.params
+        ),
         maskInGroup: !!selectedLayer.parentId,
         maskLayerKind: selectedLayer.kind,
         setLayerMask,
@@ -700,6 +865,14 @@ export function PropertiesSidebar() {
         className="hidden"
         onChange={handleReplaceImageChange}
         ref={replaceImageInputRef}
+        type="file"
+      />
+      <input
+        accept={getAssetAccept("image")}
+        className="hidden"
+        data-testid="depth-map-input"
+        onChange={handleDepthMapChange}
+        ref={depthMapInputRef}
         type="file"
       />
 

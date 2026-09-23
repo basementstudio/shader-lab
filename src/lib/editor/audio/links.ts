@@ -1,3 +1,7 @@
+import {
+  getMaskParameterDefinition,
+  isMaskParamKey,
+} from "@/lib/editor/mask-animation"
 import { getLayerBindingKey } from "@/lib/editor/binding-key"
 import { getLayerDefinition } from "@/lib/editor/config/layer-registry"
 import { resolveAudioLinkValue } from "@/lib/editor/audio/modulate"
@@ -133,6 +137,10 @@ function resolveDefinition(
 ): ParameterDefinition | null {
   if (binding.kind === "layer") {
     return null
+  }
+
+  if (isMaskParamKey(binding.key)) {
+    return getMaskParameterDefinition(layer.mask?.shape ?? "none", binding.key)
   }
 
   const cacheKey = `${layer.type}:${binding.key}`

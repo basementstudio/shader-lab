@@ -1,5 +1,6 @@
 "use client"
 
+import { getMaskParameterDefinition } from "@/lib/editor/mask-animation"
 import { CellPaintControls } from "./cell-paint-controls"
 import { AnnotationsControls } from "./annotations-controls"
 import { GradientMapControls } from "./gradient-map-controls"
@@ -251,6 +252,14 @@ function CustomShaderSection({
   )
 }
 
+function estimateDepthLabel(working: boolean, hasDepthMap: boolean): string {
+  if (working) {
+    return "Working…"
+  }
+
+  return hasDepthMap ? "Estimate again" : "Estimate"
+}
+
 export function SelectedLayerPropertiesContent({
   blendMode,
   compositeMode,
@@ -265,12 +274,19 @@ export function SelectedLayerPropertiesContent({
   hue,
   onInteractionEnd,
   onInteractionStart,
+  canEstimateDepthMap,
+  depthEstimationLabel,
+  depthMapFileName,
+  hasDepthMap,
   layerId,
   layerKind,
   layerName,
   layerRuntimeError,
   layerSubtitle,
   layerType,
+  onAttachDepthMap,
+  onEstimateDepthMap,
+  onRemoveDepthMap,
   onReplaceImage,
   onToggleParamGroup,
   onTimelineKeyframe,
@@ -307,6 +323,13 @@ export function SelectedLayerPropertiesContent({
   layerRuntimeError: string | null
   layerSubtitle: string
   layerType: LayerType
+  canEstimateDepthMap: boolean
+  depthEstimationLabel: string | null
+  depthMapFileName: string | null
+  hasDepthMap: boolean
+  onAttachDepthMap: () => void
+  onEstimateDepthMap: () => void
+  onRemoveDepthMap: () => void
   onReplaceImage: () => void
   onToggleParamGroup: (groupId: string) => void
   onTimelineKeyframe: (
@@ -722,6 +745,16 @@ export function SelectedLayerPropertiesContent({
           onInteractionEnd={onInteractionEnd}
           onInteractionStart={onInteractionStart}
           setLayerMask={setLayerMask}
+          timelineControl={(key, value) =>
+            buildTimelineControl(
+              createParamTimelineBinding(
+                getMaskParameterDefinition(mask?.shape ?? "none", key) ??
+                  ({ defaultValue: 0, key, label: key, type: "number" } as const)
+              ),
+              value
+            )
+          }
+          updateLayerParam={updateLayerParam}
         />
 
         {layerType === "custom-shader" ? (
@@ -753,6 +786,49 @@ export function SelectedLayerPropertiesContent({
               >
                 Replace
               </Button>
+            </div>
+            <div className="flex flex-col gap-2">
+              <div className="flex min-w-0 flex-col gap-0.5">
+                <Typography tone="secondary" variant="caption">
+                  Depth map
+                </Typography>
+                <Typography className="truncate" tone="muted" variant="caption">
+                  {depthEstimationLabel ??
+                    (hasDepthMap
+                      ? (depthMapFileName ?? "Attached")
+                      : "Estimate one from the image, or attach a grayscale map. White is near.")}
+                </Typography>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {canEstimateDepthMap ? (
+                  <Button
+                    disabled={depthEstimationLabel !== null}
+                    onClick={onEstimateDepthMap}
+                    size="compact"
+                    variant={hasDepthMap ? "secondary" : "primary"}
+                  >
+                    {estimateDepthLabel(depthEstimationLabel !== null, hasDepthMap)}
+                  </Button>
+                ) : null}
+                <Button
+                  disabled={depthEstimationLabel !== null}
+                  onClick={onAttachDepthMap}
+                  size="compact"
+                  uiSound="action.relinkAsset"
+                  variant="secondary"
+                >
+                  {hasDepthMap ? "Replace" : "Attach"}
+                </Button>
+                {hasDepthMap ? (
+                  <Button
+                    onClick={onRemoveDepthMap}
+                    size="compact"
+                    variant="ghost"
+                  >
+                    Remove
+                  </Button>
+                ) : null}
+              </div>
             </div>
           </section>
         ) : null}

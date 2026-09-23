@@ -18,6 +18,7 @@ export class GroupPass extends PassNode {
   private readonly rtB: THREE.WebGLRenderTarget
   private readonly groupInput: TSLNode
   private readonly clearColor = new THREE.Color()
+  private outputSceneDepth: THREE.Texture | null = null
 
   constructor(
     id: string,
@@ -97,18 +98,24 @@ export class GroupPass extends PassNode {
 
     let read = this.rtA
     let write = this.rtB
+    let sceneDepth = this.sceneDepthTexture
     for (const pass of this.children) {
+      if (!this.isActive(pass)) continue
+      pass.setSceneDepth(sceneDepth)
       if (
-        !(
-          this.isActive(pass) &&
-          this.renderChild(pass, read.texture, write, time, delta, timelineTime)
-        )
+        !this.renderChild(pass, read.texture, write, time, delta, timelineTime)
       )
         continue
+      sceneDepth = pass.getOutputSceneDepth()
       ;[read, write] = [write, read]
     }
+    this.outputSceneDepth = sceneDepth
     this.groupInput.value = read.texture
     super.render(renderer, inputTexture, outputTarget, time, delta)
+  }
+
+  override getOutputSceneDepth(): THREE.Texture | null {
+    return this.outputSceneDepth
   }
 
   protected override buildEffectNode(): TSLNode {

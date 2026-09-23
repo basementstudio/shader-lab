@@ -1,3 +1,7 @@
+import {
+  getMaskParameterDefinition,
+  isMaskParamKey,
+} from "@/lib/editor/mask-animation"
 import { create } from "zustand"
 import { advanceProjectTimeline } from "@/renderer/project-clock"
 import { clampDuration, MIN_DURATION } from "@/lib/editor/timeline-duration"
@@ -183,7 +187,9 @@ export function createParamBinding(
   layer: EditorLayer,
   key: string,
 ): AnimatedPropertyBinding | null {
-  const definition = getParameterDefinition(getLayerDefinition(layer.type).params, key)
+  const definition = isMaskParamKey(key)
+    ? getMaskParameterDefinition(layer.mask?.shape ?? "none", key)
+    : getParameterDefinition(getLayerDefinition(layer.type).params, key)
 
   if (
     !(
@@ -983,6 +989,10 @@ export const useTimelineStore = create<TimelineStore>((set, get) => ({
         }
 
         if (track.binding.kind === "layer") {
+          return true
+        }
+
+        if (isMaskParamKey(track.binding.key)) {
           return true
         }
 

@@ -276,10 +276,10 @@ export async function checkSignalRot(renderProject) {
   applyLabProjectFile(parseLabProjectFileValue(project), [])
   const store = () => useLayerStore.getState()
   const before = buildEditorHistorySnapshot()
-  const tape = SIGNAL_ROT_STYLES.find((s) => s.id === "tape-wobble")
+  const tape = SIGNAL_ROT_STYLES.find((s) => s.id === "signal-rot")
   for (const [key, value] of Object.entries(signalRotStyleParams(tape)))
     store().updateLayerParam(rot.id, key, value)
-  assert(matchSignalRotStyle(store().getLayerById(rot.id).params) === "tape-wobble", "Style edits reach the store")
+  assert(matchSignalRotStyle(store().getLayerById(rot.id).params) === "signal-rot", "Style edits reach the store")
   applyEditorHistorySnapshot(before)
   assert(
     matchSignalRotStyle(store().getLayerById(rot.id).params) === DEFAULT_SIGNAL_ROT_STYLE.id,

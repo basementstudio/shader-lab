@@ -65,26 +65,6 @@ export const SIGNAL_ROT_STYLES: SignalRotStyle[] = [
     },
   },
   {
-    id: "tape-wobble",
-    label: "Tape Wobble",
-    values: {
-      bandSize: 0.1,
-      chroma: 0.25,
-      crush: 0,
-      direction: "horizontal",
-      drag: 0,
-      dragLength: 0.3,
-      dropout: 0,
-      dropoutColor: "#000000",
-      lineNoise: 0.3,
-      speed: 0.6,
-      stretch: 0.2,
-      tear: 0,
-      wobble: 0.7,
-      wobbleScale: 0.6,
-    },
-  },
-  {
     id: "torn-scan",
     label: "Torn Scan",
     values: {

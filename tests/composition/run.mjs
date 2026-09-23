@@ -336,6 +336,19 @@ try {
   console.log(
     `PASS relief: ${relief.samples} editor/runtime GPU cases, flat identity, emboss, deboss, light angle and elevation, cutout and depth height, engraving, grain, styles, hydration, history, export, photo renders`
   )
+  const colorHalos = await page.evaluate(() => window.checkColorHalos())
+  for (const [style, png] of Object.entries(colorHalos.styles))
+    await Bun.write(
+      resolve(artifacts, `color-halos-${style}.png`),
+      Buffer.from(png.split(",")[1], "base64")
+    )
+  await Bun.write(
+    resolve(artifacts, "color-halos-preview.webp"),
+    Buffer.from(colorHalos.previewWebp.split(",")[1], "base64")
+  )
+  console.log(
+    `PASS color halos: ${colorHalos.samples} editor/runtime GPU cases, paper threshold, ramp core and rim, keep shape, bands, light shapes, cross flares, styles, hydration, history, export, photo renders`
+  )
   const artboard = await page.evaluate(() => window.checkArtboard())
   console.log(
     `PASS artboard: ${artboard.samples} document size, fit, composition update, save/reopen and legacy checks`

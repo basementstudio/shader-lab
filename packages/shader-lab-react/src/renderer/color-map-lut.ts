@@ -56,6 +56,13 @@ export const GRADIENT_MAP_PRESETS: {
 
 export const DEFAULT_GRADIENT_MAP_STOPS = GRADIENT_MAP_PRESETS[0]!.stops
 
+export const DEFAULT_COLOR_HALOS_STOPS: GradientMapStop[] = [
+  { position: 0, color: "#2c5ee8" },
+  { position: 0.35, color: "#f7a23b" },
+  { position: 0.7, color: "#e2304f" },
+  { position: 1, color: "#3b0d1c" },
+]
+
 export const DEFAULT_LUMEN_PRINT_STOPS: GradientMapStop[] = [
   { position: 0, color: "#2a0f2e" },
   { position: 0.35, color: "#7a2f5e" },

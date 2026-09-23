@@ -56,6 +56,7 @@ export type AddLayerAction =
   | "erosion"
   | "relief"
   | "flares"
+  | "focus-blur"
   | "halftone"
   | "image"
   | "ink"
@@ -145,11 +146,11 @@ const EFFECT_ORDER: readonly AddLayerAction[] = [
   "gradient-map",
   "lumen-print",
   "flares",
+  "focus-blur",
   "bloom",
   "plotter",
   "blob-tracking",
   "circuit-bent",
-  "directional-blur",
   "pixel-sorting",
   "slice",
   "signal-rot",
@@ -157,8 +158,6 @@ const EFFECT_ORDER: readonly AddLayerAction[] = [
   "edge-detect",
   "displacement-map",
   "chromatic-aberration",
-  "smear",
-  "fluted-glass",
 ] as const
 
 const EFFECT_ITEMS: readonly EffectItem[] = EFFECT_ORDER.map((value) => ({

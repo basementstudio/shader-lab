@@ -37,6 +37,10 @@ const server = Bun.serve({
       return new Response(
         Bun.file(resolve(directory, "fixtures/alpha-sample.svg"))
       )
+    if (path === "/scenes/default/dof-study.png" || path === "/scenes/default/dof-study-depth.png")
+      return new Response(
+        Bun.file(resolve(directory, `fixtures/${path.split("/").pop()}`))
+      )
     if (path === "/scenes/default/rings-photo.webp")
       return new Response(Bun.file(resolve(root, "public/examples/slice.webp")))
     const base =
@@ -353,6 +357,19 @@ try {
   )
   console.log(
     `PASS flares: ${flares.samples} editor/runtime GPU cases, no false flares, cross, rotation, star, secondary rays, streak, isolation, core color, transparency, core glow, styles, hydration, history, export, renders`
+  )
+  const focusBlur = await page.evaluate(() => window.checkFocusBlur())
+  for (const [style, png] of Object.entries(focusBlur.styles))
+    await Bun.write(
+      resolve(artifacts, `focus-blur-${style}.png`),
+      Buffer.from(png.split(",")[1], "base64")
+    )
+  await Bun.write(
+    resolve(artifacts, "focus-blur-preview.webp"),
+    Buffer.from(focusBlur.previewWebp.split(",")[1], "base64")
+  )
+  console.log(
+    `PASS blur: ${focusBlur.samples} editor/runtime GPU cases, identity, flat color, smooth wide radii without ringing, linear, radial, invert, depth with and without a map, lens, motion, alpha edges, grain, styles, hydration, history, export, renders`
   )
   const artboard = await page.evaluate(() => window.checkArtboard())
   console.log(

@@ -51,6 +51,7 @@ import { DotGridPass } from "./dot-grid-pass"
 import { ErosionPass } from "./erosion-pass"
 import { ReliefPass } from "./relief-pass"
 import { FlaresPass } from "./flares-pass"
+import { FocusBlurPass } from "./focus-blur-pass"
 import { AnnotationsPass } from "./annotations-pass"
 import { VoxelPass } from "./voxel-pass"
 
@@ -93,6 +94,7 @@ type LayerPassNode =
   | ErosionPass
   | ReliefPass
   | FlaresPass
+  | FocusBlurPass
   | AnnotationsPass
   | TextPass
   | VoxelPass
@@ -543,7 +545,8 @@ export class PipelineManager {
       layer.type === "displaced-rings" ||
       layer.type === "photographic-cells" ||
       layer.type === "erosion" ||
-      layer.type === "flares"
+      layer.type === "flares" ||
+      layer.type === "focus-blur"
     ) {
       pass.updateCompositionRole("transform")
     } else {
@@ -686,6 +689,8 @@ export class PipelineManager {
           return new ReliefPass(layer.id)
         case "flares":
           return new FlaresPass(layer.id)
+        case "focus-blur":
+          return new FocusBlurPass(layer.id)
         case "annotations":
           return new AnnotationsPass(layer.id)
         case "pixel-sorting":

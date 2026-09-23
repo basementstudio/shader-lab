@@ -258,6 +258,13 @@ export const LAYER_CATALOG: Record<LayerType, LayerCatalogEntry> = {
     label: "Lumen Print",
     previewSrc: "/examples/lumen-print.webp",
   },
+  "focus-blur": {
+    category: "core",
+    description:
+      "High-quality blur that can change across the image: real depth of field from a depth map, tilt-shift bands, radial focus or tone-driven, as smooth Gaussian, lens bokeh or motion streaks, with grain. Large radii stay smooth.",
+    label: "Blur",
+    previewSrc: "/examples/focus-blur.webp",
+  },
   flares: {
     category: "core",
     description:

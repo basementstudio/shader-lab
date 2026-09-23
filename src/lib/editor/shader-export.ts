@@ -44,6 +44,7 @@ const SUPPORTED_SHADER_EXPORT_LAYER_TYPES = new Set<LayerType>([
   "erosion",
   "relief",
   "flares",
+  "focus-blur",
   "annotations",
   "crt",
   "chromatic-aberration",

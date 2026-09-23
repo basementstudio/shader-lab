@@ -31,6 +31,10 @@ import {
   DEFAULT_FLARES_STYLE,
   flaresStyleParams,
 } from "@/lib/editor/config/flares-styles"
+import {
+  DEFAULT_FOCUS_BLUR_STYLE,
+  focusBlurStyleParams,
+} from "@/lib/editor/config/focus-blur-styles"
 import { GLYPH_FONT_OPTIONS, TEXT_FONT_OPTIONS } from "@/lib/editor/text-fonts"
 import type {
   EffectLayerType,
@@ -4217,6 +4221,185 @@ const flaresParams = [
   },
 ] as const satisfies ParameterDefinitions
 
+const focusBlurDefaults = focusBlurStyleParams(DEFAULT_FOCUS_BLUR_STYLE)
+
+const focusBlurParams = [
+  {
+    animatable: false,
+    defaultValue: focusBlurDefaults.blurFrom as string,
+    key: "blurFrom",
+    label: "Blur From",
+    options: [
+      { label: "Uniform", value: "uniform" },
+      { label: "Depth", value: "depth" },
+      { label: "Linear", value: "linear" },
+      { label: "Radial", value: "radial" },
+      { label: "Luminance", value: "luminance" },
+    ],
+    type: "select",
+    description:
+      "Where the blur goes. Depth uses the depth map of the Image layer below (Estimate one first) for real depth of field; Linear and Radial keep a sharp band or spot.",
+  },
+  {
+    animatable: false,
+    defaultValue: focusBlurDefaults.kind as string,
+    key: "kind",
+    label: "Kind",
+    options: [
+      { label: "Gaussian", value: "gaussian" },
+      { label: "Lens", value: "lens" },
+      { label: "Motion", value: "motion" },
+    ],
+    type: "select",
+    description:
+      "Gaussian is smooth; Lens gives disc-shaped bokeh like a camera; Motion streaks along an angle.",
+  },
+  {
+    defaultValue: focusBlurDefaults.radius as number,
+    key: "radius",
+    label: "Radius",
+    max: 400,
+    min: 0,
+    step: 1,
+    type: "number",
+    description:
+      "Maximum blur size, in document pixels. Large values stay smooth.",
+  },
+  {
+    defaultValue: focusBlurDefaults.focus as number,
+    group: "Focus",
+    visibleWhen: { key: "blurFrom", notEquals: "uniform" },
+    key: "focus",
+    label: "Focus",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Depth that stays sharp (1 is nearest), or the tone threshold for Luminance.",
+  },
+  {
+    defaultValue: focusBlurDefaults.range as number,
+    group: "Focus",
+    visibleWhen: { key: "blurFrom", notEquals: "uniform" },
+    key: "range",
+    label: "Focus Range",
+    max: 2,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Width of the sharp zone: depth range, or band and spot size for Linear and Radial.",
+  },
+  {
+    defaultValue: focusBlurDefaults.transition as number,
+    group: "Focus",
+    visibleWhen: { key: "blurFrom", notEquals: "uniform" },
+    key: "transition",
+    label: "Transition",
+    max: 2,
+    min: 0.01,
+    step: 0.01,
+    type: "number",
+    description:
+      "How gradually the blur builds outside the sharp zone.",
+  },
+  {
+    defaultValue: [0, 0] as [number, number],
+    group: "Focus",
+    key: "center",
+    label: "Center",
+    max: 1,
+    min: -1,
+    step: 0.01,
+    type: "vec2",
+    visibleWhen: { key: "blurFrom", notEquals: "uniform" },
+    description: "Center of the sharp band or spot for Linear and Radial.",
+  },
+  {
+    defaultValue: focusBlurDefaults.angle as number,
+    group: "Focus",
+    visibleWhen: { key: "blurFrom", equals: "linear" },
+    key: "angle",
+    label: "Band Angle",
+    max: 180,
+    min: -180,
+    step: 1,
+    type: "number",
+    description:
+      "Angle of the sharp band for Linear.",
+  },
+  {
+    defaultValue: false,
+    group: "Focus",
+    key: "invertFocus",
+    label: "Invert Focus",
+    type: "boolean",
+    visibleWhen: { key: "blurFrom", notEquals: "uniform" },
+    description: "Blurs the focus zone and keeps the rest sharp.",
+  },
+  {
+    defaultValue: focusBlurDefaults.motionAngle as number,
+    visibleWhen: { key: "kind", equals: "motion" },
+    key: "motionAngle",
+    label: "Motion Angle",
+    max: 180,
+    min: -180,
+    step: 1,
+    type: "number",
+    description:
+      "Direction of the motion streak.",
+  },
+  {
+    defaultValue: focusBlurDefaults.highlights as number,
+    visibleWhen: { key: "kind", equals: "lens" },
+    key: "highlights",
+    label: "Highlights",
+    max: 3,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Brightens bokeh from bright areas into luminous discs.",
+  },
+  {
+    defaultValue: focusBlurDefaults.grain as number,
+    group: "Grain",
+    key: "grain",
+    label: "Grain",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Fine grain over the result; keeps large blurs from banding.",
+  },
+  {
+    defaultValue: focusBlurDefaults.grainSize as number,
+    group: "Grain",
+    key: "grainSize",
+    label: "Grain Size",
+    max: 6,
+    min: 0.5,
+    step: 0.05,
+    type: "number",
+    description:
+      "In document pixels.",
+  },
+  {
+    defaultValue: focusBlurDefaults.grainFollow as number,
+    group: "Grain",
+    key: "grainFollow",
+    label: "Grain in Blur",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "0 spreads grain evenly; 1 puts it only where the image is blurred.",
+  },
+] as const satisfies ParameterDefinitions
+
 const smearParams = [
   {
     defaultValue: 0,
@@ -6105,6 +6288,12 @@ const layerDefinitions: Record<LayerType, LayerDefinition> = {
     kind: "effect",
     params: flaresParams,
     type: "flares",
+  },
+  "focus-blur": {
+    defaultName: "Blur",
+    kind: "effect",
+    params: focusBlurParams,
+    type: "focus-blur",
   },
   smear: {
     defaultName: "Progressive Blur",

@@ -52,6 +52,7 @@ export type ShaderLabEffectLayerType =
   | "erosion"
   | "relief"
   | "flares"
+  | "focus-blur"
   | "voxel"
 
 export type ShaderLabLayerType =

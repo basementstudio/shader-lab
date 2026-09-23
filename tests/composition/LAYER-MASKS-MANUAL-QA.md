@@ -34,3 +34,8 @@ Scope: roadmap 1.4. **Cut content** is available only for effects inside a group
 3. Export PNG and video: identical to the canvas. The runtime package renders the same masks.
 
 Limits: masks follow the viewport like Cells paint (stable artboard remains roadmap 2.8). Brush edges are bilinear, not feathered. Masks are not animatable yet.
+
+
+## Brush feather (September 23, 2026)
+
+Requested by the user. Choose Mask: Brush, paint a stroke, then raise **Feather**: the stroke edge fades outward smoothly. Feather 0 keeps a hard edge. Feather is keyframable like the other mask shapes. Brush masks saved before this keep their default Feather of 0.01, which softens their edge very slightly.

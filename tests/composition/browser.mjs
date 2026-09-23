@@ -25,6 +25,7 @@ import { checkTransparentText } from "./transparent-text.mjs"
 import { checkPhotographicCells } from "./photographic-cells.mjs"
 import { checkLayerMasks } from "./layer-masks.mjs"
 import { checkGradientMap } from "./gradient-map.mjs"
+import { checkLumenPrint } from "./lumen-print.mjs"
 import { checkArtboard } from "./artboard.mjs"
 import { checkShapeLayers } from "./shape-layers.mjs"
 import { checkTextEditing } from "./text-editing.mjs"
@@ -452,6 +453,8 @@ window.checkCleanProjects = checkCleanProjects
 window.checkLayerMasks = () => checkLayerMasks(renderProject)
 
 window.checkGradientMap = () => checkGradientMap(renderProject)
+
+window.checkLumenPrint = () => checkLumenPrint(renderProject)
 
 window.checkArtboard = checkArtboard
 

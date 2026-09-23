@@ -50,6 +50,7 @@ export const EFFECT_LAYER_TYPES = [
   "posterize",
   "threshold",
   "gradient-map",
+  "lumen-print",
   "crt",
   "dithering",
   "halftone",

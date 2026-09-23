@@ -213,6 +213,13 @@ export const LAYER_CATALOG: Record<LayerType, LayerCatalogEntry> = {
     label: "Signal Rot",
     previewSrc: "/examples/signal-rot.webp",
   },
+  erosion: {
+    category: "distort",
+    description:
+      "Crumbles the image into speckle along its edges, light or dark tones, or the border of a cutout, throwing fragments outward. Reveal paper or cut transparent holes. Start from a style, then tune.",
+    label: "Erosion",
+    previewSrc: "/examples/erosion.webp",
+  },
   smear: {
     category: "distort",
     description:

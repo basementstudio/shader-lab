@@ -124,3 +124,8 @@ Reference 13 was opened before designing the layer: long streaks where the scann
 ## Dot Grid
 
 Reference 04 was reopened: one exact grid of dots covers the whole sheet, tiny uniform specks on the empty pale blue paper and large solid dots only inside the dark shapes, which fade out into smaller dots at their edges over a soft blurred halo. The user asked for a standalone layer instead of changing Halftone, because these dots are nearly perfect and grid-like while Halftone simulates print. Coordinate follows 04 with a pale blue ground, near-black ink, a raised Level so light areas stay at the minimum speck, softened tone and a blurred underlay. The first render gave medium dots in a light sky; Level corrected it. The cross-shaped orange flares are not part of this layer. The user accepted it on September 23, 2026.
+
+
+## Erosion
+
+References 09 and 14 were reopened. In 09 the orange photographic figure disintegrates at its silhouette into grainy pixel speckle, with crumbs of its color scattered into the white ground; in 14 the highlights are eaten into paper along a ragged, grainy boundary. The first render only punched white holes along every textured edge; fragments that survive the throw and a stronger contour threshold brought Disintegrate close to 09, where plant silhouettes crumble into speckle while flat interiors stay intact. Paper Erosion dissolves light tones into paper with a speckled edge like 14, rougher than Lumen Print's smooth Washout. Crumbled Cutout was checked on grouped text over a photo: letters crumble with holes and scattered crumbs. User visual acceptance is pending.

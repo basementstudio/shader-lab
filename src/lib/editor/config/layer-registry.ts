@@ -19,6 +19,10 @@ import {
   DEFAULT_DOT_GRID_STYLE,
   dotGridStyleParams,
 } from "@/lib/editor/config/dot-grid-styles"
+import {
+  DEFAULT_EROSION_STYLE,
+  erosionStyleParams,
+} from "@/lib/editor/config/erosion-styles"
 import { GLYPH_FONT_OPTIONS, TEXT_FONT_OPTIONS } from "@/lib/editor/text-fonts"
 import type {
   EffectLayerType,
@@ -3692,6 +3696,126 @@ const dotGridParams = [
   },
 ] as const satisfies ParameterDefinitions
 
+const erosionDefaults = erosionStyleParams(DEFAULT_EROSION_STYLE)
+
+const erosionParams = [
+  {
+    animatable: false,
+    defaultValue: erosionDefaults.mode as string,
+    key: "mode",
+    label: "Erode From",
+    options: [
+      { label: "Edges", value: "edges" },
+      { label: "Light tones", value: "light" },
+      { label: "Dark tones", value: "dark" },
+      { label: "Cutout edge", value: "alpha" },
+    ],
+    type: "select",
+    description:
+      "Edges crumbles contours; Light and Dark eat those tones; Cutout edge crumbles the border of transparent images and text.",
+  },
+  {
+    defaultValue: erosionDefaults.erode as number,
+    key: "erode",
+    label: "Erode",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "How much dissolves. Keyframe it to crumble the image over time.",
+  },
+  {
+    defaultValue: erosionDefaults.edgeWidth as number,
+    key: "edgeWidth",
+    label: "Edge Width",
+    max: 64,
+    min: 0.5,
+    step: 0.5,
+    type: "number",
+    description:
+      "How far from the edge the erosion reaches, in document pixels.",
+  },
+  {
+    defaultValue: erosionDefaults.speckleSize as number,
+    key: "speckleSize",
+    label: "Speckle Size",
+    max: 32,
+    min: 1,
+    step: 0.5,
+    type: "number",
+    description:
+      "Size of the crumbs, from fine grain to chunky pixels.",
+  },
+  {
+    defaultValue: erosionDefaults.clumping as number,
+    key: "clumping",
+    label: "Clumping",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Groups crumbs into larger torn patches instead of even grain.",
+  },
+  {
+    defaultValue: erosionDefaults.scatter as number,
+    key: "scatter",
+    label: "Scatter",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Throws fragments outward across the edge.",
+  },
+  {
+    animatable: false,
+    defaultValue: erosionDefaults.output as string,
+    group: "Output",
+    key: "output",
+    label: "Reveal",
+    options: [
+      { label: "Paper", value: "paper" },
+      { label: "Transparent", value: "transparent" },
+    ],
+    type: "select",
+    description:
+      "Transparent cuts holes; inside a group they show the layers below it.",
+  },
+  {
+    defaultValue: erosionDefaults.paperColor as string,
+    group: "Output",
+    key: "paperColor",
+    label: "Paper Color",
+    type: "color",
+    visibleWhen: { key: "output", equals: "paper" },
+  },
+  {
+    defaultValue: erosionDefaults.speed as number,
+    group: "Motion",
+    key: "speed",
+    label: "Speed",
+    max: 4,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "0 freezes the crumbs; higher values make them flicker and shift over time.",
+  },
+  {
+    defaultValue: 0,
+    group: "Motion",
+    key: "seed",
+    label: "Seed",
+    max: 999,
+    min: 0,
+    step: 1,
+    type: "number",
+    description: "Picks a different arrangement of crumbs.",
+  },
+] as const satisfies ParameterDefinitions
+
 const smearParams = [
   {
     defaultValue: 0,
@@ -5467,6 +5591,12 @@ const layerDefinitions: Record<LayerType, LayerDefinition> = {
     kind: "effect",
     params: dotGridParams,
     type: "dot-grid",
+  },
+  erosion: {
+    defaultName: "Erosion",
+    kind: "effect",
+    params: erosionParams,
+    type: "erosion",
   },
   smear: {
     defaultName: "Progressive Blur",

@@ -49,6 +49,7 @@ export type ShaderLabEffectLayerType =
   | "lumen-print"
   | "signal-rot"
   | "dot-grid"
+  | "erosion"
   | "voxel"
 
 export type ShaderLabLayerType =

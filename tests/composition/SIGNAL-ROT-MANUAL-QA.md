@@ -5,7 +5,7 @@ Scope: roadmap 3.4 consolidation. One effect layer that absorbs Signal rot and s
 ## Basics
 
 1. Add a photo, then **Signal Rot** (Distort). New layers start on **Scanner Drag**: vertical held streaks with wavy fronts, sideways wobble, torn bands, white dropouts from the left edge.
-2. **Style**: Scanner Drag (13), Signal Rot (animated row jitter, chroma, crushed levels), Tape Wobble (swaying rows), Torn Scan (large dropouts). Editing any control shows **Custom**.
+2. **Style**: Scanner Drag (13), Signal Rot (animated row jitter, chroma, crushed levels), Torn Scan (large dropouts). Editing any control shows **Custom**.
 3. **Streaks**: Vertical or Horizontal swaps every axis.
 
 ## Controls to push

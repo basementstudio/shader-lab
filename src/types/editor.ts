@@ -56,6 +56,7 @@ export const EFFECT_LAYER_TYPES = [
   "erosion",
   "relief",
   "flares",
+  "focus-blur",
   "crt",
   "dithering",
   "halftone",

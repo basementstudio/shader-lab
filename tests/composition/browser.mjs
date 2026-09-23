@@ -31,6 +31,7 @@ import { checkDotGrid } from "./dot-grid.mjs"
 import { checkErosion } from "./erosion.mjs"
 import { checkRelief } from "./relief.mjs"
 import { checkFlares } from "./flares.mjs"
+import { checkFocusBlur } from "./focus-blur.mjs"
 import { checkArtboard } from "./artboard.mjs"
 import { checkShapeLayers } from "./shape-layers.mjs"
 import { checkTextEditing } from "./text-editing.mjs"
@@ -470,6 +471,8 @@ window.checkErosion = () => checkErosion(renderProject)
 window.checkRelief = () => checkRelief(renderProject)
 
 window.checkFlares = () => checkFlares(renderProject)
+
+window.checkFocusBlur = () => checkFocusBlur(renderProject)
 
 window.checkArtboard = checkArtboard
 

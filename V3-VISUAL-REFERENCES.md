@@ -158,3 +158,8 @@ Shared by the user after calling the current blurs and Fluted Glass "terrible". 
 | `29-vidrio-acanalado-helecho.png` | Reeded glass over a fern: leaves touching the glass stay sharp and sliced into offset strips, leaves further back melt into soft smears. Distance behind the glass drives the blur. |
 | `30-vidrio-hexagonal.png` | Hex-cell glass: tiny cells, glitter highlights, soft image behind. |
 | `31-golden-horse-profundidad.png` | Golden Horse poster: depth of field on 3D forms, razor-sharp and hugely blurred parts side by side, smooth large radii, fine grain, black on yellow. |
+
+
+## Blur
+
+Reference 31 was reopened: razor-sharp and hugely blurred parts of the same black forms side by side on flat yellow, smooth radii over 100 px and fine grain. A synthetic study of tubes and spheres at known depths, rendered through Blur's Depth of Field style, keeps the nearest ball and tube ends sharp and dissolves the rest into large grainy shadows, close to 31. On photographs the Tilt-Shift, Vignette and Motion styles stay smooth at large radii. A sharp near object does not bleed over blurred background (per-pixel gather). User visual acceptance is pending.

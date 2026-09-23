@@ -49,6 +49,7 @@ import { LumenPrintPass } from "./lumen-print-pass"
 import { SignalRotPass } from "./signal-rot-pass"
 import { DotGridPass } from "./dot-grid-pass"
 import { ErosionPass } from "./erosion-pass"
+import { ReliefPass } from "./relief-pass"
 import { AnnotationsPass } from "./annotations-pass"
 import { VoxelPass } from "./voxel-pass"
 
@@ -89,6 +90,7 @@ type LayerPassNode =
   | SignalRotPass
   | DotGridPass
   | ErosionPass
+  | ReliefPass
   | AnnotationsPass
   | TextPass
   | VoxelPass
@@ -677,6 +679,8 @@ export class PipelineManager {
           return new DotGridPass(layer.id)
         case "erosion":
           return new ErosionPass(layer.id)
+        case "relief":
+          return new ReliefPass(layer.id)
         case "annotations":
           return new AnnotationsPass(layer.id)
         case "pixel-sorting":

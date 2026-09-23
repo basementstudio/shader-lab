@@ -274,6 +274,77 @@ async function passChecks() {
   return { samples, denseMs: Math.round(denseMs) }
 }
 
+async function featureChecks() {
+  const renderer = new THREE.WebGPURenderer({ antialias: false })
+  await renderer.init()
+  renderer.toneMapping = THREE.NoToneMapping
+  const W = 128
+  const H = 96
+  const data = new Float32Array(W * H * 4)
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < W; x++)
+      data.set([x / (W - 1), y / (H - 1), ((x * 7 + y * 3) % 17) / 16, 1], (y * W + x) * 4)
+  const input = new THREE.DataTexture(data, W, H, THREE.RGBAFormat, THREE.FloatType)
+  input.needsUpdate = true
+  const target = new THREE.RenderTarget(W, H, { type: THREE.FloatType, depthBuffer: false })
+  const expected = new Map()
+  let samples = 0
+  const base = { ...identity, shape: "rings", ringShape: "circle", lines: "none" }
+  try {
+    for (const [name, Pass] of [
+      ["editor", DisplacedRingsPass],
+      ["runtime", RuntimeRings],
+    ]) {
+      const pass = new Pass(`ring-features-${name}`)
+      pass.updateCompositionRole("transform")
+      pass.flushColorNode()
+      const paint = async (label, params) => {
+        pass.resize(W, H)
+        pass.updateLogicalSize(W, H)
+        pass.updateParams(params)
+        pass.render(renderer, input, target, 0, 0)
+        const pixels = Array.from(await renderer.readRenderTargetPixelsAsync(target, 0, 0, W, H))
+        assert(pixels.every(Number.isFinite), `${name}: ${label} emitted nonfinite pixels`)
+        if (name === "editor") expected.set(label, pixels)
+        else close(pixels, expected.get(label), `Editor/runtime ${label}`, 0.002)
+        samples++
+        return pixels
+      }
+      const at = (pixels, x, y) => pixels.slice((y * W + x) * 4, (y * W + x) * 4 + 4)
+      const differs = (a, b) => a.some((v, i) => Math.abs(v - b[i]) > 0.01)
+
+      for (const ringShape of ["triangle", "square", "polygon"]) {
+        const pixels = await paint(`identity-${ringShape}`, { ...base, ringShape, sides: 7 })
+        close(pixels, Array.from(data), `${name}: ${ringShape} bands with no transform keep the image`, 0.002)
+      }
+      const plain = await paint("rotated circle", { ...base, count: 6, radius: 0.9, rotationStep: 20 })
+      const jittered = await paint("rotation jitter", { ...base, count: 6, radius: 0.9, rotationStep: 20, rotationJitter: 60 })
+      assert(differs(plain, jittered), `${name}: rotation jitter turns bands individually`)
+      const square = await paint("rotated square", { ...base, count: 6, radius: 0.9, rotationStep: 20, ringShape: "square" })
+      assert(differs(plain, square), `${name}: square bands differ from circles once rotated`)
+      const widths = await paint("width jitter", { ...base, count: 6, radius: 0.9, rotationStep: 20, widthJitter: 1 })
+      assert(differs(plain, widths), `${name}: width jitter moves the band boundaries`)
+      const lineParams = { ...base, count: 5, radius: 0.5, lineColor: "#ff0000", lineWidth: 2, lineOpacity: 1 }
+      const noLines = await paint("no lines", lineParams)
+      close(noLines, Array.from(data), `${name}: lines off leaves the image`, 0.002)
+      const bands = await paint("band lines", { ...lineParams, lines: "bands" })
+      const ring = at(bands, 64 + 29, 48)
+      assert(ring[0] > 0.85 && ring[1] < 0.25, `${name}: band edges get lines (${ring})`)
+      const beyondOff = at(bands, 64 + 58, 48)
+      assert(!(beyondOff[0] > 0.85 && beyondOff[1] < 0.25), `${name}: band lines stop at the outer band`)
+      const extended = await paint("extended lines", { ...lineParams, lines: "extended" })
+      const beyond = [56, 57, 58, 59].map((dx) => at(extended, 64 + dx, 48))
+      assert(beyond.some((p) => p[0] > 0.85 && p[1] < 0.25), `${name}: extended lines continue past the outer band`)
+      pass.dispose()
+    }
+  } finally {
+    target.dispose()
+    input.dispose()
+    renderer.dispose()
+  }
+  return samples
+}
+
 function solid(id, color) {
   const layer = createLayer("gradient")
   return {
@@ -476,6 +547,58 @@ export async function checkDisplacedRings(renderProject) {
     ],
     sceneConfig: { ...DEFAULT_SCENE_CONFIG, backgroundColor: "#141416" },
   }
+  const featureSamples = await featureChecks()
+  const threshold = {
+    ...createLayer("threshold"),
+    id: "duotone",
+    parentId: group.id,
+    params: {
+      ...createLayer("threshold").params,
+      threshold: 0.55,
+      softness: 0.05,
+      noise: 0.12,
+      darkColor: "#050507",
+      lightColor: "#2f7bff",
+    },
+  }
+  const studies = {}
+  for (const [label, extra] of [
+    ["circle", { ringShape: "circle" }],
+    ["square", { ringShape: "square" }],
+    ["triangle", { ringShape: "triangle", shape: "half-discs" }],
+  ]) {
+    const study = await renderProject({
+      ...art,
+      layers: [
+        group,
+        {
+          ...rings,
+          params: {
+            ...createLayer("displaced-rings").params,
+            shape: "rings",
+            count: 9,
+            output: "cutout",
+            radius: 1.1,
+            rotationStep: 0,
+            rotationJitter: 38,
+            widthJitter: 0.6,
+            offset: [0, 0],
+            gap: 0,
+            seed: 7,
+            lines: "extended",
+            lineWidth: 1.25,
+            lineColor: "#2f7bff",
+            lineOpacity: 0.85,
+            ...extra,
+          },
+        },
+        threshold,
+        photo,
+      ],
+      sceneConfig: { ...DEFAULT_SCENE_CONFIG, backgroundColor: "#0a0a0c" },
+    })
+    studies[label] = study.png
+  }
   const preview = await renderProject(art)
   const colors = new Set()
   for (let i = 0; i < preview.image.data.length; i += 4)
@@ -487,6 +610,8 @@ export async function checkDisplacedRings(renderProject) {
   thumbnail.getContext("2d").putImageData(preview.image, 0, 0)
   return {
     ...checks,
+    samples: checks.samples + featureSamples,
+    studies,
     png: first.png,
     previewPng: preview.png,
     previewWebp: thumbnail.toDataURL("image/webp", 0.85),

@@ -56,6 +56,16 @@ export const GRADIENT_MAP_PRESETS: {
 
 export const DEFAULT_GRADIENT_MAP_STOPS = GRADIENT_MAP_PRESETS[0]!.stops
 
+export const DEFAULT_CONNECTED_DOTS_STOPS: GradientMapStop[] = [
+  { position: 0, color: "#1b1c22" },
+  { position: 0.18, color: "#2b7fd6" },
+  { position: 0.34, color: "#6fb3ef" },
+  { position: 0.5, color: "#9cc47a" },
+  { position: 0.66, color: "#e8746a" },
+  { position: 0.82, color: "#c78de0" },
+  { position: 1, color: "#ffffff" },
+]
+
 export const DEFAULT_LUMEN_PRINT_STOPS: GradientMapStop[] = [
   { position: 0, color: "#2a0f2e" },
   { position: 0.35, color: "#7a2f5e" },

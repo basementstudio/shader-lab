@@ -53,6 +53,7 @@ import { ReliefPass } from "./relief-pass"
 import { FlaresPass } from "./flares-pass"
 import { FocusBlurPass } from "./focus-blur-pass"
 import { GlassPass } from "./glass-pass"
+import { ConnectedDotsPass } from "./connected-dots-pass"
 import { AnnotationsPass } from "./annotations-pass"
 import { VoxelPass } from "./voxel-pass"
 
@@ -97,6 +98,7 @@ type LayerPassNode =
   | FlaresPass
   | FocusBlurPass
   | GlassPass
+  | ConnectedDotsPass
   | AnnotationsPass
   | TextPass
   | VoxelPass
@@ -549,7 +551,8 @@ export class PipelineManager {
       layer.type === "erosion" ||
       layer.type === "flares" ||
       layer.type === "focus-blur" ||
-      layer.type === "glass"
+      layer.type === "glass" ||
+      layer.type === "connected-dots"
     ) {
       pass.updateCompositionRole("transform")
     } else {
@@ -696,6 +699,8 @@ export class PipelineManager {
           return new FocusBlurPass(layer.id)
         case "glass":
           return new GlassPass(layer.id)
+        case "connected-dots":
+          return new ConnectedDotsPass(layer.id)
         case "annotations":
           return new AnnotationsPass(layer.id)
         case "pixel-sorting":

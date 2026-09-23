@@ -124,6 +124,13 @@ export const LAYER_CATALOG: Record<LayerType, LayerCatalogEntry> = {
     description:
       "A flat color silhouette: ellipse, rectangle, triangle, polygon, star, ring or blades. Blend it over photography or mask it.",
   },
+  "dot-grid": {
+    category: "core",
+    description:
+      "An exact dot grid fixed to the artboard: every cell gets a dot that grows with the tone, shapes fade out into small dots at their edges, and a blurred copy can sit underneath. Not a print simulation; use Halftone for that.",
+    label: "Dot Grid",
+    previewSrc: "/examples/dot-grid.webp",
+  },
   halftone: {
     category: "core",
     description:

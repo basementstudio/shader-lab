@@ -15,6 +15,10 @@ import {
   DEFAULT_SIGNAL_ROT_STYLE,
   signalRotStyleParams,
 } from "@/lib/editor/config/signal-rot-styles"
+import {
+  DEFAULT_DOT_GRID_STYLE,
+  dotGridStyleParams,
+} from "@/lib/editor/config/dot-grid-styles"
 import { GLYPH_FONT_OPTIONS, TEXT_FONT_OPTIONS } from "@/lib/editor/text-fonts"
 import type {
   EffectLayerType,
@@ -3548,6 +3552,146 @@ const signalRotParams = [
   },
 ] as const satisfies ParameterDefinitions
 
+const dotGridDefaults = dotGridStyleParams(DEFAULT_DOT_GRID_STYLE)
+
+const dotGridParams = [
+  {
+    defaultValue: dotGridDefaults.spacing as number,
+    key: "spacing",
+    label: "Spacing",
+    max: 120,
+    min: 3,
+    step: 1,
+    type: "number",
+    description:
+      "Distance between dot centers, in document pixels. The grid is fixed to the artboard and centered.",
+  },
+  {
+    defaultValue: dotGridDefaults.minDot as number,
+    key: "minDot",
+    label: "Min Dot",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Dot size in the lightest areas, as a share of the cell. Keeps the grid visible on empty paper.",
+  },
+  {
+    defaultValue: dotGridDefaults.maxDot as number,
+    key: "maxDot",
+    label: "Max Dot",
+    max: 1.5,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Dot size in the darkest areas. Above 1 neighboring dots merge.",
+  },
+  {
+    defaultValue: dotGridDefaults.level as number,
+    key: "level",
+    label: "Level",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Tone where dots start to grow. Raise it to keep light areas at the minimum speck, like an empty sheet.",
+  },
+  {
+    defaultValue: dotGridDefaults.contrast as number,
+    key: "contrast",
+    label: "Contrast",
+    max: 4,
+    min: 0.2,
+    step: 0.01,
+    type: "number",
+    description:
+      "How quickly dots grow from small to large.",
+  },
+  {
+    defaultValue: dotGridDefaults.softness as number,
+    key: "softness",
+    label: "Softness",
+    max: 4,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Blurs the tone each dot reads, in cells, so shapes fade out into smaller dots at their edges.",
+  },
+  {
+    animatable: false,
+    defaultValue: dotGridDefaults.shape as string,
+    key: "shape",
+    label: "Shape",
+    options: [
+      { label: "Circle", value: "circle" },
+      { label: "Square", value: "square" },
+    ],
+    type: "select",
+  },
+  {
+    defaultValue: dotGridDefaults.invert as boolean,
+    key: "invert",
+    label: "Invert",
+    type: "boolean",
+    description: "Light areas get the large dots.",
+  },
+  {
+    animatable: false,
+    defaultValue: dotGridDefaults.inkMode as string,
+    group: "Color",
+    key: "inkMode",
+    label: "Ink",
+    options: [
+      { label: "Single color", value: "ink" },
+      { label: "Source colors", value: "source" },
+    ],
+    type: "select",
+  },
+  {
+    defaultValue: dotGridDefaults.inkColor as string,
+    group: "Color",
+    key: "inkColor",
+    label: "Ink Color",
+    type: "color",
+    visibleWhen: { key: "inkMode", equals: "ink" },
+  },
+  {
+    defaultValue: dotGridDefaults.backgroundColor as string,
+    group: "Color",
+    key: "backgroundColor",
+    label: "Background",
+    type: "color",
+  },
+  {
+    defaultValue: dotGridDefaults.underlay as number,
+    group: "Color",
+    key: "underlay",
+    label: "Underlay",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Shows a blurred copy of the image beneath the dots.",
+  },
+  {
+    defaultValue: dotGridDefaults.underlayBlur as number,
+    group: "Color",
+    key: "underlayBlur",
+    label: "Underlay Blur",
+    max: 120,
+    min: 0,
+    step: 1,
+    type: "number",
+    description:
+      "Blur of the underlay, in document pixels.",
+  },
+] as const satisfies ParameterDefinitions
+
 const smearParams = [
   {
     defaultValue: 0,
@@ -5317,6 +5461,12 @@ const layerDefinitions: Record<LayerType, LayerDefinition> = {
     kind: "effect",
     params: signalRotParams,
     type: "signal-rot",
+  },
+  "dot-grid": {
+    defaultName: "Dot Grid",
+    kind: "effect",
+    params: dotGridParams,
+    type: "dot-grid",
   },
   smear: {
     defaultName: "Progressive Blur",

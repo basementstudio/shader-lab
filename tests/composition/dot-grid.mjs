@@ -1,15 +1,15 @@
-import { SignalRotPass as RuntimeSignalRot } from "@runtime/renderer/signal-rot-pass"
+import { DotGridPass as RuntimeDotGrid } from "@runtime/renderer/dot-grid-pass"
 import { buildRendererFrame as runtimeFrame } from "@runtime/renderer/contracts"
 import { createHeadlessRenderer } from "@runtime/renderer/create-headless-renderer"
 import { float, texture, uv, vec2 } from "three/tsl"
 import * as THREE from "three/webgpu"
-import { SignalRotPass } from "@/renderer/signal-rot-pass"
+import { DotGridPass } from "@/renderer/dot-grid-pass"
 import {
-  DEFAULT_SIGNAL_ROT_STYLE,
-  matchSignalRotStyle,
-  SIGNAL_ROT_STYLES,
-  signalRotStyleParams,
-} from "@/lib/editor/config/signal-rot-styles"
+  DEFAULT_DOT_GRID_STYLE,
+  DOT_GRID_STYLES,
+  dotGridStyleParams,
+  matchDotGridStyle,
+} from "@/lib/editor/config/dot-grid-styles"
 import { createLayer } from "@/lib/editor/layers"
 import {
   applyLabProjectFile,
@@ -40,43 +40,38 @@ function close(actual, expected, label, tolerance = 0.01) {
 const linear = (v) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)
 const N = 64
 
-const NEUTRAL = {
-  direction: "vertical",
-  drag: 0,
-  dragLength: 0.3,
-  stretch: 0,
-  wobble: 0,
-  wobbleScale: 0.5,
-  tear: 0,
-  bandSize: 0.12,
-  dropout: 0,
-  dropoutColor: "#ffffff",
-  chroma: 0,
-  crush: 0,
-  lineNoise: 0,
-  speed: 0,
-  seed: 0,
+const BASE = {
+  spacing: 8,
+  minDot: 0,
+  maxDot: 1,
+  contrast: 1,
+  level: 0.5,
+  softness: 0,
+  shape: "circle",
+  inkMode: "ink",
+  inkColor: "#000000",
+  backgroundColor: "#ffffff",
+  invert: false,
+  underlay: 0,
+  underlayBlur: 24,
 }
 
 function unitChecks() {
-  const entry = getLayerCatalogEntry("signal-rot")
-  assert(entry.label === "Signal Rot" && entry.category === "distort", "Catalog entry")
-  const layer = createLayer("signal-rot")
+  const entry = getLayerCatalogEntry("dot-grid")
+  assert(entry.label === "Dot Grid" && entry.category === "core", "Catalog entry")
+  const layer = createLayer("dot-grid")
   assert(
-    matchSignalRotStyle(layer.params) === DEFAULT_SIGNAL_ROT_STYLE.id,
-    "New layers start on the Scanner Drag style"
+    matchDotGridStyle(layer.params) === DEFAULT_DOT_GRID_STYLE.id,
+    "New layers start on the Coordinate style"
   )
-  for (const style of SIGNAL_ROT_STYLES)
+  for (const style of DOT_GRID_STYLES)
     assert(
-      matchSignalRotStyle({ ...layer.params, ...signalRotStyleParams(style) }) === style.id,
+      matchDotGridStyle({ ...layer.params, ...dotGridStyleParams(style) }) === style.id,
       `${style.id}: applying a style must select it`
     )
-  assert(matchSignalRotStyle({ ...layer.params, tear: 0.99 }) === "custom", "Editing shows Custom")
-  assert(
-    matchSignalRotStyle({ ...layer.params, dropoutColor: "#FFFFFF" }) === DEFAULT_SIGNAL_ROT_STYLE.id,
-    "Color matching ignores case"
-  )
-  return 4 + SIGNAL_ROT_STYLES.length
+  assert(matchDotGridStyle({ ...layer.params, spacing: 31 }) === "custom", "Editing shows Custom")
+  assert(matchDotGridStyle({ ...layer.params, invert: true }) === "custom", "Booleans take part in matching")
+  return 4 + DOT_GRID_STYLES.length
 }
 
 function makeInput(fn) {
@@ -93,26 +88,28 @@ async function passChecks() {
   await renderer.init()
   renderer.toneMapping = THREE.NoToneMapping
   const inputs = {
-    along: makeInput((_x, y) => [y, y, y]),
-    across: makeInput((x) => [x, x, x]),
-    rich: makeInput((x, y) => [x, (x * 3 + y * 5) % 1, y]),
+    black: makeInput(() => [0, 0, 0]),
+    white: makeInput(() => [1, 1, 1]),
+    red: makeInput(() => [1, 0, 0]),
+    gray: makeInput(() => [0.2, 0.2, 0.2]),
+    ramp: makeInput((x) => [linear(x), linear(x), linear(x)]),
   }
   const target = new THREE.RenderTarget(N, N, { type: THREE.FloatType, depthBuffer: false })
   const results = {}
   let samples = 0
   try {
     for (const [name, Pass] of [
-      ["editor", SignalRotPass],
-      ["runtime", RuntimeSignalRot],
+      ["editor", DotGridPass],
+      ["runtime", RuntimeDotGrid],
     ]) {
-      const pass = new Pass(`signal-rot-${name}`)
+      const pass = new Pass(`dot-grid-${name}`)
       pass.updateCompositionRole("effect")
       pass.flushColorNode()
-      const render = async (input, params, time = 0) => {
+      const render = async (input, params) => {
         pass.resize(N, N)
         pass.updateLogicalSize(N, N)
         pass.updateParams(params)
-        pass.render(renderer, inputs[input], target, time, 0)
+        pass.render(renderer, inputs[input], target, 0, 0)
         return Array.from(await renderer.readRenderTargetPixelsAsync(target, 0, 0, N, N))
       }
       const record = (label, pixels) => {
@@ -120,73 +117,70 @@ async function passChecks() {
         results[label][name] = pixels
         samples++
       }
-      const source = (input) => Array.from(inputs[input].image.data)
-      const column = (pixels, x) => Array.from({ length: N }, (_, y) => pixels[(y * N + x) * 4])
-      const row = (pixels, y) => Array.from({ length: N }, (_, x) => pixels[(y * N + x) * 4])
-      const distinct = (values) => new Set(values.map((v) => v.toFixed(4))).size
+      const at = (px, x, y) => px.slice((y * N + x) * 4, (y * N + x) * 4 + 4)
+      const inked = (px, x0 = 0, x1 = N) => {
+        let count = 0
+        let total = 0
+        for (let y = 0; y < N; y++)
+          for (let x = x0; x < x1; x++) {
+            total++
+            count += 1 - at(px, x, y)[0]
+          }
+        return count / total
+      }
 
-      let px = await render("rich", NEUTRAL)
-      close(px, source("rich"), `${name}: neutral settings are the identity`, 0.0005)
-      record("identity", px)
+      let px = await render("white", BASE)
+      close(px, Array.from({ length: N * N }, () => [1, 1, 1, 1]).flat(), `${name}: white paper with no min dot is blank`, 0.001)
+      record("blank", px)
 
-      px = await render("along", { ...NEUTRAL, drag: 1, dragLength: 0.5 })
-      const heldColumns = [4, 20, 40, 60].map((x) => distinct(column(px, x)))
-      assert(
-        heldColumns.every((count) => count <= 6),
-        `${name}: full drag must hold columns into streaks (${heldColumns})`
-      )
-      record("vertical drag", px)
+      px = await render("black", BASE)
+      close(at(px, 3, 3).slice(0, 3), [0, 0, 0], `${name}: cell centers carry ink`, 0.02)
+      close(at(px, 0, 0).slice(0, 3), [1, 1, 1], `${name}: cell corners stay paper`, 0.02)
+      const circle = inked(px)
+      assert(Math.abs(circle - Math.PI / 4) < 0.06, `${name}: full circles cover about pi/4 (${circle})`)
+      const period = Array.from({ length: N * N }, (_, i) => {
+        const x = i % N
+        const y = Math.floor(i / N)
+        return Math.abs(at(px, x, y)[0] - at(px, x % 8, y % 8)[0])
+      })
+      assert(Math.max(...period) < 0.001, `${name}: every cell is identical on a flat tone`)
+      record("full circles", px)
 
-      px = await render("across", { ...NEUTRAL, direction: "horizontal", drag: 1, dragLength: 0.5 })
-      const heldRows = [4, 30, 60].map((y) => distinct(row(px, y)))
-      assert(heldRows.every((count) => count <= 6), `${name}: horizontal drag holds rows (${heldRows})`)
-      record("horizontal drag", px)
+      px = await render("black", { ...BASE, shape: "square", maxDot: 0.5 })
+      const square = inked(px)
+      assert(Math.abs(square - 0.25) < 0.06, `${name}: half squares cover a quarter (${square})`)
+      record("squares", px)
 
-      px = await render("across", { ...NEUTRAL, tear: 1, bandSize: 0.1 })
-      const src = source("across")
-      const shiftedRows = Array.from({ length: N }, (_, y) => y).filter((y) =>
-        row(px, y).some((v, x) => Math.abs(v - src[(y * N + x) * 4]) > 0.02)
-      ).length
-      assert(shiftedRows > N * 0.2, `${name}: tear must shift bands (${shiftedRows} rows)`)
-      record("tear", px)
+      px = await render("white", { ...BASE, minDot: 0.5 })
+      const specks = inked(px)
+      assert(Math.abs(specks - Math.PI / 16) < 0.04, `${name}: min dot keeps the grid on paper (${specks})`)
+      record("min dot", px)
 
-      px = await render("rich", { ...NEUTRAL, dropout: 1, dropoutColor: "#ff0000", bandSize: 0.1 })
-      let red = 0
-      for (let i = 0; i < px.length; i += 4)
-        if (px[i] > 0.99 && px[i + 1] < 0.01 && px[i + 2] < 0.01) red++
-      assert(red > N * N * 0.1 && red < N * N, `${name}: dropout fills part of the bands (${red})`)
-      record("dropout", px)
+      px = await render("white", { ...BASE, invert: true })
+      assert(Math.abs(inked(px) - Math.PI / 4) < 0.06, `${name}: invert gives light areas the large dots`)
+      record("invert", px)
 
-      px = await render("along", { ...NEUTRAL, chroma: 1 })
-      const split = px[(32 * N + 32) * 4] - px[(32 * N + 32) * 4 + 1]
-      assert(Math.abs(split) > 0.01, `${name}: chroma shift separates channels (${split})`)
-      record("chroma", px)
+      px = await render("ramp", BASE)
+      const left = inked(px, 0, 16)
+      const right = inked(px, 48, 64)
+      assert(left > right + 0.3, `${name}: dark tones get larger dots (${left} vs ${right})`)
+      record("ramp", px)
 
-      px = await render("rich", { ...NEUTRAL, crush: 1 })
-      const levels = new Set()
-      for (let i = 0; i < px.length; i += 4) levels.add(px[i].toFixed(3))
-      assert(levels.size <= 4, `${name}: full crush leaves at most 4 levels (${levels.size})`)
-      record("crush", px)
+      px = await render("gray", { ...BASE, level: 1, minDot: 0.3 })
+      const levelSpecks = inked(px)
+      assert(Math.abs(levelSpecks - Math.PI * 0.0225) < 0.03, `${name}: a high level keeps mid tones at the minimum speck (${levelSpecks})`)
+      record("level", px)
 
-      px = await render("rich", { ...NEUTRAL, wobble: 1, wobbleScale: 0.3 })
-      assert(px.every(Number.isFinite), `${name}: wobble output is finite`)
-      record("wobble", px)
+      px = await render("red", { ...BASE, inkMode: "source" })
+      close(at(px, 3, 3).slice(0, 3), [1, 0, 0], `${name}: source ink takes the image color`, 0.02)
+      record("source ink", px)
 
-      const still = { ...NEUTRAL, lineNoise: 1 }
-      const a = await render("rich", still, 0)
-      const b = await render("rich", still, 3)
-      close(a, b, `${name}: speed 0 keeps the damage fixed`, 0)
-      assert(!pass.needsContinuousRender(), `${name}: static damage needs no continuous render`)
-      const moving = { ...still, speed: 1 }
-      const c = await render("rich", moving, 0)
-      const d = await render("rich", moving, 1.3)
-      assert(pass.needsContinuousRender(), `${name}: speed requests continuous render`)
-      assert(c.some((v, i) => Math.abs(v - d[i]) > 0.01), `${name}: speed animates the rot`)
-      record("line noise", c)
-      samples += 2
+      px = await render("gray", { ...BASE, maxDot: 0, underlay: 1 })
+      close(at(px, 10, 10).slice(0, 3), [0.2, 0.2, 0.2], `${name}: full underlay shows the image`, 0.01)
+      record("underlay", px)
 
-      for (const style of SIGNAL_ROT_STYLES) {
-        px = await render("rich", signalRotStyleParams(style), 0.5)
+      for (const style of DOT_GRID_STYLES) {
+        px = await render("ramp", dotGridStyleParams(style))
         assert(px.every(Number.isFinite), `${name}: ${style.id} produced non-finite output`)
         record(`style ${style.id}`, px)
       }
@@ -258,17 +252,17 @@ function toWebp(image) {
   return canvas.toDataURL("image/webp", 0.85)
 }
 
-export async function checkSignalRot(renderProject) {
+export async function checkDotGrid(renderProject) {
   let samples = unitChecks()
   samples += await passChecks()
 
-  const rot = { ...createLayer("signal-rot"), id: "rot" }
+  const grid = { ...createLayer("dot-grid"), id: "grid" }
   const project = {
     format: "shader-lab",
     version: 7,
     assets: [],
-    layers: [rot, stripes("field")],
-    selectedLayerId: rot.id,
+    layers: [grid, stripes("field")],
+    selectedLayerId: grid.id,
     composition: { width: N, height: N },
     sceneConfig: DEFAULT_SCENE_CONFIG,
     timeline: { duration: 1, loop: true, tracks: [] },
@@ -276,30 +270,30 @@ export async function checkSignalRot(renderProject) {
   applyLabProjectFile(parseLabProjectFileValue(project), [])
   const store = () => useLayerStore.getState()
   const before = buildEditorHistorySnapshot()
-  const tape = SIGNAL_ROT_STYLES.find((s) => s.id === "signal-rot")
-  for (const [key, value] of Object.entries(signalRotStyleParams(tape)))
-    store().updateLayerParam(rot.id, key, value)
-  assert(matchSignalRotStyle(store().getLayerById(rot.id).params) === "signal-rot", "Style edits reach the store")
+  const night = DOT_GRID_STYLES.find((s) => s.id === "night")
+  for (const [key, value] of Object.entries(dotGridStyleParams(night)))
+    store().updateLayerParam(grid.id, key, value)
+  assert(matchDotGridStyle(store().getLayerById(grid.id).params) === "night", "Style edits reach the store")
   applyEditorHistorySnapshot(before)
   assert(
-    matchSignalRotStyle(store().getLayerById(rot.id).params) === DEFAULT_SIGNAL_ROT_STYLE.id,
-    "History lost signal rot settings"
+    matchDotGridStyle(store().getLayerById(grid.id).params) === DEFAULT_DOT_GRID_STYLE.id,
+    "History lost dot grid settings"
   )
-  const duplicateId = store().duplicateLayer(rot.id)
-  store().updateLayerParam(duplicateId, "direction", "horizontal")
-  assert(store().getLayerById(rot.id).params.direction === "vertical", "Duplicate must be independent")
+  const duplicateId = store().duplicateLayer(grid.id)
+  store().updateLayerParam(duplicateId, "shape", "square")
+  assert(store().getLayerById(grid.id).params.shape === "circle", "Duplicate must be independent")
   applyEditorHistorySnapshot(before)
   const saved = buildLabProjectFile()
   store().replaceState([])
   applyLabProjectFile(parseLabProjectFileValue(JSON.parse(JSON.stringify(saved))), [])
   const reopened = buildLabProjectFile()
-  const reopenedRot = reopened.layers.find((l) => l.id === rot.id)
+  const reopenedGrid = reopened.layers.find((l) => l.id === grid.id)
   assert(
-    reopenedRot.type === "signal-rot" && matchSignalRotStyle(reopenedRot.params) === DEFAULT_SIGNAL_ROT_STYLE.id,
-    "Save/reopen changed the signal rot"
+    reopenedGrid.type === "dot-grid" && matchDotGridStyle(reopenedGrid.params) === DEFAULT_DOT_GRID_STYLE.id,
+    "Save/reopen changed the dot grid"
   )
   const config = buildShaderExportConfig(reopened)
-  assert(config.layers.find((l) => l.id === rot.id).type === "signal-rot", "Shader export type")
+  assert(config.layers.find((l) => l.id === grid.id).type === "dot-grid", "Shader export type")
   samples += 4
 
   const first = await renderProject(saved)
@@ -312,7 +306,7 @@ export async function checkSignalRot(renderProject) {
       const v = value / 255
       return i % 4 === 3 ? v : linear(v)
     }),
-    "Exported runtime signal rot parity",
+    "Exported runtime dot grid parity",
     0.02
   )
   samples += 2
@@ -326,17 +320,17 @@ export async function checkSignalRot(renderProject) {
     height: 908,
   }
   const styles = {}
-  for (const style of SIGNAL_ROT_STYLES) {
-    const base = createLayer("signal-rot")
+  for (const style of DOT_GRID_STYLES) {
+    const base = createLayer("dot-grid")
     const rendered = await renderProject({
       ...saved,
       composition: { width: 756, height: 454 },
       assets: [asset],
       layers: [
-        { ...base, id: "preview-rot", params: { ...base.params, ...signalRotStyleParams(style) } },
+        { ...base, id: "preview-grid", params: { ...base.params, ...dotGridStyleParams(style) } },
         { ...createLayer("image"), id: "photo", assetId: asset.id },
       ],
-      selectedLayerId: "preview-rot",
+      selectedLayerId: "preview-grid",
     })
     styles[style.id] = rendered.png
     samples++
@@ -346,10 +340,10 @@ export async function checkSignalRot(renderProject) {
     composition: { width: 480, height: 600 },
     assets: [asset],
     layers: [
-      { ...createLayer("signal-rot"), id: "catalog-rot" },
+      { ...createLayer("dot-grid"), id: "catalog-grid" },
       { ...createLayer("image"), id: "photo", assetId: asset.id },
     ],
-    selectedLayerId: "catalog-rot",
+    selectedLayerId: "catalog-grid",
   })
   return { samples, styles, previewWebp: toWebp(catalog.image) }
 }

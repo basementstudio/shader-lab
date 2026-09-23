@@ -40,6 +40,7 @@ const SUPPORTED_SHADER_EXPORT_LAYER_TYPES = new Set<LayerType>([
   "gradient-map",
   "lumen-print",
   "signal-rot",
+  "dot-grid",
   "annotations",
   "crt",
   "chromatic-aberration",

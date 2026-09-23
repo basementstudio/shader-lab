@@ -30,3 +30,15 @@ Automated checks cover editor/runtime GPU parity, displaced color and alpha, 48 
 ## User-curated new-layer defaults
 
 New rings use Distort, Half-discs, 22 rings, radius 2, 45° rotation per ring, and zero offset/gap. Other controls retain their defaults. Saved explicit settings are unchanged. Missing saved fields use the old defaults (Rings, 8, radius 0.9, 12°, offset 0.045/0, gap 0.04), matching unchanged runtime fallbacks. The photographic stress-test thumbnail retains its original explicit 8-band setup.
+
+
+## Reference 16 pass: shapes, jitter and lines (September 23, 2026)
+
+The user found the layer "missing something" against reference 16. Rereading 16: every band is the same photograph turned by its own irregular angle (not a regular spiral), band widths are uneven, and thin concentric hairlines on every boundary continue across the whole black poster past the photograph. The blue-on-black photo is a separate treatment.
+
+1. Put Rings, a Threshold (dark #050507, light #2f7bff) and a photo in a group over a near-black background. Rings: Output Cutout, Cut Full, Rotation per Ring 0, **Rotation Jitter** about 38 degrees, **Width Jitter** about 0.6, Radius about 1.1.
+2. **Lines: Edges and beyond**, Line Width about 1.25, blue. Expect concentric hairlines on every band edge that keep repeating across the canvas.
+3. **Shape: Square / Triangle / Polygon (Sides)**: bands become rotated frames; each band's outline turns with it. Use Lines: Band edges for a calmer look with polygons.
+4. Change **Seed**: rotations and widths reshuffle.
+
+New controls default to off (Circle, no jitter, no lines), so existing layers keep their look. The dot texture in the darks of 16 can come from Dot Grid or Pattern inside the group.

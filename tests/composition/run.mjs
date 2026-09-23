@@ -210,6 +210,11 @@ try {
     `PASS transparent text: ${text.samples} editor/runtime pixel checks, legacy hydration, save/reopen, and PNG export`
   )
   const rings = await page.evaluate(() => window.checkDisplacedRings())
+  for (const [label, png] of Object.entries(rings.studies))
+    await Bun.write(
+      resolve(artifacts, `rings-study-${label}.png`),
+      Buffer.from(png.split(",")[1], "base64")
+    )
   await Bun.write(
     resolve(artifacts, "displaced-rings-preview.webp"),
     Buffer.from(rings.previewWebp.split(",")[1], "base64")

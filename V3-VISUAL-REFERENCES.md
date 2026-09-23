@@ -139,3 +139,8 @@ Reference 15 was reopened: one silver heightfield lit from the top left, bright 
 ## Flares (Color Halos dropped)
 
 References 08 and 04 were reopened for a Color Halos prototype. The user tested it, kept only the cross flares (their own skull composition: thin orange crosses with white cores on the eye, nose and teeth highlights) and asked to drop the halos, which did not pair well with the flares. The layer became Flares: the Cross style reproduces that composition's rays; Star, Starburst, Asterisk and Anamorphic vary the ray count, secondary lengths, jitter and color. First renders showed dotted rays and a nested-loop index clash; both were fixed. The user accepted the reworked layer on September 23, 2026 ("way more useful").
+
+
+## Displaced Rings, second pass
+
+Reference 16 was reopened because the user felt the layer was missing something. The difference: 16 turns each band of the same photograph by its own irregular angle with uneven band widths, and ties the fragments together with thin concentric hairlines that run across the whole black poster; our layer used a regular per-ring rotation step, equal widths and no linework. Rotation Jitter, Width Jitter and Lines (edges and beyond) close that gap; new Triangle, Square and Polygon shapes extend it. A circle study with a blue Threshold inside the group reads close to 16. User visual acceptance is pending.

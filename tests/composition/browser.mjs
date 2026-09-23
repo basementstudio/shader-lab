@@ -32,6 +32,7 @@ import { checkErosion } from "./erosion.mjs"
 import { checkRelief } from "./relief.mjs"
 import { checkFlares } from "./flares.mjs"
 import { checkFocusBlur } from "./focus-blur.mjs"
+import { checkGlass } from "./glass.mjs"
 import { checkArtboard } from "./artboard.mjs"
 import { checkShapeLayers } from "./shape-layers.mjs"
 import { checkTextEditing } from "./text-editing.mjs"
@@ -473,6 +474,8 @@ window.checkRelief = () => checkRelief(renderProject)
 window.checkFlares = () => checkFlares(renderProject)
 
 window.checkFocusBlur = () => checkFocusBlur(renderProject)
+
+window.checkGlass = () => checkGlass(renderProject)
 
 window.checkArtboard = checkArtboard
 

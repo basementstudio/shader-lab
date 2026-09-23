@@ -52,6 +52,7 @@ import { ErosionPass } from "./erosion-pass"
 import { ReliefPass } from "./relief-pass"
 import { FlaresPass } from "./flares-pass"
 import { FocusBlurPass } from "./focus-blur-pass"
+import { GlassPass } from "./glass-pass"
 import { AnnotationsPass } from "./annotations-pass"
 import { VoxelPass } from "./voxel-pass"
 
@@ -95,6 +96,7 @@ type LayerPassNode =
   | ReliefPass
   | FlaresPass
   | FocusBlurPass
+  | GlassPass
   | AnnotationsPass
   | TextPass
   | VoxelPass
@@ -546,7 +548,8 @@ export class PipelineManager {
       layer.type === "photographic-cells" ||
       layer.type === "erosion" ||
       layer.type === "flares" ||
-      layer.type === "focus-blur"
+      layer.type === "focus-blur" ||
+      layer.type === "glass"
     ) {
       pass.updateCompositionRole("transform")
     } else {
@@ -691,6 +694,8 @@ export class PipelineManager {
           return new FlaresPass(layer.id)
         case "focus-blur":
           return new FocusBlurPass(layer.id)
+        case "glass":
+          return new GlassPass(layer.id)
         case "annotations":
           return new AnnotationsPass(layer.id)
         case "pixel-sorting":

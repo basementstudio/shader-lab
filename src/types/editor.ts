@@ -57,6 +57,7 @@ export const EFFECT_LAYER_TYPES = [
   "relief",
   "flares",
   "focus-blur",
+  "glass",
   "crt",
   "dithering",
   "halftone",

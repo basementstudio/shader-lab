@@ -55,6 +55,7 @@ export const EFFECT_LAYER_TYPES = [
   "dot-grid",
   "erosion",
   "relief",
+  "color-halos",
   "crt",
   "dithering",
   "halftone",

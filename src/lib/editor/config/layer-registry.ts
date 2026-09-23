@@ -23,6 +23,10 @@ import {
   DEFAULT_EROSION_STYLE,
   erosionStyleParams,
 } from "@/lib/editor/config/erosion-styles"
+import {
+  DEFAULT_RELIEF_STYLE,
+  reliefStyleParams,
+} from "@/lib/editor/config/relief-styles"
 import { GLYPH_FONT_OPTIONS, TEXT_FONT_OPTIONS } from "@/lib/editor/text-fonts"
 import type {
   EffectLayerType,
@@ -3816,6 +3820,228 @@ const erosionParams = [
   },
 ] as const satisfies ParameterDefinitions
 
+const reliefDefaults = reliefStyleParams(DEFAULT_RELIEF_STYLE)
+
+const reliefParams = [
+  {
+    animatable: false,
+    defaultValue: reliefDefaults.relief as string,
+    key: "relief",
+    label: "Relief",
+    options: [
+      { label: "Emboss", value: "emboss" },
+      { label: "Deboss", value: "deboss" },
+    ],
+    type: "select",
+    description:
+      "Emboss raises the image out of the surface; Deboss presses it in.",
+  },
+  {
+    animatable: false,
+    defaultValue: "luminance",
+    key: "heightFrom",
+    label: "Height From",
+    options: [
+      { label: "Luminance", value: "luminance" },
+      { label: "Depth", value: "depth" },
+      { label: "Cutout", value: "alpha" },
+    ],
+    type: "select",
+    description:
+      "Luminance raises bright areas; Depth uses the depth map of the Image layer below; Cutout raises text and transparent images by their shape.",
+  },
+  {
+    defaultValue: reliefDefaults.depth as number,
+    key: "depth",
+    label: "Depth",
+    max: 4,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "How steep the relief is.",
+  },
+  {
+    defaultValue: reliefDefaults.bevel as number,
+    key: "bevel",
+    label: "Bevel",
+    max: 32,
+    min: 1,
+    step: 0.5,
+    type: "number",
+    description:
+      "Width of the rims, in document pixels. Wider bevels look rounder and softer.",
+  },
+  {
+    defaultValue: 1,
+    key: "amount",
+    label: "Amount",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Blend between the original image and the relief.",
+  },
+  {
+    defaultValue: reliefDefaults.lightAngle as number,
+    group: "Light",
+    key: "lightAngle",
+    label: "Light Angle",
+    max: 360,
+    min: 0,
+    step: 1,
+    type: "number",
+    description:
+      "Direction the light comes from; 135 is the top left.",
+  },
+  {
+    defaultValue: reliefDefaults.elevation as number,
+    group: "Light",
+    key: "elevation",
+    label: "Elevation",
+    max: 90,
+    min: 5,
+    step: 1,
+    type: "number",
+    description:
+      "Height of the light. Low values rake across the surface and deepen the shadows.",
+  },
+  {
+    defaultValue: reliefDefaults.ambient as number,
+    group: "Light",
+    key: "ambient",
+    label: "Ambient",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Light that reaches everywhere; lower values make the shadows darker.",
+  },
+  {
+    animatable: false,
+    defaultValue: reliefDefaults.surface as string,
+    group: "Surface",
+    key: "surface",
+    label: "Surface",
+    options: [
+      { label: "Color", value: "color" },
+      { label: "Source colors", value: "source" },
+    ],
+    type: "select",
+    description:
+      "Color renders a single material; Source colors lights the image itself.",
+  },
+  {
+    defaultValue: reliefDefaults.color as string,
+    group: "Surface",
+    key: "color",
+    label: "Color",
+    type: "color",
+    visibleWhen: { key: "surface", equals: "color" },
+  },
+  {
+    defaultValue: reliefDefaults.specular as number,
+    group: "Surface",
+    key: "specular",
+    label: "Specular",
+    max: 2,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Metallic highlights on the rims.",
+  },
+  {
+    defaultValue: reliefDefaults.shininess as number,
+    group: "Surface",
+    key: "shininess",
+    label: "Shininess",
+    max: 128,
+    min: 1,
+    step: 1,
+    type: "number",
+    description:
+      "Tightness of the highlights; high values look polished.",
+  },
+  {
+    defaultValue: reliefDefaults.grain as number,
+    group: "Surface",
+    key: "grain",
+    label: "Grain",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Stippled texture across the surface.",
+  },
+  {
+    defaultValue: reliefDefaults.grainSize as number,
+    group: "Surface",
+    key: "grainSize",
+    label: "Grain Size",
+    max: 8,
+    min: 0.5,
+    step: 0.05,
+    type: "number",
+    description:
+      "Size of the grain, in document pixels.",
+  },
+  {
+    animatable: false,
+    defaultValue: reliefDefaults.engrave as string,
+    group: "Engraving",
+    key: "engrave",
+    label: "Engrave",
+    options: [
+      { label: "None", value: "none" },
+      { label: "Parallel lines", value: "parallel" },
+      { label: "Radial burst", value: "radial" },
+    ],
+    type: "select",
+    description:
+      "Cuts engraved lines into the surface, deeper in the dark areas.",
+  },
+  {
+    defaultValue: reliefDefaults.engraveDepth as number,
+    group: "Engraving",
+    key: "engraveDepth",
+    label: "Engrave Depth",
+    max: 2,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "How deep the engraved lines are.",
+  },
+  {
+    defaultValue: reliefDefaults.lineSpacing as number,
+    group: "Engraving",
+    key: "lineSpacing",
+    label: "Line Spacing",
+    max: 40,
+    min: 2,
+    step: 0.5,
+    type: "number",
+    description:
+      "Distance between engraved lines, in document pixels.",
+  },
+  {
+    defaultValue: reliefDefaults.engraveAngle as number,
+    group: "Engraving",
+    key: "engraveAngle",
+    label: "Line Angle",
+    max: 180,
+    min: -180,
+    step: 1,
+    type: "number",
+    description:
+      "Direction of parallel lines.",
+  },
+] as const satisfies ParameterDefinitions
+
 const smearParams = [
   {
     defaultValue: 0,
@@ -5597,6 +5823,12 @@ const layerDefinitions: Record<LayerType, LayerDefinition> = {
     kind: "effect",
     params: erosionParams,
     type: "erosion",
+  },
+  relief: {
+    defaultName: "Relief",
+    kind: "effect",
+    params: reliefParams,
+    type: "relief",
   },
   smear: {
     defaultName: "Progressive Blur",

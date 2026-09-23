@@ -8,6 +8,7 @@ import { LumenPrintControls } from "./lumen-print-controls"
 import { SignalRotControls } from "./signal-rot-controls"
 import { DotGridControls } from "./dot-grid-controls"
 import { ErosionControls } from "./erosion-controls"
+import { ReliefControls } from "./relief-controls"
 import { LayerMaskSection } from "./layer-mask-section"
 import { useTextEditStore } from "@/store/text-edit-store"
 import { LayerGroupLocation } from "@/components/editor/layer-group-location"
@@ -888,6 +889,14 @@ export function SelectedLayerPropertiesContent({
 
         {layerType === "erosion" && (
           <ErosionControls
+            layerId={layerId}
+            updateLayerParam={updateLayerParam}
+            values={values}
+          />
+        )}
+
+        {layerType === "relief" && (
+          <ReliefControls
             layerId={layerId}
             updateLayerParam={updateLayerParam}
             values={values}

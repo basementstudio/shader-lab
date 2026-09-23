@@ -15,6 +15,7 @@ import { LumenPrintPass } from "@/renderer/lumen-print-pass"
 import { SignalRotPass } from "@/renderer/signal-rot-pass"
 import { DotGridPass } from "@/renderer/dot-grid-pass"
 import { ErosionPass } from "@/renderer/erosion-pass"
+import { ReliefPass } from "@/renderer/relief-pass"
 import { HalftonePass } from "@/renderer/halftone-pass"
 import { InkPass } from "@/renderer/ink-pass"
 import { ParticleGridPass } from "@/renderer/particle-grid-pass"
@@ -87,6 +88,8 @@ export function createPassNode(
       return new DotGridPass(layerId)
     case "erosion":
       return new ErosionPass(layerId)
+    case "relief":
+      return new ReliefPass(layerId)
     case "pixel-sorting":
       return new PixelSortingPass(layerId)
     case "photographic-cells":

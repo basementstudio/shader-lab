@@ -131,6 +131,13 @@ export const LAYER_CATALOG: Record<LayerType, LayerCatalogEntry> = {
     label: "Dot Grid",
     previewSrc: "/examples/dot-grid.webp",
   },
+  relief: {
+    category: "core",
+    description:
+      "Emboss or deboss the image into a lit surface: silver plate, letterpress, blind emboss or gold foil, with optional engraved lines and grain. Height can come from tones, a depth map or a cutout's shape.",
+    label: "Relief",
+    previewSrc: "/examples/relief.webp",
+  },
   halftone: {
     category: "core",
     description:

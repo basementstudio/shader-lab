@@ -42,6 +42,7 @@ const SUPPORTED_SHADER_EXPORT_LAYER_TYPES = new Set<LayerType>([
   "signal-rot",
   "dot-grid",
   "erosion",
+  "relief",
   "annotations",
   "crt",
   "chromatic-aberration",

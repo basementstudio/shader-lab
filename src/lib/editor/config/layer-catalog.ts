@@ -223,6 +223,13 @@ export const LAYER_CATALOG: Record<LayerType, LayerCatalogEntry> = {
     label: "Gradient Map",
     previewSrc: "/examples/gradient-map.webp",
   },
+  "lumen-print": {
+    category: "core",
+    description:
+      "Analog photographic print: sun-print toning, solarized tones with edge lines, halation, highlights washed into paper, burned borders and grain. Start from a style, then tune.",
+    label: "Lumen Print",
+    previewSrc: "/examples/lumen-print.webp",
+  },
   video: {
     label: "Video",
   },

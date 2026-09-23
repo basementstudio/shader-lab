@@ -7,6 +7,10 @@ import {
   DEFAULT_GRADIENT_MAP_STOPS,
   serializeGradientMapStops,
 } from "@/renderer/color-map-lut"
+import {
+  DEFAULT_LUMEN_PRINT_STYLE,
+  lumenPrintStyleParams,
+} from "@/lib/editor/config/lumen-print-styles"
 import { GLYPH_FONT_OPTIONS, TEXT_FONT_OPTIONS } from "@/lib/editor/text-fonts"
 import type {
   EffectLayerType,
@@ -3171,6 +3175,196 @@ const gradientMapParams = [
   },
 ] as const satisfies ParameterDefinitions
 
+const lumenDefaults = lumenPrintStyleParams(DEFAULT_LUMEN_PRINT_STYLE)
+
+const lumenPrintParams = [
+  {
+    key: "stops",
+    label: "Palette",
+    type: "text",
+    defaultValue: lumenDefaults.stops as string,
+    animatable: false,
+    visibleWhen: { key: "__internal", equals: "lumen-print" },
+  },
+  {
+    defaultValue: 1,
+    key: "amount",
+    label: "Amount",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description: "Blend between the original image and the print.",
+  },
+  {
+    defaultValue: lumenDefaults.exposure as number,
+    group: "Tone",
+    key: "exposure",
+    label: "Exposure",
+    max: 1,
+    min: -1,
+    step: 0.01,
+    type: "number",
+    description:
+      "Brightens or darkens the print before toning.",
+  },
+  {
+    defaultValue: lumenDefaults.contrast as number,
+    group: "Tone",
+    key: "contrast",
+    label: "Contrast",
+    max: 3,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Spreads or compresses tones around the midpoint.",
+  },
+  {
+    defaultValue: lumenDefaults.solarize as number,
+    group: "Tone",
+    key: "solarize",
+    label: "Solarize",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Folds tones back past the Pivot, like a print re-exposed mid-development.",
+  },
+  {
+    defaultValue: lumenDefaults.pivot as number,
+    group: "Tone",
+    key: "pivot",
+    label: "Pivot",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Tone where the fold happens. Low values push toward a negative; high values only reverse the highlights.",
+  },
+  {
+    defaultValue: lumenDefaults.edgeLines as number,
+    group: "Tone",
+    key: "edgeLines",
+    label: "Edge Lines",
+    max: 2,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Bright rims along contours, the Mackie lines of a solarized print.",
+  },
+  {
+    defaultValue: lumenDefaults.diffusion as number,
+    group: "Light",
+    key: "diffusion",
+    label: "Diffusion",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Soft focus: blends each tone with its surroundings.",
+  },
+  {
+    defaultValue: lumenDefaults.halation as number,
+    group: "Light",
+    key: "halation",
+    label: "Halation",
+    max: 2,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Light from bright areas bleeds into the print as a halo.",
+  },
+  {
+    defaultValue: lumenDefaults.radius as number,
+    group: "Light",
+    key: "radius",
+    label: "Spread",
+    max: 96,
+    min: 1,
+    step: 1,
+    type: "number",
+    description:
+      "Reach of Diffusion and Halation, in document pixels.",
+  },
+  {
+    defaultValue: lumenDefaults.washout as number,
+    group: "Surface",
+    key: "washout",
+    label: "Washout",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Overexposed highlights burn away into paper.",
+  },
+  {
+    defaultValue: lumenDefaults.ragged as number,
+    group: "Surface",
+    key: "ragged",
+    label: "Ragged Edge",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "How torn and grainy the washed-out boundary is.",
+  },
+  {
+    defaultValue: lumenDefaults.edgeBurn as number,
+    group: "Surface",
+    key: "edgeBurn",
+    label: "Edge Burn",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Uneven exposure that darkens the borders of the sheet.",
+  },
+  {
+    defaultValue: lumenDefaults.grain as number,
+    group: "Surface",
+    key: "grain",
+    label: "Grain",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Organic paper and emulsion grain, strongest in the midtones.",
+  },
+  {
+    defaultValue: lumenDefaults.grainSize as number,
+    group: "Surface",
+    key: "grainSize",
+    label: "Grain Size",
+    max: 8,
+    min: 0.5,
+    step: 0.05,
+    type: "number",
+    description:
+      "Size of the grain, in document pixels.",
+  },
+  {
+    defaultValue: 0,
+    group: "Surface",
+    key: "seed",
+    label: "Seed",
+    max: 999,
+    min: 0,
+    step: 1,
+    type: "number",
+    description: "Reshuffles grain, ragged edges and the edge burn.",
+  },
+] as const satisfies ParameterDefinitions
+
 const smearParams = [
   {
     defaultValue: 0,
@@ -4928,6 +5122,12 @@ const layerDefinitions: Record<LayerType, LayerDefinition> = {
     kind: "effect",
     params: gradientMapParams,
     type: "gradient-map",
+  },
+  "lumen-print": {
+    defaultName: "Lumen Print",
+    kind: "effect",
+    params: lumenPrintParams,
+    type: "lumen-print",
   },
   smear: {
     defaultName: "Progressive Blur",

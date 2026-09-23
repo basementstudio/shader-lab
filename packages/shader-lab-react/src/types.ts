@@ -46,6 +46,7 @@ export type ShaderLabEffectLayerType =
   | "smear"
   | "threshold"
   | "gradient-map"
+  | "lumen-print"
   | "voxel"
 
 export type ShaderLabLayerType =

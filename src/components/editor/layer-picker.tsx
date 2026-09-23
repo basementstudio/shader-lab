@@ -51,6 +51,7 @@ export type AddLayerAction =
   | "gradient"
   | "gradient-map"
   | "lumen-print"
+  | "signal-rot"
   | "halftone"
   | "image"
   | "ink"
@@ -144,6 +145,7 @@ const EFFECT_ORDER: readonly AddLayerAction[] = [
   "directional-blur",
   "pixel-sorting",
   "slice",
+  "signal-rot",
   "edge-detect",
   "displacement-map",
   "chromatic-aberration",

@@ -26,6 +26,7 @@ import { checkPhotographicCells } from "./photographic-cells.mjs"
 import { checkLayerMasks } from "./layer-masks.mjs"
 import { checkGradientMap } from "./gradient-map.mjs"
 import { checkLumenPrint } from "./lumen-print.mjs"
+import { checkSignalRot } from "./signal-rot.mjs"
 import { checkArtboard } from "./artboard.mjs"
 import { checkShapeLayers } from "./shape-layers.mjs"
 import { checkTextEditing } from "./text-editing.mjs"
@@ -455,6 +456,8 @@ window.checkLayerMasks = () => checkLayerMasks(renderProject)
 window.checkGradientMap = () => checkGradientMap(renderProject)
 
 window.checkLumenPrint = () => checkLumenPrint(renderProject)
+
+window.checkSignalRot = () => checkSignalRot(renderProject)
 
 window.checkArtboard = checkArtboard
 

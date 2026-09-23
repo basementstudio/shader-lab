@@ -284,6 +284,19 @@ try {
   console.log(
     `PASS lumen print: ${lumenPrint.samples} editor/runtime GPU cases, identity, solarize, washout, grain, styles, hydration, history, export, photo renders`
   )
+  const signalRot = await page.evaluate(() => window.checkSignalRot())
+  for (const [style, png] of Object.entries(signalRot.styles))
+    await Bun.write(
+      resolve(artifacts, `signal-rot-${style}.png`),
+      Buffer.from(png.split(",")[1], "base64")
+    )
+  await Bun.write(
+    resolve(artifacts, "signal-rot-preview.webp"),
+    Buffer.from(signalRot.previewWebp.split(",")[1], "base64")
+  )
+  console.log(
+    `PASS signal rot: ${signalRot.samples} editor/runtime GPU cases, identity, drag both directions, tear, dropout, chroma, crush, wobble, speed, styles, hydration, history, export, photo renders`
+  )
   const artboard = await page.evaluate(() => window.checkArtboard())
   console.log(
     `PASS artboard: ${artboard.samples} document size, fit, composition update, save/reopen and legacy checks`

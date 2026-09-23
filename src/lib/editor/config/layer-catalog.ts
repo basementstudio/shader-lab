@@ -199,6 +199,13 @@ export const LAYER_CATALOG: Record<LayerType, LayerCatalogEntry> = {
     label: "Slice",
     previewSrc: "/examples/slice.webp",
   },
+  "signal-rot": {
+    category: "distort",
+    description:
+      "Scanner drag and decaying signal: held streaks, snaking wobble, torn bands with paper dropouts, chroma drift, crushed levels and line noise. Start from a style, then tune.",
+    label: "Signal Rot",
+    previewSrc: "/examples/signal-rot.webp",
+  },
   smear: {
     category: "distort",
     description:

@@ -34,6 +34,7 @@ import { checkFlares } from "./flares.mjs"
 import { checkFocusBlur } from "./focus-blur.mjs"
 import { checkGlass } from "./glass.mjs"
 import { checkConnectedDots } from "./connected-dots.mjs"
+import { checkPlotter } from "./plotter.mjs"
 import { checkArtboard } from "./artboard.mjs"
 import { checkShapeLayers } from "./shape-layers.mjs"
 import { checkTextEditing } from "./text-editing.mjs"
@@ -479,6 +480,8 @@ window.checkFocusBlur = () => checkFocusBlur(renderProject)
 window.checkGlass = () => checkGlass(renderProject)
 
 window.checkConnectedDots = () => checkConnectedDots(renderProject)
+
+window.checkPlotter = () => checkPlotter(renderProject)
 
 window.checkArtboard = checkArtboard
 

@@ -399,6 +399,20 @@ try {
   console.log(
     `PASS connected dots: ${dots.samples} editor/runtime GPU cases, empty light areas, dots, links, blobs, tone sizes, cutoff, invert, shapes, plexus range, palette, source, transparency, drift, styles, hydration, history, export, renders`
   )
+  const plotter = await page.evaluate(() => window.checkPlotter())
+  for (const [style, png] of Object.entries(plotter.styles))
+    await Bun.write(
+      resolve(artifacts, `plotter-${style}.png`),
+      Buffer.from(png.split(",")[1], "base64")
+    )
+  await Bun.write(
+    resolve(artifacts, "plotter-preview.webp"),
+    Buffer.from(plotter.previewWebp.split(",")[1], "base64")
+  )
+  if (plotter.failure) throw new Error(plotter.failure)
+  console.log(
+    `PASS plotter: ${plotter.samples} editor/runtime GPU cases, blank paper and strokes for every mode, line coverage, crosshatch, tone, pressure, wobble, squiggle, three pens, transparent paper, legacy defaults, styles, hydration, history, export, renders`
+  )
   const artboard = await page.evaluate(() => window.checkArtboard())
   console.log(
     `PASS artboard: ${artboard.samples} document size, fit, composition update, save/reopen and legacy checks`

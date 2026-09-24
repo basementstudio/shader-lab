@@ -512,7 +512,8 @@ export class PipelineManager {
       renderableLayer.layer.type === "flares" ||
       renderableLayer.layer.type === "focus-blur" ||
       renderableLayer.layer.type === "glass" ||
-      renderableLayer.layer.type === "connected-dots"
+      renderableLayer.layer.type === "connected-dots" ||
+      renderableLayer.layer.type === "plotter"
     ) {
       pass.updateCompositionRole("transform")
     } else {

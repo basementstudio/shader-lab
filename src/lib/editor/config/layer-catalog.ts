@@ -202,7 +202,7 @@ export const LAYER_CATALOG: Record<LayerType, LayerCatalogEntry> = {
   plotter: {
     category: "core",
     description:
-      "Pen-plotter aesthetic with hatching, crosshatching, and ink simulation.",
+      "A pen plotter drawing of the image: hatching and crosshatch, flow lines along the forms, contour lines, squiggles, a single spiral or stipple dots, with pen width, pressure, wobble, ink bleed, up to three pens and paper.",
     label: "Plotter",
     previewSrc: "/examples/plotter.webp",
   },

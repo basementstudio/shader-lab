@@ -13,6 +13,7 @@ import { FlaresControls } from "./flares-controls"
 import { FocusBlurControls } from "./focus-blur-controls"
 import { GlassControls } from "./glass-controls"
 import { ConnectedDotsControls } from "./connected-dots-controls"
+import { PlotterControls } from "./plotter-controls"
 import { LayerMaskSection } from "./layer-mask-section"
 import { useTextEditStore } from "@/store/text-edit-store"
 import { LayerGroupLocation } from "@/components/editor/layer-group-location"
@@ -917,6 +918,14 @@ export function SelectedLayerPropertiesContent({
 
         {layerType === "focus-blur" && (
           <FocusBlurControls
+            layerId={layerId}
+            updateLayerParam={updateLayerParam}
+            values={values}
+          />
+        )}
+
+        {layerType === "plotter" && (
+          <PlotterControls
             layerId={layerId}
             updateLayerParam={updateLayerParam}
             values={values}

@@ -173,3 +173,14 @@ References 26 to 30 were reopened. Real textured glass transmits: its surface sh
 ## Connected Dots
 
 Reference 21 was reopened: evenly spread but irregular points colored by tone from a small flat palette, links that thicken and multiply in the darks until dots and links merge into organic black masses with holes, and a background with no points at all. Portrait Graph reproduces that progression on photos and on a synthetic study (loose lilac dots on gray, colored threads at the edges, dense dark graphs with holes inside the forms); the first render's links were too wide and filled the shadows solid. Ink Blobs, Plexus and Constellation extend the same engine. The user accepted it on September 23, 2026 ("absolutely perfect").
+
+
+## References 32 to 34 and Plotter (September 24, 2026)
+
+| Backup | What to inspect |
+| --- | --- |
+| `32-rostro-contornos-verdes.png` | Stippled face, smooth white contour loops, pixel glitch patches, green tracking boxes. |
+| `33-gates-organico-azul.png` | Fine flow lines along an organic form, blue duotone, magnified inset frames with handles. |
+| `34-bitmap-contorno-nube.png` | Pixelated false-color blob with dithered halo, scalloped cloud outline, paper texture and tape. |
+
+Plotter was rebuilt against 32 and 33: Flow and Contour follow the forms, Stipple matches the face grain. 34 points to a future Outline layer and paper for Photocopy. The user accepted the new Plotter on September 24, 2026 ("absolutely awesome").

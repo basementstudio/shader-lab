@@ -47,6 +47,10 @@ import {
   DEFAULT_PHOTOCOPY_STYLE,
   photocopyStyleParams,
 } from "@/lib/editor/config/photocopy-styles"
+import {
+  DEFAULT_OUTLINE_STYLE,
+  outlineStyleParams,
+} from "@/lib/editor/config/outline-styles"
 import { GLYPH_FONT_OPTIONS, TEXT_FONT_OPTIONS } from "@/lib/editor/text-fonts"
 import type {
   EffectLayerType,
@@ -5028,6 +5032,140 @@ const flutedGlassParams = [
   },
 ] as const satisfies ParameterDefinitions
 
+const outlineDefaults = outlineStyleParams(DEFAULT_OUTLINE_STYLE)
+
+const outlineParams = [
+  {
+    animatable: false,
+    defaultValue: "alpha",
+    key: "source",
+    label: "Outline",
+    options: [
+      { label: "Cutout", value: "alpha" },
+      { label: "Dark shapes", value: "dark" },
+      { label: "Light shapes", value: "light" },
+    ],
+    type: "select",
+    description:
+      "What gets outlined: text and transparent images by their shape, or the dark or light areas of the image.",
+  },
+  {
+    defaultValue: 0.5,
+    key: "threshold",
+    label: "Threshold",
+    max: 1,
+    min: 0.01,
+    step: 0.01,
+    type: "number",
+    description:
+      "Where the shape ends: alpha or tone cutoff.",
+  },
+  {
+    animatable: false,
+    defaultValue: outlineDefaults.style as string,
+    key: "style",
+    label: "Style",
+    options: [
+      { label: "Solid", value: "solid" },
+      { label: "Double", value: "double" },
+      { label: "Dashed", value: "dashed" },
+      { label: "Scalloped", value: "scalloped" },
+    ],
+    type: "select",
+    description: "Scalloped traces a chain of overlapping circles around the shape, like a cloud.",
+  },
+  {
+    defaultValue: outlineDefaults.offset as number,
+    key: "offset",
+    label: "Offset",
+    max: 200,
+    min: -60,
+    step: 0.5,
+    type: "number",
+    description:
+      "Distance from the shape, in document pixels. Negative values draw inside.",
+  },
+  {
+    defaultValue: outlineDefaults.width as number,
+    key: "width",
+    label: "Width",
+    max: 40,
+    min: 0.25,
+    step: 0.25,
+    type: "number",
+    description:
+      "Line width, in document pixels.",
+  },
+  {
+    defaultValue: outlineDefaults.rings as number,
+    key: "rings",
+    label: "Rings",
+    max: 12,
+    min: 1,
+    step: 1,
+    type: "number",
+    description:
+      "Repeats the outline outward like contour lines.",
+  },
+  {
+    defaultValue: outlineDefaults.ringGap as number,
+    visibleWhen: { key: "rings", gte: 2 },
+    key: "ringGap",
+    label: "Ring Gap",
+    max: 120,
+    min: 1,
+    step: 0.5,
+    type: "number",
+    description:
+      "Distance between rings.",
+  },
+  {
+    defaultValue: outlineDefaults.spacing as number,
+    key: "spacing",
+    label: "Spacing",
+    max: 200,
+    min: 3,
+    step: 0.5,
+    type: "number",
+    description:
+      "Scallop size and dash length.",
+  },
+  {
+    defaultValue: outlineDefaults.lineColor as string,
+    group: "Color",
+    key: "lineColor",
+    label: "Line Color",
+    type: "color",
+  },
+  {
+    defaultValue: outlineDefaults.fill as number,
+    group: "Color",
+    key: "fill",
+    label: "Fill",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Fills the area between the shape and its outline.",
+  },
+  {
+    defaultValue: outlineDefaults.fillColor as string,
+    group: "Color",
+    key: "fillColor",
+    label: "Fill Color",
+    type: "color",
+  },
+  {
+    defaultValue: true,
+    group: "Color",
+    key: "showImage",
+    label: "Show Image",
+    type: "boolean",
+    description: "Off draws only the outline over what is below.",
+  },
+] as const satisfies ParameterDefinitions
+
 const photocopyDefaults = photocopyStyleParams(DEFAULT_PHOTOCOPY_STYLE)
 
 const photocopyParams = [
@@ -7165,6 +7303,12 @@ const layerDefinitions: Record<LayerType, LayerDefinition> = {
     kind: "effect",
     params: flutedGlassParams,
     type: "fluted-glass",
+  },
+  outline: {
+    defaultName: "Outline",
+    kind: "effect",
+    params: outlineParams,
+    type: "outline",
   },
   photocopy: {
     defaultName: "Photocopy",

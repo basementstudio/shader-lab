@@ -56,6 +56,7 @@ export type ShaderLabEffectLayerType =
   | "glass"
   | "connected-dots"
   | "photocopy"
+  | "outline"
   | "voxel"
 
 export type ShaderLabLayerType =

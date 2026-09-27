@@ -60,6 +60,7 @@ export type AddLayerAction =
   | "glass"
   | "connected-dots"
   | "photocopy"
+  | "outline"
   | "halftone"
   | "image"
   | "ink"
@@ -133,6 +134,7 @@ const EFFECT_ORDER: readonly AddLayerAction[] = [
   "photographic-cells",
   "displaced-rings",
   "annotations",
+  "outline",
   "ascii",
   "ink",
   "pattern",

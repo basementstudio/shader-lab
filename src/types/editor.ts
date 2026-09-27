@@ -60,6 +60,7 @@ export const EFFECT_LAYER_TYPES = [
   "glass",
   "connected-dots",
   "photocopy",
+  "outline",
   "crt",
   "dithering",
   "halftone",

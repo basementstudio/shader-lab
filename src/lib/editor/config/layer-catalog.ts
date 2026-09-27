@@ -199,6 +199,13 @@ export const LAYER_CATALOG: Record<LayerType, LayerCatalogEntry> = {
     label: "Pixelation",
     previewSrc: "/examples/pixelation.webp",
   },
+  outline: {
+    category: "core",
+    description:
+      "Outlines text, cutouts or the dark and light shapes of the image: solid, double, dashed or scalloped cloud outlines, offset outward, repeated as rings and optionally filled.",
+    label: "Outline",
+    previewSrc: "/examples/outline.webp",
+  },
   photocopy: {
     category: "core",
     description:

@@ -333,6 +333,8 @@ Para cada una: abrir las referencias, hacer un prototipo pequeño con foto y vid
 
 **Photocopy implementado y aceptado por el usuario (27 de septiembre de 2026):** tóner aplastado sobre papel con Threshold, Contrast y Generations (copia de copia), relleno desparejo, motas de tóner, rayas del tambor, desregistro, grano y pliegues; color de tóner y de papel o papel transparente. Cinco estilos: Office Copy, Zine, Fax, Blueprint Copy y Pink Flyer. Todo procedural, sin texturas externas. Sigue Outline (contorno festoneado de la referencia 34).
 
+**Outline implementado (27 de septiembre de 2026), pendiente de prueba del usuario:** contornos con campo de distancia por jump flood alrededor de recortes, texto o formas oscuras/claras; estilos Solid, Double, Dashed y Scalloped (la nube de la referencia 34), Offset (negativo dibuja por dentro), Width, Rings, relleno entre forma y contorno y modo solo línea. Seis estilos: Stroke, Cloud, Sticker, Contour Rings, Cut Line y Double.
+
 Blob spur queda cubierto en gran parte por Blob Tracking y Annotations (6.3). Diferencia con Gradient Map (2.5.2): Gradient Map solo reasigna color por luminancia; Lumen Print transforma el tono y la superficie (inversión parcial, curvas quemadas, halos, bordes y grano) y puede reutilizar la LUT de color como etapa final. El usuario decidió priorizar estas capas antes de la fase 4 (3D).
 
 ## Fase 4 — Completar el recorrido de modelos 3D

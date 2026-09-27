@@ -36,6 +36,7 @@ import { checkGlass } from "./glass.mjs"
 import { checkConnectedDots } from "./connected-dots.mjs"
 import { checkPlotter } from "./plotter.mjs"
 import { checkPhotocopy } from "./photocopy.mjs"
+import { checkOutline } from "./outline.mjs"
 import { checkArtboard } from "./artboard.mjs"
 import { checkShapeLayers } from "./shape-layers.mjs"
 import { checkTextEditing } from "./text-editing.mjs"
@@ -485,6 +486,8 @@ window.checkConnectedDots = () => checkConnectedDots(renderProject)
 window.checkPlotter = () => checkPlotter(renderProject)
 
 window.checkPhotocopy = () => checkPhotocopy(renderProject)
+
+window.checkOutline = () => checkOutline(renderProject)
 
 window.checkArtboard = checkArtboard
 

@@ -48,6 +48,7 @@ const SUPPORTED_SHADER_EXPORT_LAYER_TYPES = new Set<LayerType>([
   "glass",
   "connected-dots",
   "photocopy",
+  "outline",
   "annotations",
   "crt",
   "chromatic-aberration",

@@ -548,7 +548,8 @@ export class PipelineManager {
       renderableLayer.layer.type === "glass" ||
       renderableLayer.layer.type === "connected-dots" ||
       renderableLayer.layer.type === "plotter" ||
-      renderableLayer.layer.type === "photocopy"
+      renderableLayer.layer.type === "photocopy" ||
+      renderableLayer.layer.type === "outline"
     ) {
       pass.updateCompositionRole("transform")
     } else {

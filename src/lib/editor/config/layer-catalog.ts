@@ -199,6 +199,13 @@ export const LAYER_CATALOG: Record<LayerType, LayerCatalogEntry> = {
     label: "Pixelation",
     previewSrc: "/examples/pixelation.webp",
   },
+  photocopy: {
+    category: "core",
+    description:
+      "A degraded photocopy: crushed toner on paper, uneven fill, toner speckle, drum streaks, misregistration and folds. Generations turns it into a copy of a copy.",
+    label: "Photocopy",
+    previewSrc: "/examples/photocopy.webp",
+  },
   plotter: {
     category: "core",
     description:

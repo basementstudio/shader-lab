@@ -331,6 +331,8 @@ Para cada una: abrir las referencias, hacer un prototipo pequeño con foto y vid
 
 **Plotter rehecho y aceptado por el usuario (24 de septiembre de 2026, "absolutamente increíble"):** modos Hatch, Flow, Contour, Squiggle, Spiral y Stipple sobre la pirámide de desenfoque, con ancho y presión de pluma, temblor, sangrado de tinta, tinta, fuente o tres plumas, papel con grano o transparente, y siete estilos. Cubre las líneas de flujo de la referencia 33 y los contornos y el punteado de la 32. Se conservan los parámetros y valores anteriores.
 
+**Photocopy implementado (27 de septiembre de 2026), pendiente de prueba del usuario:** tóner aplastado sobre papel con Threshold, Contrast y Generations (copia de copia), relleno desparejo, motas de tóner, rayas del tambor, desregistro, grano y pliegues; color de tóner y de papel o papel transparente. Cinco estilos: Office Copy, Zine, Fax, Blueprint Copy y Pink Flyer. Todo procedural, sin texturas externas. Sigue Outline (contorno festoneado de la referencia 34).
+
 Blob spur queda cubierto en gran parte por Blob Tracking y Annotations (6.3). Diferencia con Gradient Map (2.5.2): Gradient Map solo reasigna color por luminancia; Lumen Print transforma el tono y la superficie (inversión parcial, curvas quemadas, halos, bordes y grano) y puede reutilizar la LUT de color como etapa final. El usuario decidió priorizar estas capas antes de la fase 4 (3D).
 
 ## Fase 4 — Completar el recorrido de modelos 3D

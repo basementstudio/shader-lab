@@ -59,6 +59,7 @@ export type AddLayerAction =
   | "focus-blur"
   | "glass"
   | "connected-dots"
+  | "photocopy"
   | "halftone"
   | "image"
   | "ink"
@@ -148,6 +149,7 @@ const EFFECT_ORDER: readonly AddLayerAction[] = [
   "threshold",
   "gradient-map",
   "lumen-print",
+  "photocopy",
   "flares",
   "focus-blur",
   "glass",

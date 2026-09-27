@@ -413,6 +413,20 @@ try {
   console.log(
     `PASS plotter: ${plotter.samples} editor/runtime GPU cases, blank paper and strokes for every mode, line coverage, crosshatch, tone, pressure, wobble, squiggle, three pens, transparent paper, legacy defaults, styles, hydration, history, export, renders`
   )
+  const photocopy = await page.evaluate(() => window.checkPhotocopy())
+  for (const [style, png] of Object.entries(photocopy.styles))
+    await Bun.write(
+      resolve(artifacts, `photocopy-${style}.png`),
+      Buffer.from(png.split(",")[1], "base64")
+    )
+  await Bun.write(
+    resolve(artifacts, "photocopy-preview.webp"),
+    Buffer.from(photocopy.previewWebp.split(",")[1], "base64")
+  )
+  if (photocopy.failure) throw new Error(photocopy.failure)
+  console.log(
+    `PASS photocopy: ${photocopy.samples} editor/runtime GPU cases, blank paper, solid toner, contrast crush, speckle, streaks, misregistration, generations, creases, transparent paper, styles, hydration, history, export, renders`
+  )
   const artboard = await page.evaluate(() => window.checkArtboard())
   console.log(
     `PASS artboard: ${artboard.samples} document size, fit, composition update, save/reopen and legacy checks`

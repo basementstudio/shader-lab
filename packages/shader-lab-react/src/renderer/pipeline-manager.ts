@@ -54,6 +54,7 @@ import { FlaresPass } from "./flares-pass"
 import { FocusBlurPass } from "./focus-blur-pass"
 import { GlassPass } from "./glass-pass"
 import { ConnectedDotsPass } from "./connected-dots-pass"
+import { PhotocopyPass } from "./photocopy-pass"
 import { AnnotationsPass } from "./annotations-pass"
 import { VoxelPass } from "./voxel-pass"
 
@@ -99,6 +100,7 @@ type LayerPassNode =
   | FocusBlurPass
   | GlassPass
   | ConnectedDotsPass
+  | PhotocopyPass
   | AnnotationsPass
   | TextPass
   | VoxelPass
@@ -553,7 +555,8 @@ export class PipelineManager {
       layer.type === "focus-blur" ||
       layer.type === "glass" ||
       layer.type === "connected-dots" ||
-      layer.type === "plotter"
+      layer.type === "plotter" ||
+      layer.type === "photocopy"
     ) {
       pass.updateCompositionRole("transform")
     } else {
@@ -702,6 +705,8 @@ export class PipelineManager {
           return new GlassPass(layer.id)
         case "connected-dots":
           return new ConnectedDotsPass(layer.id)
+        case "photocopy":
+          return new PhotocopyPass(layer.id)
         case "annotations":
           return new AnnotationsPass(layer.id)
         case "pixel-sorting":

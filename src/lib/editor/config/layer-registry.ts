@@ -43,6 +43,10 @@ import {
   connectedDotsStyleParams,
   DEFAULT_CONNECTED_DOTS_STYLE,
 } from "@/lib/editor/config/connected-dots-styles"
+import {
+  DEFAULT_PHOTOCOPY_STYLE,
+  photocopyStyleParams,
+} from "@/lib/editor/config/photocopy-styles"
 import { GLYPH_FONT_OPTIONS, TEXT_FONT_OPTIONS } from "@/lib/editor/text-fonts"
 import type {
   EffectLayerType,
@@ -5024,6 +5028,165 @@ const flutedGlassParams = [
   },
 ] as const satisfies ParameterDefinitions
 
+const photocopyDefaults = photocopyStyleParams(DEFAULT_PHOTOCOPY_STYLE)
+
+const photocopyParams = [
+  {
+    defaultValue: photocopyDefaults.threshold as number,
+    key: "threshold",
+    label: "Threshold",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Tone where toner starts: higher values print more of the image dark.",
+  },
+  {
+    defaultValue: photocopyDefaults.contrast as number,
+    key: "contrast",
+    label: "Contrast",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "How hard the copy crushes grays into toner and paper.",
+  },
+  {
+    defaultValue: photocopyDefaults.generations as number,
+    key: "generations",
+    label: "Generations",
+    max: 8,
+    min: 1,
+    step: 0.1,
+    type: "number",
+    description:
+      "A copy of a copy: each generation blurs, shifts and crushes the image a bit more.",
+  },
+  {
+    defaultValue: 1,
+    key: "amount",
+    label: "Amount",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Blend between the original image and the copy.",
+  },
+  {
+    defaultValue: photocopyDefaults.fill as number,
+    group: "Toner",
+    key: "fill",
+    label: "Uneven Fill",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Patchy, mottled toner in the dark areas.",
+  },
+  {
+    defaultValue: photocopyDefaults.speckle as number,
+    group: "Toner",
+    key: "speckle",
+    label: "Speckle",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Stray toner dust on the paper and white holes in the black.",
+  },
+  {
+    defaultValue: photocopyDefaults.streaks as number,
+    group: "Toner",
+    key: "streaks",
+    label: "Streaks",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Vertical lines and gray bands from a dirty copier drum.",
+  },
+  {
+    defaultValue: photocopyDefaults.shift as number,
+    group: "Toner",
+    key: "shift",
+    label: "Misregistration",
+    max: 20,
+    min: 0,
+    step: 0.1,
+    type: "number",
+    description:
+      "How far the copy slides off the original, in document pixels.",
+  },
+  {
+    defaultValue: photocopyDefaults.grain as number,
+    group: "Paper",
+    key: "grain",
+    label: "Grain",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Toner and paper grain.",
+  },
+  {
+    defaultValue: photocopyDefaults.creases as number,
+    group: "Paper",
+    key: "creases",
+    label: "Creases",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Folds across the sheet: dark crease lines with a lit edge.",
+  },
+  {
+    defaultValue: 0,
+    group: "Paper",
+    key: "seed",
+    label: "Seed",
+    max: 999,
+    min: 0,
+    step: 1,
+    type: "number",
+    description: "Rearranges speckle, streaks and creases.",
+  },
+  {
+    defaultValue: photocopyDefaults.tonerColor as string,
+    group: "Paper",
+    key: "tonerColor",
+    label: "Toner Color",
+    type: "color",
+  },
+  {
+    animatable: false,
+    defaultValue: "color",
+    group: "Paper",
+    key: "paper",
+    label: "Paper",
+    options: [
+      { label: "Color", value: "color" },
+      { label: "Transparent", value: "transparent" },
+    ],
+    type: "select",
+  },
+  {
+    defaultValue: photocopyDefaults.paperColor as string,
+    group: "Paper",
+    key: "paperColor",
+    label: "Paper Color",
+    type: "color",
+    visibleWhen: { key: "paper", equals: "color" },
+  },
+] as const satisfies ParameterDefinitions
+
 const plotterParams = [
   {
     animatable: false,
@@ -7002,6 +7165,12 @@ const layerDefinitions: Record<LayerType, LayerDefinition> = {
     kind: "effect",
     params: flutedGlassParams,
     type: "fluted-glass",
+  },
+  photocopy: {
+    defaultName: "Photocopy",
+    kind: "effect",
+    params: photocopyParams,
+    type: "photocopy",
   },
   plotter: {
     defaultName: "Plotter",

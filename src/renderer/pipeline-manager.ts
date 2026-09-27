@@ -547,7 +547,8 @@ export class PipelineManager {
       renderableLayer.layer.type === "focus-blur" ||
       renderableLayer.layer.type === "glass" ||
       renderableLayer.layer.type === "connected-dots" ||
-      renderableLayer.layer.type === "plotter"
+      renderableLayer.layer.type === "plotter" ||
+      renderableLayer.layer.type === "photocopy"
     ) {
       pass.updateCompositionRole("transform")
     } else {

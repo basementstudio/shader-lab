@@ -353,6 +353,16 @@ Dar encuadre e iluminación automáticos útiles y controles de posición, rotac
 
 Permitir seleccionar clips, reproducir, pausar, ajustar velocidad y repetición. Vincularlos al tiempo de composición y completar importar, editar, guardar, reabrir y exportar.
 
+### 4.4 Materiales PBR y render con path tracing (28 de septiembre de 2026, pedido por el usuario)
+
+Pensado para afiches: objetos cromados, vidrio, metal cepillado.
+
+- **PBR en tiempo real, dentro de la primera entrega de la capa 3D:** los materiales PBR de glTF (metalness, roughness, normal maps, clearcoat, transmisión, emisivo) con el renderer WebGPU; iluminación de entorno HDR con algunos estudios incluidos y carga de `.hdr` propios; reemplazo de material (Chrome, Brushed Metal, Glass, Clay, Rubber, Iridescent); sombras suaves y plano de piso con sombras de contacto.
+- **Modo Render con path tracing, entrega aparte:** [three-gpu-pathtracer](https://github.com/gkjohnson/three-gpu-pathtracer) (v0.0.25) tiene un backend WebGPU (`three-gpu-pathtracer/webgpu`, `WebGPUPathTracer`), así que se integra sin un segundo contexto WebGL. Requiere three.js 0.185 o superior; el repo usa 0.183, por lo que primero va una actualización de three.js en su propio PR con la suite completa, porque toca todos los sombreadores TSL. El path tracing es progresivo (converge en muchos frames): no es para tiempo real ni video; se usa como interruptor **Render** que acumula muestras al pausar o exportar PNG, con denoiser opcional (OIDN) para limpiar antes. La pila de efectos se sigue aplicando encima.
+- **Orden acordado:** (1) capa 3D con importación GLB, encuadre e iluminación automáticos, PBR con entorno HDR y reemplazo de materiales, y profundidad exacta del render 3D para Blur, Glass, Relief y máscaras de profundidad; (2) actualización de three.js a 0.185; (3) modo Render con path tracing y denoiser; (4) clips de animación (4.3); (5) SVG a 3D (fase 5).
+
+Estado: planificado; el usuario lo retomará más adelante.
+
 **Cierre:** materiales, texturas y animaciones compatibles sobreviven al recorrido completo; vista previa y exportación coinciden temporalmente y el modelo respeta el alcance de grupos y máscaras.
 
 ## Fase 5 — Convertir SVG en volumen editable

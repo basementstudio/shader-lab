@@ -628,33 +628,8 @@ export class ModelPass extends PassNode {
     return this.model !== null
   }
 
-  private hasTransmission(): boolean {
-    for (const mesh of this.originalMaterials.keys()) {
-      const materials = Array.isArray(mesh.material)
-        ? mesh.material
-        : [mesh.material]
-      if (
-        materials.some(
-          (material) =>
-            ((material as THREE.MeshPhysicalMaterial).transmission ?? 0) > 0
-        )
-      ) {
-        return true
-      }
-    }
-    return false
-  }
-
   private async compileScene(): Promise<void> {
     if (!this.model) {
-      return
-    }
-
-    if (this.hasTransmission()) {
-      this.compileGeneration += 1
-      this.compiling = false
-      this.pendingCompile = null
-      this.sceneDirty = true
       return
     }
 

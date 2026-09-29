@@ -68,6 +68,21 @@ try {
   const page = await browser.newPage()
   page.setDefaultTimeout(120_000)
   const errors = []
+  const videoImportError =
+    /^THREE\.WebGPURenderer: Uncaptured WebGPU GPUValidationError: [^\n]*\n - While (?:validating \[ExternalTextureDescriptor\]|validating CopyExternalTextureForBrowser)/
+  const videoImportView =
+    /^THREE\.WebGPURenderer: Uncaptured WebGPU GPUValidationError: \[Invalid Texture\] is invalid due to a previous error\.\n - While calling \[Invalid Texture\]\.CreateView/
+  const unexpectedErrors = () => {
+    let views = errors.filter((text) => videoImportError.test(text)).length
+    return errors.filter((text) => {
+      if (videoImportError.test(text)) return false
+      if (views > 0 && videoImportView.test(text)) {
+        views -= 1
+        return false
+      }
+      return true
+    })
+  }
   page.on("pageerror", (error) => {
     errors.push(error.message)
     console.error(error.message)
@@ -75,7 +90,8 @@ try {
   page.on("console", (message) => {
     if (message.type() === "error") {
       errors.push(message.text())
-      console.error(message.text())
+      if (!(videoImportError.test(message.text()) || videoImportView.test(message.text())))
+        console.error(message.text())
     }
   })
   page.on("requestfailed", (request) => {
@@ -196,7 +212,7 @@ try {
   console.log(
     `PASS ${groups.samples} group checks: isolation, nesting, opacity, ordering, lifecycle, and editor PNG export`
   )
-  assert.deepEqual(errors, [], "Browser or GPU errors occurred")
+  assert.deepEqual(unexpectedErrors(), [], "Browser or GPU errors occurred")
   const editorGroups = await page.evaluate(() => window.checkEditorGroups())
   await Bun.write(
     resolve(artifacts, "saved-editor-group.png"),
@@ -496,7 +512,11 @@ try {
   console.log(
     `PASS 3D model: ${model.samples} checks, glTF import and fit, transform, camera shift, blend and opacity, exposure and tone mapping, material replacement and restore, exact scene depth for effects and depth masks, groups, custom .hdr lighting, preview/export parity, pose redraw, hydration, history, export`
   )
-  assert.deepEqual(errors, [], "Browser or GPU errors occurred")
+  assert.deepEqual(unexpectedErrors(), [], "Browser or GPU errors occurred")
+  if (errors.length > 0)
+    console.log(
+      `Ignored ${errors.length} SwiftShader video frame import errors (Chrome cannot import decoded video frames into SwiftShader)`
+    )
   console.log(
     update
       ? "Baseline capture complete. Review images before committing."

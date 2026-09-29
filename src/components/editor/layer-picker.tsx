@@ -3,6 +3,7 @@
 import {
   CameraIcon,
   CodeIcon,
+  CubeIcon,
   CursorArrowIcon,
   ImageIcon,
   MagicWandIcon,
@@ -66,6 +67,7 @@ export type AddLayerAction =
   | "ink"
   | "live"
   | "magnify-lens"
+  | "model"
   | "particle-grid"
   | "pixelation"
   | "pixel-trail"
@@ -112,6 +114,7 @@ const CATEGORY_OPTIONS: readonly {
 const SOURCE_ICONS: readonly { icon: ElementType; value: AddLayerAction }[] = [
   { icon: ImageIcon, value: "image" },
   { icon: VideoIcon, value: "video" },
+  { icon: CubeIcon, value: "model" },
   { icon: CameraIcon, value: "live" },
   { icon: TextIcon, value: "text" },
   { icon: CursorArrowIcon, value: "fluid" },

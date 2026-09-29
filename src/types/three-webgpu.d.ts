@@ -7,7 +7,9 @@ declare module "three/webgpu" {
     Color,
     ColorRepresentation,
     Material,
+    MeshPhysicalMaterial,
     Scene,
+    ShadowMaterial,
     Texture,
     TypedArray,
     Vector3,
@@ -20,6 +22,20 @@ declare module "three/webgpu" {
     colorNode: TSLNode | null
     opacityNode: TSLNode | null
     positionNode: TSLNode | null
+  }
+
+  export class MeshPhysicalNodeMaterial extends MeshPhysicalMaterial {
+    colorNode: TSLNode | null
+    iridescenceThicknessNode: TSLNode | null
+    metalnessNode: TSLNode | null
+    normalNode: TSLNode | null
+    opacityNode: TSLNode | null
+    positionNode: TSLNode | null
+    roughnessNode: TSLNode | null
+  }
+
+  export class ShadowNodeMaterial extends ShadowMaterial {
+    colorNode: TSLNode | null
   }
 
   export class PointsNodeMaterial extends Material {

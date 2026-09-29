@@ -9,6 +9,10 @@ import { float, type TSLNode, texture as tslTexture, uv, vec2 } from "three/tsl"
 import * as THREE from "three/webgpu"
 import { getCompositionFrame } from "@/lib/editor/composition"
 import { isSvgMediaSource } from "@/lib/editor/media-file"
+import {
+  CUSTOM_MODEL_ENVIRONMENT,
+  resolveBundledEnvironmentUrl,
+} from "@/lib/editor/config/model-options"
 import { parameterValuesSignature } from "@/lib/editor/parameter-schema"
 import type { RenderableLayerPass } from "@/renderer/contracts"
 import { CustomShaderPass } from "@/renderer/custom-shader-pass"
@@ -18,11 +22,13 @@ import { ShapePass } from "@/renderer/shape-pass"
 import {
   describeCameraFailure,
   describeMediaLoadFailure,
+  describeModelLoadFailure,
   setLayerMediaError,
 } from "@/renderer/layer-media-error"
 import { LivePass } from "@/renderer/live-pass"
 import { MagnifyLensPass } from "@/renderer/magnify-lens-pass"
 import { MediaPass } from "@/renderer/media-pass"
+import { ModelPass } from "@/renderer/model-pass"
 import {
   errorFingerprint,
   type LayerType,
@@ -115,6 +121,8 @@ function createLayerSignature(layer: RenderableLayerPass): string {
     layer.asset?.url ?? "no-url",
     layer.depthAsset?.id ?? "no-depth",
     layer.depthAsset?.url ?? "no-depth-url",
+    layer.environmentAsset?.id ?? "no-environment",
+    layer.environmentAsset?.url ?? "no-environment-url",
     layer.layer.visible ? "1" : "0",
     layer.layer.opacity.toFixed(4),
     layer.layer.hue.toFixed(4),
@@ -652,6 +660,10 @@ export class PipelineManager {
       }
     }
 
+    if (pass instanceof ModelPass) {
+      this.loadModelResources(pass, renderableLayer)
+    }
+
     if (pass instanceof LivePass) {
       const facingMode =
         typeof renderableLayer.params.facingMode === "string"
@@ -674,6 +686,65 @@ export class PipelineManager {
           })
       }
     }
+  }
+
+  private loadModelResources(
+    pass: ModelPass,
+    renderableLayer: RenderableLayerPass
+  ): void {
+    const asset = renderableLayer.asset
+    const modelLoadId = `${pass.layerId}:model`
+
+    if (asset?.kind === "model") {
+      this.pendingMediaLoads.add(modelLoadId)
+      void pass
+        .setModel({ url: asset.url })
+        .then(() => {
+          setLayerMediaError(pass.layerId, null)
+          this.markDirty()
+        })
+        .catch((cause: unknown) => {
+          setLayerMediaError(
+            pass.layerId,
+            describeModelLoadFailure(asset.fileName, cause)
+          )
+          this.markDirty()
+        })
+        .finally(() => {
+          this.pendingMediaLoads.delete(modelLoadId)
+        })
+    } else {
+      this.pendingMediaLoads.delete(modelLoadId)
+      pass.clearModel()
+    }
+
+    const environmentAsset = renderableLayer.environmentAsset
+    const environmentUrl =
+      renderableLayer.params.environment === CUSTOM_MODEL_ENVIRONMENT &&
+      environmentAsset?.kind === "environment"
+        ? environmentAsset.url
+        : resolveBundledEnvironmentUrl(renderableLayer.params.environment)
+    const environmentLoadId = `${pass.layerId}:environment`
+    this.pendingMediaLoads.add(environmentLoadId)
+    void pass
+      .setEnvironment(environmentUrl)
+      .then(() => {
+        this.markDirty()
+      })
+      .catch(() => {
+        setLayerMediaError(
+          pass.layerId,
+          describeMediaLoadFailure(
+            environmentAsset?.url === environmentUrl
+              ? environmentAsset.fileName
+              : "the environment"
+          )
+        )
+        this.markDirty()
+      })
+      .finally(() => {
+        this.pendingMediaLoads.delete(environmentLoadId)
+      })
   }
 
   private isActive(pass: PassNode): boolean {
@@ -800,6 +871,10 @@ export class PipelineManager {
   private createPass(layer: EditorLayer): LayerPassNode {
     if (layer.kind === "effect") {
       return createPassNode(layer.id, layer.type)
+    }
+
+    if (layer.kind === "model") {
+      return new ModelPass(layer.id, this.renderer)
     }
 
     if (

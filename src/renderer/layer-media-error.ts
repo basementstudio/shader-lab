@@ -27,6 +27,23 @@ export function describeMediaLoadFailure(fileName: string | undefined): string {
   return `Couldn't load ${fileName && fileName.length > 0 ? fileName : "media"}`
 }
 
+export function describeModelLoadFailure(
+  fileName: string | undefined,
+  cause: unknown
+): string {
+  const name = fileName && fileName.length > 0 ? fileName : "the model"
+
+  if (name.toLowerCase().endsWith(".gltf")) {
+    return `Couldn't load ${name}. Use a single .glb, or a .gltf with its buffers and textures embedded.`
+  }
+
+  if (cause instanceof Error && cause.message === "The model has no visible geometry.") {
+    return `${name} has no visible geometry`
+  }
+
+  return `Couldn't load ${name}`
+}
+
 const CAMERA_DENIED = ["NotAllowedError", "SecurityError"]
 const CAMERA_UNAVAILABLE = ["NotFoundError", "OverconstrainedError"]
 

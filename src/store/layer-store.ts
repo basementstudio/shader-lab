@@ -77,6 +77,7 @@ export interface LayerStoreActions {
   setHoveredLayer: (id: string | null) => void
   setLayerAsset: (id: string, assetId: string | null) => void
   setLayerDepthAsset: (id: string, assetId: string | null) => void
+  setLayerEnvironmentAsset: (id: string, assetId: string | null) => void
   setLayerBlendMode: (id: string, blendMode: BlendMode) => void
   setLayerCompositeMode: (id: string, compositeMode: LayerCompositeMode) => void
   setLayerMaskConfig: (id: string, updates: Partial<MaskConfig>) => void
@@ -1000,6 +1001,16 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
       layers: state.layers.map((layer) =>
         layer.id === id
           ? { ...layer, depthAssetId: assetId, runtimeError: null }
+          : layer
+      ),
+    }))
+  },
+
+  setLayerEnvironmentAsset: (id, assetId) => {
+    set((state) => ({
+      layers: state.layers.map((layer) =>
+        layer.id === id
+          ? { ...layer, environmentAssetId: assetId, runtimeError: null }
           : layer
       ),
     }))

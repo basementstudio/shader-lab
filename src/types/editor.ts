@@ -178,7 +178,13 @@ export const DEFAULT_LAYER_MASK: LayerMask = {
   paint: "",
 }
 
-export const ASSET_KINDS = ["image", "video", "model", "audio"] as const
+export const ASSET_KINDS = [
+  "image",
+  "video",
+  "model",
+  "environment",
+  "audio",
+] as const
 export type AssetKind = (typeof ASSET_KINDS)[number]
 
 export type Vector2 = { x: number; y: number }
@@ -275,6 +281,7 @@ export type Vec2ParameterDefinition = ParameterDefinitionBase<
   max?: number
   min?: number
   step?: number
+  ui?: "fields"
 }
 
 export type Vec3ParameterDefinition = ParameterDefinitionBase<
@@ -322,6 +329,7 @@ export interface BaseLayer {
   parentId?: string | null
   assetId: string | null
   depthAssetId?: string | null
+  environmentAssetId?: string | null
   blendMode: BlendMode
   compositeMode: LayerCompositeMode
   expanded: boolean

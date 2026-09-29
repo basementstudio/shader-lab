@@ -44,6 +44,7 @@ import { checkDepthParallax } from "./depth-parallax.mjs"
 import { checkBlobTracking } from "./blob-tracking.mjs"
 import { checkAnnotations } from "./annotations.mjs"
 import { checkDisplacedRings } from "./displaced-rings.mjs"
+import { checkModelLayer } from "./model-layer.mjs"
 
 function pixels(canvas) {
   const copy = document.createElement("canvas")
@@ -499,3 +500,4 @@ window.checkBlobTracking = checkBlobTracking
 
 window.checkAnnotations = () => checkAnnotations(renderProject)
 window.checkDepthParallax = checkDepthParallax
+window.checkModelLayer = checkModelLayer

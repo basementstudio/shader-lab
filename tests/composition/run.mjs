@@ -488,6 +488,14 @@ try {
   console.log(
     `Depth media pass at 1080p (software adapter, median ms): ${JSON.stringify(depth.timing)}`
   )
+  const model = await page.evaluate(() => window.checkModelLayer())
+  await Bun.write(
+    resolve(artifacts, "model-layer.png"),
+    Buffer.from(model.png.split(",")[1], "base64")
+  )
+  console.log(
+    `PASS 3D model: ${model.samples} checks, glTF import and fit, transform, camera shift, blend and opacity, exposure and tone mapping, material replacement and restore, exact scene depth for effects and depth masks, groups, custom .hdr lighting, preview/export parity, pose redraw, hydration, history, export`
+  )
   assert.deepEqual(errors, [], "Browser or GPU errors occurred")
   console.log(
     update

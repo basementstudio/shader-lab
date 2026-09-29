@@ -181,6 +181,7 @@ function summarizeLayer(layer: EditorLayer, index: number) {
   return {
     assetId: layer.assetId,
     depthAssetId: layer.depthAssetId ?? null,
+    environmentAssetId: layer.environmentAssetId ?? null,
     blendMode: layer.blendMode,
     compositeMode: layer.compositeMode,
     id: layer.id,
@@ -562,6 +563,8 @@ function getCustomShader(payload: CommandPayload) {
 
 const MEDIA_MIME_BY_EXTENSION: Record<string, string> = {
   gif: "image/gif",
+  glb: "model/gltf-binary",
+  gltf: "model/gltf+json",
   jpeg: "image/jpeg",
   jpg: "image/jpeg",
   mov: "video/quicktime",
@@ -614,7 +617,8 @@ async function addMediaLayer(payload: CommandPayload) {
       )
     })
 
-  const layerType: LayerType = asset.kind === "video" ? "video" : "image"
+  const layerType: LayerType =
+    asset.kind === "video" || asset.kind === "model" ? asset.kind : "image"
   const store = useLayerStore.getState()
   const layerId = store.addLayer(layerType, insertIndex)
 

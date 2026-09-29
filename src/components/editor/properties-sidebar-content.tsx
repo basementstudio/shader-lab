@@ -16,6 +16,7 @@ import { ConnectedDotsControls } from "./connected-dots-controls"
 import { PlotterControls } from "./plotter-controls"
 import { PhotocopyControls } from "./photocopy-controls"
 import { OutlineControls } from "./outline-controls"
+import { ModelControls } from "./model-controls"
 import { LayerMaskSection } from "./layer-mask-section"
 import { useTextEditStore } from "@/store/text-edit-store"
 import { LayerGroupLocation } from "@/components/editor/layer-group-location"
@@ -300,6 +301,10 @@ export function SelectedLayerPropertiesContent({
   onEstimateDepthMap,
   onRemoveDepthMap,
   onReplaceImage,
+  modelEnvironmentFileName,
+  onAttachEnvironment,
+  onRemoveEnvironment,
+  onReplaceModel,
   onToggleParamGroup,
   onTimelineKeyframe,
   opacity,
@@ -343,7 +348,11 @@ export function SelectedLayerPropertiesContent({
   onEstimateDepthMap: () => void
   onRemoveDepthMap: () => void
   onReplaceImage: () => void
-  onToggleParamGroup: (groupId: string) => void
+  modelEnvironmentFileName: string | null
+  onAttachEnvironment: () => void
+  onRemoveEnvironment: () => void
+  onReplaceModel: () => void
+  onToggleParamGroup: (groupId: string, expanded: boolean) => void
   onTimelineKeyframe: (
     binding: AnimatedPropertyBinding,
     layerId: string,
@@ -845,6 +854,16 @@ export function SelectedLayerPropertiesContent({
           </section>
         ) : null}
 
+        {layerType === "model" ? (
+          <ModelControls
+            environmentFileName={modelEnvironmentFileName}
+            onAttachEnvironment={onAttachEnvironment}
+            onRemoveEnvironment={onRemoveEnvironment}
+            onReplaceModel={onReplaceModel}
+            values={values}
+          />
+        ) : null}
+
         {layerType === "photographic-cells" && values.mode === "paint" && (
           <CellPaintControls layerId={layerId} />
         )}
@@ -1082,7 +1101,8 @@ export function SelectedLayerPropertiesContent({
               <div className="flex flex-col gap-3">
                 {groupedParams.map((group) => {
                   const groupKey = `${layerId}:${group.id}`
-                  const isExpanded = expandedParamGroups[groupKey] ?? true
+                  const isExpanded =
+                    expandedParamGroups[groupKey] ?? group.defaultExpanded
 
                   return (
                     <div className="flex flex-col gap-[10px]" key={group.id}>
@@ -1090,7 +1110,9 @@ export function SelectedLayerPropertiesContent({
                         <button
                           aria-expanded={isExpanded}
                           className="inline-flex min-h-0 cursor-pointer items-center bg-transparent p-0 text-left text-inherit transition-[background-color,color,transform] duration-120 ease-[ease] hover:text-[var(--ds-color-text-primary)] active:scale-[0.99]"
-                          onClick={() => onToggleParamGroup(groupKey)}
+                          onClick={() =>
+                            onToggleParamGroup(groupKey, !isExpanded)
+                          }
                           type="button"
                         >
                           <div className="inline-flex min-w-0 items-center gap-2">

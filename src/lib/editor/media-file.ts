@@ -37,6 +37,12 @@ export function isAudioFileName(fileName: string | null | undefined): boolean {
   return AUDIO_FILE_EXTENSIONS.some((extension) => lower.endsWith(extension))
 }
 
+export function isEnvironmentFileName(
+  fileName: string | null | undefined
+): boolean {
+  return fileName?.toLowerCase().endsWith(".hdr") ?? false
+}
+
 export function getAssetAccept(kind: AssetKind): string {
   switch (kind) {
     case "image":
@@ -44,7 +50,9 @@ export function getAssetAccept(kind: AssetKind): string {
     case "video":
       return "video/mp4,video/webm,video/quicktime,.mov"
     case "model":
-      return ".glb,.gltf,.obj,model/gltf-binary,model/gltf+json,model/obj,application/octet-stream"
+      return ".glb,.gltf,model/gltf-binary,model/gltf+json"
+    case "environment":
+      return ".hdr,image/vnd.radiance"
     case "audio":
       return AUDIO_FILE_ACCEPT
   }
@@ -53,6 +61,10 @@ export function getAssetAccept(kind: AssetKind): string {
 export function inferFileAssetKind(file: File): AssetKind | null {
   const mimeType = file.type.toLowerCase()
   const fileName = file.name.toLowerCase()
+
+  if (isEnvironmentFileName(fileName) || mimeType === "image/vnd.radiance") {
+    return "environment"
+  }
 
   if (mimeType.startsWith("image/") || isSvgFileName(fileName)) {
     return "image"
@@ -73,10 +85,8 @@ export function inferFileAssetKind(file: File): AssetKind | null {
   if (
     fileName.endsWith(".glb") ||
     fileName.endsWith(".gltf") ||
-    fileName.endsWith(".obj") ||
     mimeType === "model/gltf-binary" ||
-    mimeType === "model/gltf+json" ||
-    mimeType === "model/obj"
+    mimeType === "model/gltf+json"
   ) {
     return "model"
   }

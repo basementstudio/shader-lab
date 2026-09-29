@@ -30,7 +30,7 @@ const ACCEPTED_TYPES = new Set([
   "video/quicktime",
   "model/gltf-binary",
   "model/gltf+json",
-  "model/obj",
+  "image/vnd.radiance",
   "application/octet-stream",
   "audio/mpeg",
   "audio/mp3",
@@ -48,6 +48,20 @@ const ACCEPTED_TYPES = new Set([
 
 const MAX_SIZE_BYTES = 100 * 1024 * 1024
 
+function fallbackMimeType(kind: AssetKind, fileName: string): string {
+  if (kind === "environment") {
+    return "image/vnd.radiance"
+  }
+
+  if (kind === "model") {
+    return fileName.toLowerCase().endsWith(".gltf")
+      ? "model/gltf+json"
+      : "model/gltf-binary"
+  }
+
+  return ""
+}
+
 function validateFile(file: File): AssetKind {
   const kind = inferFileAssetKind(file)
   const mimeType = file.type.toLowerCase()
@@ -60,10 +74,11 @@ function validateFile(file: File): AssetKind {
       (kind === "video" && fileName.endsWith(".mov")) ||
       (kind === "audio" && isAudioFileName(fileName))
     ) &&
-      kind !== "model")
+      kind !== "model" &&
+      kind !== "environment")
   ) {
     throw new Error(
-      `Unsupported file type "${file.type || "unknown"}". Accepted: PNG, JPG, WebP, GIF, SVG, MP4, WebM, MOV, GLB, GLTF, OBJ, MP3, WAV, M4A, FLAC, OGG.`
+      `Unsupported file type "${file.type || "unknown"}". Accepted: PNG, JPG, WebP, GIF, SVG, MP4, WebM, MOV, GLB, GLTF, HDR, MP3, WAV, M4A, FLAC, OGG.`
     )
   }
 
@@ -167,7 +182,7 @@ export const useAssetStore = create<AssetStore>((set, get) => ({
       fileName: file.name,
       id: crypto.randomUUID(),
       kind,
-      mimeType: file.type,
+      mimeType: file.type || fallbackMimeType(kind, file.name),
       sizeBytes: file.size,
       source: "local" as const,
       status: "ready" as const,

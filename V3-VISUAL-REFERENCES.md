@@ -184,3 +184,8 @@ Reference 21 was reopened: evenly spread but irregular points colored by tone fr
 | `34-bitmap-contorno-nube.png` | Pixelated false-color blob with dithered halo, scalloped cloud outline, paper texture and tape. |
 
 Plotter was rebuilt against 32 and 33: Flow and Contour follow the forms, Stipple matches the face grain. 34 points to a future Outline layer and paper for Photocopy. The user accepted the new Plotter on September 24, 2026 ("absolutely awesome").
+
+
+## 3D Model layer (September 28, 2026)
+
+References 31, 15 and 26 to 30 were reopened; there are no chrome, glass or brushed-metal poster references yet, so the material presets follow product-studio conventions until the user shares some. 31 is the main target for the model's depth: a study of black Rubber tubes and spheres on flat yellow, with the Blur layer's Depth of Field reading the model's exact depth, keeps the nearest forms sharp and dissolves the rest into large grainy blur, close to the poster. With Relief reading the depth, the model embosses into the silver plate of 15; behind Glass (26 to 30) it blurs by its distance. The first renders exposed a clipped white Studio (its HDR is three times brighter than the others, now normalized), flat white brushed-metal cylinders (anisotropy without usable tangents, removed) and an invisible thin-film iridescence (replaced by a view-angle holographic tint). User visual acceptance is pending; see [the focused test](tests/composition/MODEL-LAYER-MANUAL-QA.md).

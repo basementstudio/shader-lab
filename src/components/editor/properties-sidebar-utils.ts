@@ -38,7 +38,10 @@ export const maskModeOptions = [
   { label: "Stencil", value: "stencil" },
 ] as const
 
+const COLLAPSED_PARAM_GROUPS = new Set(["Camera"])
+
 const COLLAPSIBLE_PARAM_GROUPS = new Set([
+  "Camera",
   "Effects",
   "Glyph",
   "Grid",
@@ -53,6 +56,7 @@ export const DEFAULT_PARAM_GROUP = "Settings"
 
 export type ParamGroup = {
   collapsible: boolean
+  defaultExpanded: boolean
   id: string
   label: string
   params: ParameterDefinition[]
@@ -92,6 +96,12 @@ export function toVec2Value(value: ParameterValue): [number, number] {
   return Array.isArray(value) && value.length === 2
     ? [value[0] ?? 0, value[1] ?? 0]
     : [0, 0]
+}
+
+export function toVec3Value(value: ParameterValue): [number, number, number] {
+  return Array.isArray(value) && value.length === 3
+    ? [value[0] ?? 0, value[1] ?? 0, value[2] ?? 0]
+    : [0, 0, 0]
 }
 
 export function toNumberValue(value: ParameterValue, fallback = 0): number {
@@ -183,6 +193,7 @@ export function groupVisibleParams(
 
     groups.set(id, {
       collapsible: COLLAPSIBLE_PARAM_GROUPS.has(label),
+      defaultExpanded: !COLLAPSED_PARAM_GROUPS.has(label),
       id,
       label,
       params: [param],

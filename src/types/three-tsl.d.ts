@@ -94,6 +94,20 @@ declare module "three/tsl" {
   export const instanceIndex: TSLNode
   export const pointUV: TSLNode
   export const positionLocal: TSLNode
+  export const positionView: TSLNode
+  export const positionWorld: TSLNode
+  export const materialRoughness: TSLNode
+  export const materialColor: TSLNode
+  export function pmremTexture(value: unknown): TSLNode
+  export const normalView: TSLNode
+  export function mx_noise_float(
+    position: unknown,
+    amplitude?: unknown,
+    pivot?: unknown
+  ): TSLNode
+  export function acesFilmicToneMapping(color: unknown, exposure: unknown): TSLNode
+  export function agxToneMapping(color: unknown, exposure: unknown): TSLNode
+  export function neutralToneMapping(color: unknown, exposure: unknown): TSLNode
 
   export const EPSILON: TSLNode
   export const PI: TSLNode

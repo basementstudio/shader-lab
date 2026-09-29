@@ -26,6 +26,7 @@ import { Slider } from "@/components/ui/slider"
 import { Toggle } from "@/components/ui/toggle"
 import { Typography } from "@/components/ui/typography"
 import { XYPad } from "@/components/ui/xy-pad"
+import { AxisFields } from "@/components/ui/axis-fields"
 import { useLayerStore } from "@/store/layer-store"
 import { useTimelineStore } from "@/store/timeline-store"
 import {
@@ -35,6 +36,7 @@ import {
   toNumberValue,
   toTextValue,
   toVec2Value,
+  toVec3Value,
 } from "./properties-sidebar-utils"
 
 export type TimelineKeyframeControl = {
@@ -458,6 +460,28 @@ function ParameterFieldImpl({
       )
 
     case "vec2":
+      if (definition.ui === "fields") {
+        return (
+          <AxisFields
+            axes={["X", "Y"]}
+            label={renderFieldLabelStack(
+              fieldLabel,
+              definition.description,
+              timelineControl,
+              audioControl
+            )}
+            max={definition.max}
+            min={definition.min}
+            onInteractionEnd={onInteractionEnd}
+            onInteractionStart={onInteractionStart}
+            onValueChange={(next) =>
+              onChange(layerId, definition.key, [next[0] ?? 0, next[1] ?? 0])
+            }
+            step={definition.step ?? 0.01}
+            value={toVec2Value(value)}
+          />
+        )
+      }
       return (
         <XYPad
           label={renderFieldLabel(fieldLabel, timelineControl, audioControl)}
@@ -470,6 +494,32 @@ function ParameterFieldImpl({
           }
           step={definition.step ?? 0.01}
           value={toVec2Value(value)}
+        />
+      )
+
+    case "vec3":
+      return (
+        <AxisFields
+          axes={["X", "Y", "Z"]}
+          label={renderFieldLabelStack(
+            fieldLabel,
+            definition.description,
+            timelineControl,
+            audioControl
+          )}
+          max={definition.max}
+          min={definition.min}
+          onInteractionEnd={onInteractionEnd}
+          onInteractionStart={onInteractionStart}
+          onValueChange={(next) =>
+            onChange(layerId, definition.key, [
+              next[0] ?? 0,
+              next[1] ?? 0,
+              next[2] ?? 0,
+            ])
+          }
+          step={definition.step ?? 0.01}
+          value={toVec3Value(value)}
         />
       )
 

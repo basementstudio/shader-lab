@@ -13,6 +13,7 @@ import {
 import { CellPaintOverlay } from "./cell-paint-overlay"
 import { AnnotationHandlesOverlay } from "./annotation-handles-overlay"
 import { MaskHandlesOverlay } from "./mask-handles-overlay"
+import { ModelGizmoOverlay } from "./model-gizmo-overlay"
 import { ShapeHandlesOverlay } from "./shape-handles-overlay"
 import { TextEditOverlay } from "./text-edit-overlay"
 import { TextHandlesOverlay } from "./text-handles-overlay"
@@ -110,7 +111,7 @@ export function EditorCanvasViewport() {
 
       for (const file of files) {
         const kind = inferFileAssetKind(file)
-        if (kind === "image" || kind === "video") {
+        if (kind === "image" || kind === "video" || kind === "model") {
           try {
             const asset = await loadAsset(file)
             const layerId = addLayer(kind)
@@ -374,6 +375,10 @@ export function EditorCanvasViewport() {
                 className="absolute inset-0 h-full w-full [image-rendering:pixelated]"
               />
               <CellPaintOverlay
+                panning={isSpacePressed}
+                disabled={exportingPreview || !isReady || !!pendingSceneSlug}
+              />
+              <ModelGizmoOverlay
                 panning={isSpacePressed}
                 disabled={exportingPreview || !isReady || !!pendingSceneSlug}
               />

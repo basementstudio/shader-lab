@@ -28,6 +28,11 @@ import {
   isSvgMediaSource,
 } from "@/lib/editor/media-file"
 import { evaluateTimelineForLayers } from "@/lib/editor/timeline/evaluate"
+import {
+  CUSTOM_MODEL_ENVIRONMENT,
+  DEFAULT_MODEL_ENVIRONMENT,
+  modelMaterialDefaults,
+} from "@/lib/editor/config/model-options"
 import { canPaintCellLayer, useCellPaintStore } from "@/store/cell-paint-store"
 import { useAssetStore } from "@/store/asset-store"
 import { useEditorStore } from "@/store/editor-store"
@@ -76,6 +81,10 @@ export function PropertiesSidebar() {
   const replaceImageLayerIdRef = useRef<string | null>(null)
   const depthMapInputRef = useRef<HTMLInputElement | null>(null)
   const depthMapLayerIdRef = useRef<string | null>(null)
+  const replaceModelInputRef = useRef<HTMLInputElement | null>(null)
+  const replaceModelLayerIdRef = useRef<string | null>(null)
+  const environmentInputRef = useRef<HTMLInputElement | null>(null)
+  const environmentLayerIdRef = useRef<string | null>(null)
   const rightSidebarVisible = useEditorStore((state) => state.sidebars.right)
   const mobilePanel = useEditorStore((state) => state.mobilePanel)
   const sidebarView = useEditorStore((state) => state.sidebarView)
@@ -108,6 +117,9 @@ export function PropertiesSidebar() {
   const setLayerAsset = useLayerStore((state) => state.setLayerAsset)
   const setLayerDepthAsset = useLayerStore(
     (state) => state.setLayerDepthAsset
+  )
+  const setLayerEnvironmentAsset = useLayerStore(
+    (state) => state.setLayerEnvironmentAsset
   )
   const setLayerRuntimeError = useLayerStore(
     (state) => state.setLayerRuntimeError
@@ -147,6 +159,9 @@ export function PropertiesSidebar() {
     : null
   const selectedDepthAsset = selectedLayer
     ? getSelectedAsset(assetById, selectedLayer.depthAssetId ?? null)
+    : null
+  const selectedEnvironmentAsset = selectedLayer
+    ? getSelectedAsset(assetById, selectedLayer.environmentAssetId ?? null)
     : null
   const selectedDefinition = selectedLayer
     ? getLayerDefinition(selectedLayer.type)
@@ -365,12 +380,15 @@ export function PropertiesSidebar() {
     timelinePanelOpen,
   ])
 
-  const handleToggleParamGroup = useCallback((groupId: string) => {
-    setExpandedParamGroups((current) => ({
-      ...current,
-      [groupId]: !(current[groupId] ?? true),
-    }))
-  }, [])
+  const handleToggleParamGroup = useCallback(
+    (groupId: string, expanded: boolean) => {
+      setExpandedParamGroups((current) => ({
+        ...current,
+        [groupId]: expanded,
+      }))
+    },
+    []
+  )
 
   const handleTimelineKeyframe = useCallback(
     (
@@ -518,6 +536,18 @@ export function PropertiesSidebar() {
 
       updateLayerParam(selectedLayer.id, key, value)
 
+      if (selectedLayer.type === "model" && key === "material") {
+        const defaults = modelMaterialDefaults(value)
+        if (defaults) {
+          updateLayerParam(selectedLayer.id, "materialColor", defaults.color)
+          updateLayerParam(
+            selectedLayer.id,
+            "materialRoughness",
+            defaults.roughness
+          )
+        }
+      }
+
       if (selectedLayer.type === "photographic-cells" && key === "mode") {
         const state = useLayerStore.getState()
         const paint = useCellPaintStore.getState()
@@ -636,6 +666,125 @@ export function PropertiesSidebar() {
     },
     [loadAsset, removeAsset, setLayerAsset, setLayerRuntimeError]
   )
+
+  const handleReplaceModelPick = useCallback(() => {
+    if (!selectedLayerId) {
+      return
+    }
+
+    replaceModelLayerIdRef.current = selectedLayerId
+    replaceModelInputRef.current?.click()
+  }, [selectedLayerId])
+
+  const handleReplaceModelChange = useCallback(
+    async (event: ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0]
+      const layerId = replaceModelLayerIdRef.current
+
+      event.currentTarget.value = ""
+      replaceModelLayerIdRef.current = null
+
+      if (!(file && layerId)) {
+        return
+      }
+
+      if (inferFileAssetKind(file) !== "model") {
+        setLayerRuntimeError(layerId, "Expected a .glb or .gltf file.")
+
+        return
+      }
+
+      try {
+        const asset = await loadAsset(file)
+
+        if (asset.kind !== "model") {
+          removeAsset(asset.id)
+          setLayerRuntimeError(layerId, "Expected a .glb or .gltf file.")
+
+          return
+        }
+
+        setLayerAsset(layerId, asset.id)
+      } catch (error) {
+        setLayerRuntimeError(
+          layerId,
+          error instanceof Error ? error.message : "Failed to replace model."
+        )
+      }
+    },
+    [loadAsset, removeAsset, setLayerAsset, setLayerRuntimeError]
+  )
+
+  const handleEnvironmentPick = useCallback(() => {
+    if (!selectedLayerId) {
+      return
+    }
+
+    environmentLayerIdRef.current = selectedLayerId
+    environmentInputRef.current?.click()
+  }, [selectedLayerId])
+
+  const handleEnvironmentChange = useCallback(
+    async (event: ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0]
+      const layerId = environmentLayerIdRef.current
+
+      event.currentTarget.value = ""
+      environmentLayerIdRef.current = null
+
+      if (!(file && layerId)) {
+        return
+      }
+
+      if (inferFileAssetKind(file) !== "environment") {
+        setLayerRuntimeError(layerId, "Expected an .hdr file.")
+
+        return
+      }
+
+      try {
+        const asset = await loadAsset(file)
+
+        if (asset.kind !== "environment") {
+          removeAsset(asset.id)
+          setLayerRuntimeError(layerId, "Expected an .hdr file.")
+
+          return
+        }
+
+        setLayerEnvironmentAsset(layerId, asset.id)
+        updateLayerParam(layerId, "environment", CUSTOM_MODEL_ENVIRONMENT)
+      } catch (error) {
+        setLayerRuntimeError(
+          layerId,
+          error instanceof Error ? error.message : "Failed to load the .hdr."
+        )
+      }
+    },
+    [
+      loadAsset,
+      removeAsset,
+      setLayerEnvironmentAsset,
+      setLayerRuntimeError,
+      updateLayerParam,
+    ]
+  )
+
+  const handleRemoveEnvironment = useCallback(() => {
+    if (!selectedLayer) {
+      return
+    }
+
+    setLayerEnvironmentAsset(selectedLayer.id, null)
+
+    if (selectedLayer.params.environment === CUSTOM_MODEL_ENVIRONMENT) {
+      updateLayerParam(
+        selectedLayer.id,
+        "environment",
+        DEFAULT_MODEL_ENVIRONMENT.id
+      )
+    }
+  }, [selectedLayer, setLayerEnvironmentAsset, updateLayerParam])
 
   const handleDepthMapPick = useCallback(() => {
     if (!selectedLayerId) {
@@ -757,6 +906,10 @@ export function PropertiesSidebar() {
             : null,
         depthMapFileName: selectedDepthAsset?.fileName ?? null,
         hasDepthMap: Boolean(selectedLayer.depthAssetId),
+        modelEnvironmentFileName: selectedEnvironmentAsset?.fileName ?? null,
+        onAttachEnvironment: handleEnvironmentPick,
+        onRemoveEnvironment: handleRemoveEnvironment,
+        onReplaceModel: handleReplaceModelPick,
         onAttachDepthMap: handleDepthMapPick,
         onEstimateDepthMap: handleEstimateDepthMap,
         onRemoveDepthMap: handleRemoveDepthMap,
@@ -873,6 +1026,22 @@ export function PropertiesSidebar() {
         data-testid="depth-map-input"
         onChange={handleDepthMapChange}
         ref={depthMapInputRef}
+        type="file"
+      />
+      <input
+        accept={getAssetAccept("model")}
+        className="hidden"
+        data-testid="replace-model-input"
+        onChange={handleReplaceModelChange}
+        ref={replaceModelInputRef}
+        type="file"
+      />
+      <input
+        accept={getAssetAccept("environment")}
+        className="hidden"
+        data-testid="environment-input"
+        onChange={handleEnvironmentChange}
+        ref={environmentInputRef}
         type="file"
       />
 

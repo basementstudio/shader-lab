@@ -387,6 +387,7 @@ export function LayerSidebar() {
     layerId: string
   } | null>(null)
   const videoInputRef = useRef<HTMLInputElement | null>(null)
+  const modelInputRef = useRef<HTMLInputElement | null>(null)
   const [layerActionSelectKeys, setLayerActionSelectKeys] = useState<
     Record<string, number>
   >({})
@@ -481,9 +482,16 @@ export function LayerSidebar() {
     [assets]
   )
 
-  async function handleMediaFile(file: File, layerType: "image" | "video") {
+  async function handleMediaFile(
+    file: File,
+    layerType: "image" | "model" | "video"
+  ) {
     try {
       const asset = await loadAsset(file)
+      if (asset.kind !== layerType) {
+        removeAsset(asset.id)
+        return
+      }
       const layerId = addLayer(layerType)
       setLayerAsset(layerId, asset.id)
       seedDurationFromMedia(getSeedableMediaDuration(asset))
@@ -506,6 +514,8 @@ export function LayerSidebar() {
       handleImagePick()
     } else if (action === "video") {
       handleVideoPick()
+    } else if (action === "model") {
+      modelInputRef.current?.click()
     } else {
       addLayer(action)
       playUISound("action.addLayer")
@@ -574,6 +584,18 @@ export function LayerSidebar() {
     }
 
     void handleMediaFile(file, "video")
+  }
+
+  function handleModelChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+
+    event.currentTarget.value = ""
+
+    if (!file) {
+      return
+    }
+
+    void handleMediaFile(file, "model")
   }
 
   async function handleRelinkChange(event: ChangeEvent<HTMLInputElement>) {
@@ -750,6 +772,14 @@ export function LayerSidebar() {
         className="hidden"
         onChange={handleVideoChange}
         ref={videoInputRef}
+        type="file"
+      />
+      <input
+        accept={getAssetAccept("model")}
+        className="hidden"
+        data-testid="model-input"
+        onChange={handleModelChange}
+        ref={modelInputRef}
         type="file"
       />
 

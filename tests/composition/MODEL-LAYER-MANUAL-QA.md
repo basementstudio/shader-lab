@@ -19,6 +19,14 @@ Scope: roadmap 4.4, step 1. A **3D Model** source layer imports a `.glb`, frames
 4. **Alt + G / R / S** clears location, rotation or scale. **Middle-drag** orbits the camera; **Shift + middle-drag** slides the frame. Every drag is one undo step.
 5. **Spin** turns it on a turntable with the timeline, so video exports loop cleanly when you pick 360° ÷ duration.
 
+## Animation
+
+1. Add a `.glb` with animation clips. The Model section shows **Animation**: Clip lists the file's clips (plus All clips and None), and the timeline length changes to the clip's.
+2. Press play on the timeline: the clip plays with it. **Speed** scales it, **Repeat** loops, ping-pongs or plays once and holds the last frame, **Start** offsets it, and turning **Play** off holds the Start frame.
+3. A character whose clips share one skeleton starts on its first clip; a file where each clip moves a different object plays them all.
+4. The model stays in frame and on its floor for the whole clip. Blur's Depth of Field, depth masks and shadows follow the moving pose.
+5. Export a video: frames match the canvas. Save and reopen: the clip settings come back.
+
 ## Materials and light
 
 1. **Material → Original** keeps the file's PBR materials (metalness, roughness, normal maps, clearcoat, transmission, emissive). **Chrome, Brushed Metal, Glass, Clay, Rubber, Iridescent** replace every material; each sets its own Color and Roughness, which you can then change.
@@ -38,4 +46,4 @@ Scope: roadmap 4.4, step 1. A **3D Model** source layer imports a `.glb`, frames
 1. Save (.lab) and reopen: settings come back; without the files the layer reports "Missing asset" or "Missing environment" and keeps its settings.
 2. Duplicate, undo and redo a rotation. Export PNG and video: identical to the canvas.
 
-Limits: Glass refracts the model itself and lets the layers below show through unbent; bending the layers below is a separate proposal. Animation clips (4.3) and the path-traced Render mode come later. The React runtime export does not include 3D layers yet.
+Limits: Glass refracts the model itself and lets the layers below show through unbent; bending the layers below is a separate proposal. The path-traced Render mode comes later. The React runtime export does not include 3D layers yet.

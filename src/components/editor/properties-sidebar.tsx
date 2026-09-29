@@ -35,6 +35,7 @@ import {
 } from "@/lib/editor/config/model-options"
 import { canPaintCellLayer, useCellPaintStore } from "@/store/cell-paint-store"
 import { useAssetStore } from "@/store/asset-store"
+import { useModelClips } from "@/components/editor/use-model-clips"
 import { useEditorStore } from "@/store/editor-store"
 import { useLayerStore } from "@/store/layer-store"
 import {
@@ -166,6 +167,11 @@ export function PropertiesSidebar() {
   const selectedDefinition = selectedLayer
     ? getLayerDefinition(selectedLayer.type)
     : null
+  const modelClips = useModelClips(
+    selectedLayer?.type === "model" && selectedAsset?.kind === "model"
+      ? selectedAsset.url
+      : null
+  )
   const selectedVisibleParams = useMemo(() => {
     if (!(selectedLayer && selectedDefinition)) {
       return [] as ParameterDefinition[]
@@ -906,6 +912,7 @@ export function PropertiesSidebar() {
             : null,
         depthMapFileName: selectedDepthAsset?.fileName ?? null,
         hasDepthMap: Boolean(selectedLayer.depthAssetId),
+        modelClips,
         modelEnvironmentFileName: selectedEnvironmentAsset?.fileName ?? null,
         onAttachEnvironment: handleEnvironmentPick,
         onRemoveEnvironment: handleRemoveEnvironment,

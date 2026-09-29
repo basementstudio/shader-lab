@@ -15,7 +15,7 @@ export function clampDuration(duration: number): number {
 export function getSeedableMediaDuration(
   asset: Pick<EditorAsset, "duration" | "kind">
 ): number | null {
-  if (!(asset.kind === "video" || asset.kind === "audio")) {
+  if (!(asset.kind === "video" || asset.kind === "audio" || asset.kind === "model")) {
     return null
   }
 

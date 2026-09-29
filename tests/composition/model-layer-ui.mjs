@@ -5,7 +5,7 @@ import { chromium } from "playwright"
 
 await mkdir(".context/model-layer", { recursive: true })
 
-function boxGlb() {
+function boxGlb(animation = null) {
   const faces = [
     [[1, 0, 0], [0, 0, -1], [0, 1, 0]],
     [[-1, 0, 0], [0, 0, 1], [0, 1, 0]],
@@ -28,31 +28,47 @@ function boxGlb() {
     }
     indices.push(base, base + 1, base + 2, base, base + 2, base + 3)
   }
-  const positionBytes = new Float32Array(positions)
-  const normalBytes = new Float32Array(normals)
-  const indexBytes = new Uint16Array(indices)
-  const binary = new Uint8Array(positionBytes.byteLength + normalBytes.byteLength + indexBytes.byteLength)
-  binary.set(new Uint8Array(positionBytes.buffer), 0)
-  binary.set(new Uint8Array(normalBytes.buffer), positionBytes.byteLength)
-  binary.set(new Uint8Array(indexBytes.buffer), positionBytes.byteLength + normalBytes.byteLength)
+  const chunks = [new Float32Array(positions), new Float32Array(normals), new Uint16Array(indices)]
+  if (animation) {
+    chunks.push(new Float32Array(animation.times), new Float32Array(animation.translations))
+  }
+  const views = []
+  let byteOffset = 0
+  for (const chunk of chunks) {
+    views.push({ buffer: 0, byteOffset, byteLength: chunk.byteLength })
+    byteOffset += Math.ceil(chunk.byteLength / 4) * 4
+  }
+  const binary = new Uint8Array(byteOffset)
+  for (const [index, chunk] of chunks.entries()) {
+    binary.set(new Uint8Array(chunk.buffer), views[index].byteOffset)
+  }
   const json = {
     asset: { version: "2.0" },
     scene: 0,
     scenes: [{ nodes: [0] }],
-    nodes: [{ mesh: 0 }],
+    nodes: [{ mesh: 0, name: "Box" }],
     meshes: [{ primitives: [{ attributes: { POSITION: 0, NORMAL: 1 }, indices: 2, material: 0 }] }],
     materials: [{ pbrMetallicRoughness: { baseColorFactor: [0.9, 0.2, 0.1, 1], metallicFactor: 0, roughnessFactor: 0.5 } }],
     buffers: [{ byteLength: binary.byteLength }],
-    bufferViews: [
-      { buffer: 0, byteOffset: 0, byteLength: positionBytes.byteLength },
-      { buffer: 0, byteOffset: positionBytes.byteLength, byteLength: normalBytes.byteLength },
-      { buffer: 0, byteOffset: positionBytes.byteLength + normalBytes.byteLength, byteLength: indexBytes.byteLength },
-    ],
+    bufferViews: views,
     accessors: [
       { bufferView: 0, componentType: 5126, count: 24, type: "VEC3", min: half.map((v) => -v), max: half },
       { bufferView: 1, componentType: 5126, count: 24, type: "VEC3" },
       { bufferView: 2, componentType: 5123, count: 36, type: "SCALAR" },
     ],
+  }
+  if (animation) {
+    json.accessors.push(
+      { bufferView: 3, componentType: 5126, count: animation.times.length, type: "SCALAR", min: [animation.times[0]], max: [animation.times.at(-1)] },
+      { bufferView: 4, componentType: 5126, count: animation.times.length, type: "VEC3" }
+    )
+    json.animations = [
+      {
+        name: animation.name,
+        channels: [{ sampler: 0, target: { node: 0, path: "translation" } }],
+        samplers: [{ input: 3, output: 4, interpolation: "LINEAR" }],
+      },
+    ]
   }
   let text = JSON.stringify(json)
   while (text.length % 4) text += " "
@@ -87,6 +103,10 @@ function studioHdr(width, height, rgb) {
 }
 
 await Bun.write(".context/model-layer/ui-box.glb", boxGlb())
+await Bun.write(
+  ".context/model-layer/ui-slide.glb",
+  boxGlb({ name: "Slide", times: [0, 2], translations: [-2, 0, 0, 2, 0, 0] })
+)
 await Bun.write(".context/model-layer/ui-studio.hdr", studioHdr(64, 32, [2, 1.6, 1.2]))
 
 const browser = await chromium.launch({
@@ -215,9 +235,31 @@ try {
   assert.equal(removed.params.environment, "studio", "Removing the .hdr returns to the Studio")
   assert.equal(removed.environmentAssetId, null)
 
+  assert.equal(await page.locator("[data-model-animation]").filter({ visible: true }).count(), 0, "Still models show no Animation controls")
+  await add.click()
+  const slideChooser = page.waitForEvent("filechooser")
+  await page
+    .locator(`[id="${await add.getAttribute("aria-controls")}"]`)
+    .getByRole("button", { name: "3D Model", exact: true })
+    .click()
+  await (await slideChooser).setFiles(".context/model-layer/ui-slide.glb")
+  const animationBlock = page.locator("[data-model-animation]").filter({ visible: true })
+  await animationBlock.waitFor({ timeout: 60000 })
+  await page.waitForTimeout(1500)
+  assert.ok((await animationBlock.innerText()).includes("Slide"), "The clip from the file is listed")
+  assert.ok((await animationBlock.innerText()).includes("2.00 s"), "The clip length is shown")
+  const animated = await save("animated")
+  const slideAsset = animated.assets.find((asset) => asset.fileName === "ui-slide.glb")
+  const slideLayer = animated.layers.find((layer) => layer.assetId === slideAsset.id)
+  assert.equal(animated.timeline.duration, 2, "Importing an animated model sets the timeline to the clip length")
+  await animationBlock.getByRole("switch").first().click()
+  await page.waitForTimeout(400)
+  const paused = (await save("animation-paused")).layers.find((layer) => layer.id === slideLayer.id)
+  assert.equal(paused.params.animationPlaying, false, "Play toggles off")
+
   assert.deepEqual(errors, [])
   console.log(
-    "PASS 3D model UI: picker import, rotate gizmo, undo granularity, G + axis lock, Esc cancel, Alt+G clear, gizmo modes, uniform scale, custom .hdr attach/remove, save"
+    "PASS 3D model UI: picker import, rotate gizmo, undo granularity, G + axis lock, Esc cancel, Alt+G clear, gizmo modes, uniform scale, custom .hdr attach/remove, save, animated import, clip list, timeline length, play toggle"
   )
 } finally {
   await browser.close()

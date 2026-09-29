@@ -93,6 +93,7 @@ declare module "three/tsl" {
   export function attribute(name: string, type: string): TSLNode
   export const instanceIndex: TSLNode
   export const pointUV: TSLNode
+  export const positionGeometry: TSLNode
   export const positionLocal: TSLNode
   export const positionView: TSLNode
   export const positionWorld: TSLNode

@@ -17,6 +17,14 @@ import {
 } from "three/tsl"
 import * as THREE from "three/webgpu"
 import {
+  clipsFromGltfJson,
+  type ModelAnimationSettings,
+  type ModelClipInfo,
+  modelClipTime,
+  readModelAnimation,
+  resolveModelClips,
+} from "@/lib/editor/model-animation"
+import {
   MODEL_TONE_MAPPINGS,
   type ModelMaterialId,
   type ModelToneMappingId,
@@ -47,6 +55,8 @@ type RendererInternals = {
 
 const DEG = Math.PI / 180
 const FLOOR_SAMPLES = 16384
+const POSE_SAMPLES = 24
+const POSE_POINTS = 4096
 
 function samplesFor(width: number, height: number): number {
   return width * height <= 8_400_000 ? 4 : 0
@@ -84,7 +94,10 @@ function renderTargetUv(): Node {
   return vec2(uv().x, float(1).sub(uv().y))
 }
 
-function modelVertices(root: THREE.Object3D): Float32Array {
+function modelVertices(
+  root: THREE.Object3D,
+  limit = FLOOR_SAMPLES
+): Float32Array {
   const meshes: THREE.Mesh[] = []
   let total = 0
   root.traverse((object) => {
@@ -94,14 +107,14 @@ function modelVertices(root: THREE.Object3D): Float32Array {
     meshes.push(mesh)
     total += position.count
   })
-  const stride = Math.max(1, Math.ceil(total / FLOOR_SAMPLES))
+  const stride = Math.max(1, Math.ceil(total / limit))
   const points: number[] = []
   const vertex = new THREE.Vector3()
   for (const mesh of meshes) {
     const count = mesh.geometry.attributes.position?.count ?? 0
-    for (let index = 0; index < count; index += 1) {
+    for (let index = 0; index < count; index += stride) {
       mesh.getVertexPosition(index, vertex).applyMatrix4(mesh.matrixWorld)
-      if (index % stride === 0) points.push(vertex.x, vertex.y, vertex.z)
+      points.push(vertex.x, vertex.y, vertex.z)
     }
   }
   return new Float32Array(points)
@@ -201,6 +214,13 @@ export class ModelPass extends PassNode {
   private floorKey = ""
   private floorPoints: Float32Array = new Float32Array(0)
   private floorY = -1
+  private restFit: { center: THREE.Vector3; points: Float32Array; radius: number } | null = null
+  private mixer: THREE.AnimationMixer | null = null
+  private clips: THREE.AnimationClip[] = []
+  private clipInfo: ModelClipInfo[] = []
+  private actions: { action: THREE.AnimationAction; duration: number }[] = []
+  private selectionKey = ""
+  private animation: ModelAnimationSettings = readModelAnimation({})
   private spin = 0
   private lastTime = Number.NaN
   private width = 1
@@ -308,7 +328,11 @@ export class ModelPass extends PassNode {
         return
       }
 
-      this.installModel(gltf.scene)
+      this.installModel(
+        gltf.scene,
+        gltf.animations,
+        clipsFromGltfJson((gltf.parser as { json?: unknown } | undefined)?.json)
+      )
       await this.compileScene()
     } catch (cause) {
       if (nonce === this.modelNonce) {
@@ -375,6 +399,10 @@ export class ModelPass extends PassNode {
     this.params = params
     this.exposureUniform.value = 2 ** readNumber(params.exposure, 0, -6, 6)
     this.spin = readModelFraming(params).spin
+    this.animation = readModelAnimation(params)
+    if (this.model) {
+      this.applySelection()
+    }
 
     const toneMapping = readToneMapping(params.toneMapping)
     if (toneMapping !== this.toneMapping) {
@@ -410,7 +438,11 @@ export class ModelPass extends PassNode {
   }
 
   override needsContinuousRender(): boolean {
-    return this.model !== null && this.spin !== 0
+    return this.model !== null && (this.spin !== 0 || this.isAnimating())
+  }
+
+  clipCount(): number {
+    return this.clips.length
   }
 
   override getOutputSceneDepth(): THREE.Texture | null {
@@ -427,7 +459,7 @@ export class ModelPass extends PassNode {
     this.resize(outputTarget.width, outputTarget.height)
 
     if (this.model && !this.compiling) {
-      if (this.spin !== 0 && time !== this.lastTime) {
+      if ((this.spin !== 0 || this.isAnimating()) && time !== this.lastTime) {
         this.sceneDirty = true
       }
 
@@ -509,7 +541,11 @@ export class ModelPass extends PassNode {
     }
   }
 
-  private installModel(root: THREE.Object3D): void {
+  private installModel(
+    root: THREE.Object3D,
+    animations: THREE.AnimationClip[],
+    clipInfo: ModelClipInfo[]
+  ): void {
     const lights: THREE.Object3D[] = []
     root.traverse((object) => {
       if ((object as THREE.Light).isLight) {
@@ -542,26 +578,147 @@ export class ModelPass extends PassNode {
     }
 
     const center = box.getCenter(new THREE.Vector3())
-    const radius = tightRadius(root, center)
+    this.restFit = {
+      center,
+      points: modelVertices(root),
+      radius: tightRadius(root, center),
+    }
+    this.fitGroup.add(root)
+    this.model = root
+    this.clips = animations
+    this.clipInfo =
+      clipInfo.length === animations.length
+        ? clipInfo
+        : animations.map((clip) => ({
+            duration: clip.duration,
+            label: clip.name,
+            name: clip.name,
+            targets: [],
+          }))
+    this.mixer = animations.length > 0 ? new THREE.AnimationMixer(root) : null
+    this.selectionKey = ""
+    this.materialPreset = "original"
+    this.applyMaterial(true)
+    this.applyFit(this.restFit.center, this.restFit.radius, this.restFit.points)
+    this.applySelection()
+    this.sceneDirty = true
+  }
+
+  private applyFit(
+    center: THREE.Vector3,
+    radius: number,
+    points: Float32Array
+  ): void {
     const scale = 1 / Math.max(radius, 1e-6)
     this.fitGroup.scale.setScalar(scale)
     this.fitGroup.position.copy(center).multiplyScalar(-scale)
-    this.fitGroup.add(root)
-    const points = modelVertices(root)
+    const fitted = new Float32Array(points.length)
     for (let index = 0; index < points.length; index += 3) {
-      points[index] = ((points[index] ?? 0) - center.x) * scale
-      points[index + 1] = ((points[index + 1] ?? 0) - center.y) * scale
-      points[index + 2] = ((points[index + 2] ?? 0) - center.z) * scale
+      fitted[index] = ((points[index] ?? 0) - center.x) * scale
+      fitted[index + 1] = ((points[index + 1] ?? 0) - center.y) * scale
+      fitted[index + 2] = ((points[index + 2] ?? 0) - center.z) * scale
     }
-    this.floorPoints = points
-    this.model = root
-    this.materialPreset = "original"
-    this.applyMaterial(true)
+    this.floorPoints = fitted
+    this.floorKey = ""
     if (this.overrides) {
       this.overrides.streakScale.value = scale
     }
-    this.floorKey = ""
+  }
+
+  private isAnimating(): boolean {
+    return (
+      this.actions.length > 0 &&
+      this.animation.playing &&
+      this.animation.speed !== 0
+    )
+  }
+
+  private applySelection(): void {
+    const mixer = this.mixer
+    const indices = mixer
+      ? resolveModelClips(this.params.animation, this.clipInfo)
+      : []
+    const key = indices.join(",")
+    if (key === this.selectionKey) {
+      return
+    }
+    this.selectionKey = key
+    mixer?.stopAllAction()
+    this.actions = []
+    for (const index of indices) {
+      const clip = this.clips[index]
+      if (!(clip && mixer)) continue
+      const action = mixer.clipAction(clip)
+      action.setLoop(THREE.LoopRepeat, Number.POSITIVE_INFINITY)
+      action.play()
+      this.actions.push({ action, duration: clip.duration })
+    }
+    this.fitSelection()
     this.sceneDirty = true
+  }
+
+  private fitSelection(): void {
+    const root = this.model
+    const rest = this.restFit
+    if (!(root && rest)) return
+    if (this.actions.length === 0 || !this.mixer) {
+      if (this.mixer) {
+        this.mixer.update(0)
+        root.updateMatrixWorld(true)
+      }
+      this.applyFit(rest.center, rest.radius, rest.points)
+      return
+    }
+
+    const parent = root.parent
+    root.removeFromParent()
+    root.updateMatrixWorld(true)
+    const longest = Math.max(...this.actions.map((entry) => entry.duration), 0)
+    const samples: Float32Array[] = []
+    for (let step = 0; step < POSE_SAMPLES; step += 1) {
+      const time = (longest * step) / (POSE_SAMPLES - 1)
+      for (const { action, duration } of this.actions) {
+        action.time = Math.min(time, duration)
+      }
+      this.mixer.update(0)
+      root.updateMatrixWorld(true)
+      samples.push(modelVertices(root, POSE_POINTS))
+    }
+    parent?.add(root)
+
+    const total = samples.reduce((sum, entry) => sum + entry.length, 0)
+    const points = new Float32Array(total)
+    let offset = 0
+    for (const entry of samples) {
+      points.set(entry, offset)
+      offset += entry.length
+    }
+    const box = new THREE.Box3()
+    const vertex = new THREE.Vector3()
+    for (let index = 0; index < points.length; index += 3) {
+      box.expandByPoint(
+        vertex.set(points[index] ?? 0, points[index + 1] ?? 0, points[index + 2] ?? 0)
+      )
+    }
+    if (box.isEmpty()) {
+      this.applyFit(rest.center, rest.radius, rest.points)
+      return
+    }
+    const center = box.getCenter(new THREE.Vector3())
+    let radiusSquared = 0
+    for (let index = 0; index < points.length; index += 3) {
+      vertex.set(points[index] ?? 0, points[index + 1] ?? 0, points[index + 2] ?? 0)
+      radiusSquared = Math.max(radiusSquared, vertex.distanceToSquared(center))
+    }
+    this.applyFit(center, Math.sqrt(radiusSquared), points)
+  }
+
+  private applyPose(time: number): void {
+    if (!this.mixer || this.actions.length === 0) return
+    for (const { action, duration } of this.actions) {
+      action.time = modelClipTime(this.animation, time, duration)
+    }
+    this.mixer.update(0)
   }
 
   private releaseModel(): void {
@@ -570,6 +727,16 @@ export class ModelPass extends PassNode {
     this.pendingCompile = null
     this.floorPoints = new Float32Array(0)
     this.floorKey = ""
+    this.mixer?.stopAllAction()
+    if (this.model) {
+      this.mixer?.uncacheRoot(this.model)
+    }
+    this.mixer = null
+    this.clips = []
+    this.clipInfo = []
+    this.actions = []
+    this.selectionKey = ""
+    this.restFit = null
     if (this.model) {
       for (const [mesh, original] of this.originalMaterials) {
         mesh.material = original
@@ -662,6 +829,7 @@ export class ModelPass extends PassNode {
   }
 
   private updateScene(time: number): void {
+    this.applyPose(time)
     const params = this.params
     const framing = readModelFraming(params)
     const [lx, ly, lz] = framing.location

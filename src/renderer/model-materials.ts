@@ -8,7 +8,7 @@ import {
   mix,
   mx_noise_float,
   normalView,
-  positionLocal,
+  positionGeometry,
   positionView,
   texture,
   type TSLNode,
@@ -95,7 +95,7 @@ export class ModelOverrideMaterials {
       case "brushed-metal": {
         material.metalness = 1
         const streak = mx_noise_float(
-          positionLocal.mul(this.streakScale).mul(vec3(1.5, 420, 420))
+          positionGeometry.mul(this.streakScale).mul(vec3(1.5, 420, 420))
         )
           .mul(0.5)
           .add(0.5)
@@ -129,7 +129,7 @@ export class ModelOverrideMaterials {
           float(1)
         )
         const film = mx_noise_float(
-          positionLocal.mul(this.streakScale).mul(1.8)
+          positionGeometry.mul(this.streakScale).mul(1.8)
         )
         const phase = facing.mul(1.35).add(film.mul(0.45))
         const spectrum = vec3(0.5).add(

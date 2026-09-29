@@ -5,6 +5,11 @@ import {
 } from "@/lib/editor/autosave/assets"
 import { inferFileAssetKind, isAudioFileName } from "@/lib/editor/media-file"
 import type { AssetKind, EditorAsset } from "@/types/editor"
+import {
+  MODEL_ANIMATION_AUTO,
+  modelSelectionDuration,
+  parseGltfClips,
+} from "@/lib/editor/model-animation"
 
 export interface AssetStoreState {
   assets: EditorAsset[]
@@ -208,6 +213,16 @@ export const useAssetStore = create<AssetStore>((set, get) => ({
         duration: metadata.duration,
         height: metadata.height,
         width: metadata.width,
+      }
+    } else if (kind === "model") {
+      const clips = parseGltfClips(await file.arrayBuffer())
+      const duration = modelSelectionDuration(MODEL_ANIMATION_AUTO, clips)
+
+      asset = {
+        ...baseAsset,
+        duration: duration > 0 ? duration : null,
+        height: null,
+        width: null,
       }
     } else if (kind === "audio") {
       const metadata = await loadAudioMetadata(url)

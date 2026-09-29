@@ -1,16 +1,137 @@
 "use client"
+import { useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Typography } from "@/components/ui/typography"
+import { ParameterField } from "@/components/editor/properties-sidebar-fields"
+import { cn } from "@/lib/cn"
+import { getLayerDefinition } from "@/lib/editor/config/layer-registry"
 import {
   CUSTOM_MODEL_ENVIRONMENT,
   MODEL_ENVIRONMENTS,
 } from "@/lib/editor/config/model-options"
-import { cn } from "@/lib/cn"
+import {
+  MODEL_ANIMATION_ALL,
+  MODEL_ANIMATION_NONE,
+  type ModelClipInfo,
+  modelSelectionDuration,
+  modelSelectionValue,
+} from "@/lib/editor/model-animation"
 import {
   MODEL_GIZMO_MODES,
   useModelGizmoStore,
 } from "@/store/model-gizmo-store"
-import type { LayerParameterValues } from "@/types/editor"
+import type {
+  AnimatedPropertyBinding,
+  LayerParameterValues,
+  ParameterDefinition,
+  ParameterValue,
+} from "@/types/editor"
+
+const ANIMATION_KEYS = [
+  "animationPlaying",
+  "animationSpeed",
+  "animationRepeat",
+  "animationStart",
+] as const
+
+function animationDefinitions(): ParameterDefinition[] {
+  const params = getLayerDefinition("model").params
+  return ANIMATION_KEYS.flatMap((key) => {
+    const definition = params.find((entry) => entry.key === key)
+    return definition ? [definition] : []
+  })
+}
+
+function clipDefinition(clips: readonly ModelClipInfo[]): ParameterDefinition {
+  return {
+    animatable: false,
+    defaultValue: "auto",
+    key: "animation",
+    label: "Clip",
+    options: [
+      ...(clips.length > 1
+        ? [{ label: "All clips", value: MODEL_ANIMATION_ALL }]
+        : []),
+      ...clips.map((clip) => ({ label: clip.label, value: clip.name })),
+      { label: "None", value: MODEL_ANIMATION_NONE },
+    ],
+    type: "select",
+  }
+}
+
+function animationCaption(
+  values: LayerParameterValues,
+  clips: readonly ModelClipInfo[]
+): string {
+  const selection = modelSelectionValue(values.animation, clips)
+  if (selection === MODEL_ANIMATION_NONE) {
+    return "Shows the model at rest."
+  }
+  const length = modelSelectionDuration(values.animation, clips)
+  return `${length.toFixed(2)} s long. It plays with the timeline, so exports match the canvas. Start sets the first frame, and the pose it holds while paused.`
+}
+
+function ModelAnimationControls({
+  clips,
+  layerId,
+  onChange,
+  onInteractionEnd,
+  onInteractionStart,
+  onTimelineKeyframe,
+  reduceMotion,
+  timelinePanelOpen,
+  values,
+}: {
+  clips: readonly ModelClipInfo[]
+  layerId: string
+  onChange: (id: string, key: string, value: ParameterValue) => void
+  onInteractionEnd?: (() => void) | undefined
+  onInteractionStart?: (() => void) | undefined
+  onTimelineKeyframe: (
+    binding: AnimatedPropertyBinding,
+    layerId: string,
+    value: ParameterValue
+  ) => void
+  reduceMotion: boolean
+  timelinePanelOpen: boolean
+  values: LayerParameterValues
+}) {
+  const clip = useMemo(() => clipDefinition(clips), [clips])
+  const definitions = useMemo(() => animationDefinitions(), [])
+  const selection = modelSelectionValue(values.animation, clips)
+  const field = (definition: ParameterDefinition, value: ParameterValue) => (
+    <ParameterField
+      definition={definition}
+      key={definition.key}
+      layerId={layerId}
+      onChange={onChange}
+      onInteractionEnd={onInteractionEnd}
+      onInteractionStart={onInteractionStart}
+      onTimelineKeyframe={onTimelineKeyframe}
+      reduceMotion={reduceMotion}
+      timelineBinding={null}
+      timelinePanelOpen={timelinePanelOpen}
+      value={value}
+    />
+  )
+
+  return (
+    <div className="flex flex-col gap-[10px]" data-model-animation="true">
+      <Typography tone="secondary" variant="caption">
+        Animation
+      </Typography>
+      {field(clip, selection)}
+      {selection === MODEL_ANIMATION_NONE
+        ? null
+        : definitions.map((definition) =>
+            field(definition, values[definition.key] ?? definition.defaultValue)
+          )}
+      <Typography tone="muted" variant="caption">
+        {animationCaption(values, clips)}
+      </Typography>
+    </div>
+  )
+}
 
 function environmentCaption(
   values: LayerParameterValues,
@@ -29,16 +150,36 @@ function environmentCaption(
 }
 
 export function ModelControls({
+  clips,
   environmentFileName,
+  layerId,
   onAttachEnvironment,
+  onChange,
+  onInteractionEnd,
+  onInteractionStart,
   onRemoveEnvironment,
   onReplaceModel,
+  onTimelineKeyframe,
+  reduceMotion,
+  timelinePanelOpen,
   values,
 }: {
+  clips: readonly ModelClipInfo[]
   environmentFileName: string | null
+  layerId: string
   onAttachEnvironment: () => void
+  onChange: (id: string, key: string, value: ParameterValue) => void
+  onInteractionEnd?: (() => void) | undefined
+  onInteractionStart?: (() => void) | undefined
   onRemoveEnvironment: () => void
   onReplaceModel: () => void
+  onTimelineKeyframe: (
+    binding: AnimatedPropertyBinding,
+    layerId: string,
+    value: ParameterValue
+  ) => void
+  reduceMotion: boolean
+  timelinePanelOpen: boolean
   values: LayerParameterValues
 }) {
   const mode = useModelGizmoStore((state) => state.mode)
@@ -76,6 +217,19 @@ export function ModelControls({
           Drag the gizmo, or hover the canvas and press G, R or S, then X, Y or Z to lock an axis. Alt with G, R or S clears it. Middle-drag orbits the camera.
         </Typography>
       </div>
+      {clips.length > 0 ? (
+        <ModelAnimationControls
+          clips={clips}
+          layerId={layerId}
+          onChange={onChange}
+          onInteractionEnd={onInteractionEnd}
+          onInteractionStart={onInteractionStart}
+          onTimelineKeyframe={onTimelineKeyframe}
+          reduceMotion={reduceMotion}
+          timelinePanelOpen={timelinePanelOpen}
+          values={values}
+        />
+      ) : null}
       <div className="flex items-center justify-between gap-3">
         <Typography tone="muted" variant="caption">
           Swap in a different .glb and keep this layer's settings.

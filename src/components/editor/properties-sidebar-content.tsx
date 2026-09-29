@@ -17,6 +17,7 @@ import { PlotterControls } from "./plotter-controls"
 import { PhotocopyControls } from "./photocopy-controls"
 import { OutlineControls } from "./outline-controls"
 import { ModelControls } from "./model-controls"
+import type { ModelClipInfo } from "@/lib/editor/model-animation"
 import { LayerMaskSection } from "./layer-mask-section"
 import { useTextEditStore } from "@/store/text-edit-store"
 import { LayerGroupLocation } from "@/components/editor/layer-group-location"
@@ -301,6 +302,7 @@ export function SelectedLayerPropertiesContent({
   onEstimateDepthMap,
   onRemoveDepthMap,
   onReplaceImage,
+  modelClips,
   modelEnvironmentFileName,
   onAttachEnvironment,
   onRemoveEnvironment,
@@ -348,6 +350,7 @@ export function SelectedLayerPropertiesContent({
   onEstimateDepthMap: () => void
   onRemoveDepthMap: () => void
   onReplaceImage: () => void
+  modelClips: readonly ModelClipInfo[]
   modelEnvironmentFileName: string | null
   onAttachEnvironment: () => void
   onRemoveEnvironment: () => void
@@ -856,10 +859,18 @@ export function SelectedLayerPropertiesContent({
 
         {layerType === "model" ? (
           <ModelControls
+            clips={modelClips}
             environmentFileName={modelEnvironmentFileName}
+            layerId={layerId}
             onAttachEnvironment={onAttachEnvironment}
+            onChange={updateLayerParam}
+            onInteractionEnd={onInteractionEnd}
+            onInteractionStart={onInteractionStart}
             onRemoveEnvironment={onRemoveEnvironment}
             onReplaceModel={onReplaceModel}
+            onTimelineKeyframe={onTimelineKeyframe}
+            reduceMotion={reduceMotion}
+            timelinePanelOpen={timelinePanelOpen}
             values={values}
           />
         ) : null}

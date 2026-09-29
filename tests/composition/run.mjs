@@ -512,6 +512,10 @@ try {
   console.log(
     `PASS 3D model: ${model.samples} checks, glTF import and fit, transform, camera shift, blend and opacity, exposure and tone mapping, material replacement and restore, exact scene depth for effects and depth masks, groups, custom .hdr lighting, preview/export parity, pose redraw, hydration, history, export`
   )
+  const animation = await page.evaluate(() => window.checkModelAnimation())
+  console.log(
+    `PASS 3D animation: ${animation} checks, clip timing, default clips, clip-wide framing, animated depth, skinning, speed, pause, repeat modes, start, timeline seeding, save/reopen, export`
+  )
   assert.deepEqual(unexpectedErrors(), [], "Browser or GPU errors occurred")
   if (errors.length > 0)
     console.log(

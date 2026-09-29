@@ -18,6 +18,18 @@ The runner serves a bundled harness on an ephemeral loopback port and launches t
 
 Actual PNGs are saved in `.context/composition-test/`. Run `bun run test:composition --update` only when deliberately capturing a reviewed baseline. Never refresh existing legacy expectations just to make an alpha change pass.
 
+## Shader scan for three.js upgrades
+
+A three.js release can change how TSL compiles without failing a single check. three 0.186.1 caches a shared value inside the `If`/`select` branch that first reads it, so every other branch reads 0 ([three #34339](https://github.com/mrdoob/three.js/pull/34339)). Before moving to a new three version, capture every shader the checks generate on the current version and on the candidate, then compare them:
+
+```sh
+LABEL=baseline bun tests/composition/wgsl-capture.mjs
+THREE_DIR=/tmp/three-next/package LABEL=next bun tests/composition/wgsl-capture.mjs
+bun tests/composition/wgsl-scan.mjs .context/wgsl/next .context/wgsl/baseline
+```
+
+`THREE_DIR` points at an unpacked three package (`npm pack three@<version>`, then extract it), so the installed version stays untouched. `CHECKS=checkGlass,checkFocusBlur` limits the capture to some checks. The scan lists variables read before any branch assigned them, keeps only the patterns the baseline does not already have, and exits non-zero when there are any. 0.185.1 already has five such patterns (Depth Parallax, Displaced Rings, Flares, Photocopy) whose checks pass; the comparison ignores them.
+
 ## Frozen references
 
 Captured before renderer changes, from the renderer at `6f39a88` (the pre-V3 `origin/main` revision). Fixture JSON files retain explicit version-6 settings instead of regenerating from layer defaults. The four render fixtures are synthetic saved projects created for regression coverage, not user-supplied artworks. They use a local SVG with a transparent cutout and soft alpha edge, and the bundled Geist Mono font.

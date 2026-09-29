@@ -2,6 +2,7 @@
 import {
   ChevronDownIcon,
   ChevronRightIcon,
+  CubeIcon,
   DotsVerticalIcon,
   DragHandleDots2Icon,
   EyeClosedIcon,
@@ -73,6 +74,8 @@ function LayerThumbnail({
     PlaceholderIcon = ShadowIcon
   } else if (layer.type === "text") {
     PlaceholderIcon = TextIcon
+  } else if (layer.type === "model") {
+    PlaceholderIcon = CubeIcon
   }
 
   return (

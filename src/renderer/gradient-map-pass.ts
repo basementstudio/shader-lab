@@ -32,6 +32,7 @@ export class GradientMapPass extends PassNode {
   private readonly sourceNode: Node
   private readonly sourcePlaceholder = new THREE.Texture()
   private stopsKey = ""
+  private stopsSource: string | null = null
 
   constructor(layerId: string) {
     super(layerId)
@@ -73,6 +74,10 @@ export class GradientMapPass extends PassNode {
         ? Math.max(0, Math.min(1, params.amount))
         : 1
     this.invertUniform.value = params.invert === true ? 1 : 0
+    if (typeof params.stops === "string" && params.stops === this.stopsSource) {
+      return
+    }
+    this.stopsSource = typeof params.stops === "string" ? params.stops : null
     const stops = parseGradientMapStops(params.stops)
     const key = serializeGradientMapStops(stops)
     if (key !== this.stopsKey) {

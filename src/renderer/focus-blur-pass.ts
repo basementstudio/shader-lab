@@ -187,12 +187,21 @@ export class FocusBlurPass extends PassNode {
     time: number,
     delta: number
   ): void {
-    this.pyramid.render(renderer, inputTexture)
+    if (this.needsPyramid()) this.pyramid.render(renderer, inputTexture)
     if (this.colorNode) this.colorNode.value = inputTexture
     const depth = this.sceneDepthTexture
     this.hasDepthUniform.value = depth ? 1 : 0
     if (this.depthNode) this.depthNode.value = depth ?? this.depthPlaceholder
     super.render(renderer, inputTexture, outputTarget, time, delta)
+  }
+
+  private needsPyramid(): boolean {
+    const kind = this.kindUniform.value as number
+    const radius =
+      (this.radiusUniform.value as number) * (this.outputPerDocumentUniform.value as number)
+    if (kind < 0.5) return this.pyramid.needsLevels(radius)
+    if (kind < 1.5) return this.pyramid.needsLevels(radius / (Math.sqrt(LENS_TAPS) * 0.9))
+    return this.pyramid.needsLevels(radius / (MOTION_TAPS * 0.5))
   }
 
   private sampleLevel(point: Node, level: Node, smooth: boolean): Node {
@@ -218,55 +227,60 @@ export class FocusBlurPass extends PassNode {
       const center = vec2(this.centerUniform.x, this.centerUniform.y.negate()).mul(
         0.5
       )
-      const local = point.sub(center.mul(this.aspectUniform))
-      const normal = vec2(sin(this.angleUniform), cos(this.angleUniform))
-      const linearDistance = abs(dot(local, normal))
-      const radialDistance = local.length()
-      const depth = float(depthNode.sample(targetUv).level(0).r)
-      const source = colorNode.sample(targetUv).level(0)
-      const tone = perceptualLuma(source)
-      const halfRange = this.rangeUniform.mul(0.5)
-      const transition = max(this.transitionUniform, float(0.001))
+      const local = point.sub(center.mul(this.aspectUniform)).toVar()
+      const halfRange = this.rangeUniform.mul(0.5).toVar()
+      const transition = max(this.transitionUniform, float(0.001)).toVar()
       const fromDistance = (distance: Node): Node =>
         clamp(distance.sub(halfRange).div(transition), 0, 1)
       const mode = this.sourceUniform
-      const depthAmount = select(
-        this.hasDepthUniform.greaterThan(0.5),
-        fromDistance(abs(depth.sub(this.focusUniform))),
-        float(0)
-      )
-      const luminanceAmount = smoothstep(
-        this.focusUniform.sub(transition.mul(0.5)),
-        this.focusUniform.add(transition.mul(0.5)),
-        tone
-      )
-      const amount = select(
-        mode.lessThan(0.5),
-        float(1),
-        select(
-          mode.lessThan(1.5),
-          depthAmount,
-          select(
-            mode.lessThan(2.5),
-            fromDistance(linearDistance),
-            select(mode.lessThan(3.5), fromDistance(radialDistance), luminanceAmount)
-          )
-        )
-      )
+      const amount = float(1).toVar()
+      If(mode.lessThan(1.5), () => {
+        If(mode.greaterThan(0.5), () => {
+          If(this.hasDepthUniform.greaterThan(0.5), () => {
+            const depth = float(depthNode.sample(targetUv).level(0).r)
+            amount.assign(fromDistance(abs(depth.sub(this.focusUniform))))
+          }).Else(() => {
+            amount.assign(float(0))
+          })
+        })
+      }).Else(() => {
+        If(mode.lessThan(2.5), () => {
+          const normal = vec2(sin(this.angleUniform), cos(this.angleUniform))
+          amount.assign(fromDistance(abs(dot(local, normal))))
+        }).Else(() => {
+          If(mode.lessThan(3.5), () => {
+            amount.assign(fromDistance(local.length()))
+          }).Else(() => {
+            const tone = perceptualLuma(colorNode.sample(targetUv).level(0))
+            amount.assign(
+              smoothstep(
+                this.focusUniform.sub(transition.mul(0.5)),
+                this.focusUniform.add(transition.mul(0.5)),
+                tone
+              )
+            )
+          })
+        })
+      })
       const shaped = select(
         this.invertUniform.greaterThan(0.5).and(mode.greaterThan(0.5)),
         float(1).sub(amount),
         amount
-      )
+      ).toVar()
       const radiusOutput = this.radiusUniform
         .mul(this.outputPerDocumentUniform)
         .mul(shaped)
-      const outputTexel = vec2(
-        float(1).div(this.documentSizeUniform.x.mul(this.outputPerDocumentUniform)),
-        float(1).div(this.documentSizeUniform.y.mul(this.outputPerDocumentUniform))
-      )
+        .toVar()
+      const outputTexel = (): Node =>
+        vec2(
+          float(1).div(this.documentSizeUniform.x.mul(this.outputPerDocumentUniform)),
+          float(1).div(this.documentSizeUniform.y.mul(this.outputPerDocumentUniform))
+        ).toVar()
       const pixel = targetUv.mul(this.documentSizeUniform)
-      const jitter = hash(pixel.add(17.3)).mul(6.2831853)
+      const sharp = (): Node => {
+        const full = colorNode.sample(targetUv).level(0)
+        return vec4(vec3(full.r, full.g, full.b).mul(full.a), full.a)
+      }
 
       const blurred = vec4(0).toVar()
       const kind = this.kindUniform
@@ -274,49 +288,66 @@ export class FocusBlurPass extends PassNode {
         blurred.assign(this.sampleLevel(targetUv, this.levelFor(radiusOutput), true))
       })
       If(kind.greaterThan(0.5).and(kind.lessThan(1.5)), () => {
-        const tapLevel = this.levelFor(radiusOutput.div(Math.sqrt(LENS_TAPS) * 0.9))
-        const sum = vec4(0).toVar()
-        const weights = float(0).toVar()
-        Loop(
-          { start: 0, end: LENS_TAPS, type: "int", name: "lensTap" },
-          (inputs) => {
-            const tap = float((inputs as unknown as Record<string, Node>).lensTap)
-            const r = sqrt(tap.add(0.5).div(LENS_TAPS))
-            const a = tap.mul(GOLDEN_ANGLE).add(jitter)
-            const offset = vec2(cos(a), sin(a)).mul(r).mul(radiusOutput).mul(outputTexel)
-            const sample = this.sampleLevel(targetUv.add(offset), tapLevel, false)
-            const bright = perceptualLuma(
-              vec4(sample.rgb.div(max(sample.a, float(0.0001))), sample.a)
-            )
-            const weight = float(1).add(pow(bright, float(4)).mul(this.highlightsUniform).mul(8))
-            sum.addAssign(sample.mul(weight))
-            weights.addAssign(weight)
-          }
-        )
-        blurred.assign(sum.div(weights))
+        If(radiusOutput.greaterThan(0), () => {
+          const texel = outputTexel()
+          const jitter = hash(pixel.add(17.3)).mul(6.2831853).toVar()
+          const tapLevel = this.levelFor(radiusOutput.div(Math.sqrt(LENS_TAPS) * 0.9)).toVar()
+          const sum = vec4(0).toVar()
+          const weights = float(0).toVar()
+          Loop(
+            { start: 0, end: LENS_TAPS, type: "int", name: "lensTap" },
+            (inputs) => {
+              const tap = float((inputs as unknown as Record<string, Node>).lensTap)
+              const r = sqrt(tap.add(0.5).div(LENS_TAPS))
+              const a = tap.mul(GOLDEN_ANGLE).add(jitter)
+              const offset = vec2(cos(a), sin(a)).mul(r).mul(radiusOutput).mul(texel)
+              const sample = this.sampleLevel(targetUv.add(offset), tapLevel, false)
+              const weight = float(1).toVar()
+              If(this.highlightsUniform.greaterThan(0), () => {
+                const bright = perceptualLuma(
+                  vec4(sample.rgb.div(max(sample.a, float(0.0001))), sample.a)
+                )
+                weight.assign(float(1).add(pow(bright, float(4)).mul(this.highlightsUniform).mul(8)))
+              })
+              sum.addAssign(sample.mul(weight))
+              weights.addAssign(weight)
+            }
+          )
+          blurred.assign(sum.div(weights))
+        }).Else(() => {
+          blurred.assign(sharp())
+        })
       })
       If(kind.greaterThan(1.5), () => {
-        const direction = vec2(cos(this.motionAngleUniform), sin(this.motionAngleUniform).negate())
-        const tapLevel = this.levelFor(radiusOutput.div(MOTION_TAPS * 0.5))
-        const sum = vec4(0).toVar()
-        Loop(
-          { start: 0, end: MOTION_TAPS, type: "int", name: "motionTap" },
-          (inputs) => {
-            const tap = float((inputs as unknown as Record<string, Node>).motionTap)
-            const t = tap.add(0.5).div(MOTION_TAPS).sub(0.5).mul(2)
-            const offset = direction.mul(t).mul(radiusOutput).mul(outputTexel)
-            sum.addAssign(this.sampleLevel(targetUv.add(offset), tapLevel, false))
-          }
-        )
-        blurred.assign(sum.div(MOTION_TAPS))
+        If(radiusOutput.greaterThan(0), () => {
+          const texel = outputTexel()
+          const direction = vec2(cos(this.motionAngleUniform), sin(this.motionAngleUniform).negate()).toVar()
+          const tapLevel = this.levelFor(radiusOutput.div(MOTION_TAPS * 0.5)).toVar()
+          const sum = vec4(0).toVar()
+          Loop(
+            { start: 0, end: MOTION_TAPS, type: "int", name: "motionTap" },
+            (inputs) => {
+              const tap = float((inputs as unknown as Record<string, Node>).motionTap)
+              const t = tap.add(0.5).div(MOTION_TAPS).sub(0.5).mul(2)
+              const offset = direction.mul(t).mul(radiusOutput).mul(texel)
+              sum.addAssign(this.sampleLevel(targetUv.add(offset), tapLevel, false))
+            }
+          )
+          blurred.assign(sum.div(MOTION_TAPS))
+        }).Else(() => {
+          blurred.assign(sharp())
+        })
       })
 
       const alpha = clamp(blurred.a, 0, 1)
       const rgb = blurred.rgb.div(max(blurred.a, float(0.0001)))
-      const grainCell = floor(pixel.div(this.grainSizeUniform))
-      const noise = hash(grainCell).add(hash(grainCell.add(31.7))).sub(1)
-      const grainWeight = mix(float(1), shaped, this.grainFollowUniform)
-      const grained = rgb.add(noise.mul(this.grainUniform).mul(0.25).mul(grainWeight))
+      const grained = rgb.toVar()
+      If(this.grainUniform.greaterThan(0), () => {
+        const grainCell = floor(pixel.div(this.grainSizeUniform))
+        const noise = hash(grainCell).add(hash(grainCell.add(31.7))).sub(1)
+        const grainWeight = mix(float(1), shaped, this.grainFollowUniform)
+        grained.addAssign(noise.mul(this.grainUniform).mul(0.25).mul(grainWeight))
+      })
       return vec4(clamp(grained, 0, 1), min(alpha, float(1)))
     })()
   }

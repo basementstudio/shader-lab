@@ -7,6 +7,7 @@ import {
   floor,
   Fn,
   fract,
+  If,
   max,
   min,
   mix,
@@ -83,7 +84,6 @@ function readColor(value: unknown, fallback: string): string {
     : fallback
 }
 
-/** A degraded photocopy: crushed toner over paper, with speckle, drum streaks, misregistration and folds. */
 export class PhotocopyPass extends PassNode {
   private readonly thresholdUniform: Node
   private readonly contrastUniform: Node
@@ -167,7 +167,9 @@ export class PhotocopyPass extends PassNode {
     time: number,
     delta: number
   ): void {
-    if ((this.amountUniform.value as number) > 0) {
+    const extra = (this.generationsUniform.value as number) - 1
+    const blur = (extra * 0.55 + 0.25) * (this.outputPerDocumentUniform.value as number)
+    if ((this.amountUniform.value as number) > 0 && this.pyramid.needsLevels(blur)) {
       this.pyramid.render(renderer, inputTexture)
     }
     if (this.colorNode) this.colorNode.value = inputTexture
@@ -234,37 +236,47 @@ export class PhotocopyPass extends PassNode {
         hash(vec2(column, this.seedUniform.add(4.4))),
         this.streaksUniform.mul(0.05)
       )
-      const streakRun = smoothstep(
-        0.25,
-        0.75,
-        valueNoise(vec2(column.mul(0.37), pixel.y.div(90)).add(seed))
-      )
-      const band = valueNoise(vec2(pixel.x.div(220), 1.7).add(seed)).mul(
-        this.streaksUniform.mul(0.18)
-      )
-      toner = max(toner, streakPick.mul(streakRun).mul(0.85))
-      toner = clamp(toner.add(band.mul(float(1).sub(toner)).mul(0.6)), 0, 1)
-
-      let crease: Node = float(0)
-      let creaseLight: Node = float(0)
-      for (let index = 0; index < CREASES; index += 1) {
-        const angle = hash(vec2(index * 3.1, this.seedUniform.add(1.9))).mul(Math.PI)
-        const offset = hash(vec2(index * 5.7, this.seedUniform.add(6.2)))
-          .sub(0.5)
-          .mul(min(size.x, size.y))
-          .mul(0.8)
-        const normal = vec2(cos(angle), sin(angle))
-        const distance = dot(pixel.sub(size.mul(0.5)), normal).sub(offset)
-        const active = step(float(index + 0.5), this.creasesUniform.mul(CREASES))
-        const wobble = valueNoise(vec2(dot(pixel, vec2(normal.y.negate(), normal.x)).div(40), index).add(seed))
-          .sub(0.5)
-          .mul(3)
-        const d = distance.add(wobble)
-        crease = max(crease, float(1).sub(smoothstep(0, 2.2, abs(d))).mul(active))
-        creaseLight = max(
-          creaseLight,
-          float(1).sub(smoothstep(0, 9, abs(d.sub(3)))).mul(step(0, d)).mul(active)
+      const streaked = toner.toVar()
+      If(streakPick.greaterThan(0), () => {
+        const streakRun = smoothstep(
+          0.25,
+          0.75,
+          valueNoise(vec2(column.mul(0.37), pixel.y.div(90)).add(seed))
         )
+        streaked.assign(max(streaked, streakPick.mul(streakRun).mul(0.85)))
+      })
+      If(this.streaksUniform.greaterThan(0), () => {
+        const band = valueNoise(vec2(pixel.x.div(220), 1.7).add(seed)).mul(
+          this.streaksUniform.mul(0.18)
+        )
+        streaked.assign(clamp(streaked.add(band.mul(float(1).sub(streaked)).mul(0.6)), 0, 1))
+      })
+      toner = streaked
+
+      const crease = float(0).toVar()
+      const creaseLight = float(0).toVar()
+      for (let index = 0; index < CREASES; index += 1) {
+        const active = step(float(index + 0.5), this.creasesUniform.mul(CREASES))
+        If(active.greaterThan(0), () => {
+          const angle = hash(vec2(index * 3.1, this.seedUniform.add(1.9))).mul(Math.PI)
+          const offset = hash(vec2(index * 5.7, this.seedUniform.add(6.2)))
+            .sub(0.5)
+            .mul(min(size.x, size.y))
+            .mul(0.8)
+          const normal = vec2(cos(angle), sin(angle))
+          const distance = dot(pixel.sub(size.mul(0.5)), normal).sub(offset)
+          const wobble = valueNoise(vec2(dot(pixel, vec2(normal.y.negate(), normal.x)).div(40), index).add(seed))
+            .sub(0.5)
+            .mul(3)
+          const d = distance.add(wobble)
+          crease.assign(max(crease, float(1).sub(smoothstep(0, 2.2, abs(d))).mul(active)))
+          creaseLight.assign(
+            max(
+              creaseLight,
+              float(1).sub(smoothstep(0, 9, abs(d.sub(3)))).mul(step(0, d)).mul(active)
+            )
+          )
+        })
       }
       toner = clamp(toner.add(crease.mul(0.55)), 0, 1)
 

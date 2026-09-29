@@ -11,7 +11,6 @@ export type RenderChildPass = (
   timelineTime: number
 ) => boolean
 
-/** Owns only its intermediate targets; the pipeline owns all child passes. */
 export class GroupPass extends PassNode {
   private children: PassNode[] = []
   private readonly rtA: THREE.WebGLRenderTarget
@@ -85,7 +84,6 @@ export class GroupPass extends PassNode {
     delta: number,
     timelineTime = time
   ): void {
-    // Never seed a group with the parent image or the opaque scene background.
     const alpha = renderer.getClearAlpha()
     renderer.getClearColor(this.clearColor)
     try {
@@ -99,13 +97,21 @@ export class GroupPass extends PassNode {
     let read = this.rtA
     let write = this.rtB
     let sceneDepth = this.sceneDepthTexture
+    let childInputChanged = this.inputChanged
     for (const pass of this.children) {
       if (!this.isActive(pass)) continue
       pass.setSceneDepth(sceneDepth)
-      if (
-        !this.renderChild(pass, read.texture, write, time, delta, timelineTime)
+      pass.setInputChanged(childInputChanged)
+      const rendered = this.renderChild(
+        pass,
+        read.texture,
+        write,
+        time,
+        delta,
+        timelineTime
       )
-        continue
+      if (pass.needsContinuousRender()) childInputChanged = true
+      if (!rendered) continue
       sceneDepth = pass.getOutputSceneDepth()
       ;[read, write] = [write, read]
     }

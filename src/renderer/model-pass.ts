@@ -239,6 +239,7 @@ export class ModelPass extends PassNode {
   private width = 1
   private height = 1
   private targetsCleared = false
+  private sceneDepthComposed = false
 
   constructor(layerId: string, renderer: THREE.WebGPURenderer) {
     super(layerId)
@@ -467,6 +468,7 @@ export class ModelPass extends PassNode {
     this.sceneDepthTarget.setSize(nextWidth, nextHeight)
     this.sceneDirty = true
     this.targetsCleared = false
+    this.sceneDepthComposed = false
   }
 
   override needsContinuousRender(): boolean {
@@ -501,6 +503,7 @@ export class ModelPass extends PassNode {
         this.drawModel(renderer)
         this.sceneDirty = false
         this.targetsCleared = false
+        this.sceneDepthComposed = false
       }
     } else if (!(this.model || this.targetsCleared)) {
       this.clearTargets(renderer)
@@ -1121,10 +1124,14 @@ export class ModelPass extends PassNode {
 
   private composeSceneDepth(renderer: THREE.WebGPURenderer): void {
     const incoming = this.sceneDepthTexture
+    if (!incoming && this.sceneDepthComposed) {
+      return
+    }
     this.incomingDepthNode.value = incoming ?? this.incomingDepthPlaceholder
     this.hasIncomingDepth.value = incoming ? 1 : 0
     renderer.setRenderTarget(this.sceneDepthTarget)
     renderer.render(this.composeScene, this.camera)
+    this.sceneDepthComposed = !incoming
   }
 
   private clearTargets(renderer: THREE.WebGPURenderer): void {
@@ -1140,5 +1147,6 @@ export class ModelPass extends PassNode {
       renderer.setClearColor(this.clearColor, alpha)
     }
     this.targetsCleared = true
+    this.sceneDepthComposed = false
   }
 }

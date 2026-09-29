@@ -4,6 +4,8 @@ import {
   dot,
   float,
   floor,
+  Fn,
+  If,
   length,
   max,
   mix,
@@ -202,25 +204,32 @@ export class DotGridPass extends PassNode {
     )
     const visible = coverage.mul(smoothstep(0.05, 0.35, radius))
 
-    let underlay: Node = vec3(0)
     const blurReach = texel.mul(this.underlayBlurUniform)
-    for (const [x, y] of UNDERLAY_OFFSETS) {
-      const tap = this.sample(targetUv.add(vec2(x, y).mul(blurReach)))
-      underlay = underlay.add(vec3(tap.r, tap.g, tap.b))
-    }
-    underlay = underlay.div(UNDERLAY_TAPS)
-    const background = mix(
-      this.backgroundColorUniform,
-      underlay,
-      this.underlayUniform
+    const underlayTaps = UNDERLAY_OFFSETS.map(([x, y]) =>
+      this.sample(targetUv.add(vec2(x, y).mul(blurReach)))
     )
 
-    const ink = select(
-      this.sourceInkUniform.greaterThan(float(0.5)),
-      vec3(cellSource.r, cellSource.g, cellSource.b),
-      this.inkColorUniform
-    )
-    return vec4(mix(background, ink, visible), float(1))
+    return Fn(() => {
+      const cellInk = vec3(cellSource.r, cellSource.g, cellSource.b).toVar()
+      const coverage = visible.toVar()
+      const background = vec3(this.backgroundColorUniform).toVar()
+      If(this.underlayUniform.greaterThan(0), () => {
+        let underlay: Node = vec3(0)
+        for (const tap of underlayTaps) {
+          underlay = underlay.add(vec3(tap.r, tap.g, tap.b))
+        }
+        underlay = underlay.div(UNDERLAY_TAPS)
+        background.assign(
+          mix(this.backgroundColorUniform, underlay, this.underlayUniform)
+        )
+      })
+      const ink = select(
+        this.sourceInkUniform.greaterThan(float(0.5)),
+        cellInk,
+        this.inkColorUniform
+      )
+      return vec4(mix(background, ink, coverage), float(1))
+    })()
   }
 
   override dispose(): void {

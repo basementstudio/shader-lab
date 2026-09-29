@@ -44,6 +44,16 @@ const MODES: Record<string, number> = { blobs: 1, graph: 0, mesh: 3, plexus: 2 }
 const SHAPES: Record<string, number> = { circle: 0, plus: 2, ring: 3, square: 1 }
 const COLOR_MODES: Record<string, number> = { ink: 2, palette: 0, source: 1 }
 const BACKGROUNDS: Record<string, number> = { color: 0, image: 1, transparent: 2 }
+const LINK_DIRECTIONS = [
+  [1, 0],
+  [1, 1],
+  [0, 1],
+  [-1, 1],
+  [-1, 0],
+  [-1, -1],
+  [0, -1],
+  [1, -1],
+] as const
 
 function renderTargetUv(): Node {
   return vec2(uv().x, float(1).sub(uv().y))
@@ -82,7 +92,6 @@ function srgbToLinear(value: number): number {
   return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
 }
 
-/** Flat bands: every tone takes the color of its nearest stop. */
 function buildBandedColorMap(stops: GradientMapStop[]): Float32Array {
   const sorted = [...stops].sort((a, b) => a.position - b.position)
   const data = new Float32Array(COLOR_MAP_LUT_SIZE * 4)
@@ -97,7 +106,10 @@ function buildBandedColorMap(stops: GradientMapStop[]): Float32Array {
   return data
 }
 
-type Point = { position: Node; tone: Node; color: Node; present: Node; radius: Node }
+type Site = { uv: Node; tone: Node; present: Node }
+type Point = Site & { position: Node; color: Node }
+
+const SITE_MARGIN = 2
 
 export class ConnectedDotsPass extends PassNode {
   private readonly modeUniform: Node
@@ -126,8 +138,14 @@ export class ConnectedDotsPass extends PassNode {
   private readonly seedUniform: Node
   private readonly timeUniform: Node
   private readonly documentSizeUniform: Node
+  private readonly siteGridUniform: Node
   private readonly lut: THREE.DataTexture
   private readonly placeholder = new THREE.Texture()
+  private readonly siteTarget: THREE.WebGLRenderTarget
+  private readonly siteMaterial: THREE.MeshBasicNodeMaterial
+  private readonly siteScene: THREE.Scene
+  private readonly siteGeometry: THREE.PlaneGeometry
+  private readonly siteInputNode: Node
   private colorNode: Node | null = null
   private stopsKey = ""
   private speed = 0
@@ -160,6 +178,7 @@ export class ConnectedDotsPass extends PassNode {
     this.seedUniform = uniform(0)
     this.timeUniform = uniform(0)
     this.documentSizeUniform = uniform(new THREE.Vector2(1, 1))
+    this.siteGridUniform = uniform(new THREE.Vector2(1, 1))
     this.lut = new THREE.DataTexture(
       new Float32Array(COLOR_MAP_LUT_SIZE * 4),
       COLOR_MAP_LUT_SIZE,
@@ -170,6 +189,26 @@ export class ConnectedDotsPass extends PassNode {
     this.lut.magFilter = THREE.NearestFilter
     this.lut.minFilter = THREE.NearestFilter
     this.lut.generateMipmaps = false
+    this.siteTarget = new THREE.WebGLRenderTarget(1, 1, {
+      depthBuffer: false,
+      format: THREE.RGBAFormat,
+      generateMipmaps: false,
+      magFilter: THREE.NearestFilter,
+      minFilter: THREE.NearestFilter,
+      stencilBuffer: false,
+      type: THREE.FloatType,
+      wrapS: THREE.ClampToEdgeWrapping,
+      wrapT: THREE.ClampToEdgeWrapping,
+    })
+    this.siteInputNode = tslTexture(this.placeholder, renderTargetUv())
+    this.siteMaterial = new THREE.MeshBasicNodeMaterial()
+    this.siteMaterial.blending = THREE.NoBlending
+    ;(this.siteMaterial as unknown as { fragmentNode: Node }).fragmentNode = this.buildSiteNode()
+    this.siteGeometry = new THREE.PlaneGeometry(2, 2)
+    const siteMesh = new THREE.Mesh(this.siteGeometry, this.siteMaterial)
+    siteMesh.frustumCulled = false
+    this.siteScene = new THREE.Scene()
+    this.siteScene.add(siteMesh)
     this.updateParams({})
     this.rebuildEffectNode()
   }
@@ -179,6 +218,19 @@ export class ConnectedDotsPass extends PassNode {
       Math.max(1, width),
       Math.max(1, height)
     )
+    this.syncSiteGrid()
+  }
+
+  private syncSiteGrid(): void {
+    if (!this.siteTarget) return
+    const size = this.documentSizeUniform.value as THREE.Vector2
+    const spacing = this.spacingUniform.value as number
+    const columns = Math.ceil((Math.floor(size.x / spacing) + SITE_MARGIN * 2 + 2) / 8) * 8
+    const rows = Math.ceil((Math.floor(size.y / spacing) + SITE_MARGIN * 2 + 2) / 8) * 8
+    if (this.siteTarget.width !== columns || this.siteTarget.height !== rows) {
+      this.siteTarget.setSize(columns, rows)
+      ;(this.siteGridUniform.value as THREE.Vector2).set(columns, rows)
+    }
   }
 
   override updateParams(params: LayerParameterValues): void {
@@ -223,6 +275,7 @@ export class ConnectedDotsPass extends PassNode {
       ;(this.lut.image.data as Float32Array).set(buildBandedColorMap(stops))
       this.lut.needsUpdate = true
     }
+    this.syncSiteGrid()
   }
 
   override needsContinuousRender(): boolean {
@@ -240,30 +293,40 @@ export class ConnectedDotsPass extends PassNode {
     time: number,
     delta: number
   ): void {
+    this.timeUniform.value = time * this.speed
+    if ((this.modeUniform.value as number) < 2.5) {
+      this.siteInputNode.value = inputTexture
+      renderer.setRenderTarget(this.siteTarget)
+      renderer.render(this.siteScene, this.camera)
+    }
     if (this.colorNode) this.colorNode.value = inputTexture
     super.render(renderer, inputTexture, outputTarget, time, delta)
   }
 
   private point(cell: Node, colorNode: Node): Point {
     const spacing = this.spacingUniform
-    const random = hash2(cell.add(this.seedUniform.mul(13.1)))
-    const phase = random.mul(6.2831853)
-    const wobble = vec2(
-      sin(this.timeUniform.add(phase.x)),
-      cos(this.timeUniform.mul(0.8).add(phase.y))
-    )
+    const random = hash2(cell.add(this.seedUniform.mul(13.1))).toVar()
     const scatter = random.sub(0.5).mul(this.jitterUniform)
     const meshMode = this.modeUniform.greaterThan(2.5)
-    const drift = select(
-      meshMode,
-      wobble.mul(vec2(0.5).sub(abs(scatter))).mul(this.driftUniform),
-      wobble.mul(this.driftUniform.mul(0.35))
-    )
+    const drift = vec2(0).toVar()
+    If(this.driftUniform.greaterThan(0), () => {
+      const phase = random.mul(6.2831853)
+      const wobble = vec2(
+        sin(this.timeUniform.add(phase.x)),
+        cos(this.timeUniform.mul(0.8).add(phase.y))
+      )
+      drift.assign(
+        select(
+          meshMode,
+          wobble.mul(vec2(0.5).sub(abs(scatter))).mul(this.driftUniform),
+          wobble.mul(this.driftUniform.mul(0.35))
+        )
+      )
+    })
     const local = scatter.add(0.5).add(drift)
     const position = cell.add(local).mul(spacing)
-    const sample = colorNode
-      .sample(position.div(this.documentSizeUniform))
-      .level(0)
+    const siteUv = position.div(this.documentSizeUniform)
+    const sample = colorNode.sample(siteUv).level(0)
     const tone = perceptualLuma(sample)
     const darkness = select(
       this.invertUniform.greaterThan(0.5),
@@ -275,33 +338,48 @@ export class ConnectedDotsPass extends PassNode {
       float(1),
       float(0)
     ).mul(select(float(sample.a).greaterThan(0.5), float(1), float(0)))
-    const radius = mix(this.minSizeUniform, this.maxSizeUniform, darkness)
-      .mul(spacing)
-      .mul(0.5)
     return {
       position,
+      uv: siteUv,
       tone: darkness,
       color: vec3(sample.r, sample.g, sample.b),
       present,
-      radius,
     }
   }
 
-  private dotDistance(offset: Node, radius: Node): Node {
-    const circle = length(offset).sub(radius)
-    const square = max(abs(offset.x), abs(offset.y)).sub(radius)
-    const arm = radius.mul(0.32)
-    const plus = min(
-      max(abs(offset.x).sub(radius), abs(offset.y).sub(arm)),
-      max(abs(offset.y).sub(radius), abs(offset.x).sub(arm))
-    )
-    const ring = abs(length(offset).sub(radius.mul(0.72))).sub(radius.mul(0.28))
+  private buildSiteNode(): Node {
+    return Fn(() => {
+      const cell = floor(renderTargetUv().mul(this.siteGridUniform)).sub(SITE_MARGIN)
+      const site = this.point(cell, this.siteInputNode)
+      return vec4(site.uv, site.tone, site.present)
+    })()
+  }
+
+  private dotDistance(offsetValue: Node, radiusValue: Node): Node {
+    const offset = offsetValue.toVar()
+    const radius = radiusValue.toVar()
     const shape = this.shapeUniform
-    return select(
-      shape.lessThan(0.5),
-      circle,
-      select(shape.lessThan(1.5), square, select(shape.lessThan(2.5), plus, ring))
-    )
+    const result = float(0).toVar()
+    If(shape.lessThan(0.5), () => {
+      result.assign(length(offset).sub(radius))
+    }).Else(() => {
+      If(shape.lessThan(1.5), () => {
+        result.assign(max(abs(offset.x), abs(offset.y)).sub(radius))
+      }).Else(() => {
+        If(shape.lessThan(2.5), () => {
+          const arm = radius.mul(0.32)
+          result.assign(
+            min(
+              max(abs(offset.x).sub(radius), abs(offset.y).sub(arm)),
+              max(abs(offset.y).sub(radius), abs(offset.x).sub(arm))
+            )
+          )
+        }).Else(() => {
+          result.assign(abs(length(offset).sub(radius.mul(0.72))).sub(radius.mul(0.28)))
+        })
+      })
+    })
+    return result
   }
 
   protected override buildEffectNode(): Node {
@@ -311,17 +389,31 @@ export class ConnectedDotsPass extends PassNode {
     const colorNode = tslTexture(this.placeholder, renderTargetUv())
     this.colorNode = colorNode
     const lutNode = tslTexture(this.lut, vec2(0.5, 0.5))
+    const sitesNode = tslTexture(this.siteTarget.texture)
+    const site = (cell: Node): Site => {
+      const packed = sitesNode.load(cell.add(SITE_MARGIN)).toVar()
+      return { uv: packed.xy, tone: packed.z, present: packed.w }
+    }
 
     return Fn(() => {
       const targetUv = renderTargetUv()
-      const pixel = targetUv.mul(this.documentSizeUniform)
-      const base = floor(pixel.div(this.spacingUniform))
+      const pixel = targetUv.mul(this.documentSizeUniform).toVar()
+      const base = floor(pixel.div(this.spacingUniform)).toVar()
       const mode = this.modeUniform
-      const blobs = mode.greaterThan(0.5).and(mode.lessThan(1.5))
-      const plexus = mode.greaterThan(1.5)
+      const blobs = mode.greaterThan(0.5).and(mode.lessThan(1.5)).toVar()
+      const plexus = mode.greaterThan(1.5).toVar()
+      const mesh = mode.greaterThan(2.5).toVar()
+      const source = this.colorModeUniform
+        .greaterThanEqual(0.5)
+        .and(this.colorModeUniform.lessThan(1.5))
+        .toVar()
       const spacing = this.spacingUniform
-      const smooth = select(blobs, this.blobinessUniform.mul(spacing).mul(0.6).add(0.001), float(0.001))
-      const sharpness = select(blobs, smooth, float(0.6))
+      const smooth = select(blobs, this.blobinessUniform.mul(spacing).mul(0.6).add(0.001), float(0.001)).toVar()
+      const sharpness = select(blobs, smooth, float(0.6)).toVar()
+      const siteColor = (siteUv: Node): Node => {
+        const sample = colorNode.sample(siteUv).level(0)
+        return vec3(sample.r, sample.g, sample.b)
+      }
 
       const field = float(1e5).toVar()
       const weightSum = float(0).toVar()
@@ -331,25 +423,38 @@ export class ConnectedDotsPass extends PassNode {
       const lineTone = float(0).toVar()
       const lineColor = vec3(0).toVar()
 
-      const addShape = (distance: Node, tone: Node, color: Node, present: Node) => {
-        const d = select(present.greaterThan(0.5), distance, float(1e5))
-        const h = clamp(float(0.5).add(float(0.5).mul(d.sub(field)).div(smooth)), 0, 1)
-        const merged = mix(d, field, h).sub(smooth.mul(h).mul(float(1).sub(h)))
-        field.assign(select(blobs, merged, min(field, d)))
-        const weight = exp(max(d, float(0)).negate().div(sharpness)).mul(present)
-        weightSum.addAssign(weight)
-        toneSum.addAssign(tone.mul(weight))
-        colorSum.addAssign(color.mul(weight))
+      const mergeField = (d: Node) => {
+        If(blobs, () => {
+          const h = clamp(float(0.5).add(float(0.5).mul(d.sub(field)).div(smooth)), 0, 1)
+          field.assign(mix(d, field, h).sub(smooth.mul(h).mul(float(1).sub(h))))
+        }).Else(() => {
+          field.assign(min(field, d))
+        })
+      }
+      const addShape = (distance: () => Node, tone: () => Node, color: () => Node, present: Node) => {
+        If(present.greaterThan(0.5), () => {
+          const d = distance().toVar()
+          mergeField(d)
+          const weight = exp(max(d, float(0)).negate().div(sharpness)).toVar()
+          weightSum.addAssign(weight)
+          toneSum.addAssign(tone().mul(weight))
+          If(source, () => {
+            colorSum.addAssign(color().mul(weight))
+          })
+        }).Else(() => {
+          If(blobs, () => {
+            mergeField(float(1e5))
+          })
+        })
       }
 
-      const mesh = mode.greaterThan(2.5)
       const meshCoverage = float(0).toVar()
       const meshColor = vec3(0).toVar()
       const meshEdge = float(1e5).toVar()
       const meshTone = float(0).toVar()
       If(mesh, () => {
         Loop({ start: 0, end: 9, type: "int", name: "quadIndex" }, (quadInputs) => {
-          const index = float((quadInputs as unknown as Record<string, Node>).quadIndex)
+          const index = float((quadInputs as unknown as { quadIndex: Node }).quadIndex)
           const cell = base.add(vec2(index.mod(3).sub(1), floor(index.div(3)).sub(1)))
           const p00 = this.point(cell, colorNode)
           const p10 = this.point(cell.add(vec2(1, 0)), colorNode)
@@ -366,7 +471,7 @@ export class ConnectedDotsPass extends PassNode {
             tone: select(when, yes.tone, no.tone),
             color: select(when, yes.color, no.color),
             present: select(when, yes.present, no.present),
-            radius: select(when, yes.radius, no.radius),
+            uv: select(when, yes.uv, no.uv),
           })
           for (const [a, b, c] of [
             [p00, p10, pickPoint(splitMain, p11, p01)],
@@ -402,109 +507,134 @@ export class ConnectedDotsPass extends PassNode {
             })
           }
         })
-      })
-
-      If(mode.lessThan(2.5), () => {
-      Loop({ start: 0, end: 9, type: "int", name: "centerIndex" }, (centerInputs) => {
-        const index = float((centerInputs as unknown as Record<string, Node>).centerIndex)
-        const offset = vec2(index.mod(3).sub(1), floor(index.div(3)).sub(1))
-        const cellA = base.add(offset)
-        const a = this.point(cellA, colorNode)
-        const size = select(plexus, a.radius.mul(0.5), a.radius)
-        addShape(this.dotDistance(pixel.sub(a.position), size), a.tone, a.color, a.present)
-        Loop({ start: 0, end: 8, type: "int", name: "linkIndex" }, (linkInputs) => {
-          const k = float((linkInputs as unknown as Record<string, Node>).linkIndex)
-          const angle = k.mul(Math.PI / 4)
-          const direction = vec2(floor(cos(angle).add(0.5)), floor(sin(angle).add(0.5)))
-          const cellB = cellA.add(direction)
-          const b = this.point(cellB, colorNode)
-          const pairCell = min(cellA, cellB)
-          const diagonalKind = select(direction.x.mul(direction.y).lessThan(-0.5), float(5), float(0))
-          const pairKey = pairCell.mul(2).add(vec2(abs(direction.x).add(diagonalKind), abs(direction.y)))
-          const roll = hash2(pairKey.add(this.seedUniform.mul(7.7))).x
-          const darkness = a.tone.add(b.tone).mul(0.5)
-          const both = a.present.mul(b.present)
-          const chance = smoothstep(
-            this.linkThresholdUniform.sub(0.15),
-            this.linkThresholdUniform.add(0.15),
-            darkness
-          ).mul(this.linksUniform)
-          const linked = select(roll.lessThan(chance), float(1), float(0)).mul(both)
-          const segment = b.position.sub(a.position)
-          const span = length(segment)
-          const along = clamp(
-            dot(pixel.sub(a.position), segment).div(max(dot(segment, segment), float(0.0001))),
-            0,
-            1
-          )
-          const distance = length(pixel.sub(a.position).sub(segment.mul(along)))
-          const width = mix(this.linkMinUniform, this.linkMaxUniform, pow(darkness, float(1.5)))
-            .mul(spacing)
-            .mul(0.5)
-          const tone = mix(a.tone, b.tone, along)
-          const color = mix(a.color, b.color, along)
-          addShape(distance.sub(width), tone, color, select(plexus, float(0), linked))
-          const reach = this.rangeUniform.mul(spacing)
-          const fade = clamp(float(1).sub(span.div(reach)), 0, 1).mul(both)
-          const line = float(1)
-            .sub(smoothstep(this.lineWidthUniform.mul(0.5).sub(0.6), this.lineWidthUniform.mul(0.5).add(0.6), distance))
-            .mul(fade)
-            .mul(select(plexus, float(1), float(0)))
-          const stronger = line.greaterThan(lineCoverage)
-          lineTone.assign(select(stronger, tone, lineTone))
-          lineColor.assign(select(stronger, color, lineColor))
-          lineCoverage.assign(max(lineCoverage, line))
+      }).Else(() => {
+        Loop({ start: 0, end: 9, type: "int", name: "centerIndex" }, (centerInputs) => {
+          const centerIndex = (centerInputs as unknown as { centerIndex: Node }).centerIndex
+          const offset = vec2(float(centerIndex.mod(3)).sub(1), float(centerIndex.div(3)).sub(1))
+          const cellA = base.add(offset).toVar()
+          const a = site(cellA)
+          const aPosition = a.uv.mul(this.documentSizeUniform).toVar()
+          const aTone = a.tone
+          const aPresent = a.present
+          const aColor = vec3(0).toVar()
+          If(source, () => {
+            aColor.assign(siteColor(a.uv))
+          })
+          const radius = mix(this.minSizeUniform, this.maxSizeUniform, aTone).mul(spacing).mul(0.5)
+          const size = select(plexus, radius.mul(0.5), radius)
+          addShape(() => this.dotDistance(pixel.sub(aPosition), size), () => aTone, () => aColor, aPresent)
+          for (const [dx, dy] of LINK_DIRECTIONS) {
+            const direction = vec2(dx, dy)
+            const b = site(cellA.add(direction))
+            const bPosition = b.uv.mul(this.documentSizeUniform)
+            const bTone = b.tone
+            const both = aPresent.mul(b.present).toVar()
+            const segment = bPosition.sub(aPosition).toVar()
+            const along = () =>
+              clamp(
+                dot(pixel.sub(aPosition), segment).div(max(dot(segment, segment), float(0.0001))),
+                0,
+                1
+              ).toVar()
+            const distanceAlong = (t: Node) => length(pixel.sub(aPosition).sub(segment.mul(t)))
+            const color = (t: Node) => mix(aColor, siteColor(b.uv), t)
+            If(plexus, () => {
+              const span = length(segment)
+              const reach = this.rangeUniform.mul(spacing)
+              const fade = clamp(float(1).sub(span.div(reach)), 0, 1).mul(both).toVar()
+              If(fade.greaterThan(0), () => {
+                const t = along()
+                const distance = distanceAlong(t)
+                const line = float(1)
+                  .sub(smoothstep(this.lineWidthUniform.mul(0.5).sub(0.6), this.lineWidthUniform.mul(0.5).add(0.6), distance))
+                  .mul(fade)
+                  .toVar()
+                const stronger = line.greaterThan(lineCoverage).toVar()
+                lineTone.assign(select(stronger, mix(aTone, bTone, t), lineTone))
+                If(source, () => {
+                  lineColor.assign(select(stronger, color(t), lineColor))
+                })
+                lineCoverage.assign(max(lineCoverage, line))
+              })
+            }).Else(() => {
+              const pairCell = cellA.add(vec2(Math.min(0, dx), Math.min(0, dy)))
+              const pairKey = pairCell.mul(2).add(vec2(Math.abs(dx) + (dx * dy < 0 ? 5 : 0), Math.abs(dy)))
+              const roll = hash2(pairKey.add(this.seedUniform.mul(7.7))).x
+              const darkness = aTone.add(bTone).mul(0.5).toVar()
+              const chance = smoothstep(
+                this.linkThresholdUniform.sub(0.15),
+                this.linkThresholdUniform.add(0.15),
+                darkness
+              ).mul(this.linksUniform)
+              const linked = select(roll.lessThan(chance), float(1), float(0)).mul(both).toVar()
+              const t = float(0).toVar()
+              addShape(
+                () => {
+                  t.assign(along())
+                  const width = mix(this.linkMinUniform, this.linkMaxUniform, pow(darkness, float(1.5)))
+                    .mul(spacing)
+                    .mul(0.5)
+                  return distanceAlong(t).sub(width)
+                },
+                () => mix(aTone, bTone, t),
+                () => color(t),
+                linked
+              )
+            })
+          }
         })
       })
-      })
 
-      const coverage = float(1).sub(smoothstep(-0.7, 0.7, field))
-      const tone = toneSum.div(max(weightSum, float(0.0001)))
-      const sourceColor = colorSum.div(max(weightSum, float(0.0001)))
-      const pick = (toneValue: Node, source: Node): Node => {
+      const backgroundMode = this.backgroundModeUniform
+      const backgroundRgb = vec3(this.backgroundUniform).toVar()
+      const backgroundAlpha = float(1).toVar()
+      If(backgroundMode.greaterThanEqual(0.5), () => {
+        const input = colorNode.sample(targetUv).level(0)
+        backgroundRgb.assign(vec3(input.r, input.g, input.b))
+        backgroundAlpha.assign(select(backgroundMode.lessThan(1.5), float(input.a), float(0)))
+      })
+      const pick = (toneValue: Node, sourceValue: Node): Node => {
         const palette = lutNode.sample(vec2(float(1).sub(toneValue), float(0.5))).level(0)
         const colorMode = this.colorModeUniform
         return select(
           colorMode.lessThan(0.5),
           vec3(palette.r, palette.g, palette.b),
-          select(colorMode.lessThan(1.5), source, vec3(this.inkUniform))
+          select(colorMode.lessThan(1.5), sourceValue, vec3(this.inkUniform))
         )
       }
-      const dotColor = pick(tone, sourceColor)
-      const plexusColor = pick(lineTone, lineColor)
-
-      const input = colorNode.sample(targetUv).level(0)
-      const backgroundMode = this.backgroundModeUniform
-      const backgroundRgb = select(
-        backgroundMode.lessThan(0.5),
-        vec3(this.backgroundUniform),
-        vec3(input.r, input.g, input.b)
-      )
-      const backgroundAlpha = select(
-        backgroundMode.lessThan(0.5),
-        float(1),
-        select(backgroundMode.lessThan(1.5), float(input.a), float(0))
-      )
-      const withLines = mix(backgroundRgb.mul(backgroundAlpha), plexusColor, lineCoverage)
-      const linesAlpha = mix(backgroundAlpha, float(1), lineCoverage)
-      const premultiplied = mix(withLines, dotColor, coverage)
-      const alpha = mix(linesAlpha, float(1), coverage)
-      const facet = pick(meshTone, meshColor)
-      const wire = float(1)
-        .sub(smoothstep(this.lineWidthUniform.mul(0.5).sub(0.6), this.lineWidthUniform.mul(0.5).add(0.6), meshEdge))
-        .mul(this.wireUniform)
-      const fillAmount = meshCoverage.mul(this.fillUniform)
-      const meshFilled = mix(backgroundRgb.mul(backgroundAlpha), facet, fillAmount)
-      const meshFillAlpha = mix(backgroundAlpha, float(1), fillAmount)
-      const meshRgb = mix(meshFilled, vec3(this.wireColorUniform), wire)
-      const meshAlpha = mix(meshFillAlpha, float(1), wire)
-      const finalRgb = select(mesh, meshRgb, premultiplied)
-      const finalAlpha = select(mesh, meshAlpha, alpha)
+      const finalRgb = vec3(0).toVar()
+      const finalAlpha = float(0).toVar()
+      If(mesh, () => {
+        const facet = pick(meshTone, meshColor)
+        const wire = float(1)
+          .sub(smoothstep(this.lineWidthUniform.mul(0.5).sub(0.6), this.lineWidthUniform.mul(0.5).add(0.6), meshEdge))
+          .mul(this.wireUniform)
+        const fillAmount = meshCoverage.mul(this.fillUniform)
+        const meshFilled = mix(backgroundRgb.mul(backgroundAlpha), facet, fillAmount)
+        const meshFillAlpha = mix(backgroundAlpha, float(1), fillAmount)
+        finalRgb.assign(mix(meshFilled, vec3(this.wireColorUniform), wire))
+        finalAlpha.assign(mix(meshFillAlpha, float(1), wire))
+      }).Else(() => {
+        const coverage = float(1).sub(smoothstep(-0.7, 0.7, field))
+        const tone = toneSum.div(max(weightSum, float(0.0001)))
+        const sourceColor = colorSum.div(max(weightSum, float(0.0001)))
+        const dotColor = pick(tone, sourceColor)
+        const withLines = backgroundRgb.mul(backgroundAlpha).toVar()
+        If(plexus, () => {
+          withLines.assign(mix(withLines, pick(lineTone, lineColor), lineCoverage))
+        })
+        const linesAlpha = mix(backgroundAlpha, float(1), lineCoverage)
+        finalRgb.assign(mix(withLines, dotColor, coverage))
+        finalAlpha.assign(mix(linesAlpha, float(1), coverage))
+      })
       return vec4(finalRgb.div(max(finalAlpha, float(0.0001))), finalAlpha)
     })()
   }
 
   override dispose(): void {
+    this.siteTarget.dispose()
+    this.siteMaterial.dispose()
+    this.siteGeometry.dispose()
     this.lut.dispose()
     this.placeholder.dispose()
     super.dispose()

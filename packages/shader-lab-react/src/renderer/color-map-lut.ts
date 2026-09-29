@@ -156,10 +156,42 @@ export function evaluateGradientMapStops(
   return hexToRgb(last.color)
 }
 
+type ResolvedStop = { position: number; rgb: [number, number, number] }
+
+function resolveGradientMapStops(stops: GradientMapStop[]): ResolvedStop[] {
+  return [...stops]
+    .sort((a, b) => a.position - b.position)
+    .map((stop) => ({ position: stop.position, rgb: hexToRgb(stop.color) }))
+}
+
+function evaluateResolvedStops(
+  sorted: ResolvedStop[],
+  t: number
+): [number, number, number] {
+  const first = sorted[0]
+  const last = sorted[sorted.length - 1]
+  if (!(first && last)) return [t, t, t]
+  if (t <= first.position) return first.rgb
+  if (t >= last.position) return last.rgb
+  for (let s = 0; s < sorted.length - 1; s++) {
+    const a = sorted[s]!
+    const b = sorted[s + 1]!
+    if (t >= a.position && t <= b.position) {
+      const range = b.position - a.position
+      const local = range > 0 ? (t - a.position) / range : 0
+      const [r0, g0, b0] = a.rgb
+      const [r1, g1, b1] = b.rgb
+      return [r0 + (r1 - r0) * local, g0 + (g1 - g0) * local, b0 + (b1 - b0) * local]
+    }
+  }
+  return last.rgb
+}
+
 export function buildColorMapBytes(stops: GradientMapStop[]): Uint8Array {
   const data = new Uint8Array(COLOR_MAP_LUT_SIZE * 4)
+  const sorted = resolveGradientMapStops(stops)
   for (let i = 0; i < COLOR_MAP_LUT_SIZE; i++) {
-    const [r, g, b] = evaluateGradientMapStops(stops, i / (COLOR_MAP_LUT_SIZE - 1))
+    const [r, g, b] = evaluateResolvedStops(sorted, i / (COLOR_MAP_LUT_SIZE - 1))
     data[i * 4] = Math.round(r * 255)
     data[i * 4 + 1] = Math.round(g * 255)
     data[i * 4 + 2] = Math.round(b * 255)
@@ -170,8 +202,9 @@ export function buildColorMapBytes(stops: GradientMapStop[]): Uint8Array {
 
 export function buildLinearColorMap(stops: GradientMapStop[]): Float32Array {
   const data = new Float32Array(COLOR_MAP_LUT_SIZE * 4)
+  const sorted = resolveGradientMapStops(stops)
   for (let i = 0; i < COLOR_MAP_LUT_SIZE; i++) {
-    const [r, g, b] = evaluateGradientMapStops(stops, i / (COLOR_MAP_LUT_SIZE - 1))
+    const [r, g, b] = evaluateResolvedStops(sorted, i / (COLOR_MAP_LUT_SIZE - 1))
     data[i * 4] = srgbToLinear(r)
     data[i * 4 + 1] = srgbToLinear(g)
     data[i * 4 + 2] = srgbToLinear(b)

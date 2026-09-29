@@ -3,7 +3,9 @@ import {
   dot,
   float,
   floor,
+  Fn,
   fract,
+  If,
   max,
   min,
   mix,
@@ -74,7 +76,7 @@ export class SignalRotPass extends PassNode {
   private readonly logicalWidthUniform: Node
   private readonly logicalHeightUniform: Node
   private readonly placeholder = new THREE.Texture()
-  private sourceTextureNodes: Node[] = []
+  private readonly source: Node
   private speed = 0
 
   constructor(layerId: string) {
@@ -96,6 +98,7 @@ export class SignalRotPass extends PassNode {
     this.timeUniform = uniform(0)
     this.logicalWidthUniform = uniform(1)
     this.logicalHeightUniform = uniform(1)
+    this.source = tslTexture(this.placeholder)
     this.rebuildEffectNode()
   }
 
@@ -106,9 +109,7 @@ export class SignalRotPass extends PassNode {
     time: number,
     delta: number
   ): void {
-    for (const node of this.sourceTextureNodes) {
-      node.value = inputTexture
-    }
+    this.source.value = inputTexture
     super.render(renderer, inputTexture, outputTarget, time, delta)
   }
 
@@ -145,127 +146,179 @@ export class SignalRotPass extends PassNode {
     this.timeUniform.value = this.speed > 0 ? time * this.speed : 0
   }
 
-  private sample(uvNode: Node): Node {
-    const node = tslTexture(this.placeholder, uvNode)
-    this.sourceTextureNodes.push(node)
-    return node
-  }
-
   protected override buildEffectNode(): Node {
     if (!this.logicalHeightUniform) {
       return this.inputNode
     }
 
-    this.sourceTextureNodes = []
+    return Fn(() => {
+      const targetUv = vec2(uv().x, float(1).sub(uv().y))
+      const size = vec2(this.logicalWidthUniform, this.logicalHeightUniform)
+      const pixel = targetUv.mul(size).toVar()
+      const vertical = this.verticalUniform.greaterThan(float(0.5))
+      const along = select(vertical, pixel.y, pixel.x).toVar()
+      const across = select(vertical, pixel.x, pixel.y).toVar()
+      const alongSize = select(vertical, size.y, size.x).toVar()
+      const acrossSize = select(vertical, size.x, size.y).toVar()
+      const shortSide = min(size.x, size.y).toVar()
+      const seed = this.seedUniform.mul(7.31).toVar()
+      const time = this.timeUniform
+      const step8 = floor(time.mul(8)).toVar()
 
-    const targetUv = vec2(uv().x, float(1).sub(uv().y))
-    const size = vec2(this.logicalWidthUniform, this.logicalHeightUniform)
-    const pixel = targetUv.mul(size)
-    const vertical = this.verticalUniform.greaterThan(float(0.5))
-    const along = select(vertical, pixel.y, pixel.x)
-    const across = select(vertical, pixel.x, pixel.y)
-    const alongSize = select(vertical, size.y, size.x)
-    const acrossSize = select(vertical, size.x, size.y)
-    const shortSide = min(size.x, size.y)
-    const seed = this.seedUniform.mul(7.31)
-    const time = this.timeUniform
-    const step8 = floor(time.mul(8))
+      const acrossSample = across.toVar()
+      const dropped = float(0).toVar()
+      If(
+        this.tearUniform
+          .greaterThan(0)
+          .or(this.dropoutUniform.greaterThanEqual(0.0001)),
+        () => {
+          const band = this.bandSizeUniform.mul(alongSize).toVar()
+          const raggedAlong = along.add(
+            fbm1(across.div(shortSide.mul(0.08)).add(seed), 11)
+              .sub(0.5)
+              .mul(band.mul(0.4))
+              .add(
+                noise1(across.div(3).add(seed), 14)
+                  .sub(0.5)
+                  .mul(band.mul(0.04))
+              )
+          )
+          const bandIndex = floor(raggedAlong.div(band))
+          const bandKey = vec2(bandIndex.add(seed), step8).toVar()
+          If(this.tearUniform.greaterThan(0), () => {
+            const tearShift = hash(bandKey)
+              .sub(0.5)
+              .mul(2)
+              .mul(this.tearUniform)
+              .mul(acrossSize)
+              .mul(0.3)
+              .mul(
+                step(hash(bandKey.add(4.1)), this.tearUniform.mul(0.6).add(0.4))
+              )
+            acrossSample.assign(across.add(tearShift))
+          })
+          If(this.dropoutUniform.greaterThanEqual(0.0001), () => {
+            const dropoutEdge = hash(bandKey.add(9.7))
+              .mul(0.7)
+              .add(fbm1(along.div(19).add(seed), 23).sub(0.5).mul(0.06))
+              .add(hash(vec2(floor(along.div(1.5)), seed.add(23))).mul(0.012))
+            dropped.assign(
+              step(hash(bandKey.add(2.3)), this.dropoutUniform)
+                .mul(step(across.div(acrossSize), dropoutEdge))
+                .mul(step(float(0.0001), this.dropoutUniform))
+            )
+          })
+        }
+      )
 
-    const band = this.bandSizeUniform.mul(alongSize)
-    const raggedAlong = along.add(
-      fbm1(across.div(shortSide.mul(0.08)).add(seed), 11)
-        .sub(0.5)
-        .mul(band.mul(0.4))
-        .add(noise1(across.div(3).add(seed), 14).sub(0.5).mul(band.mul(0.04)))
-    )
-    const bandIndex = floor(raggedAlong.div(band))
-    const bandKey = vec2(bandIndex.add(seed), step8)
-    const tearShift = hash(bandKey)
-      .sub(0.5)
-      .mul(2)
-      .mul(this.tearUniform)
-      .mul(acrossSize)
-      .mul(0.3)
-      .mul(step(hash(bandKey.add(4.1)), this.tearUniform.mul(0.6).add(0.4)))
-    let acrossSample: Node = across.add(tearShift)
+      If(this.wobbleUniform.greaterThan(0), () => {
+        const wobbleScale = this.wobbleScaleUniform.mul(shortSide)
+        acrossSample.assign(
+          acrossSample.add(
+            fbm1(along.div(wobbleScale).add(seed).add(time.mul(0.6)), 31)
+              .sub(0.5)
+              .mul(2)
+              .mul(this.wobbleUniform)
+              .mul(shortSide)
+              .mul(0.12)
+          )
+        )
+      })
 
-    const dropoutEdge = hash(bandKey.add(9.7))
-      .mul(0.7)
-      .add(fbm1(along.div(19).add(seed), 23).sub(0.5).mul(0.06))
-      .add(hash(vec2(floor(along.div(1.5)), seed.add(23))).mul(0.012))
-    const dropped = step(hash(bandKey.add(2.3)), this.dropoutUniform)
-      .mul(step(across.div(acrossSize), dropoutEdge))
-      .mul(step(float(0.0001), this.dropoutUniform))
+      const alongSample = along.toVar()
+      If(this.stretchUniform.greaterThan(0), () => {
+        alongSample.assign(
+          along.add(
+            fbm1(along.div(shortSide.mul(0.45)).add(seed.mul(1.3)), 41)
+              .sub(0.5)
+              .mul(this.stretchUniform)
+              .mul(shortSide)
+              .mul(0.35)
+          )
+        )
+      })
 
-    const wobbleScale = this.wobbleScaleUniform.mul(shortSide)
-    acrossSample = acrossSample.add(
-      fbm1(along.div(wobbleScale).add(seed).add(time.mul(0.6)), 31)
-        .sub(0.5)
-        .mul(2)
-        .mul(this.wobbleUniform)
-        .mul(shortSide)
-        .mul(0.12)
-    )
+      If(this.dragUniform.greaterThanEqual(0.0001), () => {
+        const dragLength = this.dragLengthUniform.mul(alongSize).toVar()
+        const front = fbm1(across.div(shortSide.mul(0.12)).add(seed), 51)
+          .mul(0.35)
+          .add(noise1(across.div(4).add(seed), 54).mul(0.03))
+          .mul(dragLength)
+          .toVar()
+        const segment = floor(alongSample.add(front).div(dragLength)).toVar()
+        const held = step(
+          hash(vec2(segment.add(seed), step8.mul(3))),
+          this.dragUniform
+        ).mul(step(float(0.0001), this.dragUniform))
+        const holdAt = segment.mul(dragLength).sub(front)
+        alongSample.assign(mix(alongSample, holdAt, held))
+      })
 
-    let alongSample: Node = along.add(
-      fbm1(along.div(shortSide.mul(0.45)).add(seed.mul(1.3)), 41)
-        .sub(0.5)
-        .mul(this.stretchUniform)
-        .mul(shortSide)
-        .mul(0.35)
-    )
+      const line = floor(across.div(2)).toVar()
+      If(this.lineNoiseUniform.greaterThan(0), () => {
+        const jitterKey = vec2(line.add(seed), step8.add(1)).toVar()
+        alongSample.assign(
+          alongSample.add(
+            hash(jitterKey)
+              .sub(0.5)
+              .mul(this.lineNoiseUniform)
+              .mul(shortSide)
+              .mul(0.06)
+              .mul(
+                step(hash(jitterKey.add(6.6)), this.lineNoiseUniform.mul(0.5))
+              )
+          )
+        )
+      })
 
-    const dragLength = this.dragLengthUniform.mul(alongSize)
-    const front = fbm1(across.div(shortSide.mul(0.12)).add(seed), 51)
-      .mul(0.35)
-      .add(noise1(across.div(4).add(seed), 54).mul(0.03))
-      .mul(dragLength)
-    const segment = floor(alongSample.add(front).div(dragLength))
-    const held = step(hash(vec2(segment.add(seed), step8.mul(3))), this.dragUniform)
-      .mul(step(float(0.0001), this.dragUniform))
-    const holdAt = segment.mul(dragLength).sub(front)
-    alongSample = mix(alongSample, holdAt, held)
+      const toUv = (a: Node, c: Node) =>
+        select(vertical, vec2(c, a), vec2(a, c)).div(size)
+      const centerSample = this.source
+        .sample(toUv(alongSample, acrossSample))
+        .level(0)
+        .toVar()
+      const color = vec3(centerSample.r, centerSample.g, centerSample.b).toVar()
+      If(this.chromaUniform.greaterThan(0), () => {
+        const chroma = this.chromaUniform.mul(shortSide).mul(0.02).toVar()
+        const redSample = this.source
+          .sample(toUv(alongSample.add(chroma), acrossSample))
+          .level(0)
+        const blueSample = this.source
+          .sample(toUv(alongSample.sub(chroma), acrossSample))
+          .level(0)
+        color.assign(
+          vec3(float(redSample.r), float(centerSample.g), float(blueSample.b))
+        )
+      })
 
-    const line = floor(across.div(2))
-    const jitterKey = vec2(line.add(seed), step8.add(1))
-    alongSample = alongSample.add(
-      hash(jitterKey)
-        .sub(0.5)
-        .mul(this.lineNoiseUniform)
-        .mul(shortSide)
-        .mul(0.06)
-        .mul(step(hash(jitterKey.add(6.6)), this.lineNoiseUniform.mul(0.5)))
-    )
+      If(this.crushUniform.greaterThanEqual(0.0001), () => {
+        const levels = mix(float(64), float(3), this.crushUniform)
+        const encoded = pow(max(color, vec3(0)), vec3(1 / 2.2))
+        const crushed = pow(
+          floor(encoded.mul(levels).add(0.5)).div(levels),
+          vec3(2.2)
+        )
+        color.assign(
+          mix(color, crushed, step(float(0.0001), this.crushUniform))
+        )
+      })
 
-    const toUv = (a: Node, c: Node) =>
-      select(vertical, vec2(c, a), vec2(a, c)).div(size)
-    const chroma = this.chromaUniform.mul(shortSide).mul(0.02)
-    const centerSample = this.sample(toUv(alongSample, acrossSample))
-    const redSample = this.sample(toUv(alongSample.add(chroma), acrossSample))
-    const blueSample = this.sample(toUv(alongSample.sub(chroma), acrossSample))
-    let color: Node = vec3(
-      float(redSample.r),
-      float(centerSample.g),
-      float(blueSample.b)
-    )
+      If(this.lineNoiseUniform.greaterThanEqual(0.0001), () => {
+        const lineGain = hash(vec2(line.add(seed.mul(2)), step8.add(2)))
+          .sub(0.5)
+          .mul(this.lineNoiseUniform)
+          .mul(0.35)
+        color.assign(
+          mix(
+            color,
+            clamp(color.add(lineGain), 0, 1),
+            step(float(0.0001), this.lineNoiseUniform)
+          )
+        )
+      })
 
-    const levels = mix(float(64), float(3), this.crushUniform)
-    const encoded = pow(max(color, vec3(0)), vec3(1 / 2.2))
-    const crushed = pow(floor(encoded.mul(levels).add(0.5)).div(levels), vec3(2.2))
-    color = mix(color, crushed, step(float(0.0001), this.crushUniform))
-
-    const lineGain = hash(vec2(line.add(seed.mul(2)), step8.add(2)))
-      .sub(0.5)
-      .mul(this.lineNoiseUniform)
-      .mul(0.35)
-    color = mix(
-      color,
-      clamp(color.add(lineGain), 0, 1),
-      step(float(0.0001), this.lineNoiseUniform)
-    )
-
-    color = mix(color, this.dropoutColorUniform, dropped)
-    return vec4(color, float(1))
+      return vec4(mix(color, this.dropoutColorUniform, dropped), float(1))
+    })()
   }
 
   override dispose(): void {

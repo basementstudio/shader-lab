@@ -45,8 +45,27 @@ import type { EditorLayer, SceneConfig, Size } from "@/types/editor"
 
 type LayerPassNode = FluidPass | LivePass | MediaPass | PassNode
 
-// Editing the layer re-enables a dropped pass. See pass-failure.ts.
 const MAX_PASS_FAILURES = 3
+
+const STATIC_OUTPUT_LAYER_TYPES: ReadonlySet<string> = new Set([
+  "image",
+  "shape",
+  "gradient-map",
+  "lumen-print",
+  "signal-rot",
+  "dot-grid",
+  "erosion",
+  "relief",
+  "flares",
+  "focus-blur",
+  "glass",
+  "connected-dots",
+  "photocopy",
+  "outline",
+  "plotter",
+  "photographic-cells",
+  "displaced-rings",
+])
 
 const RENDER_TARGET_OPTIONS = {
   depthBuffer: false,
@@ -155,7 +174,6 @@ export class PipelineManager {
   private layerSignatures = new Map<string, string>()
   private compilingPasses = new Set<string>()
   private compiledVersions = new Map<string, number>()
-  // Attributes compile and render failures to a layer type. See pass-failure.ts.
   private layerTypes = new Map<string, LayerType>()
   private passFailures = new Map<string, PassFailureState>()
   private readonly strictPassFailures: boolean
@@ -185,6 +203,9 @@ export class PipelineManager {
   private readonly postProcess: ScenePostProcess
   private rtA: THREE.WebGLRenderTarget
   private rtB: THREE.WebGLRenderTarget
+  private readonly staticPrefixTarget: THREE.WebGLRenderTarget
+  private staticPrefixLength = 0
+  private staticPrefixDepth: THREE.Texture | null = null
 
   constructor(
     renderer: THREE.WebGPURenderer,
@@ -214,6 +235,11 @@ export class PipelineManager {
       RENDER_TARGET_OPTIONS
     )
     this.rtB = new THREE.WebGLRenderTarget(
+      this.width,
+      this.height,
+      RENDER_TARGET_OPTIONS
+    )
+    this.staticPrefixTarget = new THREE.WebGLRenderTarget(
       this.width,
       this.height,
       RENDER_TARGET_OPTIONS
@@ -312,15 +338,12 @@ export class PipelineManager {
         this.markDirty()
 
         if ((created && group) || pass.getMaterialVersion() !== versionBefore) {
-          // Animated uniform changes must not reset repeated render failures.
-          // Only a new pass or rebuilt material re-enables a dropped pass.
           this.clearPassFailure(layerId)
           this.scheduleCompile(pass)
         }
       }
     }
 
-    // All passes exist before wiring children, so reparenting preserves media state.
     for (const node of flattened) {
       if (!isCompositionGroup(node)) continue
       const pass = this.passMap.get(node.id) as GroupPass
@@ -361,37 +384,66 @@ export class PipelineManager {
     }
 
     if (activePasses.length === 0) {
+      this.staticPrefixLength = 0
       this.renderer.setRenderTarget(null)
       this.renderer.render(this.baseScene, this.baseCamera)
       this.dirty = false
       return true
     }
 
-    this.renderer.setRenderTarget(this.rtA)
-    this.renderer.render(this.baseScene, this.baseCamera)
+    const prefixLength = needsContinuousRender
+      ? this.countStaticPrefix(activePasses)
+      : 0
+    const reusePrefix =
+      !this.dirty &&
+      prefixLength > 0 &&
+      prefixLength === this.staticPrefixLength
 
     let readTarget = this.rtA
     let writeTarget = this.rtB
     let sceneDepth: THREE.Texture | null = null
+    let startIndex = 0
+    let inputChanged = this.dirty
 
-    for (const pass of activePasses) {
+    if (reusePrefix) {
+      readTarget = this.staticPrefixTarget
+      writeTarget = this.rtA
+      sceneDepth = this.staticPrefixDepth
+      startIndex = prefixLength
+    } else {
+      this.staticPrefixLength = 0
+      this.renderer.setRenderTarget(this.rtA)
+      this.renderer.render(this.baseScene, this.baseCamera)
+    }
+
+    for (let index = startIndex; index < activePasses.length; index += 1) {
+      const pass = activePasses[index] as LayerPassNode
       pass.setSceneDepth(sceneDepth)
-      if (
-        !this.renderPass(
-          pass,
-          readTarget.texture,
-          writeTarget,
-          time,
-          delta,
-          timelineTime
-        )
+      pass.setInputChanged(inputChanged)
+      const rendered = this.renderPass(
+        pass,
+        readTarget.texture,
+        writeTarget,
+        time,
+        delta,
+        timelineTime
       )
-        continue
+      if (pass.needsContinuousRender()) inputChanged = true
+      if (rendered) {
+        sceneDepth = pass.getOutputSceneDepth()
+        const previousRead = readTarget
+        readTarget = writeTarget
+        writeTarget =
+          previousRead === this.staticPrefixTarget ? this.rtB : previousRead
+      }
 
-      sceneDepth = pass.getOutputSceneDepth()
-      const previousRead = readTarget
-      readTarget = writeTarget
-      writeTarget = previousRead
+      if (!reusePrefix && index === prefixLength - 1) {
+        this.blitInputNode.value = readTarget.texture
+        this.renderer.setRenderTarget(this.staticPrefixTarget)
+        this.renderer.render(this.blitScene, this.blitCamera)
+        this.staticPrefixLength = prefixLength
+        this.staticPrefixDepth = sceneDepth
+      }
     }
 
     if (this.postProcess.active) {
@@ -408,6 +460,24 @@ export class PipelineManager {
     return true
   }
 
+  private countStaticPrefix(activePasses: LayerPassNode[]): number {
+    let length = 0
+    for (const pass of activePasses) {
+      const type = this.layerTypes.get(pass.layerId)
+      if (
+        !(
+          (type && STATIC_OUTPUT_LAYER_TYPES.has(type)) ||
+          pass.hasStaticOutput()
+        ) ||
+        pass.needsContinuousRender()
+      ) {
+        break
+      }
+      length += 1
+    }
+    return length === activePasses.length ? 0 : length
+  }
+
   setPreviewFrozen(frozen: boolean): void {
     for (const pass of this.passMap.values()) {
       if (pass instanceof MediaPass) {
@@ -421,6 +491,7 @@ export class PipelineManager {
     this.height = Math.max(1, size.height)
     this.rtA.setSize(this.width, this.height)
     this.rtB.setSize(this.width, this.height)
+    this.staticPrefixTarget.setSize(this.width, this.height)
 
     for (const pass of this.passMap.values()) {
       pass.resize(this.width, this.height)
@@ -533,6 +604,7 @@ export class PipelineManager {
   dispose(): void {
     this.rtA.dispose()
     this.rtB.dispose()
+    this.staticPrefixTarget.dispose()
     this.blitMaterial.dispose()
     this.postProcess.dispose()
 
@@ -905,7 +977,6 @@ export class PipelineManager {
       })
       .catch((error: unknown) => {
         if (this.passMap.get(pass.layerId) !== pass) return
-        // Keep the delete: dropping it wedges hasPendingCompilations().
         this.compilingPasses.delete(pass.layerId)
         reportPassFailure(
           this.layerTypes.get(pass.layerId),

@@ -4,6 +4,8 @@ import {
   clamp,
   cos,
   float,
+  Fn,
+  If,
   length,
   max,
   min,
@@ -113,76 +115,83 @@ export class ShapePass extends PassNode {
     if (!this.aspect) {
       return this.inputNode
     }
-    const screen = vec2(uv().x, float(1).sub(uv().y))
-    const point = screen.sub(0.5).mul(this.aspect).sub(this.center)
-    const c = cos(this.rotation)
-    const s = sin(this.rotation)
-    const q = vec2(
-      point.x.mul(c).add(point.y.mul(s)),
-      point.y.mul(c).sub(point.x.mul(s))
-    )
-    const half = this.size.mul(0.5)
-    const unit = min(half.x, half.y)
-    const u = q.div(half)
-    const radius = length(u)
-    const atan2 = (y: Node, x: Node) => {
-      const base = atan(y.div(x))
-      const wrap = select(y.greaterThanEqual(0), PI, PI.negate())
-      return select(x.greaterThanEqual(0), base, base.add(wrap))
-    }
-    const theta = atan2(u.x, u.y.negate())
+    return Fn(() => {
+      const screen = vec2(uv().x, float(1).sub(uv().y))
+      const point = screen.sub(0.5).mul(this.aspect).sub(this.center)
+      const c = cos(this.rotation)
+      const s = sin(this.rotation)
+      const q = vec2(
+        point.x.mul(c).add(point.y.mul(s)),
+        point.y.mul(c).sub(point.x.mul(s))
+      )
+      const half = this.size.mul(0.5)
+      const unit = min(half.x, half.y)
+      const u = q.div(half)
+      const radius = length(u).toVar()
+      const atan2 = (y: Node, x: Node) => {
+        const base = atan(y.div(x))
+        const wrap = select(y.greaterThanEqual(0), PI, PI.negate())
+        return select(x.greaterThanEqual(0), base, base.add(wrap))
+      }
+      const angle = () => atan2(u.x, u.y.negate())
 
-    const ellipse = radius.sub(1).mul(unit)
+      const polygonRadius = (theta: Node, n: Node) => {
+        const sector = float(2).mul(PI).div(n)
+        const halfSector = PI.div(n)
+        const local = mod(theta, sector).sub(halfSector)
+        return cos(halfSector).div(cos(local))
+      }
 
-    const cornerUnits = this.cornerRadius.mul(unit)
-    const boxDistance = abs(q).sub(half).add(cornerUnits)
-    const rectangle = length(max(boxDistance, vec2(0)))
-      .add(min(max(boxDistance.x, boxDistance.y), float(0)))
-      .sub(cornerUnits)
+      const kind = this.shape
+      const distance = radius.sub(1).mul(unit).toVar()
+      If(kind.equal(float(1)), () => {
+        const cornerUnits = this.cornerRadius.mul(unit)
+        const boxDistance = abs(q).sub(half).add(cornerUnits)
+        distance.assign(
+          length(max(boxDistance, vec2(0)))
+            .add(min(max(boxDistance.x, boxDistance.y), float(0)))
+            .sub(cornerUnits)
+        )
+      })
+      If(kind.equal(float(2)), () => {
+        distance.assign(radius.sub(polygonRadius(angle(), float(3))).mul(unit))
+      })
+      If(kind.equal(float(3)), () => {
+        distance.assign(radius.sub(polygonRadius(angle(), this.sides)).mul(unit))
+      })
+      If(kind.equal(float(4)), () => {
+        const theta = angle()
+        const starSector = float(2).mul(PI).div(this.points)
+        const starT = abs(
+          mod(theta.add(starSector.mul(0.5)), starSector).sub(starSector.mul(0.5))
+        ).div(starSector.mul(0.5))
+        const starRadius = float(1).sub(float(1).sub(this.innerRadius).mul(starT))
+        distance.assign(radius.sub(starRadius).mul(unit))
+      })
+      If(kind.equal(float(5)), () => {
+        const ringHalf = this.thickness.mul(0.5)
+        distance.assign(
+          abs(radius.sub(float(1).sub(ringHalf))).sub(ringHalf).mul(unit)
+        )
+      })
+      If(kind.equal(float(6)), () => {
+        const bladeAngle = angle().add(this.twist.mul(radius))
+        const lobe = max(cos(this.blades.mul(bladeAngle)), float(0))
+        const sharpness = float(6).sub(this.bladeWidth.mul(5.5))
+        const bladeRadius = this.hub.add(
+          float(1).sub(this.hub).mul(pow(lobe, sharpness))
+        )
+        distance.assign(radius.sub(bladeRadius).mul(unit))
+      })
 
-    const polygonRadius = (n: Node) => {
-      const sector = float(2).mul(PI).div(n)
-      const halfSector = PI.div(n)
-      const local = mod(theta, sector).sub(halfSector)
-      return cos(halfSector).div(cos(local))
-    }
-    const triangle = radius.sub(polygonRadius(float(3))).mul(unit)
-    const polygon = radius.sub(polygonRadius(this.sides)).mul(unit)
-
-    const starSector = float(2).mul(PI).div(this.points)
-    const starT = abs(
-      mod(theta.add(starSector.mul(0.5)), starSector).sub(starSector.mul(0.5))
-    ).div(starSector.mul(0.5))
-    const starRadius = float(1).sub(float(1).sub(this.innerRadius).mul(starT))
-    const star = radius.sub(starRadius).mul(unit)
-
-    const ringHalf = this.thickness.mul(0.5)
-    const ring = abs(radius.sub(float(1).sub(ringHalf))).sub(ringHalf).mul(unit)
-
-    const bladeAngle = theta.add(this.twist.mul(radius))
-    const lobe = max(cos(this.blades.mul(bladeAngle)), float(0))
-    const sharpness = float(6).sub(this.bladeWidth.mul(5.5))
-    const bladeRadius = this.hub.add(
-      float(1).sub(this.hub).mul(pow(lobe, sharpness))
-    )
-    const blades = radius.sub(bladeRadius).mul(unit)
-
-    const kind = this.shape
-    let distance: Node = ellipse
-    distance = select(kind.equal(float(1)), rectangle, distance)
-    distance = select(kind.equal(float(2)), triangle, distance)
-    distance = select(kind.equal(float(3)), polygon, distance)
-    distance = select(kind.equal(float(4)), star, distance)
-    distance = select(kind.equal(float(5)), ring, distance)
-    distance = select(kind.equal(float(6)), blades, distance)
-
-    const outlined = select(
-      this.outline.greaterThan(float(0)),
-      abs(distance).sub(this.outline.mul(0.5)),
-      distance
-    )
-    const edge = max(this.softness, this.pixel.mul(0.75))
-    const coverage = float(1).sub(smoothstep(edge.negate(), edge, outlined))
-    return vec4(this.color, clamp(coverage, 0, 1))
+      const outlined = select(
+        this.outline.greaterThan(float(0)),
+        abs(distance).sub(this.outline.mul(0.5)),
+        distance
+      )
+      const edge = max(this.softness, this.pixel.mul(0.75))
+      const coverage = float(1).sub(smoothstep(edge.negate(), edge, outlined))
+      return vec4(this.color, clamp(coverage, 0, 1))
+    })()
   }
 }

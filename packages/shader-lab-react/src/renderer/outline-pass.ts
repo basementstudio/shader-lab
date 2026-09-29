@@ -6,7 +6,10 @@ import {
   floor,
   Fn,
   fract,
+  If,
+  int,
   length,
+  Loop,
   max,
   min,
   mix,
@@ -42,6 +45,8 @@ const SEED_OPTIONS = {
   stencilBuffer: false,
   type: THREE.FloatType,
 } as const
+
+const FULL_SEED_OPTIONS = { ...SEED_OPTIONS, format: THREE.RGFormat } as const
 
 function renderTargetUv(): Node {
   return vec2(uv().x, float(1).sub(uv().y))
@@ -83,11 +88,6 @@ type Stage = {
   scene: THREE.Scene
 }
 
-/**
- * Outlines shapes with a jump-flood distance field. The seed texture keeps the
- * nearest boundary pixel in xy and the nearest sparse boundary pixel (one every
- * Spacing along the contour) in zw; the sparse field draws scallops and dashes.
- */
 export class OutlinePass extends PassNode {
   private readonly sourceUniform: Node
   private readonly thresholdUniform: Node
@@ -105,10 +105,13 @@ export class OutlinePass extends PassNode {
   private readonly texelUniform: Node
   private readonly stepUniform: Node
   private readonly placeholder = new THREE.Texture()
+  private readonly fieldPlaceholder = new THREE.Texture()
   private readonly camera2 = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
   private readonly geometry = new THREE.PlaneGeometry(2, 2)
   private readonly ping = new THREE.WebGLRenderTarget(1, 1, SEED_OPTIONS)
   private readonly pong = new THREE.WebGLRenderTarget(1, 1, SEED_OPTIONS)
+  private readonly fullPing = new THREE.WebGLRenderTarget(1, 1, FULL_SEED_OPTIONS)
+  private readonly fullPong = new THREE.WebGLRenderTarget(1, 1, FULL_SEED_OPTIONS)
   private readonly seedStage: Stage
   private readonly floodStage: Stage
   private fieldNode: Node | null = null
@@ -117,6 +120,7 @@ export class OutlinePass extends PassNode {
   private outputHeight = 1
   private logicalWidth = 1
   private reach = 64
+  private sparse = false
 
   constructor(layerId: string) {
     super(layerId)
@@ -153,38 +157,47 @@ export class OutlinePass extends PassNode {
   }
 
   private mask(color: Node): Node {
-    const alpha = clamp(float(color.a), 0, 1)
-    const tone = perceptualLuma(color)
+    const alpha = clamp(float(color.a), 0, 1).toVar()
+    const value = alpha.toVar()
     const mode = this.sourceUniform
-    const value = select(
-      mode.lessThan(0.5),
-      alpha,
-      select(mode.lessThan(1.5), float(1).sub(tone).mul(alpha), tone.mul(alpha))
-    )
+    If(mode.greaterThanEqual(0.5), () => {
+      const tone = perceptualLuma(color)
+      value.assign(
+        select(mode.lessThan(1.5), float(1).sub(tone).mul(alpha), tone.mul(alpha))
+      )
+    })
     return step(this.thresholdUniform, value)
   }
 
   private buildSeedNode(input: Node): Node {
-    const sourceUv = renderTargetUv()
-    const texel = this.texelUniform
-    const at = (dx: number, dy: number) =>
-      this.mask(input.sample(sourceUv.add(vec2(texel.x.mul(dx), texel.y.mul(dy)))))
-    const center = at(0, 0)
-    const boundary = center
-      .mul(float(1).sub(min(min(at(1, 0), at(-1, 0)), min(at(0, 1), at(0, -1)))))
-      .greaterThan(0.5)
-    const pixel = sourceUv.div(texel)
-    const spacing = max(this.spacingUniform.mul(this.scaleUniform), float(2))
-    const crossX = abs(floor(pixel.x.div(spacing)).sub(floor(pixel.x.sub(1).div(spacing)))).greaterThan(0.5)
-    const crossY = abs(floor(pixel.y.div(spacing)).sub(floor(pixel.y.sub(1).div(spacing)))).greaterThan(0.5)
-    const tip = boundary
-      .and(at(-1, 0).lessThan(0.5))
-      .and(at(0, -1).lessThan(0.5))
-      .and(at(-1, -1).lessThan(0.5))
-      .and(at(1, -1).lessThan(0.5))
-    const sparse = boundary.and(crossX.or(crossY).or(tip))
-    const far = vec2(FAR)
-    return vec4(select(boundary, pixel, far), select(sparse, pixel, far))
+    return Fn(() => {
+      const sourceUv = renderTargetUv().toVar()
+      const texel = this.texelUniform
+      const at = (dx: number, dy: number) =>
+        this.mask(
+          input.sample(sourceUv.add(vec2(texel.x.mul(dx), texel.y.mul(dy)))).toVar()
+        ).toVar()
+      const center = at(0, 0)
+      const right = at(1, 0)
+      const left = at(-1, 0)
+      const down = at(0, 1)
+      const up = at(0, -1)
+      const boundary = center
+        .mul(float(1).sub(min(min(right, left), min(down, up))))
+        .greaterThan(0.5)
+      const pixel = sourceUv.div(texel)
+      const spacing = max(this.spacingUniform.mul(this.scaleUniform), float(2))
+      const crossX = abs(floor(pixel.x.div(spacing)).sub(floor(pixel.x.sub(1).div(spacing)))).greaterThan(0.5)
+      const crossY = abs(floor(pixel.y.div(spacing)).sub(floor(pixel.y.sub(1).div(spacing)))).greaterThan(0.5)
+      const tip = boundary
+        .and(left.lessThan(0.5))
+        .and(up.lessThan(0.5))
+        .and(at(-1, -1).lessThan(0.5))
+        .and(at(1, -1).lessThan(0.5))
+      const sparse = boundary.and(crossX.or(crossY).or(tip))
+      const far = vec2(FAR)
+      return vec4(select(boundary, pixel, far), select(sparse, pixel, far))
+    })()
   }
 
   private buildFloodNode(input: Node): Node {
@@ -219,6 +232,8 @@ export class OutlinePass extends PassNode {
     this.outputHeight = Math.max(1, height)
     this.ping.setSize(this.outputWidth, this.outputHeight)
     this.pong.setSize(this.outputWidth, this.outputHeight)
+    this.fullPing.setSize(this.outputWidth, this.outputHeight)
+    this.fullPong.setSize(this.outputWidth, this.outputHeight)
     ;(this.texelUniform.value as THREE.Vector2).set(1 / this.outputWidth, 1 / this.outputHeight)
     this.syncScale()
   }
@@ -235,7 +250,9 @@ export class OutlinePass extends PassNode {
   override updateParams(params: LayerParameterValues): void {
     this.sourceUniform.value = SOURCES[String(params.source)] ?? 0
     this.thresholdUniform.value = readNumber(params.threshold, 0.5, 0.01, 1)
-    this.styleUniform.value = STYLES[String(params.style)] ?? 0
+    const style = STYLES[String(params.style)] ?? 0
+    this.styleUniform.value = style
+    this.sparse = style >= 2
     const offset = readNumber(params.offset, 6, -60, 200)
     const width = readNumber(params.width, 2, 0.25, 40)
     const rings = Math.round(readNumber(params.rings, 1, 1, 12))
@@ -261,10 +278,10 @@ export class OutlinePass extends PassNode {
     delta: number
   ): void {
     this.seedStage.input.value = inputTexture
-    renderer.setRenderTarget(this.ping)
+    let source = this.sparse ? this.ping : this.fullPing
+    let target = this.sparse ? this.pong : this.fullPong
+    renderer.setRenderTarget(source)
     renderer.render(this.seedStage.scene, this.camera2)
-    let source = this.ping
-    let target = this.pong
     const reach = Math.min(MAX_REACH, this.reach * (this.scaleUniform.value as number))
     let stepSize = 2 ** Math.ceil(Math.log2(Math.max(2, reach)))
     while (stepSize >= 1) {
@@ -272,7 +289,9 @@ export class OutlinePass extends PassNode {
       this.floodStage.input.value = source.texture
       renderer.setRenderTarget(target)
       renderer.render(this.floodStage.scene, this.camera2)
-      ;[source, target] = [target, source]
+      const next = source
+      source = target
+      target = next
       stepSize /= 2
     }
     if (this.fieldNode) this.fieldNode.value = source.texture
@@ -284,7 +303,7 @@ export class OutlinePass extends PassNode {
     if (!this.showImageUniform) {
       return this.inputNode
     }
-    const fieldNode = tslTexture(this.placeholder, renderTargetUv())
+    const fieldNode = tslTexture(this.fieldPlaceholder, renderTargetUv())
     this.fieldNode = fieldNode
     const colorNode = tslTexture(this.placeholder, renderTargetUv())
     this.colorNode = colorNode
@@ -293,45 +312,53 @@ export class OutlinePass extends PassNode {
       const targetUv = renderTargetUv()
       const pixel = targetUv.div(this.texelUniform)
       const scale = this.scaleUniform
-      const field = fieldNode.sample(targetUv)
-      const source = colorNode.sample(targetUv)
-      const inside = this.mask(source)
+      const field = fieldNode.sample(targetUv).toVar()
+      const source = colorNode.sample(targetUv).toVar()
+      const inside = this.mask(source).toVar()
       const toBoundary = length(vec2(field.x, field.y).sub(pixel))
       const signed = select(
         inside.greaterThan(0.5),
         toBoundary.add(0.5).negate(),
         toBoundary.sub(0.5)
-      ).div(scale)
+      ).div(scale).toVar()
       const style = this.styleUniform
-      const scalloped = style.greaterThan(2.5)
-      const toSeed = length(vec2(field.z, field.w).sub(pixel)).div(scale)
-      const radius = max(abs(this.offsetUniform), this.spacingUniform.mul(0.6))
-      const cloud = select(
-        this.offsetUniform.greaterThanEqual(0),
-        min(signed, toSeed.sub(radius)),
-        max(signed, radius.sub(toSeed))
-      )
-      const base = select(scalloped, cloud, signed.sub(this.offsetUniform))
+      const base = signed.sub(this.offsetUniform).toVar()
+      If(style.greaterThan(2.5), () => {
+        const toSeed = length(vec2(field.z, field.w).sub(pixel)).div(scale)
+        const radius = max(abs(this.offsetUniform), this.spacingUniform.mul(0.6))
+        base.assign(
+          select(
+            this.offsetUniform.greaterThanEqual(0),
+            min(signed, toSeed.sub(radius)),
+            max(signed, radius.sub(toSeed))
+          )
+        )
+      })
 
-      const half = this.widthUniform.mul(0.5)
-      const aa = float(0.75).div(scale)
+      const half = this.widthUniform.mul(0.5).toVar()
+      const aa = float(0.75).div(scale).toVar()
       const line = float(0).toVar()
       const gap = this.ringGapUniform
-      for (let ring = 0; ring < 12; ring += 1) {
-        const active = step(float(ring + 0.5), this.ringsUniform)
-        const distance = abs(base.sub(gap.mul(ring)))
-        const stroke = float(1).sub(smoothstep(half.sub(aa), half.add(aa), distance))
-        line.assign(max(line, stroke.mul(active)))
-      }
-      const doubled = style.greaterThan(0.5).and(style.lessThan(1.5))
-      const second = float(1).sub(
-        smoothstep(half.sub(aa), half.add(aa), abs(base.sub(half.mul(2).add(this.widthUniform.mul(1.5)))))
+      Loop(
+        { start: 0, end: int(this.ringsUniform), type: "int", name: "ringIndex" },
+        (inputs) => {
+          const ring = float((inputs as unknown as Record<string, Node>).ringIndex)
+          const distance = abs(base.sub(gap.mul(ring)))
+          const stroke = float(1).sub(smoothstep(half.sub(aa), half.add(aa), distance))
+          line.assign(max(line, stroke))
+        }
       )
-      line.assign(select(doubled, max(line, second), line))
-      const dashed = style.greaterThan(1.5).and(style.lessThan(2.5))
-      const cell = floor(vec2(field.z, field.w).div(max(this.spacingUniform.mul(scale), float(2))))
-      const parity = fract(cell.x.add(cell.y).mul(0.5)).mul(2)
-      line.assign(select(dashed, line.mul(step(0.5, parity)), line))
+      If(style.greaterThan(0.5).and(style.lessThan(1.5)), () => {
+        const second = float(1).sub(
+          smoothstep(half.sub(aa), half.add(aa), abs(base.sub(half.mul(2).add(this.widthUniform.mul(1.5)))))
+        )
+        line.assign(max(line, second))
+      })
+      If(style.greaterThan(1.5).and(style.lessThan(2.5)), () => {
+        const cell = floor(vec2(field.z, field.w).div(max(this.spacingUniform.mul(scale), float(2))))
+        const parity = fract(cell.x.add(cell.y).mul(0.5)).mul(2)
+        line.assign(line.mul(step(0.5, parity)))
+      })
 
       const filled = step(base, float(0))
         .mul(float(1).sub(inside))
@@ -349,12 +376,15 @@ export class OutlinePass extends PassNode {
   override dispose(): void {
     this.ping.dispose()
     this.pong.dispose()
+    this.fullPing.dispose()
+    this.fullPong.dispose()
     for (const stage of [this.seedStage, this.floodStage]) {
       stage.material.dispose()
       stage.scene.clear()
     }
     this.geometry.dispose()
     this.placeholder.dispose()
+    this.fieldPlaceholder.dispose()
     super.dispose()
   }
 }

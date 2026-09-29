@@ -44,7 +44,6 @@ type Stage = {
   scene: THREE.Scene
 }
 
-/** Premultiplied blur levels at halving resolutions; each pixel can pick its own blur size. */
 export class BlurPyramid {
   private readonly placeholder = new THREE.Texture()
   private readonly camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
@@ -129,7 +128,10 @@ export class BlurPyramid {
     })
   }
 
-  /** Fractional level for a blur radius measured in output pixels. */
+  needsLevels(maxRadiusOutput: number): boolean {
+    return maxRadiusOutput > LEVEL_RADIUS * 0.99
+  }
+
   levelFor(radiusOutput: Node): Node {
     return log2(max(radiusOutput.div(LEVEL_RADIUS), float(1)))
   }
@@ -158,17 +160,13 @@ export class BlurPyramid {
     return mix(mix(s00, s10, g1.x), mix(s01, s11, g1.x), g1.y)
   }
 
-  /**
-   * Premultiplied color at a fractional level. Level 0 reads the full-resolution
-   * source through `color`; higher levels read the pyramid.
-   */
   sample(color: Node, point: Node, level: Node, smooth: boolean): Node {
     const full = color.sample(point).level(0)
     const premultiplied = vec4(vec3(full.r, full.g, full.b).mul(full.a), full.a)
     const result = vec4(0).toVar()
-    const clamped = clamp(level, 0, BLUR_PYRAMID_LEVELS)
-    const index = floor(clamped)
-    const fraction = clamped.sub(index)
+    const clamped = clamp(level, 0, BLUR_PYRAMID_LEVELS).toVar()
+    const index = floor(clamped).toVar()
+    const fraction = clamped.sub(index).toVar()
     const pick = (k: number): Node => {
       if (k === 0) return premultiplied
       if (smooth) return this.sampleBicubic(k - 1, point)
@@ -176,7 +174,10 @@ export class BlurPyramid {
     }
     for (let k = 0; k < BLUR_PYRAMID_LEVELS; k += 1) {
       If(index.equal(float(k)), () => {
-        result.assign(mix(pick(k), pick(k + 1), fraction))
+        result.assign(pick(k))
+        If(fraction.greaterThan(0), () => {
+          result.assign(mix(result, pick(k + 1), fraction))
+        })
       })
     }
     If(index.greaterThanEqual(float(BLUR_PYRAMID_LEVELS)), () => {

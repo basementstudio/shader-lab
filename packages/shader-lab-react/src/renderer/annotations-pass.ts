@@ -5,9 +5,11 @@ import {
   clamp,
   cos,
   dot,
+  Fn,
   float,
   floor,
   fract,
+  If,
   length,
   max,
   min,
@@ -69,6 +71,8 @@ export class AnnotationsPass extends PassNode {
   private edges: EdgeField | null = null
   pendingReadback: Promise<void> | null = null
   private edgeFrame = 0
+  private edgeInputVersion = 1
+  private edgeReadVersion = 0
   layoutOverride: { elements: AnnotationElement[]; glyphs: AnnotationGlyph[] } | null = null
 
   private readonly orthoCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
@@ -101,6 +105,8 @@ export class AnnotationsPass extends PassNode {
   private edgeMaterial: THREE.MeshBasicNodeMaterial | null = null
   private edgeRt: THREE.WebGLRenderTarget | null = null
   private edgeInput: Node | null = null
+  private readonly edgeData = new Float32Array(EDGE_WIDTH * EDGE_HEIGHT)
+  private readonly previousClearColor = new THREE.Color()
 
   private deviceWidth = 1
   private deviceHeight = 1
@@ -166,6 +172,7 @@ export class AnnotationsPass extends PassNode {
     delta: number
   ): void {
     this.time = time
+    if (this.inputChanged) this.edgeInputVersion += 1
     if (this.config?.placement === "edges") {
       this.renderEdges(renderer, inputTexture)
     }
@@ -347,74 +354,103 @@ export class AnnotationsPass extends PassNode {
     const half = vec2(hw.add(pad), hh.add(pad))
     material.positionNode = this.quadPosition(vec2(iRect.x, iRect.y), half, rotation) as Node
 
-    const p = vec2(uv().x.mul(2).sub(1).mul(float(half.x)), uv().y.mul(2).sub(1).mul(float(half.y)))
-    const ax = abs(p.x)
-    const ay = abs(p.y)
     const edge = this.edgeSoftUniform
     const band = (distance: Node) =>
       float(1).sub(smoothstep(edge.negate(), edge, abs(distance).sub(stroke)))
     const fill = (distance: Node) => float(1).sub(smoothstep(edge.negate(), edge, distance))
     const TWO_PI = Math.PI * 2
-    const safeX = select(abs(p.x).greaterThan(float(1e-6)), p.x, float(1e-6))
-    const atanValue = atan(p.y.div(safeX))
-    const polar = select(p.x.greaterThanEqual(0), atanValue, atanValue.add(float(Math.PI)))
-    const dashRing = (segments: Node, offset: Node) =>
-      step(float(0.5), fract(polar.div(float(TWO_PI)).mul(segments).add(offset)))
-    const radial = length(p)
-    const rectDistance = (() => {
-      const d = vec2(ax.sub(hw), ay.sub(hh))
-      return length(max(d, vec2(0))).add(min(max(d.x, d.y), float(0)))
+    const coverage = Fn(() => {
+      const p = vec2(
+        uv().x.mul(2).sub(1).mul(float(half.x)),
+        uv().y.mul(2).sub(1).mul(float(half.y))
+      ).toVar()
+      const ax = abs(p.x).toVar()
+      const ay = abs(p.y).toVar()
+      const radial = length(p).toVar()
+      const rectDistance = () => {
+        const d = vec2(ax.sub(hw), ay.sub(hh))
+        return length(max(d, vec2(0))).add(min(max(d.x, d.y), float(0)))
+      }
+      const crossArm = hw
+      const line = () => fill(max(ay.sub(stroke), ax.sub(hw)))
+      const value = float(0).toVar()
+      const isKind = (id: number) => abs(kind.sub(float(id))).lessThan(float(0.5))
+      If(isKind(ANNOTATION_KIND.dot), () => {
+        value.assign(fill(radial.sub(hw)))
+      })
+      If(isKind(ANNOTATION_KIND.ring), () => {
+        value.assign(band(radial.sub(hw)))
+      })
+      If(isKind(ANNOTATION_KIND.dashedRing), () => {
+        const safeX = select(abs(p.x).greaterThan(float(1e-6)), p.x, float(1e-6))
+        const atanValue = atan(p.y.div(safeX))
+        const polar = select(p.x.greaterThanEqual(0), atanValue, atanValue.add(float(Math.PI)))
+        const dash = step(float(0.5), fract(polar.div(float(TWO_PI)).mul(param).add(phase)))
+        value.assign(band(radial.sub(hw)).mul(dash))
+      })
+      If(isKind(ANNOTATION_KIND.crosshair), () => {
+        value.assign(
+          max(
+            fill(max(ax.sub(crossArm), ay.sub(stroke))),
+            fill(max(ay.sub(crossArm), ax.sub(stroke)))
+          ).mul(step(hw.mul(0.3), radial))
+        )
+      })
+      If(isKind(ANNOTATION_KIND.cross), () => {
+        const diag = vec2(ax.add(ay).mul(Math.SQRT1_2), abs(ax.sub(ay)).mul(Math.SQRT1_2))
+        value.assign(
+          max(
+            fill(max(diag.x.sub(crossArm), diag.y.sub(stroke))),
+            fill(max(diag.y.sub(crossArm), diag.x.sub(stroke)))
+          )
+        )
+      })
+      If(isKind(ANNOTATION_KIND.box), () => {
+        value.assign(band(rectDistance()))
+      })
+      If(isKind(ANNOTATION_KIND.dashedBox), () => {
+        const perimeter = ax.add(ay)
+        value.assign(
+          band(rectDistance()).mul(
+            step(float(0.5), fract(perimeter.div(hw.add(hh)).mul(param.mul(0.5)).add(phase)))
+          )
+        )
+      })
+      If(isKind(ANNOTATION_KIND.brackets), () => {
+        const reach = param.mul(min(hw, hh))
+        value.assign(
+          band(rectDistance()).mul(step(hw.sub(reach), ax)).mul(step(hh.sub(reach), ay))
+        )
+      })
+      If(isKind(ANNOTATION_KIND.line), () => {
+        value.assign(line())
+      })
+      If(isKind(ANNOTATION_KIND.dashedLine), () => {
+        value.assign(
+          line().mul(step(float(0.5), fract(p.x.add(hw).div(hw.mul(2)).mul(param).add(phase))))
+        )
+      })
+      If(isKind(ANNOTATION_KIND.ticks), () => {
+        const tickSpacing = hw.mul(2).div(max(param, float(1)))
+        const tickIndex = floor(p.x.add(hw).div(tickSpacing).add(float(0.5)))
+        const nearestTick = tickIndex.mul(tickSpacing).sub(hw)
+        const isMajor = select(fract(tickIndex.div(float(4))).lessThan(float(0.01)), float(1), float(0))
+        const tickLength = hh.add(hh.mul(isMajor))
+        const tickBody = max(
+          abs(p.x.sub(nearestTick)).sub(stroke),
+          max(hh.sub(p.y).sub(tickLength), max(p.y.sub(hh), ax.sub(hw)))
+        )
+        const baseline = max(abs(p.y.sub(hh)).sub(stroke), ax.sub(hw))
+        value.assign(max(fill(baseline), fill(tickBody)))
+      })
+      If(isKind(ANNOTATION_KIND.gradientBar), () => {
+        const pixelHash = fract(sin(dot(floor(p.mul(4096)), vec2(12.9898, 78.233))).mul(43758.5453))
+        value.assign(
+          fill(max(ax.sub(hw), ay.sub(hh))).mul(step(pixelHash, p.x.add(hw).div(hw.mul(2))))
+        )
+      })
+      return value
     })()
-
-    const dotCoverage = fill(radial.sub(hw))
-    const ringCoverage = band(radial.sub(hw))
-    const dashedRingCoverage = ringCoverage.mul(dashRing(param, phase))
-    const crossArm = hw
-    const crosshair = max(
-      fill(max(ax.sub(crossArm), ay.sub(stroke))),
-      fill(max(ay.sub(crossArm), ax.sub(stroke)))
-    ).mul(step(hw.mul(0.3), radial))
-    const diag = vec2(ax.add(ay).mul(Math.SQRT1_2), abs(ax.sub(ay)).mul(Math.SQRT1_2))
-    const cross = max(
-      fill(max(diag.x.sub(crossArm), diag.y.sub(stroke))),
-      fill(max(diag.y.sub(crossArm), diag.x.sub(stroke)))
-    )
-    const boxCoverage = band(rectDistance)
-    const perimeter = ax.add(ay)
-    const dashedBox = boxCoverage.mul(step(float(0.5), fract(perimeter.div(hw.add(hh)).mul(param.mul(0.5)).add(phase))))
-    const reach = param.mul(min(hw, hh))
-    const brackets = boxCoverage.mul(step(hw.sub(reach), ax)).mul(step(hh.sub(reach), ay))
-    const line = fill(max(ay.sub(stroke), ax.sub(hw)))
-    const dashedLine = line.mul(step(float(0.5), fract(p.x.add(hw).div(hw.mul(2)).mul(param).add(phase))))
-    const tickSpacing = hw.mul(2).div(max(param, float(1)))
-    const tickIndex = floor(p.x.add(hw).div(tickSpacing).add(float(0.5)))
-    const nearestTick = tickIndex.mul(tickSpacing).sub(hw)
-    const isMajor = select(fract(tickIndex.div(float(4))).lessThan(float(0.01)), float(1), float(0))
-    const tickLength = hh.add(hh.mul(isMajor))
-    const tickBody = max(
-      abs(p.x.sub(nearestTick)).sub(stroke),
-      max(hh.sub(p.y).sub(tickLength), max(p.y.sub(hh), ax.sub(hw)))
-    )
-    const baseline = max(abs(p.y.sub(hh)).sub(stroke), ax.sub(hw))
-    const ticks = max(fill(baseline), fill(tickBody))
-    const pixelHash = fract(sin(dot(floor(p.mul(4096)), vec2(12.9898, 78.233))).mul(43758.5453))
-    const gradientBar = fill(max(ax.sub(hw), ay.sub(hh))).mul(step(pixelHash, p.x.add(hw).div(hw.mul(2))))
-
-    const isKind = (id: number) =>
-      step(abs(kind.sub(float(id))), float(0.5))
-    const coverage = dotCoverage
-      .mul(isKind(ANNOTATION_KIND.dot))
-      .add(ringCoverage.mul(isKind(ANNOTATION_KIND.ring)))
-      .add(dashedRingCoverage.mul(isKind(ANNOTATION_KIND.dashedRing)))
-      .add(crosshair.mul(isKind(ANNOTATION_KIND.crosshair)))
-      .add(cross.mul(isKind(ANNOTATION_KIND.cross)))
-      .add(boxCoverage.mul(isKind(ANNOTATION_KIND.box)))
-      .add(dashedBox.mul(isKind(ANNOTATION_KIND.dashedBox)))
-      .add(brackets.mul(isKind(ANNOTATION_KIND.brackets)))
-      .add(line.mul(isKind(ANNOTATION_KIND.line)))
-      .add(dashedLine.mul(isKind(ANNOTATION_KIND.dashedLine)))
-      .add(ticks.mul(isKind(ANNOTATION_KIND.ticks)))
-      .add(gradientBar.mul(isKind(ANNOTATION_KIND.gradientBar)))
     const alpha = clamp(coverage, 0, 1).mul(float(iExtra.z))
     const color = this.paletteNode(float(iMeta.w))
     material.colorNode = vec4(color.mul(alpha), alpha) as Node
@@ -463,7 +499,7 @@ export class AnnotationsPass extends PassNode {
       ;(this.glyphMesh.geometry as THREE.InstancedBufferGeometry).instanceCount = this.glyphCount
       this.glyphMesh.visible = this.glyphCount > 0
     }
-    const previousColor = renderer.getClearColor(new THREE.Color())
+    const previousColor = renderer.getClearColor(this.previousClearColor)
     const previousAlpha = renderer.getClearAlpha()
     renderer.setRenderTarget(this.decorationRt)
     renderer.setClearColor(0x000000, 0)
@@ -499,12 +535,14 @@ export class AnnotationsPass extends PassNode {
 
   private renderEdges(renderer: THREE.WebGPURenderer, input: THREE.Texture): void {
     if (!(this.edgeScene && this.edgeRt && this.edgeInput)) return
+    if (this.edges && this.edgeReadVersion === this.edgeInputVersion) return
     this.edgeFrame += 1
     if (this.edgeFrame % 3 !== 1 || this.pendingReadback) return
     this.edgeInput.value = input
     renderer.setRenderTarget(this.edgeRt)
     renderer.render(this.edgeScene, this.orthoCamera)
     const target = this.edgeRt
+    const version = this.edgeInputVersion
     const read = (
       renderer as unknown as {
         readRenderTargetPixelsAsync: (
@@ -523,7 +561,7 @@ export class AnnotationsPass extends PassNode {
           pixels instanceof Uint8Array
             ? pixels
             : new Uint8Array(pixels.buffer, pixels.byteOffset, pixels.byteLength)
-        const data = new Float32Array(EDGE_WIDTH * EDGE_HEIGHT)
+        const data = this.edgeData
         let peak = 0
         for (let i = 0; i < data.length; i++) {
           const value = (bytes[i * 4] ?? 0) / 255
@@ -532,6 +570,7 @@ export class AnnotationsPass extends PassNode {
         }
         if (peak > 0) for (let i = 0; i < data.length; i++) data[i] = (data[i] ?? 0) / peak
         this.edges = { width: EDGE_WIDTH, height: EDGE_HEIGHT, data }
+        this.edgeReadVersion = version
         this.pendingReadback = null
       })
       .catch(() => {

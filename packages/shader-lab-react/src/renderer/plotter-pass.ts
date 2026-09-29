@@ -98,7 +98,6 @@ function readColor(value: unknown, fallback: string): string {
     : fallback
 }
 
-/** Pen-plotter drawing: every mode is a set of strokes laid over paper with multiplied ink. */
 export class PlotterPass extends PassNode {
   private readonly modeUniform: Node
   private readonly colorModeUniform: Node
@@ -125,8 +124,14 @@ export class PlotterPass extends PassNode {
   private readonly documentSizeUniform: Node
   private readonly outputPerDocumentUniform: Node
   private readonly aaUniform: Node
+  private readonly stippleGridUniform: Node
   private readonly pyramid = new BlurPyramid()
   private readonly placeholder = new THREE.Texture()
+  private readonly stippleTarget: THREE.WebGLRenderTarget
+  private readonly stippleMaterial: THREE.MeshBasicNodeMaterial
+  private readonly stippleScene: THREE.Scene
+  private readonly stippleGeometry: THREE.PlaneGeometry
+  private readonly stippleInputNode: Node
   private colorNode: Node | null = null
   private outputWidth = 1
   private logicalWidth = 1
@@ -158,6 +163,28 @@ export class PlotterPass extends PassNode {
     this.documentSizeUniform = uniform(new THREE.Vector2(1, 1))
     this.outputPerDocumentUniform = uniform(1)
     this.aaUniform = uniform(0.8)
+    this.stippleGridUniform = uniform(new THREE.Vector2(1, 1))
+    this.stippleTarget = new THREE.WebGLRenderTarget(1, 1, {
+      depthBuffer: false,
+      format: THREE.RGBAFormat,
+      generateMipmaps: false,
+      magFilter: THREE.NearestFilter,
+      minFilter: THREE.NearestFilter,
+      stencilBuffer: false,
+      type: THREE.UnsignedByteType,
+      wrapS: THREE.ClampToEdgeWrapping,
+      wrapT: THREE.ClampToEdgeWrapping,
+    })
+    this.stippleInputNode = tslTexture(this.placeholder, renderTargetUv())
+    this.stippleMaterial = new THREE.MeshBasicNodeMaterial()
+    this.stippleMaterial.blending = THREE.NoBlending
+    ;(this.stippleMaterial as unknown as { fragmentNode: Node }).fragmentNode =
+      this.buildStippleNode()
+    this.stippleGeometry = new THREE.PlaneGeometry(2, 2)
+    const stippleMesh = new THREE.Mesh(this.stippleGeometry, this.stippleMaterial)
+    stippleMesh.frustumCulled = false
+    this.stippleScene = new THREE.Scene()
+    this.stippleScene.add(stippleMesh)
     this.rebuildEffectNode()
   }
 
@@ -174,6 +201,24 @@ export class PlotterPass extends PassNode {
       Math.max(1, height)
     )
     this.syncScale()
+    this.syncStippleGrid()
+  }
+
+  private isStipple(): boolean {
+    const mode = this.modeUniform.value as number
+    return mode > 3.5 && mode < 4.5
+  }
+
+  private syncStippleGrid(): void {
+    if (!(this.stippleTarget && this.isStipple())) return
+    const size = this.documentSizeUniform.value as THREE.Vector2
+    const cellSize = (this.gapUniform.value as number) * 0.5
+    const columns = Math.ceil((Math.floor(size.x / cellSize) + 4) / 8) * 8
+    const rows = Math.ceil((Math.floor(size.y / cellSize) + 4) / 8) * 8
+    if (this.stippleTarget.width !== columns || this.stippleTarget.height !== rows) {
+      this.stippleTarget.setSize(columns, rows)
+      ;(this.stippleGridUniform.value as THREE.Vector2).set(columns, rows)
+    }
   }
 
   private syncScale(): void {
@@ -210,6 +255,7 @@ export class PlotterPass extends PassNode {
     ;(this.inkUniform.value as THREE.Color).set(readColor(params.inkColor, "#1a1a1a"))
     ;(this.pen2Uniform.value as THREE.Color).set(readColor(params.pen2Color, "#d8452f"))
     ;(this.pen3Uniform.value as THREE.Color).set(readColor(params.pen3Color, "#2f5fd8"))
+    this.syncStippleGrid()
   }
 
   override render(
@@ -220,6 +266,11 @@ export class PlotterPass extends PassNode {
     delta: number
   ): void {
     this.pyramid.render(renderer, inputTexture)
+    if (this.isStipple()) {
+      this.stippleInputNode.value = inputTexture
+      renderer.setRenderTarget(this.stippleTarget)
+      renderer.render(this.stippleScene, this.camera)
+    }
     if (this.colorNode) this.colorNode.value = inputTexture
     super.render(renderer, inputTexture, outputTarget, time, delta)
   }
@@ -228,6 +279,29 @@ export class PlotterPass extends PassNode {
     const sample = this.pyramid.sample(colorNode, point, level, true)
     const straight = vec4(sample.rgb.div(max(sample.a, float(0.0001))), sample.a)
     return float(1).sub(perceptualLuma(straight)).mul(clamp(sample.a, 0, 1))
+  }
+
+  private buildStippleNode(): Node {
+    return Fn(() => {
+      const cell = floor(renderTargetUv().mul(this.stippleGridUniform)).sub(1)
+      const cellSize = this.gapUniform.mul(0.5)
+      const random = hash2(cell)
+      const center = cell.add(random).mul(cellSize)
+      const level = this.pyramid.levelFor(
+        this.smoothingUniform.mul(this.outputPerDocumentUniform)
+      )
+      const tone = this.darknessAt(
+        this.stippleInputNode,
+        center.div(this.documentSizeUniform),
+        level
+      )
+      const keep = select(
+        hash(cell.add(9.1)).lessThan(pow(tone, float(1).add(this.thresholdUniform.mul(2)))),
+        float(1),
+        float(0)
+      )
+      return vec4(keep, 0, 0, 1)
+    })()
   }
 
   private stroke(distance: Node, width: Node): Node {
@@ -242,21 +316,27 @@ export class PlotterPass extends PassNode {
     }
     const colorNode = tslTexture(this.placeholder, renderTargetUv())
     this.colorNode = colorNode
+    const stippleNode = tslTexture(this.stippleTarget.texture)
 
     return Fn(() => {
       const targetUv = renderTargetUv()
       const size = this.documentSizeUniform
       const pixel = targetUv.mul(size)
       const gap = this.gapUniform
-      const warp = vec2(
-        valueNoise(pixel.div(gap.mul(3)).add(3.1)),
-        valueNoise(pixel.div(gap.mul(3)).add(17.9))
-      )
-        .sub(0.5)
-        .mul(this.wobbleUniform)
-        .mul(gap)
-        .mul(0.6)
-      const p = pixel.add(warp)
+      const warp = vec2(0).toVar()
+      If(this.wobbleUniform.greaterThan(0), () => {
+        warp.assign(
+          vec2(
+            valueNoise(pixel.div(gap.mul(3)).add(3.1)),
+            valueNoise(pixel.div(gap.mul(3)).add(17.9))
+          )
+            .sub(0.5)
+            .mul(this.wobbleUniform)
+            .mul(gap)
+            .mul(0.6)
+        )
+      })
+      const p = pixel.add(warp).toVar()
       const level = this.pyramid.levelFor(
         this.smoothingUniform.mul(this.outputPerDocumentUniform)
       )
@@ -268,10 +348,15 @@ export class PlotterPass extends PassNode {
         this.weightUniform.mul(2.2),
         this.pressureUniform.mul(dark)
       )
-      const inkVariation = valueNoise(p.div(gap.mul(0.7)).add(41.2))
-        .mul(this.bleedUniform)
-        .mul(0.35)
-        .add(float(1).sub(this.bleedUniform.mul(0.2)))
+      const inkVariation = float(1).sub(this.bleedUniform.mul(0.2)).toVar()
+      If(this.bleedUniform.greaterThan(0), () => {
+        inkVariation.assign(
+          valueNoise(p.div(gap.mul(0.7)).add(41.2))
+            .mul(this.bleedUniform)
+            .mul(0.35)
+            .add(float(1).sub(this.bleedUniform.mul(0.2)))
+        )
+      })
 
       const pen1 = float(0).toVar()
       const pen2 = float(0).toVar()
@@ -344,12 +429,7 @@ export class PlotterPass extends PassNode {
             const cell = base.add(vec2(x, y))
             const random = hash2(cell)
             const center = cell.add(random).mul(cellSize)
-            const tone = at(center)
-            const keep = select(
-              hash(cell.add(9.1)).lessThan(pow(tone, float(1).add(threshold.mul(2)))),
-              float(1),
-              float(0)
-            )
+            const keep = stippleNode.load(cell.add(1)).r
             coverage.assign(
               max(coverage, this.stroke(length(pixel.sub(center)), width.mul(1.4)).mul(keep))
             )
@@ -383,10 +463,15 @@ export class PlotterPass extends PassNode {
       const ink2 = select(colorMode.greaterThan(1.5), vec3(this.pen2Uniform), ink1)
       const ink3 = select(colorMode.greaterThan(1.5), vec3(this.pen3Uniform), ink1)
 
-      const grain = valueNoise(pixel.div(1.3))
-        .sub(0.5)
-        .mul(this.paperGrainUniform)
-        .mul(0.08)
+      const grain = float(0).toVar()
+      If(this.paperGrainUniform.greaterThan(0), () => {
+        grain.assign(
+          valueNoise(pixel.div(1.3))
+            .sub(0.5)
+            .mul(this.paperGrainUniform)
+            .mul(0.08)
+        )
+      })
       const paper = clamp(vec3(this.paperUniform).add(grain), 0, 1)
       const apply = (surface: Node, amount: Node, ink: Node) =>
         mix(surface, surface.mul(ink), clamp(amount.mul(inkVariation), 0, 1))
@@ -416,6 +501,9 @@ export class PlotterPass extends PassNode {
   }
 
   override dispose(): void {
+    this.stippleTarget.dispose()
+    this.stippleMaterial.dispose()
+    this.stippleGeometry.dispose()
     this.pyramid.dispose()
     this.placeholder.dispose()
     super.dispose()

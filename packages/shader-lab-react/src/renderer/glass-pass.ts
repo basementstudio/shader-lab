@@ -7,6 +7,7 @@ import {
   floor,
   Fn,
   fract,
+  If,
   max,
   min,
   mix,
@@ -102,7 +103,6 @@ export class GlassPass extends PassNode {
   private readonly depthPlaceholder = new THREE.Texture()
   private colorNode: Node | null = null
   private depthNode: Node | null = null
-  private needsPyramid = true
   private outputWidth = 1
   private logicalWidth = 1
 
@@ -156,9 +156,6 @@ export class GlassPass extends PassNode {
     this.distanceUniform.value = readNumber(params.distance, 10, 0, 240)
     this.fromDepthUniform.value = params.distanceFrom === "depth" ? 1 : 0
     this.frostUniform.value = readNumber(params.frost, 0, 0, 1)
-    this.needsPyramid =
-      (this.distanceUniform.value as number) > 0 ||
-      (this.frostUniform.value as number) > 0
     this.frostSizeUniform.value = readNumber(params.frostSize, 1.5, 0.5, 8)
     this.highlightsUniform.value = readNumber(params.highlights, 0.8, 0, 3)
     this.lightAngleUniform.value =
@@ -178,12 +175,21 @@ export class GlassPass extends PassNode {
     time: number,
     delta: number
   ): void {
-    if (this.needsPyramid) this.pyramid.render(renderer, inputTexture)
     if (this.colorNode) this.colorNode.value = inputTexture
     const depth = this.sceneDepthTexture
     this.hasDepthUniform.value = depth ? 1 : 0
+    if (this.needsPyramid(depth !== null)) this.pyramid.render(renderer, inputTexture)
     if (this.depthNode) this.depthNode.value = depth ?? this.depthPlaceholder
     super.render(renderer, inputTexture, outputTarget, time, delta)
+  }
+
+  private needsPyramid(hasDepth: boolean): boolean {
+    const distance = this.distanceUniform.value as number
+    if (distance > 0 && hasDepth && (this.fromDepthUniform.value as number) > 0.5) return true
+    const blurDocument = distance + (this.frostUniform.value as number) * 6
+    return this.pyramid.needsLevels(
+      blurDocument * (this.outputPerDocumentUniform.value as number)
+    )
   }
 
   private reeded(q: Node): Cell {
@@ -267,39 +273,41 @@ export class GlassPass extends PassNode {
 
     return Fn(() => {
       const targetUv = renderTargetUv()
-      const pixel = targetUv.mul(this.documentSizeUniform)
-      const c = cos(this.angleUniform)
-      const s = sin(this.angleUniform)
-      const q = vec2(pixel.x.mul(c).add(pixel.y.mul(s)), pixel.y.mul(c).sub(pixel.x.mul(s)))
+      const pixel = targetUv.mul(this.documentSizeUniform).toVar()
+      const c = cos(this.angleUniform).toVar()
+      const s = sin(this.angleUniform).toVar()
+      const q = vec2(pixel.x.mul(c).add(pixel.y.mul(s)), pixel.y.mul(c).sub(pixel.x.mul(s))).toVar()
 
-      const reeded = this.reeded(q)
-      const hammered = this.hammered(q)
-      const pyramid = this.pyramidCell(q)
-      const hex = this.hexCell(q)
+      const lens = vec2(0).toVar()
+      const slope = vec2(0).toVar()
+      const seam = float(1).toVar()
+      const useCell = (cell: Cell): void => {
+        lens.assign(cell.lens)
+        slope.assign(cell.slope)
+        seam.assign(cell.seam)
+      }
       const pattern = this.patternUniform
-      const choose = (key: keyof Cell): Node =>
-        select(
-          pattern.lessThan(0.5),
-          reeded[key],
-          select(
-            pattern.lessThan(1.5),
-            hammered[key],
-            select(
-              pattern.lessThan(2.5),
-              pyramid[key],
-              select(pattern.lessThan(3.5), hex[key], key === "seam" ? float(1) : vec2(0))
-            )
-          )
-        )
-      const lens = choose("lens")
-      const slope = choose("slope")
-      const seam = choose("seam")
+      If(pattern.lessThan(0.5), () => useCell(this.reeded(q))).Else(() => {
+        If(pattern.lessThan(1.5), () => useCell(this.hammered(q))).Else(() => {
+          If(pattern.lessThan(2.5), () => useCell(this.pyramidCell(q))).Else(() => {
+            If(pattern.lessThan(3.5), () => useCell(this.hexCell(q)))
+          })
+        })
+      })
 
-      const frostPoint = pixel.div(this.frostSizeUniform)
-      const frostSlope = vec2(
-        valueNoise(frostPoint.add(vec2(0.5, 0))).sub(valueNoise(frostPoint.sub(vec2(0.5, 0)))),
-        valueNoise(frostPoint.add(vec2(0, 0.5))).sub(valueNoise(frostPoint.sub(vec2(0, 0.5))))
-      ).mul(this.frostUniform).mul(1.2)
+      const frostSlope = vec2(0).toVar()
+      const crinkleGain = float(1).toVar()
+      If(this.frostUniform.greaterThan(0), () => {
+        const frostPoint = pixel.div(this.frostSizeUniform)
+        frostSlope.assign(
+          vec2(
+            valueNoise(frostPoint.add(vec2(0.5, 0))).sub(valueNoise(frostPoint.sub(vec2(0.5, 0)))),
+            valueNoise(frostPoint.add(vec2(0, 0.5))).sub(valueNoise(frostPoint.sub(vec2(0, 0.5))))
+          ).mul(this.frostUniform).mul(1.2)
+        )
+        const crinkle = valueNoise(frostPoint.mul(1.7).add(11.3)).sub(0.5)
+        crinkleGain.assign(float(1).add(crinkle.mul(this.frostUniform).mul(0.14)))
+      })
 
       const shiftLocal = lens
         .mul(this.refractionUniform)
@@ -309,28 +317,37 @@ export class GlassPass extends PassNode {
       const shift = vec2(
         shiftLocal.x.mul(c).sub(shiftLocal.y.mul(s)),
         shiftLocal.x.mul(s).add(shiftLocal.y.mul(c))
-      ).div(this.documentSizeUniform)
-      const seen = targetUv.add(shift)
+      )
+        .div(this.documentSizeUniform)
+        .toVar()
+      const seen = targetUv.add(shift).toVar()
 
-      const depth = float(depthNode.sample(seen).level(0).r)
-      const behind = select(
-        this.fromDepthUniform.greaterThan(0.5).and(this.hasDepthUniform.greaterThan(0.5)),
-        float(1).sub(depth),
-        float(1)
-      )
+      const behind = float(1).toVar()
+      If(this.fromDepthUniform.greaterThan(0.5).and(this.hasDepthUniform.greaterThan(0.5)), () => {
+        behind.assign(float(1).sub(float(depthNode.sample(seen).level(0).r)))
+      })
       const blurDocument = this.distanceUniform.mul(behind).add(this.frostUniform.mul(6))
-      const level = this.pyramid.levelFor(blurDocument.mul(this.outputPerDocumentUniform))
-      const spread = shift.mul(this.dispersionUniform).mul(0.35)
+      const level = this.pyramid.levelFor(blurDocument.mul(this.outputPerDocumentUniform)).toVar()
       const green = this.pyramid.sample(colorNode, seen, level, true)
-      const red = this.pyramid.sample(colorNode, seen.add(spread), level, true)
-      const blue = this.pyramid.sample(colorNode, seen.sub(spread), level, true)
-      const coverage = max(max(red.a, green.a), blue.a)
-      const alpha = max(green.a, float(0.0001))
-      let rgb: Node = vec3(
-        red.r.div(max(red.a, float(0.0001))),
-        green.g.div(alpha),
-        blue.b.div(max(blue.a, float(0.0001)))
-      )
+      const alpha = max(green.a, float(0.0001)).toVar()
+      const coverage = green.a.toVar()
+      const refracted = vec3(0).toVar()
+      If(this.dispersionUniform.greaterThan(0), () => {
+        const spread = shift.mul(this.dispersionUniform).mul(0.35)
+        const red = this.pyramid.sample(colorNode, seen.add(spread), level, true)
+        const blue = this.pyramid.sample(colorNode, seen.sub(spread), level, true)
+        coverage.assign(max(max(red.a, green.a), blue.a))
+        refracted.assign(
+          vec3(
+            red.r.div(max(red.a, float(0.0001))),
+            green.g.div(alpha),
+            blue.b.div(max(blue.a, float(0.0001)))
+          )
+        )
+      }).Else(() => {
+        refracted.assign(vec3(green.r.div(alpha), green.g.div(alpha), green.b.div(alpha)))
+      })
+      let rgb: Node = refracted
 
       const surface = slope.add(frostSlope)
       const worldSlope = vec2(
@@ -362,8 +379,7 @@ export class GlassPass extends PassNode {
       rgb = rgb.mul(float(1).add(facing)).mul(float(1).sub(groove.mul(0.7)))
       rgb = rgb.mul(float(1).sub(rim.mul(float(1).sub(side)).mul(0.2)))
       rgb = rgb.add(vec3(rim.mul(side).mul(0.45).add(glint)))
-      const crinkle = valueNoise(frostPoint.mul(1.7).add(11.3)).sub(0.5)
-      rgb = rgb.mul(float(1).add(crinkle.mul(this.frostUniform).mul(0.14)))
+      rgb = rgb.mul(crinkleGain)
       rgb = mix(rgb, rgb.mul(vec3(this.tintUniform)), this.tintAmountUniform)
       return vec4(clamp(rgb, 0, 1), clamp(coverage, 0, 1))
     })()

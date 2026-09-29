@@ -108,6 +108,8 @@ export class MediaPass extends PassNode {
   private depthLoadNonce = 0
   private depthSteps = 32
   private depthActive = false
+  private marchDirty = true
+  private readonly marchKey = new Float64Array(14)
   private parallaxMotion: ParallaxMotion = "orbit"
   private parallaxAmount = 0.3
   private parallaxSpeed = 0.5
@@ -257,6 +259,7 @@ export class MediaPass extends PassNode {
         this.depthTextureNodes = []
         this.marchMaterial.colorNode = this.buildMarchNode(this.buildMediaUv())
         this.marchMaterial.needsUpdate = true
+        this.marchDirty = true
       }
       return
     }
@@ -373,11 +376,40 @@ export class MediaPass extends PassNode {
     this.depthTextureNodes = []
     this.marchMaterial.colorNode = this.buildMarchNode(this.buildMediaUv())
     this.marchMaterial.needsUpdate = true
+    this.marchDirty = true
   }
 
   private releaseDepthTargets(): void {
     this.auxTarget?.dispose()
     this.auxTarget = null
+    this.marchDirty = true
+  }
+
+  private marchInputsChanged(width: number, height: number): boolean {
+    const key = this.marchKey
+    let changed = this.marchDirty
+    const write = (index: number, value: number): void => {
+      if (!Object.is(key[index], value)) {
+        key[index] = value
+        changed = true
+      }
+    }
+    write(0, width)
+    write(1, height)
+    write(2, this.depthShiftXUniform.value as number)
+    write(3, this.depthShiftYUniform.value as number)
+    write(4, this.depthDollyUniform.value as number)
+    write(5, this.depthRangeUniform.value as number)
+    write(6, this.depthFocusUniform.value as number)
+    write(7, this.depthInvertUniform.value as number)
+    write(8, this.textureAspectUniform.value as number)
+    write(9, this.canvasAspectUniform.value as number)
+    write(10, this.fitModeUniform.value as number)
+    write(11, this.scaleUniform.value as number)
+    write(12, this.offsetXUniform.value as number)
+    write(13, this.offsetYUniform.value as number)
+    this.marchDirty = false
+    return changed
   }
 
   override getOutputSceneDepth(): THREE.Texture | null {
@@ -445,6 +477,7 @@ export class MediaPass extends PassNode {
         this.depthTextureNodes = []
         this.marchMaterial.colorNode = this.buildMarchNode(this.buildMediaUv())
         this.marchMaterial.needsUpdate = true
+        this.marchDirty = true
       }
     }
   }
@@ -466,12 +499,14 @@ export class MediaPass extends PassNode {
 
     if (this.depthActive && this.auxTarget && this.depthTexture) {
       this.beforeRender(time)
-      for (const node of this.depthTextureNodes) {
-        node.value = this.depthTexture
-      }
       this.auxTarget.setSize(outputTarget.width, outputTarget.height)
-      renderer.setRenderTarget(this.auxTarget)
-      renderer.render(this.marchScene, this.camera)
+      if (this.marchInputsChanged(outputTarget.width, outputTarget.height)) {
+        for (const node of this.depthTextureNodes) {
+          node.value = this.depthTexture
+        }
+        renderer.setRenderTarget(this.auxTarget)
+        renderer.render(this.marchScene, this.camera)
+      }
     }
 
     super.render(renderer, inputTexture, outputTarget, time, delta)

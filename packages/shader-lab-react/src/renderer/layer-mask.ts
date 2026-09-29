@@ -1,14 +1,14 @@
 import {
   abs,
   clamp,
-  cos,
   float,
+  Fn,
+  If,
   length,
   max,
   min,
   mix,
   select,
-  sin,
   smoothstep,
   texture,
   type TSLNode,
@@ -133,7 +133,8 @@ const BRUSH_FEATHER_RINGS = [
 export class LayerMaskNode {
   private readonly center = uniform(new THREE.Vector2(0, 0))
   private readonly size = uniform(new THREE.Vector2(0.5, 0.5))
-  private readonly rotation = uniform(0)
+  private readonly rotationCos = uniform(1)
+  private readonly rotationSin = uniform(0)
   private readonly feather = uniform(0.01)
   private readonly aspect = uniform(new THREE.Vector2(1, 1))
   private readonly paintAspect = uniform(new THREE.Vector2(1, 1))
@@ -166,7 +167,9 @@ export class LayerMaskNode {
       Math.max(MIN_SIZE, Math.abs(next.size[0])),
       Math.max(MIN_SIZE, Math.abs(next.size[1]))
     )
-    this.rotation.value = (next.rotation * Math.PI) / 180
+    const radians = (next.rotation * Math.PI) / 180
+    this.rotationCos.value = Math.cos(radians)
+    this.rotationSin.value = Math.sin(radians)
     this.feather.value = Math.max(0, next.feather)
     if (next.shape === "brush") {
       if (!this.paintTexture) {
@@ -215,8 +218,8 @@ export class LayerMaskNode {
     const screen = vec2(uv().x, float(1).sub(uv().y))
     const point = screen.sub(0.5).mul(this.aspect)
     const local = point.sub(this.center)
-    const c = cos(this.rotation)
-    const s = sin(this.rotation)
+    const c = this.rotationCos
+    const s = this.rotationSin
     const q = vec2(
       local.x.mul(c).add(local.y.mul(s)),
       local.y.mul(c).sub(local.x.mul(s))
@@ -254,42 +257,47 @@ export class LayerMaskNode {
         break
       }
       case "brush": {
-        const paintUv = point.div(this.paintAspect).add(0.5)
-        const inside = paintUv.x
-          .greaterThanEqual(0)
-          .and(paintUv.x.lessThan(1))
-          .and(paintUv.y.greaterThanEqual(0))
-          .and(paintUv.y.lessThan(1))
         const paint = this.paintTexture
-        const tap = (offset: TSLNode): TSLNode => {
-          if (!paint) return float(0)
-          const at = paintUv.add(offset.div(this.paintAspect))
-          const within = at.x
-            .greaterThanEqual(0)
-            .and(at.x.lessThan(1))
-            .and(at.y.greaterThanEqual(0))
-            .and(at.y.lessThan(1))
-          return select(within, texture(paint).sample(at).level(0).r, float(0))
-        }
         const reach = this.feather
-        let total: TSLNode = tap(vec2(0, 0))
-        let weight = 1
-        for (const [ring, count, ringWeight] of BRUSH_FEATHER_RINGS) {
-          for (let index = 0; index < count; index += 1) {
-            const angle = ((index + ring * 0.5) / count) * Math.PI * 2
-            total = total.add(
-              tap(vec2(Math.cos(angle), Math.sin(angle)).mul(reach.mul(ring))).mul(
-                ringWeight
-              )
-            )
-            weight += ringWeight
+        const brush = Fn(() => {
+          const paintUv = point.div(this.paintAspect).add(0.5).toVar()
+          const tap = (offset: TSLNode): TSLNode => {
+            if (!paint) return float(0)
+            const at = paintUv.add(offset.div(this.paintAspect))
+            const within = at.x
+              .greaterThanEqual(0)
+              .and(at.x.lessThan(1))
+              .and(at.y.greaterThanEqual(0))
+              .and(at.y.lessThan(1))
+            return select(within, texture(paint).sample(at).level(0).r, float(0))
           }
-        }
-        value = select(
-          reach.greaterThan(0.0005),
-          total.div(weight),
-          select(inside, tap(vec2(0, 0)), float(0))
-        )
+          const result = float(0).toVar()
+          If(reach.greaterThan(0.0005), () => {
+            let total: TSLNode = tap(vec2(0, 0))
+            let weight = 1
+            for (const [ring, count, ringWeight] of BRUSH_FEATHER_RINGS) {
+              for (let index = 0; index < count; index += 1) {
+                const angle = ((index + ring * 0.5) / count) * Math.PI * 2
+                total = total.add(
+                  tap(
+                    vec2(Math.cos(angle), Math.sin(angle)).mul(reach.mul(ring))
+                  ).mul(ringWeight)
+                )
+                weight += ringWeight
+              }
+            }
+            result.assign(total.div(weight))
+          }).Else(() => {
+            const inside = paintUv.x
+              .greaterThanEqual(0)
+              .and(paintUv.x.lessThan(1))
+              .and(paintUv.y.greaterThanEqual(0))
+              .and(paintUv.y.lessThan(1))
+            result.assign(select(inside, tap(vec2(0, 0)), float(0)))
+          })
+          return result
+        })
+        value = brush()
         break
       }
       default: {

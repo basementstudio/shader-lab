@@ -1,5 +1,3 @@
-/** Binary coverage in centered, shorter-edge composition units. Versioned and
- * bounded so projects/history need no external assets or growing stroke lists. */
 export const CELL_PAINT_SIZE = 512
 const PIXELS = CELL_PAINT_SIZE * CELL_PAINT_SIZE
 const BYTES = PIXELS / 8
@@ -29,8 +27,14 @@ export function decodeCellPaintMask(value: unknown): CellPaintMask {
     const packed = atob(parts[3] ?? "")
     if (packed.length !== BYTES) return emptyCellPaintMask()
     const mask = emptyCellPaintMask(width, height)
-    for (let i = 0; i < PIXELS; i++)
-      mask.data[i] = packed.charCodeAt(i >> 3) & (1 << (i & 7)) ? 255 : 0
+    const data = mask.data
+    for (let byte = 0; byte < BYTES; byte++) {
+      const bits = packed.charCodeAt(byte)
+      if (bits === 0) continue
+      const start = byte << 3
+      for (let bit = 0; bit < 8; bit++)
+        if (bits & (1 << bit)) data[start + bit] = 255
+    }
     return mask
   } catch {
     return emptyCellPaintMask()
@@ -38,10 +42,14 @@ export function decodeCellPaintMask(value: unknown): CellPaintMask {
 }
 export function encodeCellPaintMask(mask: CellPaintMask): string {
   const packed = new Uint8Array(BYTES)
+  const data = mask.data
   let any = false
-  for (let i = 0; i < PIXELS; i++) {
-    if (mask.data[i]) {
-      packed[i >> 3] = (packed[i >> 3] ?? 0) | (1 << (i & 7))
+  for (let byte = 0; byte < BYTES; byte++) {
+    const start = byte << 3
+    let bits = 0
+    for (let bit = 0; bit < 8; bit++) if (data[start + bit]) bits |= 1 << bit
+    if (bits) {
+      packed[byte] = bits
       any = true
     }
   }

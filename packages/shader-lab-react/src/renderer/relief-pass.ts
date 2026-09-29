@@ -5,7 +5,9 @@ import {
   dot,
   float,
   floor,
+  Fn,
   fract,
+  If,
   max,
   min,
   mix,
@@ -107,6 +109,7 @@ export class ReliefPass extends PassNode {
   private readonly logicalWidthUniform: Node
   private readonly logicalHeightUniform: Node
   private readonly placeholder = new THREE.Texture()
+  private readonly heightPlaceholder = new THREE.Texture()
   private heightTextureNodes: Node[] = []
   private colorTextureNode: Node | null = null
 
@@ -185,15 +188,24 @@ export class ReliefPass extends PassNode {
     this.amountUniform.value = readNumber(params.amount, 1, 0, 1)
   }
 
-  private heightSample(uvNode: Node): Node {
-    const node = tslTexture(this.placeholder, uvNode)
+  private heightTap(uvNode: Node): Node {
+    const node = tslTexture(this.heightPlaceholder, uvNode)
     this.heightTextureNodes.push(node)
+    return node
+  }
+
+  private heights(nodes: Node[]): Node[] {
+    const taps = nodes.map((node) => node.toVar())
+    const values = taps.map((tap) => float(tap.a).toVar())
     const mode = this.heightModeUniform
-    return select(
-      mode.lessThan(0.5),
-      perceptualLuma(node),
-      select(mode.lessThan(1.5), float(node.r), float(node.a))
-    )
+    If(mode.lessThan(0.5), () => {
+      for (const [index, tap] of taps.entries()) values[index]!.assign(perceptualLuma(tap))
+    }).Else(() => {
+      If(mode.lessThan(1.5), () => {
+        for (const [index, tap] of taps.entries()) values[index]!.assign(float(tap.r))
+      })
+    })
+    return values
   }
 
   private surfaceDetail(pixel: Node, size: Node, tone: Node): Node {
@@ -244,68 +256,88 @@ export class ReliefPass extends PassNode {
     const targetUv = vec2(uv().x, float(1).sub(uv().y))
     const size = vec2(this.logicalWidthUniform, this.logicalHeightUniform)
     const texel = vec2(float(1).div(size.x), float(1).div(size.y))
-    const pixel = targetUv.mul(size)
     const reach = texel.mul(this.bevelUniform)
-
-    const center = this.heightSample(targetUv)
-    const right = this.heightSample(targetUv.add(vec2(reach.x, 0)))
-    const left = this.heightSample(targetUv.sub(vec2(reach.x, 0)))
-    const down = this.heightSample(targetUv.add(vec2(0, reach.y)))
-    const up = this.heightSample(targetUv.sub(vec2(0, reach.y)))
-
-    const detailRight = this.surfaceDetail(pixel.add(vec2(1, 0)), size, center)
-    const detailLeft = this.surfaceDetail(pixel.sub(vec2(1, 0)), size, center)
-    const detailDown = this.surfaceDetail(pixel.add(vec2(0, 1)), size, center)
-    const detailUp = this.surfaceDetail(pixel.sub(vec2(0, 1)), size, center)
-
-    const sign = select(this.debossUniform.greaterThan(0.5), float(-1), float(1))
-    const slopeX = right
-      .sub(left)
-      .mul(this.depthUniform)
-      .mul(sign)
-      .add(detailRight.sub(detailLeft))
-    const slopeY = down
-      .sub(up)
-      .mul(this.depthUniform)
-      .mul(sign)
-      .add(detailDown.sub(detailUp))
-    const normal = vec3(slopeX.mul(-2), slopeY.mul(2), float(1)).normalize()
-
-    const azimuth = this.lightAngleUniform.mul(Math.PI / 180)
-    const elevation = this.elevationUniform.mul(Math.PI / 180)
-    const light = vec3(
-      cos(azimuth).mul(cos(elevation)),
-      sin(azimuth).mul(cos(elevation)),
-      sin(elevation)
-    ).normalize()
-    const shade = max(dot(normal, light), 0).div(sin(elevation))
-    const halfway = light.add(vec3(0, 0, 1)).normalize()
-    const flatSpecular = pow(max(halfway.z, 0), this.shininessUniform)
-    const specular = max(
-      pow(max(dot(normal, halfway), 0), this.shininessUniform).sub(flatSpecular),
-      0
-    ).mul(this.specularUniform)
-
+    const heightNodes = [
+      this.heightTap(targetUv),
+      this.heightTap(targetUv.add(vec2(reach.x, 0))),
+      this.heightTap(targetUv.sub(vec2(reach.x, 0))),
+      this.heightTap(targetUv.add(vec2(0, reach.y))),
+      this.heightTap(targetUv.sub(vec2(0, reach.y))),
+    ]
     const colorNode = tslTexture(this.placeholder, targetUv)
     this.colorTextureNode = colorNode
-    const source = vec3(colorNode.r, colorNode.g, colorNode.b)
-    const base = select(
-      this.sourceSurfaceUniform.greaterThan(0.5),
-      source,
-      this.colorUniform
-    )
-    const ambient = this.ambientUniform
-    const lit = base
-      .mul(ambient.add(float(1).sub(ambient).mul(shade)))
-      .add(vec3(specular))
-    return vec4(
-      mix(source, clamp(lit, 0, 1), this.amountUniform),
-      colorNode.a
-    )
+    return Fn(() => {
+      const [center, right, left, down, up] = this.heights(heightNodes) as [
+        Node,
+        Node,
+        Node,
+        Node,
+        Node,
+      ]
+      const pixel = targetUv.mul(size).toVar()
+      const source = vec3(colorNode.r, colorNode.g, colorNode.b).toVar()
+
+      const detailX = float(0).toVar()
+      const detailY = float(0).toVar()
+      If(
+        this.engraveDepthUniform.greaterThan(0).or(this.grainUniform.greaterThan(0)),
+        () => {
+          const detailRight = this.surfaceDetail(pixel.add(vec2(1, 0)), size, center)
+          const detailLeft = this.surfaceDetail(pixel.sub(vec2(1, 0)), size, center)
+          const detailDown = this.surfaceDetail(pixel.add(vec2(0, 1)), size, center)
+          const detailUp = this.surfaceDetail(pixel.sub(vec2(0, 1)), size, center)
+          detailX.assign(detailRight.sub(detailLeft))
+          detailY.assign(detailDown.sub(detailUp))
+        }
+      )
+
+      const sign = select(this.debossUniform.greaterThan(0.5), float(-1), float(1))
+      const slopeX = right
+        .sub(left)
+        .mul(this.depthUniform)
+        .mul(sign)
+        .add(detailX)
+      const slopeY = down
+        .sub(up)
+        .mul(this.depthUniform)
+        .mul(sign)
+        .add(detailY)
+      const normal = vec3(slopeX.mul(-2), slopeY.mul(2), float(1)).normalize()
+
+      const azimuth = this.lightAngleUniform.mul(Math.PI / 180)
+      const elevation = this.elevationUniform.mul(Math.PI / 180)
+      const light = vec3(
+        cos(azimuth).mul(cos(elevation)),
+        sin(azimuth).mul(cos(elevation)),
+        sin(elevation)
+      ).normalize()
+      const shade = max(dot(normal, light), 0).div(sin(elevation))
+      const halfway = light.add(vec3(0, 0, 1)).normalize()
+      const flatSpecular = pow(max(halfway.z, 0), this.shininessUniform)
+      const specular = max(
+        pow(max(dot(normal, halfway), 0), this.shininessUniform).sub(flatSpecular),
+        0
+      ).mul(this.specularUniform)
+
+      const base = select(
+        this.sourceSurfaceUniform.greaterThan(0.5),
+        source,
+        this.colorUniform
+      )
+      const ambient = this.ambientUniform
+      const lit = base
+        .mul(ambient.add(float(1).sub(ambient).mul(shade)))
+        .add(vec3(specular))
+      return vec4(
+        mix(source, clamp(lit, 0, 1), this.amountUniform),
+        colorNode.a
+      )
+    })()
   }
 
   override dispose(): void {
     this.placeholder.dispose()
+    this.heightPlaceholder.dispose()
     super.dispose()
   }
 }

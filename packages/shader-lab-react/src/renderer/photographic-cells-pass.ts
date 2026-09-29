@@ -42,7 +42,6 @@ function number(
     : fallback
 }
 
-/** Select photographic cells without replacing their interiors with flat samples. */
 export class PhotographicCellsPass extends PassNode {
   private readonly painted = uniform(0)
   private readonly paintGuide = uniform(0)
@@ -122,7 +121,6 @@ export class PhotographicCellsPass extends PassNode {
     this.paintGuide.value = params._paintGuide === true ? 0.18 : 0
     const paintValue =
       typeof params.paintMask === "string" ? params.paintMask : ""
-    // Video/source changes do not decode or upload the painted mask again.
     if (paintValue !== this.paintValue) {
       const mask = decodeCellPaintMask(paintValue)
       this.paintTexture.image.data?.set(mask.data)
@@ -163,7 +161,6 @@ export class PhotographicCellsPass extends PassNode {
             43758.5453
           )
         )
-      // Automatic and painted selection share the same geometry and outline.
       const sampleTone = (position: Node) => {
         const inset = vec2(0.5).div(this.resolution)
         const probe = this.source
@@ -183,16 +180,13 @@ export class PhotographicCellsPass extends PassNode {
           .mul(this.irregularity)
         return { width, shift }
       }
-      const cellAt = Fn(([id]: [Node]) => {
-        const { width, shift } = rowGeometry(id.y)
+      const cellAt = Fn(([id, geometry]: [Node, Node]) => {
+        const width = geometry.x
+        const shift = geometry.y
         const center = vec2(
           id.x.add(0.5).mul(width).sub(shift),
           id.y.add(0.5).mul(this.size)
         )
-        // Jitter only where selection is read, never the cell geometry or photo.
-        // A bounded lookup (at most 1.5 cell widths/heights per axis) fragments
-        // boundaries while leaving the interior intact. No extra source samples,
-        // neighborhood search or time dependence; zero keeps the legacy path.
         const selectionPoint = center.toVar()
         If(
           this.edgeScatter
@@ -226,8 +220,6 @@ export class PhotographicCellsPass extends PassNode {
           )
         }).Else(() => {
           If(this.regions.greaterThan(0.5), () => {
-            // Smooth a field in composition space, then quantize only its boundary
-            // into cells. Region Size never changes the photographic samples inside.
             const field = selectionPoint.div(this.regionSize)
             const base = floor(field)
             const fraction = fract(field)
@@ -302,14 +294,20 @@ export class PhotographicCellsPass extends PassNode {
       }).setLayout({
         name: "photographicCell",
         type: "vec4",
-        inputs: [{ name: "id", type: "vec2" }],
+        inputs: [
+          { name: "id", type: "vec2" },
+          { name: "geometry", type: "vec2" },
+        ],
       })
       const screen = vec2(uv().x, float(1).sub(uv().y))
       const point = screen.sub(0.5).mul(this.aspect)
       const row = floor(point.y.div(this.size))
       const geometry = rowGeometry(row)
       const column = floor(point.x.add(geometry.shift).div(geometry.width))
-      const current = cellAt(vec2(column, row)).toVar()
+      const current = cellAt(
+        vec2(column, row),
+        vec2(geometry.width, geometry.shift)
+      ).toVar()
       const center = current.xy
       const width = current.z
       const selected = current.w
@@ -336,15 +334,10 @@ export class PhotographicCellsPass extends PassNode {
           .and(this.gap.equal(0))
           .and(this.outline.greaterThan(0)),
         () => {
-          // Distance to the complement of the selected union, rather than to each
-          // cell edge. Search neighboring rows by their own widths/staggers so
-          // T-junctions and narrow cells do not leave internal seams.
           const boundary = min(
             this.aspect.x.mul(0.5).sub(abs(point.x)),
             this.aspect.y.mul(0.5).sub(abs(point.y))
           ).toVar()
-          // Only pixels close enough to a cell edge can carry a perimeter.
-          // Bound neighbor queries by the stroke reach before sampling the source.
           const reach = strokeWidth.add(edge)
           If(
             selected
@@ -391,10 +384,18 @@ export class PhotographicCellsPass extends PassNode {
                         )
                       )
                       If(
-                        outside.lessThan(boundary).and(outside.lessThan(reach)),
+                        outside
+                          .lessThan(boundary)
+                          .and(outside.lessThan(reach))
+                          .and(
+                            abs(float(i).sub(rows))
+                              .add(abs(float(j).sub(columns)))
+                              .greaterThan(0)
+                          ),
                         () => {
                           const neighbor = cellAt(
-                            vec2(neighborColumn, neighborRow)
+                            vec2(neighborColumn, neighborRow),
+                            vec2(adjacent.width, adjacent.shift)
                           )
                           If(neighbor.w.lessThan(0.5), () => {
                             boundary.assign(outside)
@@ -413,8 +414,6 @@ export class PhotographicCellsPass extends PassNode {
       const interior = float(1).sub(
         smoothstep(edge.negate(), edge, outlineDistance.add(strokeWidth))
       )
-      // Subtract the inset fill from the outer coverage. Multiplying two edge
-      // fades adds extra ink when a gap opens, especially for thin outlines.
       const strokeCoverage = max(coverage.sub(interior), 0).mul(
         select(
           this.outline.greaterThan(0).and(this.outlineMode.greaterThan(0)),
@@ -422,11 +421,9 @@ export class PhotographicCellsPass extends PassNode {
           float(0)
         )
       )
-      // RGB is straight-alpha: normalize here because mask applies coverage below.
       const stroke = strokeCoverage.div(max(coverage, 0.000001))
       const original = this.inputNode
       const rgb = mix(original.rgb, this.outlineColor, stroke)
-      // Outlines never manufacture coverage in transparent parts of the source.
       return select(
         this.cutout.greaterThan(0.5),
         vec4(rgb, original.a.mul(max(mask, this.paintGuide.mul(this.painted)))),

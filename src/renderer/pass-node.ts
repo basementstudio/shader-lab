@@ -30,6 +30,8 @@ export class PassNode {
 
   enabled = true
 
+  protected inputChanged = true
+
   protected readonly scene: THREE.Scene
   protected readonly camera: THREE.OrthographicCamera
   protected material: THREE.MeshBasicNodeMaterial
@@ -61,8 +63,6 @@ export class PassNode {
     this.layerId = layerId
     this.scene = new THREE.Scene()
     this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
-    // The shader already composites the full pixel. NoBlending also prevents
-    // Three's opaque-material path from overwriting the computed alpha.
     this.material = new THREE.MeshBasicNodeMaterial()
     this.material.blending = THREE.NoBlending
     this.opacityUniform = uniform(1)
@@ -236,6 +236,14 @@ export class PassNode {
   }
 
   needsContinuousRender(): boolean {
+    return false
+  }
+
+  setInputChanged(changed: boolean): void {
+    this.inputChanged = changed
+  }
+
+  hasStaticOutput(): boolean {
     return false
   }
 

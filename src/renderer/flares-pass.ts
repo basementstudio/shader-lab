@@ -7,6 +7,7 @@ import {
   floor,
   fract,
   Fn,
+  If,
   int,
   Loop,
   max,
@@ -42,6 +43,11 @@ const TARGET_OPTIONS = {
   minFilter: THREE.LinearFilter,
   stencilBuffer: false,
   type: THREE.HalfFloatType,
+} as const
+
+const POINT_TARGET_OPTIONS = {
+  ...TARGET_OPTIONS,
+  format: THREE.RedFormat,
 } as const
 
 const BOX_TAPS = Array.from(
@@ -111,9 +117,14 @@ export class FlaresPass extends PassNode {
   private readonly inputTexelUniform: Node
   private readonly tapSpacingUniform: Node
   private readonly placeholder = new THREE.Texture()
+  private readonly fieldPlaceholder = new THREE.Texture()
   private readonly stageCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
   private readonly geometry = new THREE.PlaneGeometry(2, 2)
-  private readonly pointTarget = new THREE.WebGLRenderTarget(1, 1, TARGET_OPTIONS)
+  private readonly pointTarget = new THREE.WebGLRenderTarget(
+    1,
+    1,
+    POINT_TARGET_OPTIONS
+  )
   private readonly rayTarget = new THREE.WebGLRenderTarget(1, 1, TARGET_OPTIONS)
   private readonly pointStage: Stage
   private readonly rayStage: Stage
@@ -174,38 +185,43 @@ export class FlaresPass extends PassNode {
   }
 
   private buildPointNode(input: Node): Node {
-    const sourceUv = renderTargetUv()
-    const spacing = max(
-      this.inputTexelUniform.mul(FIELD_DIVISOR / 4),
-      this.documentTexelUniform.mul(this.thicknessUniform.mul(0.5))
-    )
-    let bright: Node = float(0)
-    for (const [x, y] of BOX_TAPS) {
-      bright = bright.add(
-        this.brightness(input.sample(sourceUv.add(vec2(x, y).mul(spacing))))
+    return Fn(() => {
+      const sourceUv = renderTargetUv().toVar()
+      const spacing = max(
+        this.inputTexelUniform.mul(FIELD_DIVISOR / 4),
+        this.documentTexelUniform.mul(this.thicknessUniform.mul(0.5))
       )
-    }
-    bright = bright.div(BOX_TAPS.length)
-    const reach = this.documentTexelUniform.mul(this.isolationUniform)
-    let surround: Node = float(0)
-    for (const [x, y] of RING) {
-      surround = surround.add(
-        this.brightness(input.sample(sourceUv.add(vec2(x, y).mul(reach))))
-      )
-    }
-    const isolated = surround
-      .div(RING.length)
-      .mul(step(float(0.5), this.isolationUniform))
-    const point = max(bright.sub(isolated), float(0))
-    return vec4(point, point, point, float(1))
+      let bright: Node = float(0)
+      for (const [x, y] of BOX_TAPS) {
+        bright = bright.add(
+          this.brightness(input.sample(sourceUv.add(vec2(x, y).mul(spacing))))
+        )
+      }
+      bright = bright.div(BOX_TAPS.length).toVar()
+      const isolated = float(0).toVar()
+      If(this.isolationUniform.greaterThanEqual(0.5), () => {
+        const reach = this.documentTexelUniform.mul(this.isolationUniform)
+        let surround: Node = float(0)
+        for (const [x, y] of RING) {
+          surround = surround.add(
+            this.brightness(input.sample(sourceUv.add(vec2(x, y).mul(reach))))
+          )
+        }
+        isolated.assign(
+          surround.div(RING.length).mul(step(float(0.5), this.isolationUniform))
+        )
+      })
+      const point = max(bright.sub(isolated), float(0))
+      return vec4(point, point, point, float(1))
+    })()
   }
 
   private buildRayNode(input: Node): Node {
     return Fn(() => {
-      const sourceUv = renderTargetUv()
+      const sourceUv = renderTargetUv().toVar()
       const rays = this.raysUniform
       const rotation = this.rotationUniform.mul(Math.PI / 180)
-      const texel = this.documentTexelUniform
+      const texel = this.documentTexelUniform.toVar()
       const total = float(0).toVar()
       const near = float(0).toVar()
       Loop({ start: 0, end: int(rays), type: "int", name: "rayIndex" }, (inputs) => {
@@ -241,14 +257,18 @@ export class FlaresPass extends PassNode {
           }
         )
       })
-      const coreReach = texel.mul(this.coreSizeUniform)
-      let core: Node = float(input.sample(sourceUv).r)
-      for (const [x, y] of RING) {
-        core = core.add(
-          float(input.sample(sourceUv.add(vec2(x, y).mul(coreReach))).r).mul(0.5)
-        )
-      }
-      return vec4(total, near, core.div(5), float(1))
+      const coreField = float(0).toVar()
+      If(this.coreGlowUniform.greaterThanEqual(0.0001), () => {
+        const coreReach = texel.mul(this.coreSizeUniform)
+        let core: Node = float(input.sample(sourceUv).r)
+        for (const [x, y] of RING) {
+          core = core.add(
+            float(input.sample(sourceUv.add(vec2(x, y).mul(coreReach))).r).mul(0.5)
+          )
+        }
+        coreField.assign(core.div(5))
+      })
+      return vec4(total, near, coreField, float(1))
     })()
   }
 
@@ -326,7 +346,7 @@ export class FlaresPass extends PassNode {
       return this.inputNode
     }
     const targetUv = renderTargetUv()
-    const field = tslTexture(this.placeholder, targetUv)
+    const field = tslTexture(this.fieldPlaceholder, targetUv)
     this.fieldNode = field
     const color = tslTexture(this.placeholder, targetUv)
     this.colorNode = color
@@ -372,6 +392,7 @@ export class FlaresPass extends PassNode {
     }
     this.geometry.dispose()
     this.placeholder.dispose()
+    this.fieldPlaceholder.dispose()
     super.dispose()
   }
 }

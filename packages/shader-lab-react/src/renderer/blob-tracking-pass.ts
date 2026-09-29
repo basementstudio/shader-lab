@@ -98,15 +98,42 @@ const MAX_EDGE_DOTS = MAX_BLOBS * 64
 const LABEL_HEIGHT_FRACTION = 1 / 54
 const SHAPE_EXTENT_EPSILON = 1e-5
 
-// Motion mask, following "Shading Motion". Its state texture is rgba8unorm at
-// DETECTION_SCALE with R = current luminance and G = the decayed motion trail;
-// our luma pyramid's level 0 is already device/2, i.e. DETECTION_SCALE 0.5.
 const MOTION_TRAIL_FLOOR = 0.025
 const MOTION_THRESHOLD_SPAN = 4
 const DEFAULT_MOTION_MASK_THRESHOLD = 0.08
+const SETTLE_RENDERS = 64
 
+function writePacked(
+  target: Float32Array,
+  offset: number,
+  x: number,
+  y: number,
+  z: number,
+  w: number
+): boolean {
+  if (
+    target[offset] === Math.fround(x) &&
+    target[offset + 1] === Math.fround(y) &&
+    target[offset + 2] === Math.fround(z) &&
+    target[offset + 3] === Math.fround(w)
+  ) {
+    return false
+  }
+  target[offset] = x
+  target[offset + 1] = y
+  target[offset + 2] = z
+  target[offset + 3] = w
+  return true
+}
 
-/** Render-target reads are Y-flipped relative to the fullscreen quad's uv(). */
+function sameBytes(left: Uint8Array, right: Uint8Array): boolean {
+  if (left.length !== right.length) return false
+  for (let index = 0; index < left.length; index += 1) {
+    if (left[index] !== right[index]) return false
+  }
+  return true
+}
+
 function renderTargetUv(): Node {
   return vec2(uv().x, float(1).sub(uv().y))
 }
@@ -258,7 +285,6 @@ function parseLabelList(value: unknown): string[] {
     .slice(0, 64)
 }
 
-/** Deterministic per-track code so labels never flicker between frames. */
 export function seededLabelHash(seed: number, id: number): number {
   let h = (Math.imul(seed | 0, 0x9e3779b1) ^ Math.imul(id + 1, 0x85ebca6b)) >>> 0
   h ^= h >>> 15
@@ -394,7 +420,19 @@ export class BlobTrackingPass extends PassNode {
 
   private pendingReadback: Promise<void> | null = null
   private latestAnalysis: Uint8Array | null = null
+  private analysisVersion = 0
   private readbackFailureReported = false
+  private lastRenderCaptured = false
+  private settledRenders = 0
+  private decorationDataChanged = true
+  private attributesStale = true
+  private trackerInputsDirty = true
+  private trackerStepTime = Number.NaN
+  private trackerStepVersion = -1
+  private packedBlobCount = -1
+  private packedSegmentCount = -1
+  private packedArrowCount = -1
+  private packedEdgeDotCount = -1
 
   private readonly tracker = new BlobTracker()
   private trackerConfig: TrackerConfig = { ...DEFAULT_TRACKER_CONFIG }
@@ -432,6 +470,9 @@ export class BlobTrackingPass extends PassNode {
   private readonly dotRadiusUniform: Node = uniform(0.003)
   private readonly bracketLengthUniform: Node = uniform(0.28)
   private readonly labelBuffer = new Float32Array(
+    MAX_LABEL_CHARS * MAX_BLOBS * 4
+  )
+  private readonly labelScratch = new Float32Array(
     MAX_LABEL_CHARS * MAX_BLOBS * 4
   )
   private readonly labelIndexTexture: THREE.DataTexture = createLabelIndexTexture(
@@ -533,6 +574,11 @@ export class BlobTrackingPass extends PassNode {
     }
     this.lastTimelineTime = timelineTime
 
+    if (!(this.inputChanged || this.needsContinuousRender())) {
+      super.render(renderer, inputTexture, outputTarget, time, delta)
+      return
+    }
+
     if (this.childPass && this.innerRt) {
       this.childPass.render(renderer, inputTexture, this.innerRt, time, delta)
       if (this.innerNode) {
@@ -545,28 +591,54 @@ export class BlobTrackingPass extends PassNode {
     const writeTarget = this.renderAnalysis(renderer, lumaTexture)
     this.hasHistoryUniform.value = 1
 
+    this.lastRenderCaptured = false
     if (writeTarget && !this.pendingReadback) {
       this.pendingReadback = this.queueReadback(renderer, writeTarget)
+      this.lastRenderCaptured = true
     }
 
-    if (this.latestAnalysis) {
-      this.tracker.step(
-        this.latestAnalysis,
-        ANALYSIS_WIDTH,
-        ANALYSIS_HEIGHT,
-        timelineTime,
-        this.trackerConfig
-      )
-      this.syncTrackerOutputs()
-    }
+    this.stepTracker(timelineTime)
 
     this.renderDecorations(renderer)
     this.renderTrail(renderer)
 
     super.render(renderer, inputTexture, outputTarget, time, delta)
+
+    if (this.inputChanged || this.decorationDataChanged) {
+      this.settledRenders = 0
+    } else if (this.settledRenders < SETTLE_RENDERS) {
+      this.settledRenders += 1
+    }
+    this.decorationDataChanged = false
+  }
+
+  private stepTracker(time: number): void {
+    if (!this.latestAnalysis) {
+      return
+    }
+    if (
+      !this.trackerInputsDirty &&
+      time === this.trackerStepTime &&
+      this.analysisVersion === this.trackerStepVersion
+    ) {
+      return
+    }
+    this.tracker.step(
+      this.latestAnalysis,
+      ANALYSIS_WIDTH,
+      ANALYSIS_HEIGHT,
+      time,
+      this.trackerConfig
+    )
+    this.trackerInputsDirty = false
+    this.trackerStepTime = time
+    this.trackerStepVersion = this.analysisVersion
+    this.syncTrackerOutputs()
   }
 
   override updateParams(params: LayerParameterValues): void {
+    this.settledRenders = 0
+    this.trackerInputsDirty = true
     this.trackerConfig = {
       blobAmount:
         typeof params.blobAmount === "number"
@@ -705,10 +777,13 @@ export class BlobTrackingPass extends PassNode {
     this.resizeMotionTargets()
     this.resizeTrailTargets()
     this.hasHistoryUniform.value = 0
+    this.settledRenders = 0
     this.childPass?.resize(this.deviceWidth, this.deviceHeight)
   }
 
   override updateLogicalSize(width: number, height: number): void {
+    this.settledRenders = 0
+    this.trackerInputsDirty = true
     this.logicalWidth = Math.max(1, width)
     this.logicalHeight = Math.max(1, height)
     this.aspectUniform.value = this.logicalWidth / this.logicalHeight
@@ -718,7 +793,16 @@ export class BlobTrackingPass extends PassNode {
   }
 
   override needsContinuousRender(): boolean {
-    return true
+    return (
+      this.settledRenders < SETTLE_RENDERS ||
+      this.decorationDataChanged ||
+      (this.pendingReadback === null && !this.lastRenderCaptured) ||
+      (this.childPass?.needsContinuousRender() ?? false)
+    )
+  }
+
+  override hasStaticOutput(): boolean {
+    return !this.needsContinuousRender()
   }
 
   override dispose(): void {
@@ -757,8 +841,6 @@ export class BlobTrackingPass extends PassNode {
   }
 
   protected override buildEffectNode(): Node {
-    // PassNode's constructor builds the node graph before this subclass's field
-    // initializers have run, so bail out until our own resources exist.
     if (!(this.decorationPlaceholder && this.motionPlaceholder)) {
       return this.inputNode
     }
@@ -776,10 +858,6 @@ export class BlobTrackingPass extends PassNode {
     )
 
     if (this.motionOutput) {
-      // With an inner effect set, emit the effect carried by the mask's alpha —
-      // lit means effect, unlit means transparent. With no inner effect there is
-      // nothing to carry, so emit the mask itself for viewing or for driving
-      // another layer through `compositeMode: "mask"`.
       if (this.innerEffectType !== INNER_EFFECT_NONE) {
         const maskedSample = tslTexture(this.innerPlaceholder, screenUv)
         this.innerNode = maskedSample
@@ -812,9 +890,6 @@ export class BlobTrackingPass extends PassNode {
     const trail = float(trailSample.r).mul(this.trailStrengthUniform)
     const decoration = max(float(decorationSample.g), trail)
 
-    // Emit the effect plus a real alpha rather than pre-mixing with the input:
-    // PassNode's blend already does `mix(base, effect, opacity * alpha)`, so an
-    // unlit mask leaves the layer transparent and the stack below shows through.
     const composed = mix(
       innerColor,
       vec3(
@@ -955,11 +1030,6 @@ export class BlobTrackingPass extends PassNode {
     )
   }
 
-  /**
-   * Quads own their attributes: sharing `fullscreenGeometry`'s would mean
-   * `disposeDecorationMeshes` tears down buffers the analysis and trail passes
-   * still need. Layout matches PlaneGeometry(2, 2): uv.y = (y + 1) / 2.
-   */
   private createInstancedQuad(
     attributes: Record<string, THREE.InstancedBufferAttribute>
   ): THREE.InstancedBufferGeometry {
@@ -987,8 +1057,6 @@ export class BlobTrackingPass extends PassNode {
 
   private createDecorationMaterial(): THREE.MeshBasicNodeMaterial {
     const material = new THREE.MeshBasicNodeMaterial()
-    // Coverage unions with a max blend, matching the `max()` chain the previous
-    // full-screen loops used, so overlapping primitives never double up.
     material.blending = THREE.CustomBlending
     material.blendEquation = THREE.MaxEquation
     material.blendSrc = THREE.OneFactor
@@ -999,14 +1067,10 @@ export class BlobTrackingPass extends PassNode {
     material.transparent = true
     material.depthTest = false
     material.depthWrite = false
-    // quadPositionNode inverts Y to match the screenUv convention, which
-    // reverses triangle winding; without this every quad is back-facing and
-    // silently culled.
     material.side = THREE.DoubleSide
     return material
   }
 
-  /** Local quad corner -> clip space, for a quad centred in point space. */
   private quadPositionNode(center: Node, half: Node): Node {
     const screenX = float(center.x)
       .add(positionLocal.x.mul(float(half.x)))
@@ -1015,7 +1079,6 @@ export class BlobTrackingPass extends PassNode {
     return vec3(screenX.mul(2).sub(1), float(1).sub(screenY.mul(2)), float(0))
   }
 
-  /** Recovers point-space position in the fragment stage. */
   private quadPointNode(center: Node, half: Node): Node {
     return vec2(
       float(center.x).add(uv().x.mul(2).sub(1).mul(float(half.x))),
@@ -1114,7 +1177,6 @@ export class BlobTrackingPass extends PassNode {
       )
     }
 
-    // B carries the bare frame: it is what the trail ribbon accumulates.
     material.colorNode = vec4(fill, stroke, frameForTrail, float(1)) as Node
     this.shapeMesh = this.addDecorationMesh(material, {
       iMeta: meta,
@@ -1305,6 +1367,7 @@ export class BlobTrackingPass extends PassNode {
       return
     }
     this.disposeDecorationMeshes()
+    this.attributesStale = true
 
     this.buildShapeMesh()
     this.buildLabelMesh()
@@ -1324,56 +1387,98 @@ export class BlobTrackingPass extends PassNode {
     this.decorationRt?.setSize(this.deviceWidth, this.deviceHeight)
   }
 
-  private renderDecorations(renderer: THREE.WebGPURenderer): void {
-    if (!(this.decorationScene && this.decorationRt && this.analysisCamera)) {
-      return
-    }
+  private applyInstanceCount(mesh: THREE.Mesh | null, count: number): void {
+    if (!mesh) return
+    ;(mesh.geometry as THREE.InstancedBufferGeometry).instanceCount = count
+    mesh.visible = count > 0
+  }
 
+  private packDecorationData(): void {
+    let changed = false
     for (let index = 0; index < MAX_BLOBS; index += 1) {
       const entry = this.blobEntries[index]
       const offset = index * 4
-      if (entry) {
-        this.blobRectData[offset] = entry.x
-        this.blobRectData[offset + 1] = entry.y
-        this.blobRectData[offset + 2] = entry.z
-        this.blobRectData[offset + 3] = entry.w
+      if (
+        entry &&
+        writePacked(this.blobRectData, offset, entry.x, entry.y, entry.z, entry.w)
+      ) {
+        changed = true
       }
-      this.blobMetaData[offset] = this.blobMetaEntries[index]?.x ?? 0
-      this.blobMetaData[offset + 1] = index
+      const presence = this.blobMetaEntries[index]?.x ?? 0
+      if (
+        this.blobMetaData[offset] !== Math.fround(presence) ||
+        this.blobMetaData[offset + 1] !== index
+      ) {
+        this.blobMetaData[offset] = presence
+        this.blobMetaData[offset + 1] = index
+        changed = true
+      }
     }
-    const copySegments = (
+    const packSegments = (
       source: THREE.Vector4[],
       target: Float32Array
     ): void => {
       for (let index = 0; index < source.length; index += 1) {
         const entry = source[index]
-        const offset = index * 4
-        if (!entry) continue
-        target[offset] = entry.x
-        target[offset + 1] = entry.y
-        target[offset + 2] = entry.z
-        target[offset + 3] = entry.w
+        if (
+          entry &&
+          writePacked(target, index * 4, entry.x, entry.y, entry.z, entry.w)
+        ) {
+          changed = true
+        }
       }
     }
-    copySegments(this.segmentEntries, this.segmentData)
-    copySegments(this.arrowEntries, this.arrowData)
-    copySegments(this.edgeDotEntries, this.edgeDotData)
-    for (const attributeBuffer of this.decorationAttributes) {
-      attributeBuffer.needsUpdate = true
+    packSegments(this.segmentEntries, this.segmentData)
+    packSegments(this.arrowEntries, this.arrowData)
+    packSegments(this.edgeDotEntries, this.edgeDotData)
+
+    const blobCount = this.blobCountUniform.value as number
+    const segmentCount = this.segmentCountUniform.value as number
+    const arrowCount = this.arrowCountUniform.value as number
+    if (
+      blobCount !== this.packedBlobCount ||
+      segmentCount !== this.packedSegmentCount ||
+      arrowCount !== this.packedArrowCount ||
+      this.edgeDotCount !== this.packedEdgeDotCount
+    ) {
+      this.packedBlobCount = blobCount
+      this.packedSegmentCount = segmentCount
+      this.packedArrowCount = arrowCount
+      this.packedEdgeDotCount = this.edgeDotCount
+      this.decorationDataChanged = true
     }
 
-    const applyCount = (mesh: THREE.Mesh | null, count: number): void => {
-      if (!mesh) return
-      ;(mesh.geometry as THREE.InstancedBufferGeometry).instanceCount = count
-      mesh.visible = count > 0
+    if (changed) {
+      this.attributesStale = true
+      this.decorationDataChanged = true
+    }
+  }
+
+  private renderDecorations(renderer: THREE.WebGPURenderer): void {
+    if (!(this.decorationScene && this.decorationRt && this.analysisCamera)) {
+      return
+    }
+
+    this.packDecorationData()
+    if (this.attributesStale) {
+      this.attributesStale = false
+      for (const attributeBuffer of this.decorationAttributes) {
+        attributeBuffer.needsUpdate = true
+      }
     }
 
     const blobCount = this.blobCountUniform.value as number
-    applyCount(this.shapeMesh, blobCount)
-    applyCount(this.labelMesh, blobCount)
-    applyCount(this.connectorMesh, this.segmentCountUniform.value as number)
-    applyCount(this.arrowMesh, this.arrowCountUniform.value as number)
-    applyCount(this.edgeDotMesh, this.edgeDotCount)
+    this.applyInstanceCount(this.shapeMesh, blobCount)
+    this.applyInstanceCount(this.labelMesh, blobCount)
+    this.applyInstanceCount(
+      this.connectorMesh,
+      this.segmentCountUniform.value as number
+    )
+    this.applyInstanceCount(
+      this.arrowMesh,
+      this.arrowCountUniform.value as number
+    )
+    this.applyInstanceCount(this.edgeDotMesh, this.edgeDotCount)
 
     renderer.setRenderTarget(this.decorationRt)
     renderer.clear()
@@ -1387,12 +1492,6 @@ export class BlobTrackingPass extends PassNode {
     }
   }
 
-  /**
-   * Full-detail motion mask: frame difference against the previous luminance,
-   * thresholded with a smoothstep and accumulated into a decaying trail. This
-   * is separate from the 64x36 analysis grid, which is sized for the CPU
-   * connected-component pass rather than for display.
-   */
   private createMotionMaskResources(): void {
     this.motionScene = new THREE.Scene()
     this.motionMaterial = new THREE.MeshBasicNodeMaterial()
@@ -1590,10 +1689,15 @@ export class BlobTrackingPass extends PassNode {
     return readPixels
       .call(renderer, target, 0, 0, ANALYSIS_WIDTH, ANALYSIS_HEIGHT)
       .then((data) => {
-        this.latestAnalysis =
+        const next =
           data instanceof Uint8Array
             ? data
             : new Uint8Array(data.buffer, data.byteOffset, data.byteLength)
+        if (!(this.latestAnalysis && sameBytes(this.latestAnalysis, next))) {
+          this.latestAnalysis = next
+          this.analysisVersion += 1
+          this.settledRenders = 0
+        }
         this.pendingReadback = null
       })
       .catch((error: unknown) => {
@@ -1625,8 +1729,6 @@ export class BlobTrackingPass extends PassNode {
       const entry = this.blobEntries[index]
       const meta = this.blobMetaEntries[index]
       if (!(blob && entry && meta)) continue
-      // Detections describe where the subject was when the readback was queued,
-      // so lead the box by the estimated velocity to cancel that latency.
       const halfWidth = blob.halfWidth * aspect
       const halfHeight = blob.halfHeight
       const half = Math.max(halfWidth, halfHeight)
@@ -1647,7 +1749,7 @@ export class BlobTrackingPass extends PassNode {
       return
     }
 
-    const buffer = this.labelBuffer
+    const buffer = this.labelScratch
     buffer.fill(BLANK_GLYPH)
 
     const count = Math.min(blobs.length, MAX_BLOBS)
@@ -1665,7 +1767,15 @@ export class BlobTrackingPass extends PassNode {
       }
     }
 
-    this.labelIndexTexture.needsUpdate = true
+    const current = this.labelBuffer
+    for (let index = 0; index < buffer.length; index += 1) {
+      if (current[index] !== buffer[index]) {
+        current.set(buffer)
+        this.labelIndexTexture.needsUpdate = true
+        this.decorationDataChanged = true
+        return
+      }
+    }
   }
 
   private labelFor(blob: Blob): string {
@@ -1681,8 +1791,6 @@ export class BlobTrackingPass extends PassNode {
   }
 
   private applyDecorationUniforms(): void {
-    // One control drives both how long the ribbon lives and how strongly it
-    // reads; the ceiling matches the alpha the old canvas trail peaked at.
     const { trailDecay } = this.decorations
     this.trailStrengthUniform.value = trailDecay * TRAIL_MAX_ALPHA
     this.trailDecayUniform.value =
@@ -1830,11 +1938,6 @@ export class BlobTrackingPass extends PassNode {
     this.arrowCountUniform.value = arrowCount
   }
 
-  /**
-   * Trails are a decayed feedback buffer rather than re-stamped history: the
-   * blob outline is composited into a half-resolution target that fades every
-   * frame, which is O(1) in trail length and costs no CPU raster or upload.
-   */
   private createTrailResources(): void {
     this.trailScene = new THREE.Scene()
     this.trailMaterial = new THREE.MeshBasicNodeMaterial()
@@ -1870,7 +1973,6 @@ export class BlobTrackingPass extends PassNode {
     this.trailMaterial.needsUpdate = true
   }
 
-  /** The blob outline the decoration pass wrote to B is the ribbon source. */
   private buildTrailSourceNode(screenUv: Node): Node {
     const sample = tslTexture(this.decorationPlaceholder, screenUv)
     this.trailDecorationNode = sample
@@ -1977,6 +2079,8 @@ export class BlobTrackingPass extends PassNode {
   private resetTemporalState(): void {
     this.tracker.reset()
     this.latestAnalysis = null
+    this.trackerInputsDirty = true
+    this.settledRenders = 0
     this.hasHistoryUniform.value = 0
     for (const entry of this.blobEntries) {
       entry.set(0, 0, 0, 0)

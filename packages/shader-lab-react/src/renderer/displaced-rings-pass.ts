@@ -47,7 +47,6 @@ function number(
     : fallback
 }
 
-/** Inverse-map each photographic band; overlap paints outer bands before inner ones. */
 export class DisplacedRingsPass extends PassNode {
   private readonly count = uniform(8)
   private readonly radius = uniform(0.9)
@@ -169,12 +168,17 @@ export class DisplacedRingsPass extends PassNode {
     )
   }
 
+  private at(k: Node): Node {
+    return pow(clamp01(k.div(this.count)), this.distribution).mul(this.radius)
+  }
+
   private boundary(index: Node): Node {
     const count = this.count
-    const at = (k: Node) =>
-      pow(clamp01(k.div(count)), this.distribution).mul(this.radius)
-    const base = at(index)
-    const room = min(at(index.add(1)).sub(base), base.sub(at(index.sub(1))))
+    const base = this.at(index)
+    const room = min(
+      this.at(index.add(1)).sub(base),
+      base.sub(this.at(index.sub(1)))
+    )
     const interior = index.greaterThan(0.5).and(index.lessThan(count.sub(0.5)))
     const shift = this.random(index, 17.3)
       .sub(0.5)
@@ -212,22 +216,24 @@ export class DisplacedRingsPass extends PassNode {
     )
   }
 
-  private shapeDistance(local: Node): Node {
-    const n = max(this.sides, float(3))
-    const segment = float(Math.PI * 2).div(n)
-    const theta = atan(local.y, local.x).add(Math.PI / 2)
-    const folded = mod(theta, segment).sub(segment.mul(0.5))
-    const polygon = length(local).mul(cos(folded)).div(cos(segment.mul(0.5)))
-    return select(this.sides.lessThan(2.5), length(local), polygon)
+  private shapeDistance(local: Node, segment: Node, halfCos: Node): Node {
+    const distance = float(0).toVar()
+    If(this.sides.lessThan(2.5), () => {
+      distance.assign(length(local))
+    }).Else(() => {
+      const theta = atan(local.y, local.x).add(Math.PI / 2)
+      const folded = mod(theta, segment).sub(segment.mul(0.5))
+      distance.assign(length(local).mul(cos(folded)).div(halfCos))
+    })
+    return distance
   }
 
   protected override buildEffectNode(): Node {
     if (!this.source) return this.inputNode
     return Fn(() => {
       const screen = vec2(uv().x, float(1).sub(uv().y))
-      const point = screen.sub(this.center).mul(this.aspect)
+      const point = screen.sub(this.center).mul(this.aspect).toVar()
       const original = this.inputNode
-      // Work in premultiplied color only while accumulating soft coverage.
       const rgb = select(
         this.cutout.greaterThan(0.5),
         vec3(0),
@@ -244,9 +250,7 @@ export class DisplacedRingsPass extends PassNode {
           this.aspect.y.div(this.resolution.y)
         ).mul(0.75),
         this.softness
-      )
-      // Shared boundaries must not apply antialias coverage twice: touching
-      // concentric bands partition the image without translucent seams.
+      ).toVar()
       const sharedEdges = this.gap
         .equal(0)
         .and(this.softness.equal(0))
@@ -258,24 +262,47 @@ export class DisplacedRingsPass extends PassNode {
             .or(this.rotationStep.equal(0).and(this.rotationJitter.equal(0)))
         )
       const lines = float(0).toVar()
-      const lineHalf = this.lineWidth.mul(0.5)
+      const lineHalf = this.lineWidth.mul(0.5).toVar()
+      const segment = float(Math.PI * 2).div(max(this.sides, float(3))).toVar()
+      const halfCos = cos(segment.mul(0.5)).toVar()
+      const outer = this.boundary(this.count).toVar()
+      const atAbove = this.at(this.count).toVar()
+      const atIndex = this.at(this.count.sub(1)).toVar()
       Loop({ start: 0, end: int(this.count), type: "int" }, ({ i }) => {
-        const index = this.count.sub(1).sub(float(i))
-        const progress = index.div(max(this.count.sub(1), 1))
-        const local = this.bandLocal(point, index, progress)
-        const distance = this.shapeDistance(local)
-        const inner = this.boundary(index)
-        const outer = this.boundary(index.add(1))
-        const edgeLine = float(1).sub(
-          smoothstep(
-            lineHalf.sub(edge),
-            lineHalf.add(edge),
-            abs(distance.sub(outer))
+        const index = this.count.sub(1).sub(float(i)).toVar()
+        const progress = index.div(max(this.count.sub(1), 1)).toVar()
+        const local = this.bandLocal(point, index, progress).toVar()
+        const distance = this.shapeDistance(local, segment, halfCos)
+        const atBelow = this.at(index.sub(1)).toVar()
+        const inner = atIndex.toVar()
+        If(
+          index
+            .greaterThan(0.5)
+            .and(index.lessThan(this.count.sub(0.5)))
+            .and(this.widthJitter.greaterThan(0)),
+          () => {
+            const room = min(atAbove.sub(atIndex), atIndex.sub(atBelow))
+            inner.assign(
+              atIndex.add(
+                this.random(index, 17.3)
+                  .sub(0.5)
+                  .mul(this.widthJitter)
+                  .mul(room)
+                  .mul(0.9)
+              )
+            )
+          }
+        )
+        If(this.lineMode.greaterThan(0.5), () => {
+          const edgeLine = float(1).sub(
+            smoothstep(
+              lineHalf.sub(edge),
+              lineHalf.add(edge),
+              abs(distance.sub(outer))
+            )
           )
-        )
-        lines.assign(
-          max(lines, edgeLine.mul(step(float(0.5), this.lineMode)))
-        )
+          lines.assign(max(lines, edgeLine))
+        })
         const inset = outer.sub(inner).mul(this.gap).mul(0.5)
         const softOuter = float(1).sub(
           smoothstep(
@@ -312,6 +339,7 @@ export class DisplacedRingsPass extends PassNode {
           .mul(outsideInner)
           .mul(half)
           .mul(select(this.gap.greaterThanEqual(1), float(0), float(1)))
+          .toVar()
         If(coverage.greaterThan(0), () => {
           const scale = max(float(1).add(this.scaleStep.mul(progress)), 0.1)
           const sampleUv = local.div(scale).div(this.aspect).add(this.center)
@@ -319,7 +347,6 @@ export class DisplacedRingsPass extends PassNode {
             .mul(step(sampleUv.x, 1))
             .mul(step(0, sampleUv.y))
             .mul(step(sampleUv.y, 1))
-          // Explicit LOD makes texture sampling valid in per-pixel loop branches.
           const sample = this.source.sample(sampleUv).level(0)
           const sampleAlpha = sample.a.mul(bounds)
           const amount = sampleAlpha.mul(coverage)
@@ -342,23 +369,34 @@ export class DisplacedRingsPass extends PassNode {
             )
           )
         })
+        outer.assign(inner)
+        atAbove.assign(atIndex)
+        atIndex.assign(atBelow)
       })
-      const outerIndex = this.count.sub(1)
-      const baseLocal = this.bandLocal(
-        point,
-        outerIndex,
-        outerIndex.div(max(this.count.sub(1), 1))
-      )
-      const beyond = this.shapeDistance(baseLocal).sub(this.radius)
-      const spacing = max(
-        this.radius.sub(this.boundary(this.count.sub(1))),
-        this.lineWidth.mul(4)
-      )
-      const phase = abs(fract(beyond.div(spacing).add(0.5)).sub(0.5)).mul(spacing)
-      const outerLines = float(1)
-        .sub(smoothstep(lineHalf.sub(edge), lineHalf.add(edge), phase))
-        .mul(step(float(0), beyond))
-        .mul(step(float(1.5), this.lineMode))
+      const outerLines = float(0).toVar()
+      If(this.lineMode.greaterThan(1.5), () => {
+        const outerIndex = this.count.sub(1)
+        const baseLocal = this.bandLocal(
+          point,
+          outerIndex,
+          outerIndex.div(max(this.count.sub(1), 1))
+        )
+        const beyond = this.shapeDistance(baseLocal, segment, halfCos)
+          .sub(this.radius)
+          .toVar()
+        const spacing = max(
+          this.radius.sub(this.boundary(this.count.sub(1))),
+          this.lineWidth.mul(4)
+        )
+        const phase = abs(fract(beyond.div(spacing).add(0.5)).sub(0.5)).mul(
+          spacing
+        )
+        outerLines.assign(
+          float(1)
+            .sub(smoothstep(lineHalf.sub(edge), lineHalf.add(edge), phase))
+            .mul(step(float(0), beyond))
+        )
+      })
       const line = max(lines, outerLines).mul(this.lineOpacity)
       const straight = rgb.div(select(alpha.greaterThan(0), alpha, float(1)))
       const finalAlpha = min(alpha, 1)

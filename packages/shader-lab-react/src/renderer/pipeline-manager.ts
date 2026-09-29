@@ -332,7 +332,6 @@ export class PipelineManager {
       }
     }
 
-    // All passes exist before wiring children, so reparenting preserves media state.
     for (const node of flattened) {
       if (!isCompositionGroup(node)) continue
       const pass = this.passMap.get(node.id) as GroupPass
@@ -378,10 +377,13 @@ export class PipelineManager {
     let readTarget = this.rtA
     let writeTarget = this.rtB
     let sceneDepth: THREE.Texture | null = null
+    let inputChanged = this.dirty
 
     for (const pass of activePasses) {
       pass.setSceneDepth(sceneDepth)
+      pass.setInputChanged(inputChanged)
       this.renderPass(pass, readTarget.texture, writeTarget, time, delta)
+      if (pass.needsContinuousRender()) inputChanged = true
       sceneDepth = pass.getOutputSceneDepth()
       const previousRead = readTarget
       readTarget = writeTarget
@@ -428,10 +430,13 @@ export class PipelineManager {
     let readTarget = this.rtA
     let writeTarget = this.rtB
     let sceneDepth: THREE.Texture | null = null
+    let inputChanged = this.dirty || inputTexture !== undefined
 
     for (const pass of activePasses) {
       pass.setSceneDepth(sceneDepth)
+      pass.setInputChanged(inputChanged)
       this.renderPass(pass, readTarget.texture, writeTarget, time, delta)
+      if (pass.needsContinuousRender()) inputChanged = true
       sceneDepth = pass.getOutputSceneDepth()
       const previousRead = readTarget
       readTarget = writeTarget

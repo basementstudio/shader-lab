@@ -20,12 +20,6 @@ import type { LayerCompositeMode, LayerParameterValues, MaskConfig } from "../ty
 
 type Node = TSLNode
 
-/**
- * Creates a placeholder texture whose format/type matches the pipeline render
- * targets (`HalfFloatType`, `RGBAFormat`, nearest filtering, no mipmaps).
- * Using a matching placeholder avoids a potential Three.js TSL pipeline
- * recompilation when the real render-target texture is first assigned.
- */
 export function createPipelinePlaceholder(): THREE.Texture {
   const tex = new THREE.Texture()
   tex.type = THREE.HalfFloatType
@@ -40,6 +34,8 @@ export class PassNode {
   readonly layerId: string
 
   enabled = true
+
+  protected inputChanged = true
 
   protected readonly scene: THREE.Scene
   protected readonly camera: THREE.OrthographicCamera
@@ -72,8 +68,6 @@ export class PassNode {
     this.layerId = layerId
     this.scene = new THREE.Scene()
     this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
-    // The shader already composites the full pixel. NoBlending also prevents
-    // Three's opaque-material path from overwriting the computed alpha.
     this.material = new THREE.MeshBasicNodeMaterial()
     this.material.blending = THREE.NoBlending
     this.opacityUniform = uniform(1)
@@ -233,6 +227,14 @@ export class PassNode {
   }
 
   needsContinuousRender(): boolean {
+    return false
+  }
+
+  setInputChanged(changed: boolean): void {
+    this.inputChanged = changed
+  }
+
+  hasStaticOutput(): boolean {
     return false
   }
 

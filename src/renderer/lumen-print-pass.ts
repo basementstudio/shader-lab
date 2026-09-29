@@ -5,7 +5,9 @@ import {
   dot,
   float,
   floor,
+  Fn,
   fract,
+  If,
   max,
   min,
   mix,
@@ -103,7 +105,7 @@ export class LumenPrintPass extends PassNode {
   private readonly logicalHeightUniform: Node
   private readonly lut: THREE.DataTexture
   private readonly placeholder = new THREE.Texture()
-  private sourceTextureNodes: Node[] = []
+  private readonly source: Node
   private stopsKey = ""
 
   constructor(layerId: string) {
@@ -135,6 +137,7 @@ export class LumenPrintPass extends PassNode {
     this.lut.magFilter = THREE.LinearFilter
     this.lut.minFilter = THREE.LinearFilter
     this.lut.generateMipmaps = false
+    this.source = tslTexture(this.placeholder)
     this.updateParams({})
     this.rebuildEffectNode()
   }
@@ -146,9 +149,7 @@ export class LumenPrintPass extends PassNode {
     time: number,
     delta: number
   ): void {
-    for (const node of this.sourceTextureNodes) {
-      node.value = inputTexture
-    }
+    this.source.value = inputTexture
     super.render(renderer, inputTexture, outputTarget, time, delta)
   }
 
@@ -186,9 +187,7 @@ export class LumenPrintPass extends PassNode {
   }
 
   private sample(uvNode: Node): Node {
-    const node = tslTexture(this.placeholder, uvNode)
-    this.sourceTextureNodes.push(node)
-    return node
+    return this.source.sample(uvNode).level(0)
   }
 
   protected override buildEffectNode(): Node {
@@ -196,109 +195,154 @@ export class LumenPrintPass extends PassNode {
       return this.inputNode
     }
 
-    this.sourceTextureNodes = []
+    return Fn(() => {
+      const targetUv = vec2(uv().x, float(1).sub(uv().y)).toVar()
+      const center = this.sample(targetUv).toVar()
+      const source = vec3(float(center.r), float(center.g), float(center.b))
+      const size = vec2(this.logicalWidthUniform, this.logicalHeightUniform)
+      const texel = vec2(float(1).div(size.x), float(1).div(size.y)).toVar()
+      const pixel = targetUv.mul(size).toVar()
+      const seedOffset = vec2(
+        this.seedUniform.mul(17.13),
+        this.seedUniform.mul(-9.71)
+      ).toVar()
+      const centerTone = perceptualLuma(center).toVar()
 
-    const targetUv = vec2(uv().x, float(1).sub(uv().y))
-    const size = vec2(this.logicalWidthUniform, this.logicalHeightUniform)
-    const texel = vec2(float(1).div(size.x), float(1).div(size.y))
-    const pixel = targetUv.mul(size)
-    const seedOffset = vec2(this.seedUniform.mul(17.13), this.seedUniform.mul(-9.71))
-
-    const center = this.sample(targetUv)
-    const source = vec3(float(center.r), float(center.g), float(center.b))
-    const centerTone = perceptualLuma(center)
-
-    const jitter = hash(pixel.add(seedOffset).add(3.7)).mul(6.2831853)
-    const jitterCos = cos(jitter)
-    const jitterSin = sin(jitter)
-    const centerAlpha = float(center.a)
-    let weightSum: Node = centerAlpha
-    let blurred: Node = centerTone.mul(centerAlpha)
-    let bright: Node = smoothstep(0.6, 1, centerTone).mul(centerTone).mul(centerAlpha)
-    for (const [x, y] of TAPS) {
-      const rotated = vec2(
-        jitterCos.mul(x).sub(jitterSin.mul(y)),
-        jitterSin.mul(x).add(jitterCos.mul(y))
+      const blurred = float(0).toVar()
+      const bright = float(0).toVar()
+      If(
+        this.diffusionUniform
+          .greaterThan(0)
+          .or(this.halationUniform.greaterThan(0)),
+        () => {
+          const jitter = hash(pixel.add(seedOffset).add(3.7)).mul(6.2831853)
+          const jitterCos = cos(jitter).toVar()
+          const jitterSin = sin(jitter).toVar()
+          const centerAlpha = float(center.a)
+          let weightSum: Node = centerAlpha
+          let blurSum: Node = centerTone.mul(centerAlpha)
+          let brightSum: Node = smoothstep(0.6, 1, centerTone)
+            .mul(centerTone)
+            .mul(centerAlpha)
+          for (const [x, y] of TAPS) {
+            const rotated = vec2(
+              jitterCos.mul(x).sub(jitterSin.mul(y)),
+              jitterSin.mul(x).add(jitterCos.mul(y))
+            )
+            const tapSample = this.sample(
+              targetUv.add(rotated.mul(texel).mul(this.radiusUniform))
+            )
+            const tone = perceptualLuma(tapSample).toVar()
+            const weight = float(tapSample.a)
+            weightSum = weightSum.add(weight)
+            blurSum = blurSum.add(tone.mul(weight))
+            brightSum = brightSum.add(
+              smoothstep(0.6, 1, tone).mul(tone).mul(weight)
+            )
+          }
+          const safeWeight = max(weightSum, float(0.0001))
+          const hasCoverage = weightSum.greaterThan(float(0.0001))
+          blurred.assign(select(hasCoverage, blurSum.div(safeWeight), centerTone))
+          bright.assign(select(hasCoverage, brightSum.div(safeWeight), float(0)))
+        }
       )
-      const tapSample = this.sample(
-        targetUv.add(rotated.mul(texel).mul(this.radiusUniform))
+
+      const line = float(0).toVar()
+      If(this.edgeLinesUniform.greaterThan(0), () => {
+        const edgeStep = texel.mul(1.25)
+        const leftSample = this.sample(targetUv.sub(vec2(edgeStep.x, 0)))
+        const rightSample = this.sample(targetUv.add(vec2(edgeStep.x, 0)))
+        const upSample = this.sample(targetUv.sub(vec2(0, edgeStep.y)))
+        const downSample = this.sample(targetUv.add(vec2(0, edgeStep.y)))
+        const edgeCoverage = min(
+          min(
+            min(float(leftSample.a), float(rightSample.a)),
+            min(float(upSample.a), float(downSample.a))
+          ),
+          float(center.a)
+        )
+        const gradient = vec2(
+          perceptualLuma(rightSample).sub(perceptualLuma(leftSample)),
+          perceptualLuma(downSample).sub(perceptualLuma(upSample))
+        )
+          .length()
+          .mul(edgeCoverage)
+        line.assign(
+          smoothstep(0.03, 0.22, gradient).mul(this.edgeLinesUniform)
+        )
+      })
+
+      const tone = mix(centerTone, blurred, this.diffusionUniform)
+        .sub(0.5)
+        .mul(this.contrastUniform)
+        .add(0.5)
+        .add(this.exposureUniform)
+        .toVar()
+      tone.assign(clamp(tone, 0, 1))
+
+      const pivot = this.pivotUniform
+      const folded = float(1).sub(
+        abs(tone.sub(pivot)).div(
+          max(max(pivot, float(1).sub(pivot)), float(0.0001))
+        )
       )
-      const tone = perceptualLuma(tapSample)
-      const weight = float(tapSample.a)
-      weightSum = weightSum.add(weight)
-      blurred = blurred.add(tone.mul(weight))
-      bright = bright.add(smoothstep(0.6, 1, tone).mul(tone).mul(weight))
-    }
-    const safeWeight = max(weightSum, float(0.0001))
-    const hasCoverage = weightSum.greaterThan(float(0.0001))
-    blurred = select(hasCoverage, blurred.div(safeWeight), centerTone)
-    bright = select(hasCoverage, bright.div(safeWeight), float(0))
+      tone.assign(mix(tone, folded, this.solarizeUniform))
 
-    const edgeStep = texel.mul(1.25)
-    const leftSample = this.sample(targetUv.sub(vec2(edgeStep.x, 0)))
-    const rightSample = this.sample(targetUv.add(vec2(edgeStep.x, 0)))
-    const upSample = this.sample(targetUv.sub(vec2(0, edgeStep.y)))
-    const downSample = this.sample(targetUv.add(vec2(0, edgeStep.y)))
-    const edgeCoverage = min(
-      min(min(float(leftSample.a), float(rightSample.a)), min(float(upSample.a), float(downSample.a))),
-      centerAlpha
-    )
-    const gradient = vec2(
-      perceptualLuma(rightSample).sub(perceptualLuma(leftSample)),
-      perceptualLuma(downSample).sub(perceptualLuma(upSample))
-    )
-      .length()
-      .mul(edgeCoverage)
+      tone.assign(tone.add(float(1).sub(tone).mul(min(line, float(1)))))
+      tone.assign(tone.add(bright.mul(this.halationUniform)))
 
-    let tone: Node = mix(centerTone, blurred, this.diffusionUniform)
-    tone = tone.sub(0.5).mul(this.contrastUniform).add(0.5).add(this.exposureUniform)
-    tone = clamp(tone, 0, 1)
+      const washed = float(0).toVar()
+      If(this.washoutUniform.greaterThan(0), () => {
+        const coarse = valueNoise(pixel.div(7).add(seedOffset))
+          .mul(0.65)
+          .add(valueNoise(pixel.div(2.2).add(seedOffset.mul(1.7))).mul(0.35))
+        const washThreshold = float(1).sub(this.washoutUniform.mul(0.85))
+        washed.assign(
+          smoothstep(
+            washThreshold.sub(0.05),
+            washThreshold.add(0.05),
+            tone.add(coarse.sub(0.5).mul(this.raggedUniform).mul(0.6))
+          ).mul(min(this.washoutUniform.mul(20), float(1)))
+        )
+      })
+      tone.assign(mix(tone, float(1), washed))
 
-    const pivot = this.pivotUniform
-    const folded = float(1).sub(
-      abs(tone.sub(pivot)).div(max(max(pivot, float(1).sub(pivot)), float(0.0001)))
-    )
-    tone = mix(tone, folded, this.solarizeUniform)
+      const burn = float(0).toVar()
+      If(this.edgeBurnUniform.greaterThan(0), () => {
+        const shortSide = min(size.x, size.y)
+        const edgeDistance = min(
+          min(pixel.x, size.x.sub(pixel.x)),
+          min(pixel.y, size.y.sub(pixel.y))
+        ).div(shortSide)
+        const wobble = valueNoise(
+          pixel.div(shortSide).mul(9).add(seedOffset)
+        ).mul(0.12)
+        burn.assign(
+          float(1)
+            .sub(smoothstep(0, float(0.1).add(wobble), edgeDistance))
+            .mul(this.edgeBurnUniform)
+        )
+      })
+      tone.assign(tone.mul(float(1).sub(burn.mul(0.85))))
 
-    const line = smoothstep(0.03, 0.22, gradient).mul(this.edgeLinesUniform)
-    tone = tone.add(float(1).sub(tone).mul(min(line, float(1))))
-    tone = tone.add(bright.mul(this.halationUniform))
+      const grainCoord = pixel
+        .div(this.grainSizeUniform)
+        .add(seedOffset.mul(3.1))
+      const grain = valueNoise(grainCoord)
+        .mul(0.6)
+        .add(hash(floor(grainCoord.mul(1.9))).mul(0.4))
+        .sub(0.5)
+      const midtones = float(0.35).add(tone.mul(float(1).sub(tone)).mul(2.6))
+      tone.assign(
+        clamp(tone.add(grain.mul(this.grainUniform).mul(midtones)), 0, 1)
+      )
 
-    const coarse = valueNoise(pixel.div(7).add(seedOffset))
-      .mul(0.65)
-      .add(valueNoise(pixel.div(2.2).add(seedOffset.mul(1.7))).mul(0.35))
-    const washThreshold = float(1).sub(this.washoutUniform.mul(0.85))
-    const washed = smoothstep(
-      washThreshold.sub(0.05),
-      washThreshold.add(0.05),
-      tone.add(coarse.sub(0.5).mul(this.raggedUniform).mul(0.6))
-    ).mul(min(this.washoutUniform.mul(20), float(1)))
-    tone = mix(tone, float(1), washed)
-
-    const shortSide = min(size.x, size.y)
-    const edgeDistance = min(
-      min(pixel.x, size.x.sub(pixel.x)),
-      min(pixel.y, size.y.sub(pixel.y))
-    ).div(shortSide)
-    const wobble = valueNoise(pixel.div(shortSide).mul(9).add(seedOffset)).mul(0.12)
-    const burn = float(1)
-      .sub(smoothstep(0, float(0.1).add(wobble), edgeDistance))
-      .mul(this.edgeBurnUniform)
-    tone = tone.mul(float(1).sub(burn.mul(0.85)))
-
-    const grainCoord = pixel.div(this.grainSizeUniform).add(seedOffset.mul(3.1))
-    const grain = valueNoise(grainCoord)
-      .mul(0.6)
-      .add(hash(floor(grainCoord.mul(1.9))).mul(0.4))
-      .sub(0.5)
-    const midtones = float(0.35).add(tone.mul(float(1).sub(tone)).mul(2.6))
-    tone = clamp(tone.add(grain.mul(this.grainUniform).mul(midtones)), 0, 1)
-
-    const mapped = tslTexture(this.lut, vec2(tone, float(0.5))).level(0)
-    return vec4(
-      mix(source, vec3(mapped.r, mapped.g, mapped.b), this.amountUniform),
-      float(1)
-    )
+      const mapped = tslTexture(this.lut, vec2(tone, float(0.5))).level(0)
+      return vec4(
+        mix(source, vec3(mapped.r, mapped.g, mapped.b), this.amountUniform),
+        float(1)
+      )
+    })()
   }
 
   override dispose(): void {

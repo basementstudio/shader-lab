@@ -4,7 +4,9 @@ import {
   dot,
   float,
   floor,
+  Fn,
   fract,
+  If,
   min,
   mix,
   pow,
@@ -98,7 +100,7 @@ export class ErosionPass extends PassNode {
   private readonly logicalWidthUniform: Node
   private readonly logicalHeightUniform: Node
   private readonly placeholder = new THREE.Texture()
-  private sourceTextureNodes: Node[] = []
+  private readonly source: Node
   private speed = 0
 
   constructor(layerId: string) {
@@ -115,6 +117,7 @@ export class ErosionPass extends PassNode {
     this.timeUniform = uniform(0)
     this.logicalWidthUniform = uniform(1)
     this.logicalHeightUniform = uniform(1)
+    this.source = tslTexture(this.placeholder)
     this.rebuildEffectNode()
   }
 
@@ -125,9 +128,7 @@ export class ErosionPass extends PassNode {
     time: number,
     delta: number
   ): void {
-    for (const node of this.sourceTextureNodes) {
-      node.value = inputTexture
-    }
+    this.source.value = inputTexture
     super.render(renderer, inputTexture, outputTarget, time, delta)
   }
 
@@ -159,44 +160,44 @@ export class ErosionPass extends PassNode {
     this.timeUniform.value = this.speed > 0 ? time * this.speed : 0
   }
 
-  private sample(uvNode: Node): Node {
-    const node = tslTexture(this.placeholder, uvNode)
-    this.sourceTextureNodes.push(node)
-    return node
-  }
-
-  private field(point: Node, texel: Node): { color: Node; value: Node } {
+  private field(point: Node, texel: Node, center: Node): Node {
     const reach = texel.mul(this.edgeWidthUniform)
-    const center = this.sample(point)
-    const right = this.sample(point.add(vec2(reach.x, 0)))
-    const left = this.sample(point.sub(vec2(reach.x, 0)))
-    const down = this.sample(point.add(vec2(0, reach.y)))
-    const up = this.sample(point.sub(vec2(0, reach.y)))
-    const lc = perceptualLuma(center)
-    const lr = perceptualLuma(right)
-    const ll = perceptualLuma(left)
-    const ld = perceptualLuma(down)
-    const lu = perceptualLuma(up)
-    const tone = lc.mul(2).add(lr).add(ll).add(ld).add(lu).div(6)
-    const gradient = abs(lr.sub(ll)).add(abs(ld.sub(lu)))
-    const alpha = float(center.a)
-      .mul(2)
-      .add(right.a)
-      .add(left.a)
-      .add(down.a)
-      .add(up.a)
-      .div(6)
+    const right = this.source.sample(point.add(vec2(reach.x, 0))).level(0).toVar()
+    const left = this.source.sample(point.sub(vec2(reach.x, 0))).level(0).toVar()
+    const down = this.source.sample(point.add(vec2(0, reach.y))).level(0).toVar()
+    const up = this.source.sample(point.sub(vec2(0, reach.y))).level(0).toVar()
     const mode = this.modeUniform
-    const edges = smoothstep(0.1, 0.5, gradient)
-    const light = smoothstep(0.35, 0.95, tone)
-    const dark = float(1).sub(smoothstep(0.05, 0.65, tone))
-    const outline = float(1).sub(smoothstep(0.02, 0.98, alpha))
-    const value = select(
-      mode.lessThan(0.5),
-      edges,
-      select(mode.lessThan(1.5), light, select(mode.lessThan(2.5), dark, outline))
-    )
-    return { color: center, value }
+    const value = float(0).toVar()
+    If(mode.lessThan(0.5), () => {
+      const lr = perceptualLuma(right)
+      const ll = perceptualLuma(left)
+      const ld = perceptualLuma(down)
+      const lu = perceptualLuma(up)
+      const gradient = abs(lr.sub(ll)).add(abs(ld.sub(lu)))
+      value.assign(smoothstep(0.1, 0.5, gradient))
+    }).Else(() => {
+      If(mode.lessThan(2.5), () => {
+        const lc = perceptualLuma(center)
+        const lr = perceptualLuma(right)
+        const ll = perceptualLuma(left)
+        const ld = perceptualLuma(down)
+        const lu = perceptualLuma(up)
+        const tone = lc.mul(2).add(lr).add(ll).add(ld).add(lu).div(6)
+        const light = smoothstep(0.35, 0.95, tone)
+        const dark = float(1).sub(smoothstep(0.05, 0.65, tone))
+        value.assign(select(mode.lessThan(1.5), light, dark))
+      }).Else(() => {
+        const alpha = float(center.a)
+          .mul(2)
+          .add(right.a)
+          .add(left.a)
+          .add(down.a)
+          .add(up.a)
+          .div(6)
+        value.assign(float(1).sub(smoothstep(0.02, 0.98, alpha)))
+      })
+    })
+    return value
   }
 
   protected override buildEffectNode(): Node {
@@ -204,71 +205,87 @@ export class ErosionPass extends PassNode {
       return this.inputNode
     }
 
-    this.sourceTextureNodes = []
+    return Fn(() => {
+      const targetUv = vec2(uv().x, float(1).sub(uv().y)).toVar()
+      const original = this.source.sample(targetUv).level(0).toVar()
+      const result = vec4(
+        vec3(original.r, original.g, original.b),
+        float(original.a)
+      ).toVar()
+      If(this.erodeUniform.greaterThanEqual(0.0001), () => {
+        const size = vec2(this.logicalWidthUniform, this.logicalHeightUniform)
+        const texel = vec2(float(1).div(size.x), float(1).div(size.y)).toVar()
+        const pixel = targetUv.mul(size).toVar()
+        const shortSide = min(size.x, size.y)
+        const seed = this.seedUniform.mul(13.7).toVar()
+        const tick = floor(this.timeUniform.mul(8)).toVar()
+        const active = step(float(0.0001), this.erodeUniform)
 
-    const targetUv = vec2(uv().x, float(1).sub(uv().y))
-    const size = vec2(this.logicalWidthUniform, this.logicalHeightUniform)
-    const texel = vec2(float(1).div(size.x), float(1).div(size.y))
-    const pixel = targetUv.mul(size)
-    const shortSide = min(size.x, size.y)
-    const seed = this.seedUniform.mul(13.7)
-    const tick = floor(this.timeUniform.mul(8))
-    const active = step(float(0.0001), this.erodeUniform)
+        const cell = floor(pixel.div(this.speckleUniform))
+        const key = cell.add(vec2(seed, tick.mul(1.37))).toVar()
+        const boundary = this.field(targetUv, texel, original)
+        const throwDistance = this.scatterUniform
+          .mul(shortSide)
+          .mul(0.06)
+          .mul(boundary)
+          .mul(hash(key.add(7.7)))
+          .toVar()
+        const kept = original.toVar()
+        const keptValue = boundary.toVar()
+        If(abs(throwDistance).greaterThan(0), () => {
+          const direction = vec2(hash(key.add(1.3)), hash(key.add(2.9)))
+            .sub(0.5)
+            .mul(2)
+          const thrown = targetUv
+            .add(direction.mul(throwDistance).mul(texel))
+            .toVar()
+          const thrownColor = this.source.sample(thrown).level(0).toVar()
+          keptValue.assign(this.field(thrown, texel, thrownColor))
+          kept.assign(thrownColor)
+        })
 
-    const cell = floor(pixel.div(this.speckleUniform))
-    const key = cell.add(vec2(seed, tick.mul(1.37)))
-    const here = this.field(targetUv, texel)
-    const boundary = here.value
-    const throwDistance = this.scatterUniform
-      .mul(shortSide)
-      .mul(0.06)
-      .mul(boundary)
-      .mul(hash(key.add(7.7)))
-    const direction = vec2(hash(key.add(1.3)), hash(key.add(2.9)))
-      .sub(0.5)
-      .mul(2)
-    const thrown = targetUv.add(direction.mul(throwDistance).mul(texel))
-    const there = this.field(thrown, texel)
+        const grain = hash(key)
+        const clumps = valueNoise(
+          pixel.div(this.speckleUniform.mul(7)).add(vec2(seed, tick))
+        )
+        const noise = mix(grain, clumps, this.clumpingUniform)
+        const chance = clamp(
+          keptValue
+            .mul(this.erodeUniform.mul(2.5))
+            .sub(float(1).sub(this.erodeUniform).mul(0.25)),
+          0,
+          1
+        )
+        const fragment = float(1).sub(
+          step(this.scatterUniform.mul(0.55).mul(boundary), hash(key.add(5.3)))
+        )
+        const removed = float(1)
+          .sub(step(chance, noise))
+          .mul(float(1).sub(fragment))
+          .mul(active)
 
-    const grain = hash(key)
-    const clumps = valueNoise(
-      pixel.div(this.speckleUniform.mul(7)).add(vec2(seed, tick))
-    )
-    const noise = mix(grain, clumps, this.clumpingUniform)
-    const chance = clamp(
-      there.value
-        .mul(this.erodeUniform.mul(2.5))
-        .sub(float(1).sub(this.erodeUniform).mul(0.25)),
-      0,
-      1
-    )
-    const fragment = float(1).sub(
-      step(this.scatterUniform.mul(0.55).mul(boundary), hash(key.add(5.3)))
-    )
-    const removed = float(1)
-      .sub(step(chance, noise))
-      .mul(float(1).sub(fragment))
-      .mul(active)
-
-    const kept = there.color
-    const keptAlpha = clamp(float(kept.a), 0, 1)
-    const keptRgb = vec3(kept.r, kept.g, kept.b)
-    const transparent = this.transparentUniform.greaterThan(0.5)
-    const rgb = select(
-      transparent,
-      keptRgb,
-      mix(keptRgb, this.paperColorUniform, removed)
-    )
-    const alpha = select(
-      transparent,
-      keptAlpha.mul(float(1).sub(removed)),
-      keptAlpha
-    )
-    const original = here.color
-    return vec4(
-      mix(vec3(original.r, original.g, original.b), rgb, active),
-      mix(float(original.a), alpha, active)
-    )
+        const keptAlpha = clamp(float(kept.a), 0, 1)
+        const keptRgb = vec3(kept.r, kept.g, kept.b)
+        const transparent = this.transparentUniform.greaterThan(0.5)
+        const rgb = select(
+          transparent,
+          keptRgb,
+          mix(keptRgb, this.paperColorUniform, removed)
+        )
+        const alpha = select(
+          transparent,
+          keptAlpha.mul(float(1).sub(removed)),
+          keptAlpha
+        )
+        result.assign(
+          vec4(
+            mix(vec3(original.r, original.g, original.b), rgb, active),
+            mix(float(original.a), alpha, active)
+          )
+        )
+      })
+      return result
+    })()
   }
 
   override dispose(): void {

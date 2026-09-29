@@ -304,6 +304,7 @@ export function SelectedLayerPropertiesContent({
   onReplaceImage,
   modelClips,
   modelEnvironmentFileName,
+  modelSvgSource,
   onAttachEnvironment,
   onRemoveEnvironment,
   onReplaceModel,
@@ -352,6 +353,7 @@ export function SelectedLayerPropertiesContent({
   onReplaceImage: () => void
   modelClips: readonly ModelClipInfo[]
   modelEnvironmentFileName: string | null
+  modelSvgSource: boolean
   onAttachEnvironment: () => void
   onRemoveEnvironment: () => void
   onReplaceModel: () => void
@@ -870,6 +872,7 @@ export function SelectedLayerPropertiesContent({
             onReplaceModel={onReplaceModel}
             onTimelineKeyframe={onTimelineKeyframe}
             reduceMotion={reduceMotion}
+            svgSource={modelSvgSource}
             timelinePanelOpen={timelinePanelOpen}
             values={values}
           />

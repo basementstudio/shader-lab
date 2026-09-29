@@ -108,6 +108,10 @@ await Bun.write(
   boxGlb({ name: "Slide", times: [0, 2], translations: [-2, 0, 0, 2, 0, 0] })
 )
 await Bun.write(".context/model-layer/ui-studio.hdr", studioHdr(64, 32, [2, 1.6, 1.2]))
+await Bun.write(
+  ".context/model-layer/ui-logo.svg",
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path fill="#ff4d00" fill-rule="evenodd" d="M10 50 A40 40 0 1 0 90 50 A40 40 0 1 0 10 50 Z M30 50 A20 20 0 1 0 70 50 A20 20 0 1 0 30 50 Z"/></svg>`
+)
 
 const browser = await chromium.launch({
   headless: true,
@@ -257,9 +261,26 @@ try {
   const paused = (await save("animation-paused")).layers.find((layer) => layer.id === slideLayer.id)
   assert.equal(paused.params.animationPlaying, false, "Play toggles off")
 
+  await add.click()
+  const svgChooser = page.waitForEvent("filechooser")
+  await page
+    .locator(`[id="${await add.getAttribute("aria-controls")}"]`)
+    .getByRole("button", { name: "3D Model", exact: true })
+    .click()
+  await (await svgChooser).setFiles(".context/model-layer/ui-logo.svg")
+  const extrude = page.locator("[data-model-extrude]").filter({ visible: true })
+  await extrude.waitFor({ timeout: 60000 })
+  assert.equal(await page.locator("[data-model-animation]").filter({ visible: true }).count(), 0, "SVG models have no clips")
+  const logo = await save("svg")
+  const logoAsset = logo.assets.find((asset) => asset.fileName === "ui-logo.svg")
+  assert.equal(logoAsset.kind, "model", "An SVG picked for 3D becomes a model asset")
+  assert.equal(logo.layers.find((layer) => layer.assetId === logoAsset.id).params.extrudeDepth, 0.15, "The layer starts with the default depth")
+  await page.waitForTimeout(2500)
+  await page.screenshot({ path: ".context/model-layer/ui-svg.png" })
+
   assert.deepEqual(errors, [])
   console.log(
-    "PASS 3D model UI: picker import, rotate gizmo, undo granularity, G + axis lock, Esc cancel, Alt+G clear, gizmo modes, uniform scale, custom .hdr attach/remove, save, animated import, clip list, timeline length, play toggle"
+    "PASS 3D model UI: picker import, rotate gizmo, undo granularity, G + axis lock, Esc cancel, Alt+G clear, gizmo modes, uniform scale, custom .hdr attach/remove, save, animated import, clip list, timeline length, play toggle, SVG import, extrude controls"
   )
 } finally {
   await browser.close()

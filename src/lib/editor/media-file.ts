@@ -50,7 +50,7 @@ export function getAssetAccept(kind: AssetKind): string {
     case "video":
       return "video/mp4,video/webm,video/quicktime,.mov"
     case "model":
-      return ".glb,.gltf,model/gltf-binary,model/gltf+json"
+      return ".glb,.gltf,.svg,model/gltf-binary,model/gltf+json,image/svg+xml"
     case "environment":
       return ".hdr,image/vnd.radiance"
     case "audio":

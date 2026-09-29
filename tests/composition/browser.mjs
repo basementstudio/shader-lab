@@ -46,6 +46,7 @@ import { checkAnnotations } from "./annotations.mjs"
 import { checkDisplacedRings } from "./displaced-rings.mjs"
 import { checkModelAnimation } from "./model-animation.mjs"
 import { checkModelLayer } from "./model-layer.mjs"
+import { checkModelSvg } from "./model-svg.mjs"
 
 function pixels(canvas) {
   const copy = document.createElement("canvas")
@@ -503,3 +504,4 @@ window.checkAnnotations = () => checkAnnotations(renderProject)
 window.checkDepthParallax = checkDepthParallax
 window.checkModelLayer = checkModelLayer
 window.checkModelAnimation = checkModelAnimation
+window.checkModelSvg = checkModelSvg

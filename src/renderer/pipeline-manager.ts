@@ -704,7 +704,11 @@ export class PipelineManager {
         pass.layerId,
         "model",
         asset.url,
-        () => pass.setModel({ url: asset.url }),
+        () =>
+          pass.setModel({
+            format: isSvgMediaSource(asset) ? "svg" : "gltf",
+            url: asset.url,
+          }),
         (cause) => describeModelLoadFailure(asset.fileName, cause)
       )
     } else {

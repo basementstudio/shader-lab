@@ -172,7 +172,9 @@ export function PropertiesSidebar() {
     ? getLayerDefinition(selectedLayer.type)
     : null
   const modelClips = useModelClips(
-    selectedLayer?.type === "model" && selectedAsset?.kind === "model"
+    selectedLayer?.type === "model" &&
+      selectedAsset?.kind === "model" &&
+      !isSvgMediaSource(selectedAsset)
       ? selectedAsset.url
       : null
   )
@@ -698,18 +700,18 @@ export function PropertiesSidebar() {
         return
       }
 
-      if (inferFileAssetKind(file) !== "model") {
-        setLayerRuntimeError(layerId, "Expected a .glb or .gltf file.")
+      if (!(inferFileAssetKind(file) === "model" || isSvgMediaSource({ fileName: file.name, mimeType: file.type }))) {
+        setLayerRuntimeError(layerId, "Expected a .glb, .gltf or .svg file.")
 
         return
       }
 
       try {
-        const asset = await loadAsset(file)
+        const asset = await loadAsset(file, { kind: "model" })
 
         if (asset.kind !== "model") {
           removeAsset(asset.id)
-          setLayerRuntimeError(layerId, "Expected a .glb or .gltf file.")
+          setLayerRuntimeError(layerId, "Expected a .glb, .gltf or .svg file.")
 
           return
         }
@@ -925,6 +927,9 @@ export function PropertiesSidebar() {
         hasDepthMap: Boolean(selectedLayer.depthAssetId),
         modelClips,
         modelEnvironmentFileName: selectedEnvironmentAsset?.fileName ?? null,
+        modelSvgSource: Boolean(
+          selectedAsset?.kind === "model" && isSvgMediaSource(selectedAsset)
+        ),
         onAttachEnvironment: handleEnvironmentPick,
         onRemoveEnvironment: handleRemoveEnvironment,
         onReplaceModel: handleReplaceModelPick,

@@ -1,6 +1,6 @@
 # 3D Model layer — focused manual test
 
-Scope: roadmap 4.4, step 1. A **3D Model** source layer imports a `.glb`, frames and lights it automatically, renders its glTF PBR materials or a replacement material under an HDR studio, casts soft and contact shadows, and hands its exact depth to Blur, Glass, Relief, Input → Depth and depth masks. References: 31 (depth of field on 3D forms), 15 (relief), 26–30 (glass).
+Scope: roadmap 4.4, steps 1, 3 and 4 (animation clips, SVG to 3D). A **3D Model** source layer imports a `.glb`, frames and lights it automatically, renders its glTF PBR materials or a replacement material under an HDR studio, casts soft and contact shadows, and hands its exact depth to Blur, Glass, Relief, Input → Depth and depth masks. References: 31 (depth of field on 3D forms), 15 (relief), 26–30 (glass).
 
 ## Import and framing
 
@@ -26,6 +26,13 @@ Scope: roadmap 4.4, step 1. A **3D Model** source layer imports a `.glb`, frames
 3. A character whose clips share one skeleton starts on its first clip; a file where each clip moves a different object plays them all.
 4. The model stays in frame and on its floor for the whole clip. Blur's Depth of Field, depth masks and shadows follow the moving pose.
 5. Export a video: frames match the canvas. Save and reopen: the clip settings come back.
+
+## SVG to 3D
+
+1. **Add layer → 3D Model** and pick an `.svg` logo. It becomes a solid in its SVG colors, framed and lit like any model. Dropping an SVG on the canvas still makes an image layer.
+2. **Extrude**: Depth (a share of the logo's larger side), Bevel (rounds the front and back without growing the outline) and Bevel Smoothness. Holes in letters and rings stay open; stroked lines become solid.
+3. Chrome, Glass and the other materials, the studios, shadows, Blender-style transforms and depth effects all work as on a `.glb`.
+4. An SVG with only text shows a message asking to convert text to outlines. Save and reopen keeps the extrusion.
 
 ## Materials and light
 

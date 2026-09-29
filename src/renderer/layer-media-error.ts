@@ -41,6 +41,10 @@ export function describeModelLoadFailure(
     return `${name} has no visible geometry`
   }
 
+  if (cause instanceof Error && cause.message.startsWith("The SVG has no filled or stroked shapes")) {
+    return `${name} has no filled or stroked shapes. Convert text to outlines and import it again.`
+  }
+
   return `Couldn't load ${name}`
 }
 

@@ -3,7 +3,11 @@ import {
   forgetStoredAssets,
   persistAssetBlob,
 } from "@/lib/editor/autosave/assets"
-import { inferFileAssetKind, isAudioFileName } from "@/lib/editor/media-file"
+import {
+  inferFileAssetKind,
+  isAudioFileName,
+  isSvgMediaSource,
+} from "@/lib/editor/media-file"
 import type { AssetKind, EditorAsset } from "@/types/editor"
 import {
   MODEL_ANIMATION_AUTO,
@@ -17,7 +21,10 @@ export interface AssetStoreState {
 
 export interface AssetStoreActions {
   getAssetById: (id: string) => EditorAsset | null
-  loadAsset: (file: File) => Promise<EditorAsset>
+  loadAsset: (
+    file: File,
+    options?: { kind?: AssetKind }
+  ) => Promise<EditorAsset>
   removeAsset: (id: string) => void
   replaceAssets: (assets: EditorAsset[]) => void
 }
@@ -67,8 +74,12 @@ function fallbackMimeType(kind: AssetKind, fileName: string): string {
   return ""
 }
 
-function validateFile(file: File): AssetKind {
-  const kind = inferFileAssetKind(file)
+function validateFile(file: File, requested?: AssetKind): AssetKind {
+  const inferred = inferFileAssetKind(file)
+  const kind =
+    requested === "model" && inferred === "image" && isSvgMediaSource({ fileName: file.name, mimeType: file.type })
+      ? "model"
+      : inferred
   const mimeType = file.type.toLowerCase()
   const fileName = file.name.toLowerCase()
 
@@ -178,8 +189,8 @@ function loadAudioMetadata(url: string): Promise<{ duration: number }> {
 export const useAssetStore = create<AssetStore>((set, get) => ({
   assets: [],
 
-  async loadAsset(file) {
-    const kind = validateFile(file)
+  async loadAsset(file, options) {
+    const kind = validateFile(file, options?.kind)
     const url = URL.createObjectURL(file)
     const baseAsset = {
       createdAt: new Date().toISOString(),

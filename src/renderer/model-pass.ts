@@ -46,6 +46,8 @@ import type { LayerParameterValues } from "@/types/editor"
 
 type Node = TSLNode
 type ModelLoaders = typeof import("@/renderer/model-loaders")
+type SvgModule = typeof import("@/renderer/model-svg")
+type SvgSource = ReturnType<SvgModule["parseSvg"]>
 type RendererInternals = {
   _nodes?: { nodeFrame?: { update(): void } }
   compileAsync(scene: THREE.Scene, camera: THREE.Camera): Promise<void>
@@ -66,10 +68,16 @@ function samplesFor(width: number, height: number): number {
 }
 
 let loadersPromise: Promise<ModelLoaders> | null = null
+let svgPromise: Promise<SvgModule> | null = null
 
 function modelLoaders(): Promise<ModelLoaders> {
   loadersPromise ??= import("@/renderer/model-loaders")
   return loadersPromise
+}
+
+function svgModule(): Promise<SvgModule> {
+  svgPromise ??= import("@/renderer/model-svg")
+  return svgPromise
 }
 
 function readNumber(
@@ -224,6 +232,8 @@ export class ModelPass extends PassNode {
   private actions: { action: THREE.AnimationAction; duration: number }[] = []
   private selectionKey = ""
   private animation: ModelAnimationSettings = readModelAnimation({})
+  private svg: { module: SvgModule; source: SvgSource } | null = null
+  private svgKey = ""
   private spin = 0
   private lastTime = Number.NaN
   private width = 1
@@ -312,7 +322,7 @@ export class ModelPass extends PassNode {
     this.rebuildEffectNode()
   }
 
-  async setModel(source: { url: string }): Promise<void> {
+  async setModel(source: { format?: "gltf" | "svg"; url: string }): Promise<void> {
     if (this.modelSignature === source.url) {
       return
     }
@@ -320,9 +330,24 @@ export class ModelPass extends PassNode {
     this.modelNonce += 1
     const nonce = this.modelNonce
     this.releaseModel()
+    this.svg = null
     this.modelSignature = source.url
 
     try {
+      if (source.format === "svg") {
+        const [module, response] = await Promise.all([svgModule(), fetch(source.url)])
+        const text = await response.text()
+        if (nonce !== this.modelNonce) {
+          return
+        }
+        const svg = { module, source: module.parseSvg(text) }
+        this.svgKey = this.extrusionKey()
+        this.installModel(svg.module.buildSvgModel(svg.source, this.extrusion()), [], [])
+        this.svg = svg
+        await this.compileScene()
+        return
+      }
+
       const { loadGltf } = await modelLoaders()
       const gltf = await loadGltf(source.url, this.renderer)
 
@@ -350,6 +375,7 @@ export class ModelPass extends PassNode {
   clearModel(): void {
     this.modelNonce += 1
     this.releaseModel()
+    this.svg = null
   }
 
   async setEnvironment(url: string): Promise<void> {
@@ -405,6 +431,9 @@ export class ModelPass extends PassNode {
     this.animation = readModelAnimation(params)
     if (this.model) {
       this.applySelection()
+    }
+    if (this.svg && this.extrusionKey() !== this.svgKey) {
+      this.rebuildSvg()
     }
 
     const toneMapping = readToneMapping(params.toneMapping)
@@ -488,6 +517,7 @@ export class ModelPass extends PassNode {
     this.modelNonce += 1
     this.environmentNonce += 1
     this.releaseModel()
+    this.svg = null
     this.environment?.dispose()
     this.environment = null
     this.modelScene.environment = null
@@ -627,6 +657,36 @@ export class ModelPass extends PassNode {
     if (this.overrides) {
       this.overrides.streakScale.value = scale
     }
+  }
+
+  private extrusion(): { bevel: number; bevelSegments: number; depth: number } {
+    return {
+      bevel: readNumber(this.params.extrudeBevel, 0.02, 0, 0.1),
+      bevelSegments: readNumber(this.params.extrudeBevelSegments, 4, 1, 12),
+      depth: readNumber(this.params.extrudeDepth, 0.15, 0.01, 2),
+    }
+  }
+
+  private extrusionKey(): string {
+    const { bevel, bevelSegments, depth } = this.extrusion()
+    return `${depth}|${bevel}|${bevelSegments}`
+  }
+
+  private rebuildSvg(): void {
+    const svg = this.svg
+    if (!svg) return
+    this.svgKey = this.extrusionKey()
+    let root: THREE.Group
+    try {
+      root = svg.module.buildSvgModel(svg.source, this.extrusion())
+    } catch {
+      return
+    }
+    const signature = this.modelSignature
+    this.releaseModel()
+    this.modelSignature = signature
+    this.installModel(root, [], [])
+    void this.compileScene()
   }
 
   private isAnimating(): boolean {

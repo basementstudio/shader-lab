@@ -27,6 +27,16 @@ import type {
   ParameterValue,
 } from "@/types/editor"
 
+const EXTRUDE_KEYS = ["extrudeDepth", "extrudeBevel", "extrudeBevelSegments"] as const
+
+function extrudeDefinitions(): ParameterDefinition[] {
+  const params = getLayerDefinition("model").params
+  return EXTRUDE_KEYS.flatMap((key) => {
+    const definition = params.find((entry) => entry.key === key)
+    return definition ? [definition] : []
+  })
+}
+
 const ANIMATION_KEYS = [
   "animationPlaying",
   "animationSpeed",
@@ -149,6 +159,57 @@ function environmentCaption(
   return `Lit by the ${studio.label} studio. Attach an .hdr to use your own.`
 }
 
+function ModelExtrudeControls({
+  layerId,
+  onChange,
+  onInteractionEnd,
+  onInteractionStart,
+  onTimelineKeyframe,
+  reduceMotion,
+  timelinePanelOpen,
+  values,
+}: {
+  layerId: string
+  onChange: (id: string, key: string, value: ParameterValue) => void
+  onInteractionEnd?: (() => void) | undefined
+  onInteractionStart?: (() => void) | undefined
+  onTimelineKeyframe: (
+    binding: AnimatedPropertyBinding,
+    layerId: string,
+    value: ParameterValue
+  ) => void
+  reduceMotion: boolean
+  timelinePanelOpen: boolean
+  values: LayerParameterValues
+}) {
+  const definitions = useMemo(() => extrudeDefinitions(), [])
+  return (
+    <div className="flex flex-col gap-[10px]" data-model-extrude="true">
+      <Typography tone="secondary" variant="caption">
+        Extrude
+      </Typography>
+      {definitions.map((definition) => (
+        <ParameterField
+          definition={definition}
+          key={definition.key}
+          layerId={layerId}
+          onChange={onChange}
+          onInteractionEnd={onInteractionEnd}
+          onInteractionStart={onInteractionStart}
+          onTimelineKeyframe={onTimelineKeyframe}
+          reduceMotion={reduceMotion}
+          timelineBinding={null}
+          timelinePanelOpen={timelinePanelOpen}
+          value={values[definition.key] ?? definition.defaultValue}
+        />
+      ))}
+      <Typography tone="muted" variant="caption">
+        Filled and stroked shapes become solid, in their SVG colors. Text has to be converted to outlines first.
+      </Typography>
+    </div>
+  )
+}
+
 export function ModelControls({
   clips,
   environmentFileName,
@@ -161,6 +222,7 @@ export function ModelControls({
   onReplaceModel,
   onTimelineKeyframe,
   reduceMotion,
+  svgSource,
   timelinePanelOpen,
   values,
 }: {
@@ -179,6 +241,7 @@ export function ModelControls({
     value: ParameterValue
   ) => void
   reduceMotion: boolean
+  svgSource: boolean
   timelinePanelOpen: boolean
   values: LayerParameterValues
 }) {
@@ -217,6 +280,18 @@ export function ModelControls({
           Drag the gizmo, or hover the canvas and press G, R or S, then X, Y or Z to lock an axis. Alt with G, R or S clears it. Middle-drag orbits the camera.
         </Typography>
       </div>
+      {svgSource ? (
+        <ModelExtrudeControls
+          layerId={layerId}
+          onChange={onChange}
+          onInteractionEnd={onInteractionEnd}
+          onInteractionStart={onInteractionStart}
+          onTimelineKeyframe={onTimelineKeyframe}
+          reduceMotion={reduceMotion}
+          timelinePanelOpen={timelinePanelOpen}
+          values={values}
+        />
+      ) : null}
       {clips.length > 0 ? (
         <ModelAnimationControls
           clips={clips}
@@ -232,7 +307,7 @@ export function ModelControls({
       ) : null}
       <div className="flex items-center justify-between gap-3">
         <Typography tone="muted" variant="caption">
-          Swap in a different .glb and keep this layer's settings.
+          Swap in a different .glb, .gltf or .svg and keep this layer's settings.
         </Typography>
         <Button
           onClick={onReplaceModel}

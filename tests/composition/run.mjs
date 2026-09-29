@@ -516,6 +516,10 @@ try {
   console.log(
     `PASS 3D animation: ${animation} checks, clip timing, default clips, clip-wide framing, animated depth, skinning, speed, pause, repeat modes, start, timeline seeding, save/reopen, export`
   )
+  const svg = await page.evaluate(() => window.checkModelSvg())
+  console.log(
+    `PASS SVG to 3D: ${svg} checks, holes, bevel inside the outline, strokes, stacked paths, y-up, fill colors, text-only message, extrusion depth, materials, depth, save/reopen`
+  )
   assert.deepEqual(unexpectedErrors(), [], "Browser or GPU errors occurred")
   if (errors.length > 0)
     console.log(

@@ -170,7 +170,7 @@ export const LAYER_CATALOG: Record<LayerType, LayerCatalogEntry> = {
   model: {
     label: "3D Model",
     description:
-      "A .glb model, framed and lit automatically with HDR studios, its own PBR materials or chrome, brushed metal, glass, clay, rubber and iridescent replacements, soft shadows and a contact-shadow floor. Its exact depth drives Blur, Glass, Relief and depth masks.",
+      "A .glb model, with its animation clips, or an .svg logo extruded into a solid. Framed and lit automatically with HDR studios, its own PBR materials or chrome, brushed metal, glass, clay, rubber and iridescent replacements, soft shadows and a contact-shadow floor. Its exact depth drives Blur, Glass, Relief and depth masks.",
   },
   "particle-grid": {
     category: "core",

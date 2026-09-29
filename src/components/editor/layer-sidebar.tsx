@@ -490,7 +490,10 @@ export function LayerSidebar() {
     layerType: "image" | "model" | "video"
   ) {
     try {
-      const asset = await loadAsset(file)
+      const asset = await loadAsset(
+        file,
+        layerType === "model" ? { kind: "model" } : undefined
+      )
       if (asset.kind !== layerType) {
         removeAsset(asset.id)
         return

@@ -12,6 +12,10 @@ import {
   lumenPrintStyleParams,
 } from "@/lib/editor/config/lumen-print-styles"
 import {
+  DEFAULT_GRAIN_STYLE,
+  grainStyleParams,
+} from "@/lib/editor/config/grain-styles"
+import {
   DEFAULT_SIGNAL_ROT_STYLE,
   signalRotStyleParams,
 } from "@/lib/editor/config/signal-rot-styles"
@@ -3740,6 +3744,113 @@ const lumenPrintParams = [
     step: 1,
     type: "number",
     description: "Reshuffles grain, ragged edges and the edge burn.",
+  },
+] as const satisfies ParameterDefinitions
+
+const grainDefaults = grainStyleParams(DEFAULT_GRAIN_STYLE)
+
+const grainParams = [
+  {
+    defaultValue: grainDefaults.amount as number,
+    key: "amount",
+    label: "Amount",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description: "How strong the grain is.",
+  },
+  {
+    defaultValue: grainDefaults.size as number,
+    key: "size",
+    label: "Size",
+    max: 8,
+    min: 0.5,
+    step: 0.05,
+    type: "number",
+    description:
+      "Size of the grain, in document pixels, so exports at any resolution match.",
+  },
+  {
+    defaultValue: grainDefaults.roughness as number,
+    key: "roughness",
+    label: "Roughness",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Soft, rounded grain at 0; crisp, gritty grain with finer specks at 1.",
+  },
+  {
+    defaultValue: grainDefaults.clumping as number,
+    key: "clumping",
+    label: "Clumping",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Gathers the grain into uneven clumps and mottling, like pushed or coarse film.",
+  },
+  {
+    defaultValue: grainDefaults.chroma as number,
+    key: "chroma",
+    label: "Chroma",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Monochrome grain at 0; colored grain in each dye layer toward 1. Color grain leaves brightness unchanged.",
+  },
+  {
+    defaultValue: grainDefaults.response as number,
+    key: "response",
+    label: "Response",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Tone where the grain is strongest: 0 shadows, 0.5 midtones like film, 1 highlights.",
+  },
+  {
+    animatable: false,
+    defaultValue: grainDefaults.blend as string,
+    key: "blend",
+    label: "Grain Blend",
+    options: [
+      { label: "Soft Light", value: "soft-light" },
+      { label: "Overlay", value: "overlay" },
+      { label: "Add", value: "add" },
+    ],
+    type: "select",
+    description:
+      "How the grain meets the image. Soft Light keeps blacks and whites clean like a print, Overlay is punchier in the midtones, Add puts noise everywhere like a sensor.",
+  },
+  {
+    defaultValue: 1,
+    group: "Motion",
+    key: "speed",
+    label: "Speed",
+    max: 2.5,
+    min: 0,
+    step: 0.05,
+    type: "number",
+    description:
+      "0 holds one grain pattern. At 1 the grain changes 24 times a second, like film; each frame is a new pattern, never a slide.",
+  },
+  {
+    defaultValue: 0,
+    group: "Motion",
+    key: "seed",
+    label: "Seed",
+    max: 999,
+    min: 0,
+    step: 1,
+    type: "number",
+    description: "Picks a different grain pattern.",
   },
 ] as const satisfies ParameterDefinitions
 
@@ -7605,6 +7716,12 @@ const layerDefinitions: Record<LayerType, LayerDefinition> = {
     kind: "effect",
     params: lumenPrintParams,
     type: "lumen-print",
+  },
+  grain: {
+    defaultName: "Grain",
+    kind: "effect",
+    params: grainParams,
+    type: "grain",
   },
   "signal-rot": {
     defaultName: "Signal Rot",

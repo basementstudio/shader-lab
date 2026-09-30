@@ -47,6 +47,7 @@ export type ShaderLabEffectLayerType =
   | "threshold"
   | "gradient-map"
   | "lumen-print"
+  | "grain"
   | "signal-rot"
   | "dot-grid"
   | "erosion"

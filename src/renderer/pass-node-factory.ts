@@ -12,6 +12,7 @@ import { EdgeDetectPass } from "@/renderer/edge-detect-pass"
 import { FlutedGlassPass } from "@/renderer/fluted-glass-pass"
 import { GradientMapPass } from "@/renderer/gradient-map-pass"
 import { LumenPrintPass } from "@/renderer/lumen-print-pass"
+import { GrainPass } from "@/renderer/grain-pass"
 import { SignalRotPass } from "@/renderer/signal-rot-pass"
 import { DotGridPass } from "@/renderer/dot-grid-pass"
 import { ErosionPass } from "@/renderer/erosion-pass"
@@ -88,6 +89,8 @@ export function createPassNode(
       return new GradientMapPass(layerId)
     case "lumen-print":
       return new LumenPrintPass(layerId)
+    case "grain":
+      return new GrainPass(layerId)
     case "signal-rot":
       return new SignalRotPass(layerId)
     case "dot-grid":

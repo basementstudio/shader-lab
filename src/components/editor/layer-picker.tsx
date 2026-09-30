@@ -52,6 +52,7 @@ export type AddLayerAction =
   | "gradient"
   | "gradient-map"
   | "lumen-print"
+  | "grain"
   | "signal-rot"
   | "dot-grid"
   | "erosion"
@@ -154,6 +155,7 @@ const EFFECT_ORDER: readonly AddLayerAction[] = [
   "threshold",
   "gradient-map",
   "lumen-print",
+  "grain",
   "photocopy",
   "flares",
   "focus-blur",

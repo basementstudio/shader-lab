@@ -337,6 +337,24 @@ try {
   console.log(
     `PASS lumen print: ${lumenPrint.samples} editor/runtime GPU cases, identity, solarize, washout, grain, styles, hydration, history, export, photo renders`
   )
+  const grain = await page.evaluate(() => window.checkGrain())
+  for (const [style, png] of Object.entries(grain.styles))
+    await Bun.write(
+      resolve(artifacts, `grain-${style}.png`),
+      Buffer.from(png.split(",")[1], "base64")
+    )
+  for (const [frame, png] of Object.entries(grain.frames))
+    await Bun.write(
+      resolve(artifacts, `grain-frame-${frame}.png`),
+      Buffer.from(png.split(",")[1], "base64")
+    )
+  await Bun.write(
+    resolve(artifacts, "grain-preview.webp"),
+    Buffer.from(grain.previewWebp.split(",")[1], "base64")
+  )
+  console.log(
+    `PASS grain: ${grain.samples} editor/runtime GPU cases, identity, mean tone, mono and luminance-neutral chroma, clean blacks and whites, overlay and add, tonal response, size and roughness, document-pixel resolution, clumping, seed, stepped frames, coverage, styles, hydration, history, export, photo renders`
+  )
   const signalRot = await page.evaluate(() => window.checkSignalRot())
   for (const [style, png] of Object.entries(signalRot.styles))
     await Bun.write(

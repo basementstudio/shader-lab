@@ -8,6 +8,7 @@ import {
   GradientMapControls,
 } from "./gradient-map-controls"
 import { LumenPrintControls } from "./lumen-print-controls"
+import { GrainControls } from "./grain-controls"
 import { SignalRotControls } from "./signal-rot-controls"
 import { DotGridControls } from "./dot-grid-controls"
 import { ErosionControls } from "./erosion-controls"
@@ -961,6 +962,14 @@ export function SelectedLayerPropertiesContent({
             layerId={layerId}
             onInteractionEnd={onInteractionEnd}
             onInteractionStart={onInteractionStart}
+            updateLayerParam={updateLayerParam}
+            values={values}
+          />
+        )}
+
+        {layerType === "grain" && (
+          <GrainControls
+            layerId={layerId}
             updateLayerParam={updateLayerParam}
             values={values}
           />

@@ -39,6 +39,7 @@ const SUPPORTED_SHADER_EXPORT_LAYER_TYPES = new Set<LayerType>([
   "threshold",
   "gradient-map",
   "lumen-print",
+  "grain",
   "signal-rot",
   "dot-grid",
   "erosion",

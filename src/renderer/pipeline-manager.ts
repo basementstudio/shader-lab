@@ -55,6 +55,7 @@ const STATIC_OUTPUT_LAYER_TYPES: ReadonlySet<string> = new Set([
   "shape",
   "gradient-map",
   "lumen-print",
+  "grain",
   "signal-rot",
   "dot-grid",
   "erosion",

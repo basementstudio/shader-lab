@@ -46,6 +46,7 @@ import { TextPass } from "./text-pass"
 import { ThresholdPass } from "./threshold-pass"
 import { GradientMapPass } from "./gradient-map-pass"
 import { LumenPrintPass } from "./lumen-print-pass"
+import { GrainPass } from "./grain-pass"
 import { SignalRotPass } from "./signal-rot-pass"
 import { DotGridPass } from "./dot-grid-pass"
 import { ErosionPass } from "./erosion-pass"
@@ -93,6 +94,7 @@ type LayerPassNode =
   | ThresholdPass
   | GradientMapPass
   | LumenPrintPass
+  | GrainPass
   | SignalRotPass
   | DotGridPass
   | ErosionPass
@@ -730,6 +732,8 @@ export class PipelineManager {
           return new GradientMapPass(layer.id)
         case "lumen-print":
           return new LumenPrintPass(layer.id)
+        case "grain":
+          return new GrainPass(layer.id)
         case "signal-rot":
           return new SignalRotPass(layer.id)
         case "dot-grid":

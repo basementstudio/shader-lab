@@ -29,6 +29,7 @@ import { checkGradientMapKeyframes } from "./gradient-map-keyframes.mjs"
 import { checkPatternMotifs } from "./pattern-motifs.mjs"
 import { checkSvgShapes } from "./svg-shapes.mjs"
 import { checkLumenPrint } from "./lumen-print.mjs"
+import { checkGrain } from "./grain.mjs"
 import { checkSignalRot } from "./signal-rot.mjs"
 import { checkDotGrid } from "./dot-grid.mjs"
 import { checkErosion } from "./erosion.mjs"
@@ -473,6 +474,8 @@ window.checkPatternMotifs = () => checkPatternMotifs(renderProject)
 window.checkSvgShapes = () => checkSvgShapes(renderProject)
 
 window.checkLumenPrint = () => checkLumenPrint(renderProject)
+
+window.checkGrain = () => checkGrain(renderProject)
 
 window.checkSignalRot = () => checkSignalRot(renderProject)
 

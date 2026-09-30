@@ -281,6 +281,13 @@ export const LAYER_CATALOG: Record<LayerType, LayerCatalogEntry> = {
     label: "Lumen Print",
     previewSrc: "/examples/lumen-print.webp",
   },
+  grain: {
+    category: "core",
+    description:
+      "Photographic film grain for photos and video: fine 35mm, color negative, 16mm, pushed or digital noise. Strongest in the midtones like film, and at Speed above 0 it changes every frame like real film instead of sliding.",
+    label: "Grain",
+    previewSrc: "/examples/grain.webp",
+  },
   "focus-blur": {
     category: "core",
     description:

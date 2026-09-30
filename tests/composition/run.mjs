@@ -461,6 +461,15 @@ try {
   console.log(
     `PASS connected dots: ${dots.samples} editor/runtime GPU cases, empty light areas, dots, links, blobs, tone sizes, cutoff, invert, shapes, plexus range, palette, source, transparency, drift, styles, hydration, history, export, renders`
   )
+  const dotsEdges = await page.evaluate(() => window.checkConnectedDotsEdges())
+  for (const [name, png] of Object.entries(dotsEdges.renders))
+    await Bun.write(
+      resolve(artifacts, `connected-dots-edges-${name}.png`),
+      Buffer.from(png.split(",")[1], "base64")
+    )
+  console.log(
+    `PASS connected dots edge snap: ${dotsEdges.samples} editor/runtime GPU cases, neutral identity, flat and grainy images, step edges, halfway snapping, noise stability, thin lines, cutout edges, blobs, plexus, mesh edges and facets, styles, hydration, history, duplication, save/reopen, export, runtime parity, renders`
+  )
   const plotter = await page.evaluate(() => window.checkPlotter())
   for (const [style, png] of Object.entries(plotter.styles))
     await Bun.write(

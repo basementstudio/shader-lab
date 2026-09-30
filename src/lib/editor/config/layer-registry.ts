@@ -5109,6 +5109,17 @@ const connectedDotsParams = [
       "0 is a regular grid; 1 scatters points evenly but irregularly.",
   },
   {
+    defaultValue: dotsDefaults.edgeSnap as number,
+    key: "edgeSnap",
+    label: "Edge Snap",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Pulls each point onto the strongest edge of the image inside its cell, so dots, links and triangles trace the contours.",
+  },
+  {
     defaultValue: dotsDefaults.cutoff as number,
     key: "cutoff",
     label: "Cutoff",

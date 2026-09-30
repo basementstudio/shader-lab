@@ -24,4 +24,4 @@ Group it with a photo. Save/reload, duplicate, undo a style change. Export PNG a
 - **Mode: Mesh** splits the space between points into triangles, each filled flat with the average tone or color of its corners. **Fill** and **Wire** set triangle and edge opacity; **Wire Color**, **Line Width**. Cutoff drops triangles in light areas.
 - New styles: **Molecule** (ring atoms and bonds on navy), **Circuit** (grid-snapped square pads and traces in green), **Neural** (glowing source-colored plexus), **Riso** (blue and pink two-ink print on cream), **Low Poly** (flat triangles in the photo's colors), **Wireframe** (white triangle edges on black).
 
-Limits: each point links only to its 8 grid neighbors, so Plexus range tops out below three spacings. Snapping points to edges is still open.
+Limits: each point links only to its 8 grid neighbors, so Plexus range tops out below three spacings. Snapping points to edges has [its own test](CONNECTED-DOTS-EDGES-MANUAL-QA.md).

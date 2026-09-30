@@ -110,6 +110,11 @@ type Site = { uv: Node; tone: Node; present: Node }
 type Point = Site & { position: Node; color: Node }
 
 const SITE_MARGIN = 2
+const SNAP_STEPS = 4
+const SNAP_FLOOR = 0.08
+const SNAP_RAMP = 0.15
+const SNAP_REACH = 5
+const SNAP_RIDGE = 3
 
 export class ConnectedDotsPass extends PassNode {
   private readonly modeUniform: Node
@@ -136,6 +141,7 @@ export class ConnectedDotsPass extends PassNode {
   private readonly wireUniform: Node
   private readonly wireColorUniform: Node
   private readonly seedUniform: Node
+  private readonly edgeSnapUniform: Node
   private readonly timeUniform: Node
   private readonly documentSizeUniform: Node
   private readonly siteGridUniform: Node
@@ -146,8 +152,13 @@ export class ConnectedDotsPass extends PassNode {
   private readonly siteScene: THREE.Scene
   private readonly siteGeometry: THREE.PlaneGeometry
   private readonly siteInputNode: Node
+  private readonly edgeTarget: THREE.WebGLRenderTarget
+  private readonly edgeMaterial: THREE.MeshBasicNodeMaterial
+  private readonly edgeScene: THREE.Scene
+  private readonly edgeInputNode: Node
   private colorNode: Node | null = null
   private stopsKey = ""
+  private meshShader = false
   private speed = 0
 
   constructor(layerId: string) {
@@ -176,6 +187,7 @@ export class ConnectedDotsPass extends PassNode {
     this.wireUniform = uniform(0.6)
     this.wireColorUniform = uniform(new THREE.Color("#ffffff"))
     this.seedUniform = uniform(0)
+    this.edgeSnapUniform = uniform(0)
     this.timeUniform = uniform(0)
     this.documentSizeUniform = uniform(new THREE.Vector2(1, 1))
     this.siteGridUniform = uniform(new THREE.Vector2(1, 1))
@@ -200,7 +212,19 @@ export class ConnectedDotsPass extends PassNode {
       wrapS: THREE.ClampToEdgeWrapping,
       wrapT: THREE.ClampToEdgeWrapping,
     })
+    this.edgeTarget = new THREE.WebGLRenderTarget(1, 1, {
+      depthBuffer: false,
+      format: THREE.RedFormat,
+      generateMipmaps: false,
+      magFilter: THREE.NearestFilter,
+      minFilter: THREE.NearestFilter,
+      stencilBuffer: false,
+      type: THREE.HalfFloatType,
+      wrapS: THREE.ClampToEdgeWrapping,
+      wrapT: THREE.ClampToEdgeWrapping,
+    })
     this.siteInputNode = tslTexture(this.placeholder, renderTargetUv())
+    this.edgeInputNode = tslTexture(this.placeholder, renderTargetUv())
     this.siteMaterial = new THREE.MeshBasicNodeMaterial()
     this.siteMaterial.blending = THREE.NoBlending
     ;(this.siteMaterial as unknown as { fragmentNode: Node }).fragmentNode = this.buildSiteNode()
@@ -209,6 +233,13 @@ export class ConnectedDotsPass extends PassNode {
     siteMesh.frustumCulled = false
     this.siteScene = new THREE.Scene()
     this.siteScene.add(siteMesh)
+    this.edgeMaterial = new THREE.MeshBasicNodeMaterial()
+    this.edgeMaterial.blending = THREE.NoBlending
+    ;(this.edgeMaterial as unknown as { fragmentNode: Node }).fragmentNode = this.buildEdgeNode()
+    const edgeMesh = new THREE.Mesh(this.siteGeometry, this.edgeMaterial)
+    edgeMesh.frustumCulled = false
+    this.edgeScene = new THREE.Scene()
+    this.edgeScene.add(edgeMesh)
     this.updateParams({})
     this.rebuildEffectNode()
   }
@@ -231,10 +262,20 @@ export class ConnectedDotsPass extends PassNode {
       this.siteTarget.setSize(columns, rows)
       ;(this.siteGridUniform.value as THREE.Vector2).set(columns, rows)
     }
+    const snapping = (this.edgeSnapUniform.value as number) > 0
+    const edgeColumns = snapping ? columns * SNAP_STEPS : 1
+    const edgeRows = snapping ? rows * SNAP_STEPS : 1
+    if (this.edgeTarget.width !== edgeColumns || this.edgeTarget.height !== edgeRows)
+      this.edgeTarget.setSize(edgeColumns, edgeRows)
   }
 
   override updateParams(params: LayerParameterValues): void {
     this.modeUniform.value = MODES[String(params.mode)] ?? 0
+    const meshShader = (this.modeUniform.value as number) > 2.5
+    if (meshShader !== this.meshShader) {
+      this.meshShader = meshShader
+      if (this.lut) this.rebuildEffectNode()
+    }
     this.spacingUniform.value = readNumber(params.spacing, 12, 3, 120)
     this.jitterUniform.value = readNumber(params.jitter, 0.85, 0, 1)
     this.shapeUniform.value = SHAPES[String(params.dotShape)] ?? 0
@@ -264,6 +305,7 @@ export class ConnectedDotsPass extends PassNode {
       typeof params.wireColor === "string" ? params.wireColor : "#ffffff"
     )
     this.seedUniform.value = readNumber(params.seed, 0, 0, 999)
+    this.edgeSnapUniform.value = readNumber(params.edgeSnap, 0, 0, 1)
     this.speed = readNumber(params.speed, 0, 0, 4)
     const stops =
       typeof params.stops === "string" && params.stops.trim() !== ""
@@ -294,16 +336,23 @@ export class ConnectedDotsPass extends PassNode {
     delta: number
   ): void {
     this.timeUniform.value = time * this.speed
-    if ((this.modeUniform.value as number) < 2.5) {
-      this.siteInputNode.value = inputTexture
-      renderer.setRenderTarget(this.siteTarget)
-      renderer.render(this.siteScene, this.camera)
+    if ((this.edgeSnapUniform.value as number) > 0) {
+      this.edgeInputNode.value = inputTexture
+      renderer.setRenderTarget(this.edgeTarget)
+      renderer.render(this.edgeScene, this.camera)
     }
+    this.siteInputNode.value = inputTexture
+    renderer.setRenderTarget(this.siteTarget)
+    renderer.render(this.siteScene, this.camera)
     if (this.colorNode) this.colorNode.value = inputTexture
     super.render(renderer, inputTexture, outputTarget, time, delta)
   }
 
-  private point(cell: Node, colorNode: Node): Point {
+  private point(
+    cell: Node,
+    colorNode: Node,
+    snap?: (position: Node) => Node
+  ): Point {
     const spacing = this.spacingUniform
     const random = hash2(cell.add(this.seedUniform.mul(13.1))).toVar()
     const scatter = random.sub(0.5).mul(this.jitterUniform)
@@ -324,7 +373,8 @@ export class ConnectedDotsPass extends PassNode {
       )
     })
     const local = scatter.add(0.5).add(drift)
-    const position = cell.add(local).mul(spacing)
+    const jittered = cell.add(local).mul(spacing)
+    const position = snap ? snap(jittered) : jittered
     const siteUv = position.div(this.documentSizeUniform)
     const sample = colorNode.sample(siteUv).level(0)
     const tone = perceptualLuma(sample)
@@ -347,11 +397,84 @@ export class ConnectedDotsPass extends PassNode {
     }
   }
 
+  private buildEdgeNode(): Node {
+    return Fn(() => {
+      const texel = floor(renderTargetUv().mul(this.siteGridUniform).mul(SNAP_STEPS))
+      const cell = floor(texel.div(SNAP_STEPS))
+      const candidate = texel.sub(cell.mul(SNAP_STEPS)).add(0.5).div(SNAP_STEPS)
+      const center = cell.sub(SITE_MARGIN).add(candidate).mul(this.spacingUniform).toVar()
+      const step = this.spacingUniform.div(SNAP_STEPS)
+      const read = (offset: Node): Node => {
+        const sample = this.edgeInputNode
+          .sample(center.add(offset).div(this.documentSizeUniform))
+          .level(0)
+        const tone = perceptualLuma(sample)
+        const darkness = select(this.invertUniform.greaterThan(0.5), tone, float(1).sub(tone))
+        return vec2(darkness, clamp(sample.a, 0, 1)).toVar()
+      }
+      const middle = read(vec2(0))
+      const left = read(vec2(step.negate(), 0))
+      const right = read(vec2(step, 0))
+      const down = read(vec2(0, step.negate()))
+      const up = read(vec2(0, step))
+      const dx = right.sub(left)
+      const dy = up.sub(down)
+      const gradient = max(length(vec2(dx.x, dy.x)), length(vec2(dx.y, dy.y)))
+      const ridge = middle.sub(left.add(right).add(down).add(up).mul(0.25))
+      const inward = max(max(ridge.x, ridge.y), float(0))
+      const edge = max(gradient.add(inward.mul(SNAP_RIDGE)).sub(SNAP_FLOOR), float(0))
+      return vec4(edge, 0, 0, 1)
+    })()
+  }
+
+  private snapToEdges(cell: Node, position: Node, edges: Node): Node {
+    const spacing = this.spacingUniform
+    const local = position.div(spacing).sub(cell).toVar()
+    const origin = cell.add(SITE_MARGIN).mul(SNAP_STEPS).toVar()
+    const weighted = vec2(0).toVar()
+    const weightSum = float(0).toVar()
+    const edgeSum = float(0).toVar()
+    const peak = float(0).toVar()
+    for (let j = 0; j < SNAP_STEPS; j++) {
+      for (let i = 0; i < SNAP_STEPS; i++) {
+        const edge = edges.load(origin.add(vec2(i, j))).x.toVar()
+        const candidate = vec2((i + 0.5) / SNAP_STEPS, (j + 0.5) / SNAP_STEPS)
+        const away = candidate.sub(local)
+        const square = edge.mul(edge)
+        const weight = square.mul(square).mul(exp(dot(away, away).mul(-SNAP_REACH)))
+        weighted.addAssign(candidate.mul(weight))
+        weightSum.addAssign(weight)
+        edgeSum.addAssign(edge)
+        peak.assign(max(peak, edge))
+      }
+    }
+    const target = cell.add(weighted.div(max(weightSum, float(1e-10)))).mul(spacing)
+    const contrast = peak.sub(edgeSum.div(SNAP_STEPS * SNAP_STEPS))
+    const pull = this.edgeSnapUniform.mul(smoothstep(0, SNAP_RAMP, contrast))
+    return mix(position, target, pull)
+  }
+
   private buildSiteNode(): Node {
+    const edges = tslTexture(this.edgeTarget.texture)
     return Fn(() => {
       const cell = floor(renderTargetUv().mul(this.siteGridUniform)).sub(SITE_MARGIN)
-      const site = this.point(cell, this.siteInputNode)
-      return vec4(site.uv, site.tone, site.present)
+      const mesh = this.modeUniform.greaterThan(2.5)
+      const packed = vec4(0).toVar()
+      If(this.edgeSnapUniform.greaterThan(0), () => {
+        const site = this.point(cell, this.siteInputNode, (position) =>
+          this.snapToEdges(cell, position, edges)
+        )
+        packed.assign(vec4(select(mesh, site.position, site.uv), site.tone, site.present))
+      }).Else(() => {
+        If(mesh, () => {
+          const site = this.point(cell, this.siteInputNode)
+          packed.assign(vec4(site.position, site.tone, site.present))
+        }).Else(() => {
+          const site = this.point(cell, this.siteInputNode)
+          packed.assign(vec4(site.uv, site.tone, site.present))
+        })
+      })
+      return packed
     })()
   }
 
@@ -402,7 +525,6 @@ export class ConnectedDotsPass extends PassNode {
       const mode = this.modeUniform
       const blobs = mode.greaterThan(0.5).and(mode.lessThan(1.5)).toVar()
       const plexus = mode.greaterThan(1.5).toVar()
-      const mesh = mode.greaterThan(2.5).toVar()
       const source = this.colorModeUniform
         .greaterThanEqual(0.5)
         .and(this.colorModeUniform.lessThan(1.5))
@@ -452,14 +574,25 @@ export class ConnectedDotsPass extends PassNode {
       const meshColor = vec3(0).toVar()
       const meshEdge = float(1e5).toVar()
       const meshTone = float(0).toVar()
-      If(mesh, () => {
+      const meshSite = (cell: Node): Point => {
+        const packed = sitesNode.load(cell.add(SITE_MARGIN)).toVar()
+        const siteUv = packed.xy.div(this.documentSizeUniform)
+        return {
+          position: packed.xy,
+          uv: siteUv,
+          tone: packed.z,
+          color: siteColor(siteUv),
+          present: packed.w,
+        }
+      }
+      if (this.meshShader) {
         Loop({ start: 0, end: 9, type: "int", name: "quadIndex" }, (quadInputs) => {
           const index = float((quadInputs as unknown as { quadIndex: Node }).quadIndex)
           const cell = base.add(vec2(index.mod(3).sub(1), floor(index.div(3)).sub(1)))
-          const p00 = this.point(cell, colorNode)
-          const p10 = this.point(cell.add(vec2(1, 0)), colorNode)
-          const p01 = this.point(cell.add(vec2(0, 1)), colorNode)
-          const p11 = this.point(cell.add(vec2(1, 1)), colorNode)
+          const p00 = meshSite(cell)
+          const p10 = meshSite(cell.add(vec2(1, 0)))
+          const p01 = meshSite(cell.add(vec2(0, 1)))
+          const p11 = meshSite(cell.add(vec2(1, 1)))
           const diagonalSide = (p: Point, q: Point, r: Point) =>
             q.position.x
               .sub(p.position.x)
@@ -507,7 +640,7 @@ export class ConnectedDotsPass extends PassNode {
             })
           }
         })
-      }).Else(() => {
+      } else {
         Loop({ start: 0, end: 9, type: "int", name: "centerIndex" }, (centerInputs) => {
           const centerIndex = (centerInputs as unknown as { centerIndex: Node }).centerIndex
           const offset = vec2(float(centerIndex.mod(3)).sub(1), float(centerIndex.div(3)).sub(1))
@@ -583,7 +716,7 @@ export class ConnectedDotsPass extends PassNode {
             })
           }
         })
-      })
+      }
 
       const backgroundMode = this.backgroundModeUniform
       const backgroundRgb = vec3(this.backgroundUniform).toVar()
@@ -604,7 +737,7 @@ export class ConnectedDotsPass extends PassNode {
       }
       const finalRgb = vec3(0).toVar()
       const finalAlpha = float(0).toVar()
-      If(mesh, () => {
+      if (this.meshShader) {
         const facet = pick(meshTone, meshColor)
         const wire = float(1)
           .sub(smoothstep(this.lineWidthUniform.mul(0.5).sub(0.6), this.lineWidthUniform.mul(0.5).add(0.6), meshEdge))
@@ -614,7 +747,7 @@ export class ConnectedDotsPass extends PassNode {
         const meshFillAlpha = mix(backgroundAlpha, float(1), fillAmount)
         finalRgb.assign(mix(meshFilled, vec3(this.wireColorUniform), wire))
         finalAlpha.assign(mix(meshFillAlpha, float(1), wire))
-      }).Else(() => {
+      } else {
         const coverage = float(1).sub(smoothstep(-0.7, 0.7, field))
         const tone = toneSum.div(max(weightSum, float(0.0001)))
         const sourceColor = colorSum.div(max(weightSum, float(0.0001)))
@@ -626,13 +759,15 @@ export class ConnectedDotsPass extends PassNode {
         const linesAlpha = mix(backgroundAlpha, float(1), lineCoverage)
         finalRgb.assign(mix(withLines, dotColor, coverage))
         finalAlpha.assign(mix(linesAlpha, float(1), coverage))
-      })
+      }
       return vec4(finalRgb.div(max(finalAlpha, float(0.0001))), finalAlpha)
     })()
   }
 
   override dispose(): void {
     this.siteTarget.dispose()
+    this.edgeTarget.dispose()
+    this.edgeMaterial.dispose()
     this.siteMaterial.dispose()
     this.siteGeometry.dispose()
     this.lut.dispose()

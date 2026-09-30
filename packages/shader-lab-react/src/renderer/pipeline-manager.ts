@@ -170,6 +170,7 @@ function createLayerSignature(layer: ShaderLabLayerConfig): string {
     layer.asset?.kind ?? "no-asset",
     layer.asset?.src ?? "no-src",
     layer.depthAsset?.src ?? "no-depth",
+    (layer.patternAssets ?? []).map((motif) => motif.src).join("|"),
     layer.visible ? "1" : "0",
     layer.opacity.toFixed(4),
     layer.hue.toFixed(4),
@@ -623,6 +624,20 @@ export class PipelineManager {
       } else {
         pass.clearDepthMedia()
       }
+    }
+
+    if (pass instanceof PatternPass) {
+      void pass
+        .setMotifs((layer.patternAssets ?? []).map((motif) => motif.src))
+        .then(() => {
+          this.dirty = true
+        })
+        .catch((error) => {
+          this.onRuntimeError?.(
+            error instanceof Error ? error.message : "Failed to load motifs."
+          )
+          this.dirty = true
+        })
     }
 
     if (pass instanceof LivePass) {

@@ -16,6 +16,7 @@ import { ConnectedDotsControls } from "./connected-dots-controls"
 import { PlotterControls } from "./plotter-controls"
 import { PhotocopyControls } from "./photocopy-controls"
 import { OutlineControls } from "./outline-controls"
+import { PatternMotifControls } from "./pattern-motif-controls"
 import { ModelControls } from "./model-controls"
 import type { ModelClipInfo } from "@/lib/editor/model-animation"
 import { LayerMaskSection } from "./layer-mask-section"
@@ -24,7 +25,14 @@ import { LayerGroupLocation } from "@/components/editor/layer-group-location"
 
 import { TextAlignRightIcon } from "@radix-ui/react-icons"
 import { AnimatePresence, motion } from "motion/react"
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react"
 import { Button } from "@/components/ui/button"
 import { IconButton } from "@/components/ui/icon-button"
 import { Select } from "@/components/ui/select"
@@ -226,7 +234,6 @@ function CustomShaderSection({
             aria-label="Format sketch source"
             className="shrink-0"
             onClick={() => {
-              /* custom-shader-runtime pulls three/tsl; load it on demand. */
               void import("@/renderer/custom-shader-runtime")
                 .then(({ formatCustomShaderSource }) =>
                   formatCustomShaderSource({
@@ -569,6 +576,17 @@ export function SelectedLayerPropertiesContent({
       binding ? { binding, definition: null, layerId } : null,
     [layerId]
   )
+
+  const renderAfterParam = (key: string) =>
+    layerType === "pattern" && key === "preset" && values.preset === "custom" ? (
+      <PatternMotifControls
+        layerId={layerId}
+        onInteractionEnd={onInteractionEnd}
+        onInteractionStart={onInteractionStart}
+        updateLayerParam={updateLayerParam}
+        values={values}
+      />
+    ) : null
 
   return (
     <>
@@ -1183,23 +1201,25 @@ export function SelectedLayerPropertiesContent({
                           >
                             <div className="flex flex-col gap-[10px]">
                               {group.params.map((param) => (
-                                <ParameterField
-                                  definition={param}
-                                  key={param.key}
-                                  layerId={layerId}
-                                  onInteractionEnd={onInteractionEnd}
-                                  onInteractionStart={onInteractionStart}
-                                  onChange={updateLayerParam}
-                                  onTimelineKeyframe={onTimelineKeyframe}
-                                  reduceMotion={reduceMotion}
-                                  timelineBinding={createParamTimelineBinding(
-                                    param
-                                  )}
-                                  timelinePanelOpen={timelinePanelOpen}
-                                  value={
-                                    values[param.key] ?? param.defaultValue
-                                  }
-                                />
+                                <Fragment key={param.key}>
+                                  <ParameterField
+                                    definition={param}
+                                    layerId={layerId}
+                                    onInteractionEnd={onInteractionEnd}
+                                    onInteractionStart={onInteractionStart}
+                                    onChange={updateLayerParam}
+                                    onTimelineKeyframe={onTimelineKeyframe}
+                                    reduceMotion={reduceMotion}
+                                    timelineBinding={createParamTimelineBinding(
+                                      param
+                                    )}
+                                    timelinePanelOpen={timelinePanelOpen}
+                                    value={
+                                      values[param.key] ?? param.defaultValue
+                                    }
+                                  />
+                                  {renderAfterParam(param.key)}
+                                </Fragment>
                               ))}
 
                               {group.params.some(
@@ -1224,19 +1244,21 @@ export function SelectedLayerPropertiesContent({
             ) : (
               <div className="flex flex-col gap-[10px]">
                 {visibleParams.map((param) => (
-                  <ParameterField
-                    definition={param}
-                    key={param.key}
-                    layerId={layerId}
-                    onInteractionEnd={onInteractionEnd}
-                    onInteractionStart={onInteractionStart}
-                    onChange={updateLayerParam}
-                    onTimelineKeyframe={onTimelineKeyframe}
-                    reduceMotion={reduceMotion}
-                    timelineBinding={createParamTimelineBinding(param)}
-                    timelinePanelOpen={timelinePanelOpen}
-                    value={values[param.key] ?? param.defaultValue}
-                  />
+                  <Fragment key={param.key}>
+                    <ParameterField
+                      definition={param}
+                      layerId={layerId}
+                      onInteractionEnd={onInteractionEnd}
+                      onInteractionStart={onInteractionStart}
+                      onChange={updateLayerParam}
+                      onTimelineKeyframe={onTimelineKeyframe}
+                      reduceMotion={reduceMotion}
+                      timelineBinding={createParamTimelineBinding(param)}
+                      timelinePanelOpen={timelinePanelOpen}
+                      value={values[param.key] ?? param.defaultValue}
+                    />
+                    {renderAfterParam(param.key)}
+                  </Fragment>
                 ))}
 
                 {layerType === "blob-tracking" ? (

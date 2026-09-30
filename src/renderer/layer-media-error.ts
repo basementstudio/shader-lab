@@ -23,6 +23,22 @@ export function setLayerMediaError(
   store.setLayerRuntimeError(layerId, message)
 }
 
+const MOTIF_LOAD_FAILURE = /^Couldn't load \d+ motifs?$/
+
+export function describeMotifLoadFailure(count: number): string {
+  return `Couldn't load ${count} ${count === 1 ? "motif" : "motifs"}`
+}
+
+export function clearMotifLoadFailure(layerId: string): void {
+  const layer = useLayerStore
+    .getState()
+    .layers.find((entry) => entry.id === layerId)
+
+  if (layer?.runtimeError && MOTIF_LOAD_FAILURE.test(layer.runtimeError)) {
+    setLayerMediaError(layerId, null)
+  }
+}
+
 export function describeMediaLoadFailure(fileName: string | undefined): string {
   return `Couldn't load ${fileName && fileName.length > 0 ? fileName : "media"}`
 }

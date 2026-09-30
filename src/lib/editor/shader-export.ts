@@ -212,7 +212,11 @@ export function buildShaderExportConfig(
         layer.assetId ? (assetById.get(layer.assetId) ?? null) : null,
         layer.depthAssetId
           ? (assetById.get(layer.depthAssetId) ?? null)
-          : null
+          : null,
+        (layer.patternAssetIds ?? []).flatMap((id) => {
+          const motif = assetById.get(id)
+          return motif ? [motif] : []
+        })
       )
     ),
     timeline: {
@@ -228,7 +232,8 @@ export function buildShaderExportConfig(
 function toShaderLabLayerConfig(
   layer: EditorLayer,
   asset: EditorAsset | null,
-  depthAsset: EditorAsset | null
+  depthAsset: EditorAsset | null,
+  patternAssets: EditorAsset[]
 ): ShaderLabLayerConfig {
   const supportedLayer = assertSupportedShaderExportLayer(layer)
   const sketch =
@@ -264,6 +269,21 @@ function toShaderLabLayerConfig(
       kind: "image",
       src: buildAssetPlaceholderPath("image", depthFileName),
     }
+  }
+
+  if (supportedLayer.type === "pattern" && patternAssets.length > 0) {
+    const usedPaths = new Set<string>()
+    baseLayer.patternAssets = patternAssets.map((motif, index) => {
+      let src = buildAssetPlaceholderPath("image", motif.fileName || "motif.png")
+      if (usedPaths.has(src)) {
+        src = buildAssetPlaceholderPath(
+          "image",
+          `motif-${index + 1}-${motif.fileName || "motif.png"}`
+        )
+      }
+      usedPaths.add(src)
+      return { fileName: motif.fileName, kind: "image" as const, src }
+    })
   }
 
   if (sketch) {

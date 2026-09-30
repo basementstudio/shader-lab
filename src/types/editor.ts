@@ -330,6 +330,7 @@ export interface BaseLayer {
   assetId: string | null
   depthAssetId?: string | null
   environmentAssetId?: string | null
+  patternAssetIds?: string[]
   blendMode: BlendMode
   compositeMode: LayerCompositeMode
   expanded: boolean

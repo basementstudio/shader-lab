@@ -25,6 +25,7 @@ import { checkTransparentText } from "./transparent-text.mjs"
 import { checkPhotographicCells } from "./photographic-cells.mjs"
 import { checkLayerMasks } from "./layer-masks.mjs"
 import { checkGradientMap } from "./gradient-map.mjs"
+import { checkPatternMotifs } from "./pattern-motifs.mjs"
 import { checkLumenPrint } from "./lumen-print.mjs"
 import { checkSignalRot } from "./signal-rot.mjs"
 import { checkDotGrid } from "./dot-grid.mjs"
@@ -467,6 +468,7 @@ window.checkCleanProjects = checkCleanProjects
 window.checkLayerMasks = () => checkLayerMasks(renderProject)
 
 window.checkGradientMap = () => checkGradientMap(renderProject)
+window.checkPatternMotifs = () => checkPatternMotifs(renderProject)
 
 window.checkLumenPrint = () => checkLumenPrint(renderProject)
 

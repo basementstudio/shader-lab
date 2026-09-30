@@ -58,6 +58,9 @@ export function cloneLayer(layer: EditorLayer): EditorLayer {
     ...layer,
     id: crypto.randomUUID(),
     ...(layer.mask ? { mask: structuredClone(layer.mask) } : {}),
+    ...(layer.patternAssetIds
+      ? { patternAssetIds: [...layer.patternAssetIds] }
+      : {}),
     name: `${layer.name} Copy`,
     params: cloneParameterValues(layer.params),
     runtimeError: null,

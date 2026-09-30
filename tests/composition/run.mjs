@@ -43,6 +43,10 @@ const server = Bun.serve({
       )
     if (path === "/scenes/default/rings-photo.webp")
       return new Response(Bun.file(resolve(root, "public/examples/slice.webp")))
+    if (/^\/scenes\/default\/motif-[a-z-]+\.svg$/.test(path))
+      return new Response(
+        Bun.file(resolve(directory, `fixtures/${path.split("/").pop()}`))
+      )
     const base =
       path.startsWith("/fixtures/") || path.startsWith("/baselines/")
         ? directory
@@ -295,6 +299,14 @@ try {
   )
   console.log(
     `PASS gradient map: ${gradientMap.samples} editor/runtime GPU cases, presets, amount, invert, masked group scope, hydration, export, catalog preview`
+  )
+  const patternMotifs = await page.evaluate(() => window.checkPatternMotifs())
+  await Bun.write(
+    resolve(artifacts, "pattern-motifs.png"),
+    Buffer.from(patternMotifs.png.split(",")[1], "base64")
+  )
+  console.log(
+    `PASS pattern motifs: ${patternMotifs.samples} editor/runtime GPU cases, light-to-dark bands, motif colors, alpha shapes, invert, reorder, failed loads, history, duplication, save/reopen, missing motifs, export, runtime parity`
   )
   const lumenPrint = await page.evaluate(() => window.checkLumenPrint())
   for (const [style, png] of Object.entries(lumenPrint.styles))

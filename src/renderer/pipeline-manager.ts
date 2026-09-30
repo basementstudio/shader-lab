@@ -20,9 +20,11 @@ import { FluidPass } from "@/renderer/fluid-pass"
 import { GradientPass } from "@/renderer/gradient-pass"
 import { ShapePass } from "@/renderer/shape-pass"
 import {
+  clearMotifLoadFailure,
   describeCameraFailure,
   describeMediaLoadFailure,
   describeModelLoadFailure,
+  describeMotifLoadFailure,
   setLayerMediaError,
 } from "@/renderer/layer-media-error"
 import { LivePass } from "@/renderer/live-pass"
@@ -38,6 +40,7 @@ import {
 } from "@/renderer/pass-failure"
 import type { PassNode } from "@/renderer/pass-node"
 import { createPassNode } from "@/renderer/pass-node-factory"
+import { MotifLoadError, PatternPass } from "@/renderer/pattern-pass"
 import { PixelTrailPass } from "@/renderer/pixel-trail-pass"
 import { ScenePostProcess } from "@/renderer/scene-post-process"
 import { TextPass } from "@/renderer/text-pass"
@@ -142,6 +145,9 @@ function createLayerSignature(layer: RenderableLayerPass): string {
     layer.depthAsset?.url ?? "no-depth-url",
     layer.environmentAsset?.id ?? "no-environment",
     layer.environmentAsset?.url ?? "no-environment-url",
+    (layer.patternAssets ?? [])
+      .map((asset) => `${asset.id}@${asset.url}`)
+      .join("|"),
     layer.layer.visible ? "1" : "0",
     layer.layer.opacity.toFixed(4),
     layer.layer.hue.toFixed(4),
@@ -739,6 +745,31 @@ export class PipelineManager {
 
     if (pass instanceof ModelPass) {
       this.loadModelResources(pass, renderableLayer)
+    }
+
+    if (pass instanceof PatternPass) {
+      const motifLoadId = `${pass.layerId}:motifs`
+      this.pendingMediaLoads.add(motifLoadId)
+      void pass
+        .setMotifs(
+          (renderableLayer.patternAssets ?? []).map((asset) => asset.url)
+        )
+        .then(() => {
+          clearMotifLoadFailure(pass.layerId)
+          this.markDirty()
+        })
+        .catch((cause: unknown) => {
+          setLayerMediaError(
+            pass.layerId,
+            describeMotifLoadFailure(
+              cause instanceof MotifLoadError ? cause.failed : 1
+            )
+          )
+          this.markDirty()
+        })
+        .finally(() => {
+          this.pendingMediaLoads.delete(motifLoadId)
+        })
     }
 
     if (pass instanceof LivePass) {

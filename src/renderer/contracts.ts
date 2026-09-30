@@ -35,6 +35,7 @@ export interface RenderableLayerPass {
   environmentAsset: EditorAsset | null
   layer: EditorLayer
   params: LayerParameterValues
+  patternAssets?: EditorAsset[]
 }
 
 export interface RendererFrame {
@@ -131,6 +132,14 @@ export function buildRendererFrame(
       environmentAsset: layer.environmentAssetId
         ? (assetById.get(layer.environmentAssetId) ?? null)
         : null,
+      ...(layer.patternAssetIds
+        ? {
+            patternAssets: layer.patternAssetIds.flatMap((id) => {
+              const asset = assetById.get(id)
+              return asset ? [asset] : []
+            }),
+          }
+        : {}),
       layer: {
         ...layer,
         ...(mask !== layer.mask ? { mask } : {}),

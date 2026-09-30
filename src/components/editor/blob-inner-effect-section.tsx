@@ -72,7 +72,14 @@ export function BlobInnerEffectSection({
   return (
     <div className="flex flex-col gap-[10px] border-[var(--ds-border-divider)] border-l pl-3">
       {definitions.map((entry) => {
-        if (!isParamVisible(entry, innerValues, [...definition.params])) {
+        if (
+          !isParamVisible(
+            entry,
+            innerValues,
+            [...definition.params],
+            definition.type
+          )
+        ) {
           return null
         }
 

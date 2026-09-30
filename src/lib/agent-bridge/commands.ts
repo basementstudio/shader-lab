@@ -182,6 +182,7 @@ function summarizeLayer(layer: EditorLayer, index: number) {
     assetId: layer.assetId,
     depthAssetId: layer.depthAssetId ?? null,
     environmentAssetId: layer.environmentAssetId ?? null,
+    patternAssetIds: layer.patternAssetIds ?? [],
     blendMode: layer.blendMode,
     compositeMode: layer.compositeMode,
     id: layer.id,

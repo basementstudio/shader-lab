@@ -136,6 +136,11 @@ export function isParamVisible(
   definitions: ParameterDefinition[],
   layerType?: string
 ): boolean {
+  if (layerType === "pattern" && definition.key === "bgOpacity") {
+    const colorMode = resolveParamValue(params, definitions, "colorMode")
+    return colorMode === "source" || colorMode === "original"
+  }
+
   if (definition.visibleWhen) {
     const controllingValue = resolveParamValue(
       params,

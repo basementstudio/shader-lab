@@ -189,3 +189,13 @@ Plotter was rebuilt against 32 and 33: Flow and Contour follow the forms, Stippl
 ## 3D Model layer (September 28, 2026)
 
 References 31, 15 and 26 to 30 were reopened; there are no chrome, glass or brushed-metal poster references yet, so the material presets follow product-studio conventions until the user shares some. 31 is the main target for the model's depth: a study of black Rubber tubes and spheres on flat yellow, with the Blur layer's Depth of Field reading the model's exact depth, keeps the nearest forms sharp and dissolves the rest into large grainy blur, close to the poster. With Relief reading the depth, the model embosses into the silver plate of 15; behind Glass (26 to 30) it blurs by its distance. The first renders exposed a clipped white Studio (its HDR is three times brighter than the others, now normalized), flat white brushed-metal cylinders (anisotropy without usable tangents, removed) and an invisible thin-film iridescence (replaced by a view-angle holographic tint). User visual acceptance is pending; see [the focused test](tests/composition/MODEL-LAYER-MANUAL-QA.md). On September 29, SVG logos extruded in the same layer were rendered in Original, Chrome, Glass, Clay and Iridescent on the flat yellow of reference 31: the solid forms and floor shadows read like its 3D forms, and chrome only catches light on beveled edges, so the default bevel was raised to 0.02 of the logo's size. Curved walls first showed facets under chrome; crease-angle normals fixed them while keeping sharp corners.
+
+## Pattern motifs (September 30, 2026)
+
+Shared by the user for roadmap 6.5, with the reminder that uploaded motifs keep their own colors. Workspace backup in `.context/v3-references/`:
+
+| Backup | Original | What to inspect |
+| --- | --- | --- |
+| `35-bandeja-motivos-boceto.png` | `.context/attachments/lbcmrU/image.png` | Sketch of the motif tray: a rounded tray of square thumbnails, one lifted, tilted and carried by the hand while the others make room. |
+
+The Pattern layer's motif tray follows 35: a rounded tray of square tiles in their light-to-dark order; the dragged tile lifts, tilts and follows the pointer while the others slide into place. Reference 22 shows the user's own sparse Pattern grid over a photo; the Bars, Candles and Shapes presets are unchanged.

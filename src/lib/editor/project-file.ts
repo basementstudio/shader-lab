@@ -93,6 +93,10 @@ export function collectReferencedAssetIds(input: {
     if (layer.environmentAssetId) {
       referenced.add(layer.environmentAssetId)
     }
+
+    for (const assetId of layer.patternAssetIds ?? []) {
+      referenced.add(assetId)
+    }
   }
 
   if (input.audioSource?.kind === "asset") {
@@ -284,6 +288,7 @@ const baseLayerShape = {
   assetId: z.string().nullable(),
   depthAssetId: z.string().nullable().optional(),
   environmentAssetId: z.string().nullable().optional(),
+  patternAssetIds: z.array(z.string()).optional(),
   blendMode: z.enum(BLEND_MODES),
   compositeMode: z.enum(LAYER_COMPOSITE_MODES),
   expanded: z.boolean(),
@@ -590,8 +595,10 @@ export function applyLabProjectFile(
   editorStore.noteSceneReplaced()
 
   return {
-    missingAssetCount: nextLayers.filter((layer) =>
-      Boolean(layer.assetId && layer.runtimeError)
+    missingAssetCount: nextLayers.filter(
+      (layer) =>
+        Boolean(layer.assetId && layer.runtimeError) ||
+        Boolean(layer.runtimeError?.startsWith("Missing motif:"))
     ).length,
     missingAudioSource: !isAudioSourceResolvable(
       audioSnapshot.source,
@@ -609,9 +616,6 @@ export interface ViewerProjectState {
   timeline: TimelineStateSnapshot
 }
 
-/* A plain snapshot of a lab file for read-only playback (public scene
- * pages). Mirrors applyLabProjectFile without touching the editor's
- * global stores. */
 export function buildViewerProjectState(
   projectFile: LabProjectFile
 ): ViewerProjectState {
@@ -684,8 +688,6 @@ export function migrateLayerParams(
 ): LayerParameterValues {
   const params: LayerParameterValues = { ...layer.params }
 
-  // Curated defaults apply only to new rings. Missing saved values retain the
-  // renderer's original fallbacks, including exported partial configurations.
   if (layer.type === "displaced-rings") {
     const previousDefaults: LayerParameterValues = {
       shape: "rings",
@@ -700,8 +702,6 @@ export function migrateLayerParams(
     }
   }
 
-  // Regions/perimeter are creation defaults. Pre-region cell projects and
-  // partial configs keep their original independent-cell selection and strokes.
   if (layer.type === "photographic-cells") {
     const previousDefaults: LayerParameterValues = {
       mode: "cells",
@@ -719,14 +719,10 @@ export function migrateLayerParams(
     }
   }
 
-  // Saved text without an explicit background opacity used the old solid
-  // fallback. New-layer defaults must not change those compositions.
   if (layer.type === "text" && params.backgroundAlpha === undefined) {
     params.backgroundAlpha = 1
   }
 
-  // Files without this setting predate transparent contain bounds. Preserve
-  // their black borders before filling missing parameters with new defaults.
   if (
     (layer.type === "image" || layer.type === "video") &&
     params.transparentBounds === undefined
@@ -746,10 +742,6 @@ export function migrateLayerParams(
     params.fontWeight = LEGACY_ASCII_FONT_WEIGHTS[params.fontWeight] ?? 400
   }
 
-  // v6 flipped blob-tracking `sensitivity` so higher means more sensitive;
-  // before that it was fed straight in as a luma threshold. The flip landed on
-  // main as v5 while this branch had already published scenes stamped 5 for an
-  // unrelated change, so it has to reach those too.
   if (
     version < 6 &&
     layer.type === "blob-tracking" &&
@@ -794,9 +786,14 @@ function hydrateImportedLayer(
     layer.environmentAssetId && assetIds.has(layer.environmentAssetId)
       ? layer.environmentAssetId
       : null
+  const patternAssetIds = layer.patternAssetIds?.filter((id) =>
+    assetIds.has(id)
+  )
+  const missingMotifId = layer.patternAssetIds?.find((id) => !assetIds.has(id))
   const linkedAssets = {
     ...(layer.depthAssetId !== undefined ? { depthAssetId } : {}),
     ...(layer.environmentAssetId !== undefined ? { environmentAssetId } : {}),
+    ...(patternAssetIds ? { patternAssetIds } : {}),
   }
 
   if (!(layer.assetId && !assetIds.has(layer.assetId))) {
@@ -804,11 +801,19 @@ function hydrateImportedLayer(
       layer.environmentAssetId && !environmentAssetId
         ? `Missing environment: ${assetRefById.get(layer.environmentAssetId)?.fileName ?? "unknown file"}`
         : null
+    const motifError = missingMotifId
+      ? `Missing motif: ${assetRefById.get(missingMotifId)?.fileName ?? "unknown file"}`
+      : null
     return {
       ...layer,
       ...linkedAssets,
       params,
-      runtimeError: depthError ?? environmentError ?? layer.runtimeError ?? null,
+      runtimeError:
+        depthError ??
+        environmentError ??
+        motifError ??
+        layer.runtimeError ??
+        null,
     }
   }
 

@@ -53,6 +53,8 @@ const server = Bun.serve({
       return new Response(Bun.file(resolve(directory, `fixtures/${path.split("/").pop()}`)))
     if (path === "/scenes/default/rings-photo.webp")
       return new Response(Bun.file(resolve(root, "public/examples/slice.webp")))
+    if (/^\/scenes\/default\/motif-[a-z-]+\.svg$/.test(path))
+      return new Response(Bun.file(resolve(directory, `fixtures/${path.split("/").pop()}`)))
     const base = path.startsWith("/fixtures/") || path.startsWith("/baselines/") ? directory : resolve(root, "public")
     const file = resolve(base, `.${path}`)
     if (!(file.startsWith(`${base}${sep}`) && (await Bun.file(file).exists())))

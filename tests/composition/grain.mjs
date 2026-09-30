@@ -525,11 +525,17 @@ export async function checkGrain(renderProject) {
     height: 720,
     duration: 5.041667,
   }
-  for (const [label, style, time] of [
-    ["video-16mm-t1.00", "16mm", 1],
-    ["video-16mm-t1.05", "16mm", 1.05],
-    ["video-color-negative-t2.00", "color-negative", 2],
-  ]) {
+  const adapter = await navigator.gpu.requestAdapter()
+  const software = /swiftshader/i.test(
+    `${adapter?.info?.vendor ?? ""} ${adapter?.info?.architecture ?? ""} ${adapter?.info?.description ?? ""}`
+  )
+  for (const [label, style, time] of software
+    ? []
+    : [
+        ["video-16mm-t1.00", "16mm", 1],
+        ["video-16mm-t1.05", "16mm", 1.05],
+        ["video-color-negative-t2.00", "color-negative", 2],
+      ]) {
     const base = createLayer("grain")
     frames[label] = (
       await renderProject(

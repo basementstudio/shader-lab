@@ -21,6 +21,7 @@ import {
 import { AnchorPicker } from "@/components/ui/anchor-picker"
 import { ColorPicker } from "@/components/ui/color-picker"
 import { IconButton } from "@/components/ui/icon-button"
+import { InfoHint } from "@/components/ui/info-hint"
 import { Select } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
 import { Toggle } from "@/components/ui/toggle"
@@ -130,23 +131,9 @@ function renderFieldLabelStack(
   audioControl: AudioLinkControl | null = null
 ) {
   return (
-    <span
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: "2px",
-        minWidth: 0,
-      }}
-    >
-      <Typography className="min-w-0" tone="secondary" variant="label">
-        {renderFieldLabel(label, control, audioControl)}
-      </Typography>
-      {description ? (
-        <Typography tone="muted" variant="caption">
-          {description}
-        </Typography>
-      ) : null}
-    </span>
+    <Typography className="min-w-0" tone="secondary" variant="label">
+      {renderFieldLabel(label, control, audioControl, description)}
+    </Typography>
   )
 }
 
@@ -217,11 +204,15 @@ function shouldRenderCustomPaletteField(
 export function renderFieldLabel(
   label: string,
   control: TimelineKeyframeControl | null,
-  audioControl: AudioLinkControl | null = null
+  audioControl: AudioLinkControl | null = null,
+  description?: string | undefined
 ) {
   return (
     <span className="inline-flex min-w-0 w-full items-center justify-between gap-2">
-      <span>{label}</span>
+      <span className="inline-flex min-w-0 items-center gap-1.5">
+        <span className="truncate">{label}</span>
+        {description ? <InfoHint>{description}</InfoHint> : null}
+      </span>
       <span className="inline-flex shrink-0 items-center">
         <AudioLinkButton control={audioControl} />
         <TimelineKeyframeButton control={control} />
@@ -388,9 +379,6 @@ function ParameterFieldImpl({
           return (
             <div
               className="grid items-center gap-[10px] [grid-template-columns:minmax(0,1fr)_132px]"
-              style={
-                definition.description ? { alignItems: "start" } : undefined
-              }
             >
               {renderFieldLabelStack(
                 fieldLabel,
@@ -418,7 +406,6 @@ function ParameterFieldImpl({
       return (
         <div
           className="grid items-center gap-[10px] [grid-template-columns:minmax(0,1fr)_auto]"
-          style={definition.description ? { alignItems: "start" } : undefined}
         >
           {renderFieldLabelStack(
             fieldLabel,
@@ -440,7 +427,6 @@ function ParameterFieldImpl({
       return (
         <div
           className="grid items-center gap-[10px] [grid-template-columns:minmax(0,1fr)_132px]"
-          style={definition.description ? { alignItems: "start" } : undefined}
         >
           {renderFieldLabelStack(
             fieldLabel,
@@ -484,7 +470,12 @@ function ParameterFieldImpl({
       }
       return (
         <XYPad
-          label={renderFieldLabel(fieldLabel, timelineControl, audioControl)}
+          label={renderFieldLabel(
+            fieldLabel,
+            timelineControl,
+            audioControl,
+            definition.description
+          )}
           max={definition.max ?? 1}
           min={definition.min ?? -1}
           onInteractionEnd={onInteractionEnd}

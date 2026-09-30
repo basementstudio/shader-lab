@@ -90,19 +90,18 @@ try {
   await page.waitForTimeout(400)
   assert.deepEqual((await save("moved-undo")).targetCenter, initial.targetCenter, "One drag is one undo step")
 
-  const section = page.locator('[data-annotations-section="true"]').filter({ visible: true })
-  await section.getByRole("combobox", { name: "Apply text preset" }).click()
+  const combo = (text) => page.getByRole("combobox").filter({ hasText: new RegExp(`^${text}$`) }).filter({ visible: true }).first()
+  await combo("Instrument").click()
   await page.getByRole("option", { name: "Surveillance", exact: true }).click()
   await page.waitForTimeout(400)
   const preset = await save("preset")
   assert.equal(preset.textPreset, "surveillance")
   assert.ok(preset.labelList.startsWith("PERSON"), "Preset fills the word list")
 
-  const combo = (text) => page.getByRole("combobox").filter({ hasText: new RegExp(`^${text}$`) }).filter({ visible: true }).first()
   await combo("Monochrome").click()
   await page.getByRole("option", { name: "Palette", exact: true }).click()
   await page.waitForTimeout(400)
-  await section.locator(".cursor-crosshair").waitFor()
+  await page.locator(".cursor-crosshair").filter({ visible: true }).first().waitFor()
 
   await combo("Seeded").click()
   await page.getByRole("option", { name: "Painted", exact: true }).click()

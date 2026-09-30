@@ -134,11 +134,27 @@ export function isParamVisible(
   definition: ParameterDefinition,
   params: Record<string, ParameterValue>,
   definitions: ParameterDefinition[],
-  layerType?: string
+  layerType?: string,
+  depth = 0
 ): boolean {
   if (layerType === "pattern" && definition.key === "bgOpacity") {
     const colorMode = resolveParamValue(params, definitions, "colorMode")
     return colorMode === "source" || colorMode === "original"
+  }
+
+  if (
+    layerType === "annotations" &&
+    definition.key === "targetSnap" &&
+    resolveParamValue(params, definitions, "targetEnabled") !== true
+  ) {
+    return false
+  }
+
+  if (layerType === "shape" && definition.key === "color") {
+    return !(
+      resolveParamValue(params, definitions, "shape") === "svg" &&
+      resolveParamValue(params, definitions, "svgColorMode") !== "single"
+    )
   }
 
   if (definition.visibleWhen) {
@@ -166,6 +182,18 @@ export function isParamVisible(
     } else if (
       typeof controllingValue !== "number" ||
       controllingValue < definition.visibleWhen.gte
+    ) {
+      return false
+    }
+
+    const controller = definitions.find(
+      (entry) => entry.key === definition.visibleWhen?.key
+    )
+
+    if (
+      controller &&
+      depth < 4 &&
+      !isParamVisible(controller, params, definitions, layerType, depth + 1)
     ) {
       return false
     }

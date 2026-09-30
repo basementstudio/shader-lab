@@ -1,5 +1,6 @@
 "use client"
 import { GradientRamp } from "@/components/ui/gradient-ramp"
+import { InfoHint } from "@/components/ui/info-hint"
 import { Select } from "@/components/ui/select"
 import { Typography } from "@/components/ui/typography"
 import {
@@ -50,7 +51,12 @@ export function LumenPrintControls({
       </Typography>
       <div className="grid items-center gap-[10px] [grid-template-columns:minmax(0,1fr)_132px]">
         <Typography className="min-w-0" tone="secondary" variant="label">
-          Style
+          <span className="inline-flex items-center gap-1.5">
+            Style
+            <InfoHint>
+              {"A style sets every control below; editing any of them makes it Custom."}
+            </InfoHint>
+          </span>
         </Typography>
         <Select
           triggerAriaLabel="Lumen print style"
@@ -70,7 +76,14 @@ export function LumenPrintControls({
         />
       </div>
       <GradientRamp
-        label="Shadows to paper"
+        label={
+          <span className="inline-flex items-center gap-1.5">
+            Shadows to paper
+            <InfoHint>
+              The right end is the paper: washed-out areas take that color.
+            </InfoHint>
+          </span>
+        }
         onChange={(next) =>
           updateLayerParam(layerId, "stops", serializeGradientMapStops(next))
         }
@@ -78,11 +91,6 @@ export function LumenPrintControls({
         onInteractionStart={onInteractionStart}
         stops={stops}
       />
-      <Typography tone="muted" variant="caption">
-        The right end is the paper: washed-out areas take that color. A style
-        sets the tone and surface controls below, not Amount or Seed; editing
-        any of those makes it Custom.
-      </Typography>
     </section>
   )
 }

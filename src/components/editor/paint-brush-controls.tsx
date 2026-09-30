@@ -1,5 +1,7 @@
 "use client"
+import { TrashIcon } from "@radix-ui/react-icons"
 import { Button } from "@/components/ui/button"
+import { IconButton } from "@/components/ui/icon-button"
 import { Select } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
 import { Typography } from "@/components/ui/typography"
@@ -42,10 +44,11 @@ export function PaintBrushControls({
   )
   return (
     <>
-      <div className="flex gap-2">
+      <div className="flex items-stretch gap-2">
         <Button
           size="compact"
           variant="secondary"
+          className="flex-1"
           disabled={!allowed}
           aria-pressed={editing}
           onClick={() =>
@@ -54,27 +57,35 @@ export function PaintBrushControls({
         >
           {editing ? doneLabel : editLabel}
         </Button>
-        <Button
-          size="compact"
-          variant="secondary"
+        <IconButton
+          aria-label={clearLabel}
+          className="h-auto w-[34px] rounded-[var(--ds-radius-control)]"
           disabled={!(allowed && hasPaint)}
           onClick={() => writePaint(layerId, target, "")}
+          variant="outline"
         >
-          {clearLabel}
-        </Button>
+          <TrashIcon height={14} width={14} />
+        </IconButton>
       </div>
-      <Select
-        aria-label="Paint tool"
-        value={tool}
-        options={[
-          { label: "Reveal", value: "reveal" },
-          { label: "Erase", value: "erase" },
-        ]}
-        onValueChange={(v) => {
-          if (v === "reveal" || v === "erase")
-            useCellPaintStore.getState().setTool(v)
-        }}
-      />
+      <div className="grid items-center gap-[10px] [grid-template-columns:minmax(0,1fr)_132px]">
+        <Typography className="min-w-0" tone="secondary" variant="label">
+          Tool
+        </Typography>
+        <Select
+          aria-label="Paint tool"
+          className="w-[132px]"
+          triggerClassName="w-[132px]"
+          value={tool}
+          options={[
+            { label: "Reveal", value: "reveal" },
+            { label: "Erase", value: "erase" },
+          ]}
+          onValueChange={(v) => {
+            if (v === "reveal" || v === "erase")
+              useCellPaintStore.getState().setTool(v)
+          }}
+        />
+      </div>
       <Slider
         label="Brush Size"
         min={0.02}

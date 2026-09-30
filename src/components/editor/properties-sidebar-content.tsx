@@ -2,7 +2,11 @@
 
 import { getMaskParameterDefinition } from "@/lib/editor/mask-animation"
 import { CellPaintControls } from "./cell-paint-controls"
-import { AnnotationsControls } from "./annotations-controls"
+import {
+  AnnotationsPaintedPlacement,
+  AnnotationsPalette,
+  applyAnnotationPreset,
+} from "./annotations-controls"
 import {
   GRADIENT_MAP_RAMP_BINDING,
   GradientMapControls,
@@ -16,7 +20,10 @@ import { ReliefControls } from "./relief-controls"
 import { FlaresControls } from "./flares-controls"
 import { FocusBlurControls } from "./focus-blur-controls"
 import { GlassControls } from "./glass-controls"
-import { ConnectedDotsControls } from "./connected-dots-controls"
+import {
+  ConnectedDotsControls,
+  ConnectedDotsPalette,
+} from "./connected-dots-controls"
 import { PlotterControls } from "./plotter-controls"
 import { PhotocopyControls } from "./photocopy-controls"
 import { OutlineControls } from "./outline-controls"
@@ -582,7 +589,47 @@ export function SelectedLayerPropertiesContent({
     [layerId]
   )
 
+  const onParamChange = (id: string, key: string, value: ParameterValue) => {
+    if (layerType === "annotations" && key === "textPreset") {
+      applyAnnotationPreset(id, value, updateLayerParam)
+      return
+    }
+    updateLayerParam(id, key, value)
+  }
+
   const renderAfterParam = (key: string) => {
+    if (layerType === "annotations") {
+      if (key === "placement" && values.placement === "painted") {
+        return <AnnotationsPaintedPlacement layerId={layerId} />
+      }
+      if (key === "colorMode" && values.colorMode === "palette") {
+        return (
+          <AnnotationsPalette
+            layerId={layerId}
+            onInteractionEnd={onInteractionEnd}
+            onInteractionStart={onInteractionStart}
+            updateLayerParam={updateLayerParam}
+            values={values}
+          />
+        )
+      }
+      return null
+    }
+    if (
+      layerType === "connected-dots" &&
+      key === "colorMode" &&
+      (values.colorMode ?? "palette") === "palette"
+    ) {
+      return (
+        <ConnectedDotsPalette
+          layerId={layerId}
+          onInteractionEnd={onInteractionEnd}
+          onInteractionStart={onInteractionStart}
+          updateLayerParam={updateLayerParam}
+          values={values}
+        />
+      )
+    }
     if (layerType === "pattern" && key === "preset" && values.preset === "custom") {
       return (
         <PatternMotifControls
@@ -934,16 +981,6 @@ export function SelectedLayerPropertiesContent({
           <CellPaintControls layerId={layerId} />
         )}
 
-        {layerType === "annotations" && (
-          <AnnotationsControls
-            layerId={layerId}
-            onInteractionEnd={onInteractionEnd}
-            onInteractionStart={onInteractionStart}
-            updateLayerParam={updateLayerParam}
-            values={values}
-          />
-        )}
-
         {layerType === "gradient-map" && (
           <GradientMapControls
             layerId={layerId}
@@ -1253,7 +1290,7 @@ export function SelectedLayerPropertiesContent({
                                     layerId={layerId}
                                     onInteractionEnd={onInteractionEnd}
                                     onInteractionStart={onInteractionStart}
-                                    onChange={updateLayerParam}
+                                    onChange={onParamChange}
                                     onTimelineKeyframe={onTimelineKeyframe}
                                     reduceMotion={reduceMotion}
                                     timelineBinding={createParamTimelineBinding(
@@ -1296,7 +1333,7 @@ export function SelectedLayerPropertiesContent({
                       layerId={layerId}
                       onInteractionEnd={onInteractionEnd}
                       onInteractionStart={onInteractionStart}
-                      onChange={updateLayerParam}
+                      onChange={onParamChange}
                       onTimelineKeyframe={onTimelineKeyframe}
                       reduceMotion={reduceMotion}
                       timelineBinding={createParamTimelineBinding(param)}

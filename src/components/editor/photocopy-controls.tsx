@@ -1,4 +1,5 @@
 "use client"
+import { InfoHint } from "@/components/ui/info-hint"
 import { Select } from "@/components/ui/select"
 import { Typography } from "@/components/ui/typography"
 import {
@@ -35,7 +36,12 @@ export function PhotocopyControls({
       </Typography>
       <div className="grid items-center gap-[10px] [grid-template-columns:minmax(0,1fr)_132px]">
         <Typography className="min-w-0" tone="secondary" variant="label">
-          Style
+          <span className="inline-flex items-center gap-1.5">
+            Style
+            <InfoHint>
+              {"A style sets the copy damage and colors; Seed and Paper stay as you set them."}
+            </InfoHint>
+          </span>
         </Typography>
         <Select
           triggerAriaLabel="Photocopy style"
@@ -54,10 +60,6 @@ export function PhotocopyControls({
           }}
         />
       </div>
-      <Typography tone="muted" variant="caption">
-        A style sets the copy damage and colors; Seed and Paper stay as you
-        set them.
-      </Typography>
     </section>
   )
 }

@@ -274,6 +274,15 @@ export function LayerMaskSection({
             </>
           )}
           {shape === "brush" && (
+            <PaintBrushControls
+              layerId={layerId}
+              target="mask"
+              editLabel="Edit Mask"
+              doneLabel="Done"
+              clearLabel="Clear Mask"
+            />
+          )}
+          {shape === "brush" && (
             <Slider
               label={keyed("Feather", "feather", current.feather)}
               min={0}
@@ -283,15 +292,6 @@ export function LayerMaskSection({
               onInteractionStart={onInteractionStart}
               onValueChange={(v) => setField("feather", v)}
               onValueCommitted={() => onInteractionEnd?.()}
-            />
-          )}
-          {shape === "brush" && (
-            <PaintBrushControls
-              layerId={layerId}
-              target="mask"
-              editLabel="Edit Mask"
-              doneLabel="Done"
-              clearLabel="Clear Mask"
             />
           )}
         </>

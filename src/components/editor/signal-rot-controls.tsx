@@ -1,4 +1,5 @@
 "use client"
+import { InfoHint } from "@/components/ui/info-hint"
 import { Select } from "@/components/ui/select"
 import { Typography } from "@/components/ui/typography"
 import {
@@ -35,7 +36,12 @@ export function SignalRotControls({
       </Typography>
       <div className="grid items-center gap-[10px] [grid-template-columns:minmax(0,1fr)_132px]">
         <Typography className="min-w-0" tone="secondary" variant="label">
-          Style
+          <span className="inline-flex items-center gap-1.5">
+            Style
+            <InfoHint>
+              {"A style sets every control below; editing any of them makes it Custom. Group it with a photo to keep the damage on that photo."}
+            </InfoHint>
+          </span>
         </Typography>
         <Select
           triggerAriaLabel="Signal rot style"
@@ -54,10 +60,6 @@ export function SignalRotControls({
           }}
         />
       </div>
-      <Typography tone="muted" variant="caption">
-        A style sets every control below; editing any of them makes it Custom.
-        Group it with a photo to keep the damage on that photo.
-      </Typography>
     </section>
   )
 }

@@ -1,4 +1,5 @@
 "use client"
+import { InfoHint } from "@/components/ui/info-hint"
 import { Select } from "@/components/ui/select"
 import { Typography } from "@/components/ui/typography"
 import {
@@ -35,7 +36,12 @@ export function OutlineControls({
       </Typography>
       <div className="grid items-center gap-[10px] [grid-template-columns:minmax(0,1fr)_132px]">
         <Typography className="min-w-0" tone="secondary" variant="label">
-          Style
+          <span className="inline-flex items-center gap-1.5">
+            Style
+            <InfoHint>
+              {"A style sets the line and fill; Outline, Threshold and Show Image stay as you set them. Group it with text to outline the letters."}
+            </InfoHint>
+          </span>
         </Typography>
         <Select
           triggerAriaLabel="Outline style"
@@ -54,10 +60,6 @@ export function OutlineControls({
           }}
         />
       </div>
-      <Typography tone="muted" variant="caption">
-        A style sets the line and fill; Outline, Threshold and Show Image stay
-        as you set them. Group it with text to outline the letters.
-      </Typography>
     </section>
   )
 }

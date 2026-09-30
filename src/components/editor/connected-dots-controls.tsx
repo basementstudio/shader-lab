@@ -1,5 +1,6 @@
 "use client"
 import { GradientRamp } from "@/components/ui/gradient-ramp"
+import { InfoHint } from "@/components/ui/info-hint"
 import { Select } from "@/components/ui/select"
 import { Typography } from "@/components/ui/typography"
 import {
@@ -26,8 +27,6 @@ export function ConnectedDotsControls({
   layerId,
   values,
   updateLayerParam,
-  onInteractionStart,
-  onInteractionEnd,
 }: {
   layerId: string
   values: LayerParameterValues
@@ -35,10 +34,6 @@ export function ConnectedDotsControls({
   onInteractionStart?: (() => void) | undefined
   onInteractionEnd?: (() => void) | undefined
 }) {
-  const stops =
-    typeof values.stops === "string" && values.stops.trim() !== ""
-      ? parseGradientMapStops(values.stops)
-      : DEFAULT_CONNECTED_DOTS_STOPS
   const style = matchConnectedDotsStyle(values)
   return (
     <section
@@ -50,7 +45,12 @@ export function ConnectedDotsControls({
       </Typography>
       <div className="grid items-center gap-[10px] [grid-template-columns:minmax(0,1fr)_132px]">
         <Typography className="min-w-0" tone="secondary" variant="label">
-          Style
+          <span className="inline-flex items-center gap-1.5">
+            Style
+            <InfoHint>
+              {"A style sets every control except Motion; editing any of them makes it Custom."}
+            </InfoHint>
+          </span>
         </Typography>
         <Select
           triggerAriaLabel="Connected dots style"
@@ -69,20 +69,45 @@ export function ConnectedDotsControls({
           }}
         />
       </div>
-      <GradientRamp
-        label="Dark to light"
-        maxStops={8}
-        onChange={(next) =>
-          updateLayerParam(layerId, "stops", serializeGradientMapStops(next))
-        }
-        onInteractionEnd={onInteractionEnd}
-        onInteractionStart={onInteractionStart}
-        stops={stops}
-      />
-      <Typography tone="muted" variant="caption">
-        With Color on Palette, each tone takes the flat color of its nearest
-        stop, dark on the left. A style sets every control except Motion.
-      </Typography>
     </section>
+  )
+}
+
+export function ConnectedDotsPalette({
+  layerId,
+  values,
+  updateLayerParam,
+  onInteractionStart,
+  onInteractionEnd,
+}: {
+  layerId: string
+  values: LayerParameterValues
+  updateLayerParam: (id: string, key: string, value: ParameterValue) => void
+  onInteractionStart?: (() => void) | undefined
+  onInteractionEnd?: (() => void) | undefined
+}) {
+  const stops =
+    typeof values.stops === "string" && values.stops.trim() !== ""
+      ? parseGradientMapStops(values.stops)
+      : DEFAULT_CONNECTED_DOTS_STOPS
+  return (
+    <GradientRamp
+      label={
+        <span className="inline-flex items-center gap-1.5">
+          Dark to light
+          <InfoHint>
+            Each tone takes the flat color of its nearest stop, dark on the
+            left.
+          </InfoHint>
+        </span>
+      }
+      maxStops={8}
+      onChange={(next) =>
+        updateLayerParam(layerId, "stops", serializeGradientMapStops(next))
+      }
+      onInteractionEnd={onInteractionEnd}
+      onInteractionStart={onInteractionStart}
+      stops={stops}
+    />
   )
 }

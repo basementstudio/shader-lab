@@ -154,41 +154,6 @@ const shapeParams = [
     visibleWhen: { key: "__internal", equals: "shape" },
   },
   {
-    defaultValue: "#ff4a2a",
-    key: "color",
-    label: "Color",
-    type: "color",
-  },
-  {
-    defaultValue: [0, 0] as [number, number],
-    key: "center",
-    label: "Center",
-    max: 1,
-    min: -1,
-    step: 0.005,
-    type: "vec2",
-    description: "Composition units: 0,0 is the center; 1 is the shorter edge.",
-  },
-  {
-    defaultValue: [0.6, 0.6] as [number, number],
-    key: "size",
-    label: "Size",
-    max: 3,
-    min: 0.02,
-    step: 0.01,
-    type: "vec2",
-  },
-  {
-    defaultValue: 0,
-    key: "rotation",
-    label: "Rotation",
-    max: 180,
-    min: -180,
-    step: 1,
-    type: "number",
-    unit: "°",
-  },
-  {
     defaultValue: 0.1,
     key: "cornerRadius",
     label: "Corner Radius",
@@ -280,6 +245,41 @@ const shapeParams = [
     step: 0.01,
     type: "number",
     visibleWhen: { equals: "blades", key: "shape" },
+  },
+  {
+    defaultValue: [0, 0] as [number, number],
+    key: "center",
+    label: "Center",
+    max: 1,
+    min: -1,
+    step: 0.005,
+    type: "vec2",
+    description: "Composition units: 0,0 is the center; 1 is the shorter edge.",
+  },
+  {
+    defaultValue: [0.6, 0.6] as [number, number],
+    key: "size",
+    label: "Size",
+    max: 3,
+    min: 0.02,
+    step: 0.01,
+    type: "vec2",
+  },
+  {
+    defaultValue: 0,
+    key: "rotation",
+    label: "Rotation",
+    max: 180,
+    min: -180,
+    step: 1,
+    type: "number",
+    unit: "°",
+  },
+  {
+    defaultValue: "#ff4a2a",
+    key: "color",
+    label: "Color",
+    type: "color",
   },
   {
     defaultValue: 0,
@@ -562,6 +562,83 @@ const textParams = [
     description: "Double-click the text on the canvas to edit it in place.",
   },
   {
+    defaultValue: "sans",
+    key: "fontFamily",
+    label: "Font",
+    options: TEXT_FONT_OPTIONS,
+    type: "select",
+  },
+  {
+    defaultValue: 700,
+    key: "fontWeight",
+    label: "Weight",
+    max: 900,
+    min: 100,
+    step: 1,
+    type: "number",
+  },
+  {
+    defaultValue: 48,
+    key: "fontSize",
+    label: "Font Size",
+    max: 600,
+    min: 8,
+    step: 1,
+    type: "number",
+  },
+  {
+    defaultValue: 1.1,
+    key: "lineHeight",
+    label: "Line Height",
+    max: 2.5,
+    min: 0.6,
+    step: 0.01,
+    type: "number",
+  },
+  {
+    defaultValue: -0.05,
+    key: "letterSpacing",
+    label: "Letter Spacing",
+    max: 0.3,
+    min: -0.2,
+    step: 0.01,
+    type: "number",
+  },
+  {
+    defaultValue: "auto",
+    key: "align",
+    label: "Align",
+    options: [
+      { label: "Follow anchor", value: "auto" },
+      { label: "Left", value: "left" },
+      { label: "Center", value: "center" },
+      { label: "Right", value: "right" },
+    ],
+    type: "select",
+  },
+  {
+    defaultValue: "#ffffff",
+    key: "textColor",
+    label: "Text Color",
+    type: "color",
+  },
+  {
+    defaultValue: "#000000",
+    key: "backgroundColor",
+    label: "Background",
+    type: "color",
+  },
+  {
+    defaultValue: 0,
+    key: "backgroundAlpha",
+    label: "Background Opacity",
+    description: "0 is transparent; 1 is solid. Letters remain opaque.",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+  },
+  {
     animatable: false,
     defaultValue: "center",
     group: "Placement",
@@ -592,36 +669,6 @@ const textParams = [
     type: "vec2",
   },
   {
-    defaultValue: 48,
-    key: "fontSize",
-    label: "Font Size",
-    max: 600,
-    min: 8,
-    step: 1,
-    type: "number",
-  },
-  {
-    defaultValue: "auto",
-    key: "align",
-    label: "Align",
-    options: [
-      { label: "Follow anchor", value: "auto" },
-      { label: "Left", value: "left" },
-      { label: "Center", value: "center" },
-      { label: "Right", value: "right" },
-    ],
-    type: "select",
-  },
-  {
-    defaultValue: 1.1,
-    key: "lineHeight",
-    label: "Line Height",
-    max: 2.5,
-    min: 0.6,
-    step: 0.01,
-    type: "number",
-  },
-  {
     defaultValue: 0,
     key: "rotation",
     label: "Rotation",
@@ -630,53 +677,7 @@ const textParams = [
     step: 1,
     type: "number",
     unit: "°",
-  },
-  {
-    defaultValue: "sans",
-    key: "fontFamily",
-    label: "Font",
-    options: TEXT_FONT_OPTIONS,
-    type: "select",
-  },
-  {
-    defaultValue: 700,
-    key: "fontWeight",
-    label: "Weight",
-    max: 900,
-    min: 100,
-    step: 1,
-    type: "number",
-  },
-  {
-    defaultValue: -0.05,
-    key: "letterSpacing",
-    label: "Letter Spacing",
-    max: 0.3,
-    min: -0.2,
-    step: 0.01,
-    type: "number",
-  },
-  {
-    defaultValue: "#ffffff",
-    key: "textColor",
-    label: "Text Color",
-    type: "color",
-  },
-  {
-    defaultValue: "#000000",
-    key: "backgroundColor",
-    label: "Background",
-    type: "color",
-  },
-  {
-    defaultValue: 0,
-    key: "backgroundAlpha",
-    label: "Background Opacity",
-    description: "0 is transparent; 1 is solid. Letters remain opaque.",
-    max: 1,
-    min: 0,
-    step: 0.01,
-    type: "number",
+    group: "Placement",
   },
 ] as const satisfies ParameterDefinitions
 
@@ -3868,6 +3869,7 @@ const signalRotParams = [
     ],
     type: "select",
     description: "Direction the scan drags the image.",
+    group: "Drag",
   },
   {
     defaultValue: signalRotDefaults.drag as number,
@@ -4037,6 +4039,17 @@ const dotGridDefaults = dotGridStyleParams(DEFAULT_DOT_GRID_STYLE)
 
 const dotGridParams = [
   {
+    animatable: false,
+    defaultValue: dotGridDefaults.shape as string,
+    key: "shape",
+    label: "Shape",
+    options: [
+      { label: "Circle", value: "circle" },
+      { label: "Square", value: "square" },
+    ],
+    type: "select",
+  },
+  {
     defaultValue: dotGridDefaults.spacing as number,
     key: "spacing",
     label: "Spacing",
@@ -4101,17 +4114,6 @@ const dotGridParams = [
     type: "number",
     description:
       "Blurs the tone each dot reads, in cells, so shapes fade out into smaller dots at their edges.",
-  },
-  {
-    animatable: false,
-    defaultValue: dotGridDefaults.shape as string,
-    key: "shape",
-    label: "Shape",
-    options: [
-      { label: "Circle", value: "circle" },
-      { label: "Square", value: "square" },
-    ],
-    type: "select",
   },
   {
     defaultValue: dotGridDefaults.invert as boolean,
@@ -4488,6 +4490,7 @@ const reliefParams = [
     type: "number",
     description:
       "How deep the engraved lines are.",
+    visibleWhen: { key: "engrave", notEquals: "none" },
   },
   {
     defaultValue: reliefDefaults.lineSpacing as number,
@@ -4500,6 +4503,7 @@ const reliefParams = [
     type: "number",
     description:
       "Distance between engraved lines, in document pixels.",
+    visibleWhen: { key: "engrave", notEquals: "none" },
   },
   {
     defaultValue: reliefDefaults.engraveAngle as number,
@@ -4512,6 +4516,7 @@ const reliefParams = [
     type: "number",
     description:
       "Direction of parallel lines.",
+    visibleWhen: { key: "engrave", equals: "parallel" },
   },
 ] as const satisfies ParameterDefinitions
 
@@ -4645,19 +4650,13 @@ const flaresParams = [
     step: 1,
     type: "number",
     description: "Picks different ray lengths when Length Jitter is on.",
+    visibleWhen: { key: "lengthJitter", gte: 0.01 },
   },
   {
     defaultValue: flaresDefaults.color as string,
     group: "Color",
     key: "color",
     label: "Ray Color",
-    type: "color",
-  },
-  {
-    defaultValue: flaresDefaults.coreColor as string,
-    group: "Color",
-    key: "coreColor",
-    label: "Core Color",
     type: "color",
   },
   {
@@ -4683,6 +4682,13 @@ const flaresParams = [
     type: "number",
     description:
       "Radius of the core glow, in document pixels.",
+  },
+  {
+    defaultValue: flaresDefaults.coreColor as string,
+    group: "Color",
+    key: "coreColor",
+    label: "Core Color",
+    type: "color",
   },
 ] as const satisfies ParameterDefinitions
 
@@ -4731,6 +4737,55 @@ const focusBlurParams = [
       "Maximum blur size, in document pixels. Large values stay smooth.",
   },
   {
+    defaultValue: focusBlurDefaults.motionAngle as number,
+    visibleWhen: { key: "kind", equals: "motion" },
+    key: "motionAngle",
+    label: "Motion Angle",
+    max: 180,
+    min: -180,
+    step: 1,
+    type: "number",
+    description:
+      "Direction of the motion streak.",
+  },
+  {
+    defaultValue: focusBlurDefaults.highlights as number,
+    visibleWhen: { key: "kind", equals: "lens" },
+    key: "highlights",
+    label: "Highlights",
+    max: 3,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "Brightens bokeh from bright areas into luminous discs.",
+  },
+  {
+    defaultValue: [0, 0] as [number, number],
+    group: "Focus",
+    key: "center",
+    label: "Center",
+    max: 1,
+    min: -1,
+    step: 0.01,
+    type: "vec2",
+    visibleWhen: { key: "blurFrom", oneOf: ["linear", "radial"] },
+    description: "Center of the sharp band or spot for Linear and Radial.",
+  },
+  {
+    defaultValue: focusBlurDefaults.angle as number,
+    group: "Focus",
+    visibleWhen: { key: "blurFrom", equals: "linear" },
+    key: "angle",
+    label: "Band Angle",
+    max: 180,
+    min: -180,
+    step: 1,
+    type: "number",
+    description:
+      "Angle of the sharp band for Linear.",
+  },
+  {
     defaultValue: focusBlurDefaults.focus as number,
     group: "Focus",
     visibleWhen: { key: "blurFrom", oneOf: ["depth", "luminance"] },
@@ -4770,31 +4825,6 @@ const focusBlurParams = [
       "How gradually the blur builds outside the sharp zone.",
   },
   {
-    defaultValue: [0, 0] as [number, number],
-    group: "Focus",
-    key: "center",
-    label: "Center",
-    max: 1,
-    min: -1,
-    step: 0.01,
-    type: "vec2",
-    visibleWhen: { key: "blurFrom", oneOf: ["linear", "radial"] },
-    description: "Center of the sharp band or spot for Linear and Radial.",
-  },
-  {
-    defaultValue: focusBlurDefaults.angle as number,
-    group: "Focus",
-    visibleWhen: { key: "blurFrom", equals: "linear" },
-    key: "angle",
-    label: "Band Angle",
-    max: 180,
-    min: -180,
-    step: 1,
-    type: "number",
-    description:
-      "Angle of the sharp band for Linear.",
-  },
-  {
     defaultValue: false,
     group: "Focus",
     key: "invertFocus",
@@ -4802,30 +4832,6 @@ const focusBlurParams = [
     type: "boolean",
     visibleWhen: { key: "blurFrom", notEquals: "uniform" },
     description: "Blurs the focus zone and keeps the rest sharp.",
-  },
-  {
-    defaultValue: focusBlurDefaults.motionAngle as number,
-    visibleWhen: { key: "kind", equals: "motion" },
-    key: "motionAngle",
-    label: "Motion Angle",
-    max: 180,
-    min: -180,
-    step: 1,
-    type: "number",
-    description:
-      "Direction of the motion streak.",
-  },
-  {
-    defaultValue: focusBlurDefaults.highlights as number,
-    visibleWhen: { key: "kind", equals: "lens" },
-    key: "highlights",
-    label: "Highlights",
-    max: 3,
-    min: 0,
-    step: 0.01,
-    type: "number",
-    description:
-      "Brightens bokeh from bright areas into luminous discs.",
   },
   {
     defaultValue: focusBlurDefaults.grain as number,
@@ -4897,6 +4903,18 @@ const glassParams = [
     description: "Round flutes squeeze the image toward their edges; sharp prisms split it into two copies.",
   },
   {
+    defaultValue: glassDefaults.irregularity as number,
+    visibleWhen: { key: "pattern", equals: "hammered" },
+    key: "irregularity",
+    label: "Irregularity",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description:
+      "How uneven the hammered cells are.",
+  },
+  {
     defaultValue: glassDefaults.cellSize as number,
     key: "cellSize",
     label: "Cell Size",
@@ -4919,18 +4937,6 @@ const glassParams = [
       "Direction of the flutes and grid.",
   },
   {
-    defaultValue: glassDefaults.irregularity as number,
-    visibleWhen: { key: "pattern", equals: "hammered" },
-    key: "irregularity",
-    label: "Irregularity",
-    max: 1,
-    min: 0,
-    step: 0.01,
-    type: "number",
-    description:
-      "How uneven the hammered cells are.",
-  },
-  {
     defaultValue: glassDefaults.refraction as number,
     key: "refraction",
     label: "Refraction",
@@ -4940,18 +4946,6 @@ const glassParams = [
     type: "number",
     description:
       "How strongly each cell bends the image. Low values magnify, 0.5 focuses a cell to a line, 1 mirrors it into a flipped mini image.",
-  },
-  {
-    defaultValue: glassDefaults.distance as number,
-    group: "Behind the Glass",
-    key: "distance",
-    label: "Distance",
-    max: 240,
-    min: 0,
-    step: 1,
-    type: "number",
-    description:
-      "How far the scene sits behind the glass: more distance, more blur.",
   },
   {
     animatable: false,
@@ -4966,6 +4960,18 @@ const glassParams = [
     type: "select",
     description:
       "Depth uses the depth map of the Image layer below: near things touch the glass and stay sharp, far things melt.",
+  },
+  {
+    defaultValue: glassDefaults.distance as number,
+    group: "Behind the Glass",
+    key: "distance",
+    label: "Distance",
+    max: 240,
+    min: 0,
+    step: 1,
+    type: "number",
+    description:
+      "How far the scene sits behind the glass: more distance, more blur.",
   },
   {
     defaultValue: glassDefaults.frost as number,
@@ -5589,6 +5595,7 @@ const outlineParams = [
     type: "number",
     description:
       "Scallop size and dash length.",
+    visibleWhen: { key: "style", oneOf: ["dashed", "scalloped"] },
   },
   {
     defaultValue: outlineDefaults.lineColor as string,
@@ -5615,6 +5622,7 @@ const outlineParams = [
     key: "fillColor",
     label: "Fill Color",
     type: "color",
+    visibleWhen: { key: "fill", gte: 0.01 },
   },
   {
     defaultValue: true,
@@ -5674,6 +5682,13 @@ const photocopyParams = [
       "Blend between the original image and the copy.",
   },
   {
+    defaultValue: photocopyDefaults.tonerColor as string,
+    group: "Toner",
+    key: "tonerColor",
+    label: "Toner Color",
+    type: "color",
+  },
+  {
     defaultValue: photocopyDefaults.fill as number,
     group: "Toner",
     key: "fill",
@@ -5722,6 +5737,26 @@ const photocopyParams = [
       "How far the copy slides off the original, in document pixels.",
   },
   {
+    animatable: false,
+    defaultValue: "color",
+    group: "Paper",
+    key: "paper",
+    label: "Paper",
+    options: [
+      { label: "Color", value: "color" },
+      { label: "Transparent", value: "transparent" },
+    ],
+    type: "select",
+  },
+  {
+    defaultValue: photocopyDefaults.paperColor as string,
+    group: "Paper",
+    key: "paperColor",
+    label: "Paper Color",
+    type: "color",
+    visibleWhen: { key: "paper", equals: "color" },
+  },
+  {
     defaultValue: photocopyDefaults.grain as number,
     group: "Paper",
     key: "grain",
@@ -5756,33 +5791,6 @@ const photocopyParams = [
     type: "number",
     description: "Rearranges speckle, streaks and creases.",
   },
-  {
-    defaultValue: photocopyDefaults.tonerColor as string,
-    group: "Paper",
-    key: "tonerColor",
-    label: "Toner Color",
-    type: "color",
-  },
-  {
-    animatable: false,
-    defaultValue: "color",
-    group: "Paper",
-    key: "paper",
-    label: "Paper",
-    options: [
-      { label: "Color", value: "color" },
-      { label: "Transparent", value: "transparent" },
-    ],
-    type: "select",
-  },
-  {
-    defaultValue: photocopyDefaults.paperColor as string,
-    group: "Paper",
-    key: "paperColor",
-    label: "Paper Color",
-    type: "color",
-    visibleWhen: { key: "paper", equals: "color" },
-  },
 ] as const satisfies ParameterDefinitions
 
 const plotterParams = [
@@ -5802,6 +5810,18 @@ const plotterParams = [
     type: "select",
     description:
       "How the pen draws: hatching by tone, flow lines along the forms, contour lines, one wavy line per row, one continuous spiral, or dots.",
+  },
+  {
+    defaultValue: 90,
+    visibleWhen: { key: "mode", oneOf: ["hatch", "squiggle"] },
+    key: "angle",
+    label: "Angle",
+    max: 180,
+    min: 0,
+    step: 1,
+    type: "number",
+    description:
+      "Direction of the first hatch layer and of squiggle rows.",
   },
   {
     defaultValue: 12,
@@ -5857,19 +5877,6 @@ const plotterParams = [
     type: "number",
     description:
       "Blurs the image the pen follows, in document pixels. Smooth contours and flow need more.",
-  },
-  {
-    defaultValue: 90,
-    group: "Hatch",
-    visibleWhen: { key: "mode", oneOf: ["hatch", "squiggle"] },
-    key: "angle",
-    label: "Angle",
-    max: 180,
-    min: 0,
-    step: 1,
-    type: "number",
-    description:
-      "Direction of the first hatch layer and of squiggle rows.",
   },
   {
     defaultValue: true,
@@ -6474,19 +6481,6 @@ const photographicCellsParams = [
     visibleWhen: { key: "__internal", equals: "cell-paint" },
   },
   {
-    key: "output",
-    label: "Output",
-    group: "Coverage",
-    type: "select",
-    defaultValue: "cutout",
-    options: [
-      { label: "Cutout", value: "cutout" },
-      { label: "Keep Image", value: "keep-image" },
-    ],
-    description:
-      "Cutout clears unselected cells. Keep Image adds only the outlines.",
-  },
-  {
     key: "mode",
     label: "Layout",
     group: "Selection",
@@ -6600,6 +6594,19 @@ const photographicCellsParams = [
     step: 1,
   },
   {
+    key: "output",
+    label: "Output",
+    group: "Coverage",
+    type: "select",
+    defaultValue: "cutout",
+    options: [
+      { label: "Cutout", value: "cutout" },
+      { label: "Keep Image", value: "keep-image" },
+    ],
+    description:
+      "Cutout clears unselected cells. Keep Image adds only the outlines.",
+  },
+  {
     key: "gap",
     label: "Gap",
     group: "Coverage",
@@ -6655,19 +6662,6 @@ const photographicCellsParams = [
 ] as const satisfies ParameterDefinitions
 
 const displacedRingsParams = [
-  {
-    key: "output",
-    label: "Output",
-    group: "Coverage",
-    type: "select",
-    defaultValue: "distort",
-    options: [
-      { label: "Distort", value: "distort" },
-      { label: "Cutout", value: "cutout" },
-    ],
-    description:
-      "Distort keeps the image in the gaps. Cutout clears them; place the effect and photo in a group to reveal layers outside it.",
-  },
   {
     key: "ringShape",
     label: "Shape",
@@ -6845,6 +6839,19 @@ const displacedRingsParams = [
     description: "Random offsets, rotation jitter and width jitter.",
   },
   {
+    key: "output",
+    label: "Output",
+    group: "Coverage",
+    type: "select",
+    defaultValue: "distort",
+    options: [
+      { label: "Distort", value: "distort" },
+      { label: "Cutout", value: "cutout" },
+    ],
+    description:
+      "Distort keeps the image in the gaps. Cutout clears them; place the effect and photo in a group to reveal layers outside it.",
+  },
+  {
     key: "gap",
     label: "Gap",
     group: "Coverage",
@@ -6891,6 +6898,7 @@ const displacedRingsParams = [
     max: 12,
     step: 0.25,
     description: "In document pixels.",
+    visibleWhen: { key: "lines", notEquals: "none" },
   },
   {
     key: "lineColor",
@@ -6898,6 +6906,7 @@ const displacedRingsParams = [
     group: "Lines",
     type: "color",
     defaultValue: "#2f7bff",
+    visibleWhen: { key: "lines", notEquals: "none" },
   },
   {
     key: "lineOpacity",
@@ -6908,6 +6917,7 @@ const displacedRingsParams = [
     min: 0,
     max: 1,
     step: 0.01,
+    visibleWhen: { key: "lines", notEquals: "none" },
   },
 ] as const satisfies ParameterDefinitions
 
@@ -7023,6 +7033,16 @@ const annotationsParams = [
     description: "Where elements may appear: anywhere, along image edges, around regions of similar tone and color, or inside your brush strokes.",
   },
   {
+    animatable: false,
+    defaultValue: false,
+    group: "Placement",
+    key: "alignToEdges",
+    label: "Align to Edges",
+    type: "boolean",
+    visibleWhen: { key: "placement", oneOf: ["edges", "regions"] },
+    description: "Turns boxes and crosses along the image edges; with Regions, boxes follow each region's long axis.",
+  },
+  {
     defaultValue: 0.5,
     group: "Placement",
     key: "density",
@@ -7031,29 +7051,6 @@ const annotationsParams = [
     min: 0,
     step: 0.01,
     type: "number",
-  },
-  {
-    animatable: false,
-    defaultValue: 7,
-    group: "Placement",
-    input: "int",
-    key: "seed",
-    label: "Seed",
-    max: 9999,
-    min: 1,
-    step: 1,
-    type: "number",
-  },
-  {
-    defaultValue: 0.3,
-    group: "Placement",
-    key: "drift",
-    label: "Drift",
-    max: 1,
-    min: 0,
-    step: 0.01,
-    type: "number",
-    description: "Slow seeded motion over time, as on video.",
   },
   {
     defaultValue: 0,
@@ -7067,14 +7064,27 @@ const annotationsParams = [
     description: "Turns rings, crosses and boxes by a seeded angle. Text, rulers and metadata stay upright.",
   },
   {
-    animatable: false,
-    defaultValue: false,
+    defaultValue: 0.3,
     group: "Placement",
-    key: "alignToEdges",
-    label: "Align to Edges",
-    type: "boolean",
-    visibleWhen: { key: "placement", oneOf: ["edges", "regions"] },
-    description: "Turns boxes and crosses along the image edges; with Regions, boxes follow each region's long axis.",
+    key: "drift",
+    label: "Drift",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description: "Slow seeded motion over time, as on video.",
+  },
+  {
+    animatable: false,
+    defaultValue: 7,
+    group: "Placement",
+    input: "int",
+    key: "seed",
+    label: "Seed",
+    max: 9999,
+    min: 1,
+    step: 1,
+    type: "number",
   },
   {
     key: "paintMask",
@@ -7165,7 +7175,7 @@ const annotationsParams = [
     maxLength: 600,
     multiline: true,
     type: "text",
-    description: "One per line. The first one is the status tag.",
+    description: "One per line. The first one is the status tag. Decorative only: words are picked by seed; nothing is recognized.",
   },
   {
     animatable: false,

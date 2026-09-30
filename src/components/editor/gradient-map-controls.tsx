@@ -82,16 +82,17 @@ export function GradientMapControls({
         />
       </div>
       <GradientRamp
-        label={renderFieldLabel("Dark to light", timelineControl ?? null)}
+        label={renderFieldLabel(
+          "Dark to light",
+          timelineControl ?? null,
+          null,
+          "Dark tones take the left colors, light tones the right. Click the bar to add a stop, double-click a stop to remove it."
+        )}
         onChange={write}
         onInteractionEnd={onInteractionEnd}
         onInteractionStart={onInteractionStart}
         stops={stops}
       />
-      <Typography tone="muted" variant="caption">
-        Dark tones take the left colors, light tones the right. Click the bar
-        to add a stop, double-click a stop to remove it.
-      </Typography>
     </section>
   )
 }

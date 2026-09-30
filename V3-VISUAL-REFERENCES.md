@@ -197,5 +197,6 @@ Shared by the user for roadmap 6.5, with the reminder that uploaded motifs keep 
 | Backup | Original | What to inspect |
 | --- | --- | --- |
 | `35-bandeja-motivos-boceto.png` | `.context/attachments/lbcmrU/image.png` | Sketch of the motif tray: a rounded tray of square thumbnails, one lifted, tilted and carried by the hand while the others make room. |
+| `36-usuario-retrato-bananas.png` | `.context/attachments/TIBNjZ/image.png` | User result, September 30, 2026: a portrait made of four banana photos in Motif colors (spotted, yellow, black, green in the user's own order) with Bloom. The green banana lands in the shadow pockets of the face. Shared with "great fucking job". |
 
 The Pattern layer's motif tray follows 35: a rounded tray of square tiles in their light-to-dark order; the dragged tile lifts, tilts and follows the pointer while the others slide into place. Reference 22 shows the user's own sparse Pattern grid over a photo; the Bars, Candles and Shapes presets are unchanged.

@@ -200,8 +200,10 @@ export function buildColorMapBytes(stops: GradientMapStop[]): Uint8Array {
   return data
 }
 
-export function buildLinearColorMap(stops: GradientMapStop[]): Float32Array {
-  const data = new Float32Array(COLOR_MAP_LUT_SIZE * 4)
+export function writeLinearColorMap(
+  stops: GradientMapStop[],
+  data: Float32Array
+): Float32Array {
   const sorted = resolveGradientMapStops(stops)
   for (let i = 0; i < COLOR_MAP_LUT_SIZE; i++) {
     const [r, g, b] = evaluateResolvedStops(sorted, i / (COLOR_MAP_LUT_SIZE - 1))
@@ -211,4 +213,107 @@ export function buildLinearColorMap(stops: GradientMapStop[]): Float32Array {
     data[i * 4 + 3] = 1
   }
   return data
+}
+
+export function buildLinearColorMap(stops: GradientMapStop[]): Float32Array {
+  return writeLinearColorMap(stops, new Float32Array(COLOR_MAP_LUT_SIZE * 4))
+}
+
+type AlignedRamps = { from: ResolvedStop[]; to: ResolvedStop[] }
+
+const RAMP_CACHE_LIMIT = 64
+const alignedRampCache = new Map<string, Map<string, AlignedRamps>>()
+
+function alignRampStops(
+  few: ResolvedStop[],
+  many: ResolvedStop[]
+): ResolvedStop[] {
+  const n = few.length
+  const m = many.length
+  const cost: number[][] = []
+  for (let i = 0; i <= n; i++) cost.push(new Array<number>(m + 1).fill(Number.POSITIVE_INFINITY))
+  cost[0]!.fill(0)
+  for (let i = 1; i <= n; i++) {
+    for (let j = i; j <= m; j++) {
+      const skip = j - 1 >= i ? cost[i]![j - 1]! : Number.POSITIVE_INFINITY
+      const match =
+        cost[i - 1]![j - 1]! + Math.abs(few[i - 1]!.position - many[j - 1]!.position)
+      cost[i]![j] = Math.min(skip, match)
+    }
+  }
+  const partner = new Array<number>(m).fill(-1)
+  for (let i = n, j = m; i > 0; j--) {
+    if (j - 1 >= i && cost[i]![j] === cost[i]![j - 1]) continue
+    partner[j - 1] = i - 1
+    i--
+  }
+  const aligned: ResolvedStop[] = []
+  let floor = 0
+  for (let j = 0; j < m; j++) {
+    const matched = partner[j]!
+    if (matched >= 0) {
+      const stop = few[matched]!
+      aligned.push(stop)
+      floor = stop.position
+      continue
+    }
+    let ceiling = 1
+    for (let k = j + 1; k < m; k++) {
+      if (partner[k]! >= 0) {
+        ceiling = few[partner[k]!]!.position
+        break
+      }
+    }
+    const position = Math.min(ceiling, Math.max(floor, many[j]!.position))
+    aligned.push({ position, rgb: evaluateResolvedStops(few, position) })
+    floor = position
+  }
+  return aligned
+}
+
+function alignedRamps(from: string, to: string): AlignedRamps {
+  let byTarget = alignedRampCache.get(from)
+  const cached = byTarget?.get(to)
+  if (cached) return cached
+  const a = resolveGradientMapStops(parseGradientMapStops(from))
+  const b = resolveGradientMapStops(parseGradientMapStops(to))
+  const pair: AlignedRamps = { from: a, to: b }
+  if (a.length < b.length) pair.from = alignRampStops(a, b)
+  else if (b.length < a.length) pair.to = alignRampStops(b, a)
+  if (!byTarget) {
+    if (alignedRampCache.size >= RAMP_CACHE_LIMIT) alignedRampCache.clear()
+    byTarget = new Map()
+    alignedRampCache.set(from, byTarget)
+  }
+  if (byTarget.size >= RAMP_CACHE_LIMIT) byTarget.clear()
+  byTarget.set(to, pair)
+  return pair
+}
+
+function channelHex(value: number): string {
+  return Math.round(Math.min(1, Math.max(0, value)) * 255)
+    .toString(16)
+    .padStart(2, "0")
+}
+
+export function interpolateGradientMapStops(
+  from: string,
+  to: string,
+  t: number
+): string {
+  if (!(t > 0) || from === to) return from
+  if (t >= 1) return to
+  const pair = alignedRamps(from, to)
+  let out = "["
+  for (let k = 0; k < pair.from.length; k++) {
+    const a = pair.from[k]!
+    const b = pair.to[k]!
+    const position = Math.min(1, Math.max(0, a.position + (b.position - a.position) * t))
+    const color =
+      channelHex(a.rgb[0] + (b.rgb[0] - a.rgb[0]) * t) +
+      channelHex(a.rgb[1] + (b.rgb[1] - a.rgb[1]) * t) +
+      channelHex(a.rgb[2] + (b.rgb[2] - a.rgb[2]) * t)
+    out += `${k > 0 ? "," : ""}{"position":${Math.round(position * 10000) / 10000},"color":"#${color}"}`
+  }
+  return `${out}]`
 }

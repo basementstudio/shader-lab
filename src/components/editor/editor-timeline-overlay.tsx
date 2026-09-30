@@ -187,8 +187,10 @@ function getPropertyId(binding: AnimatedPropertyBinding): string {
 function getVisibleParams(layer: EditorLayer): ParameterDefinition[] {
   const definition = getLayerDefinition(layer.type)
 
-  return definition.params.filter((entry) =>
-    isParamVisible(entry, layer.params, [...definition.params], layer.type)
+  return definition.params.filter(
+    (entry) =>
+      (entry.type === "text" && entry.interpolate === "gradient") ||
+      isParamVisible(entry, layer.params, [...definition.params], layer.type)
   )
 }
 
@@ -197,7 +199,9 @@ function propertyColor(definition: ParameterDefinition): string {
     return "#7FD1AE"
   }
 
-  return definition.type === "color" ? "#FF8CAB" : "#B697FF"
+  return definition.type === "color" || definition.type === "text"
+    ? "#FF8CAB"
+    : "#B697FF"
 }
 
 function buildTimelineProperties(

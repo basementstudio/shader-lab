@@ -3,7 +3,10 @@
 import { getMaskParameterDefinition } from "@/lib/editor/mask-animation"
 import { CellPaintControls } from "./cell-paint-controls"
 import { AnnotationsControls } from "./annotations-controls"
-import { GradientMapControls } from "./gradient-map-controls"
+import {
+  GRADIENT_MAP_RAMP_BINDING,
+  GradientMapControls,
+} from "./gradient-map-controls"
 import { LumenPrintControls } from "./lumen-print-controls"
 import { SignalRotControls } from "./signal-rot-controls"
 import { DotGridControls } from "./dot-grid-controls"
@@ -945,6 +948,10 @@ export function SelectedLayerPropertiesContent({
             layerId={layerId}
             onInteractionEnd={onInteractionEnd}
             onInteractionStart={onInteractionStart}
+            timelineControl={buildTimelineControl(
+              GRADIENT_MAP_RAMP_BINDING,
+              values.stops ?? ""
+            )}
             updateLayerParam={updateLayerParam}
             values={values}
           />

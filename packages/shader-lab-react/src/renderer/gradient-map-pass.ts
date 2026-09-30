@@ -15,10 +15,10 @@ import {
 } from "three/tsl"
 import * as THREE from "three/webgpu"
 import {
-  buildLinearColorMap,
   COLOR_MAP_LUT_SIZE,
   parseGradientMapStops,
   serializeGradientMapStops,
+  writeLinearColorMap,
 } from "./color-map-lut"
 import { PassNode } from "./pass-node"
 import type { LayerParameterValues } from "../types/editor"
@@ -82,7 +82,7 @@ export class GradientMapPass extends PassNode {
     const key = serializeGradientMapStops(stops)
     if (key !== this.stopsKey) {
       this.stopsKey = key
-      ;(this.lut.image.data as Float32Array).set(buildLinearColorMap(stops))
+      writeLinearColorMap(stops, this.lut.image.data as Float32Array)
       this.lut.needsUpdate = true
     }
   }

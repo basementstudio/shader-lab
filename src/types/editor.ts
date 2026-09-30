@@ -270,6 +270,7 @@ export type TextParameterDefinition = ParameterDefinitionBase<
   "text",
   string
 > & {
+  interpolate?: "gradient"
   maxLength?: number
   multiline?: boolean
 }
@@ -400,7 +401,10 @@ export type LayerAnimatableProperty =
   | "hue"
   | "saturation"
   | "visible"
-export type AnimatableValueType = Exclude<ParameterType, "text"> | "boolean"
+export type AnimatableValueType =
+  | Exclude<ParameterType, "text">
+  | "boolean"
+  | "gradient"
 
 export type AnimatedPropertyBinding =
   | {

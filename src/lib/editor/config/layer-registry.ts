@@ -3531,7 +3531,7 @@ const gradientMapParams = [
     label: "Ramp",
     type: "text",
     defaultValue: serializeGradientMapStops(DEFAULT_GRADIENT_MAP_STOPS),
-    animatable: false,
+    interpolate: "gradient",
     visibleWhen: { key: "__internal", equals: "gradient-map" },
   },
   {

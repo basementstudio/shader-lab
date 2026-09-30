@@ -24,8 +24,8 @@ import type {
 } from "@/types/editor"
 import {
   cloneParameterValue,
+  getAnimatableValueType,
   getParameterDefinition,
-  isParameterAnimatable,
 } from "@/lib/editor/parameter-schema"
 import { getLayerDefinition } from "@/lib/editor/config/layer-registry"
 
@@ -191,13 +191,9 @@ export function createParamBinding(
     ? getMaskParameterDefinition(layer.mask?.shape ?? "none", key)
     : getParameterDefinition(getLayerDefinition(layer.type).params, key)
 
-  if (
-    !(
-      definition &&
-      isAnimatableValueType(definition.type) &&
-      isParameterAnimatable(definition)
-    )
-  ) {
+  const valueType = definition ? getAnimatableValueType(definition) : null
+
+  if (!(definition && valueType)) {
     return null
   }
 
@@ -205,7 +201,7 @@ export function createParamBinding(
     key,
     kind: "param",
     label: definition.label,
-    valueType: definition.type,
+    valueType,
   }
 }
 
@@ -998,11 +994,7 @@ export const useTimelineStore = create<TimelineStore>((set, get) => ({
 
         const definition = getParameterDefinition(getLayerDefinition(layer.type).params, track.binding.key)
 
-        return Boolean(
-          definition &&
-            isAnimatableValueType(definition.type) &&
-            isParameterAnimatable(definition)
-        )
+        return Boolean(definition && getAnimatableValueType(definition))
       })
 
       return {

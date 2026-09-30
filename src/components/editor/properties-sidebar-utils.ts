@@ -8,7 +8,7 @@ import type {
 } from "@/types/editor"
 import { getBindingKey } from "@/lib/editor/binding-key"
 import { isTextFontWeightAdjustable } from "@/lib/editor/text-fonts"
-import { isParameterAnimatable } from "@/lib/editor/parameter-schema"
+import { getAnimatableValueType } from "@/lib/editor/parameter-schema"
 import type { useTimelineStore } from "@/store/timeline-store"
 
 export const blendModeOptions = [
@@ -222,15 +222,15 @@ export function createParamTimelineBinding(
     return cached
   }
 
-  const binding: AnimatedPropertyBinding | null =
-    definition.type === "text" || !isParameterAnimatable(definition)
-      ? null
-      : {
-          key: definition.key,
-          kind: "param",
-          label: definition.label,
-          valueType: definition.type === "boolean" ? "boolean" : definition.type,
-        }
+  const valueType = getAnimatableValueType(definition)
+  const binding: AnimatedPropertyBinding | null = valueType
+    ? {
+        key: definition.key,
+        kind: "param",
+        label: definition.label,
+        valueType,
+      }
+    : null
 
   paramTimelineBindingCache.set(definition, binding)
   return binding

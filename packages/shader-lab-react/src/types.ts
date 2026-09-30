@@ -168,7 +168,14 @@ export type ShaderLabAnimatedPropertyBinding =
       key: string
       kind: "param"
       label: string
-      valueType: "boolean" | "color" | "number" | "select" | "vec2" | "vec3"
+      valueType:
+        | "boolean"
+        | "color"
+        | "gradient"
+        | "number"
+        | "select"
+        | "vec2"
+        | "vec3"
     }
 
 export interface ShaderLabTimelineKeyframe {

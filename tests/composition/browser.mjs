@@ -25,6 +25,7 @@ import { checkTransparentText } from "./transparent-text.mjs"
 import { checkPhotographicCells } from "./photographic-cells.mjs"
 import { checkLayerMasks } from "./layer-masks.mjs"
 import { checkGradientMap } from "./gradient-map.mjs"
+import { checkGradientMapKeyframes } from "./gradient-map-keyframes.mjs"
 import { checkPatternMotifs } from "./pattern-motifs.mjs"
 import { checkSvgShapes } from "./svg-shapes.mjs"
 import { checkLumenPrint } from "./lumen-print.mjs"
@@ -105,7 +106,7 @@ async function settle(renderer, frame) {
   await renderer.waitForGpuIdle()
 }
 
-async function renderProject(value) {
+async function renderProject(value, time = 0) {
   const project = parseLabProjectFileValue(value)
   const state = buildViewerProjectState(project)
   const size = project.composition
@@ -121,9 +122,9 @@ async function renderProject(value) {
       outputSize: size,
       viewportSize: size,
       delta: 0,
-      clockTime: 0,
+      clockTime: time,
       pixelRatio: 1,
-      timeline: { ...state.timeline, currentTime: 0, isPlaying: false },
+      timeline: { ...state.timeline, currentTime: time, isPlaying: false },
     })
     await settle(renderer, frame)
     const preview = pixels(canvas)
@@ -141,7 +142,6 @@ async function renderProject(value) {
 window.checkProject = async (name, update) => {
   const file = await (await fetch(`/fixtures/${name}.json`)).json()
   const first = await renderProject(file)
-  // Reopen a serialized project in a new renderer/device, with fresh textures.
   const reopened = await renderProject(
     JSON.parse(JSON.stringify(parseLabProjectFileValue(file)))
   )
@@ -310,8 +310,6 @@ window.checkExistingProject = async () => {
       layer.params.dotSize ??= 2
     }
   }
-  // Start from a different editor session so no-op restoration cannot pass
-  // merely because the stores already contain their default values.
   useLayerStore.getState().replaceState([], null, null)
   useAssetStore.getState().replaceAssets([])
   useEditorStore.getState().updateSceneConfig({ exposure: 2 })
@@ -469,6 +467,7 @@ window.checkCleanProjects = checkCleanProjects
 window.checkLayerMasks = () => checkLayerMasks(renderProject)
 
 window.checkGradientMap = () => checkGradientMap(renderProject)
+window.checkGradientMapKeyframes = () => checkGradientMapKeyframes(renderProject)
 window.checkPatternMotifs = () => checkPatternMotifs(renderProject)
 window.checkSvgShapes = () => checkSvgShapes(renderProject)
 

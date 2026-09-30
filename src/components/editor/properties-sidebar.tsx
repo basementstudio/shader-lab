@@ -508,7 +508,14 @@ export function PropertiesSidebar() {
         selectedVisibleParams.find((param) => param.key === key) ??
         (isMaskParamKey(key)
           ? getMaskParameterDefinition(selectedLayer.mask?.shape ?? "none", key)
-          : null)
+          : null) ??
+        selectedDefinition?.params.find(
+          (param) =>
+            param.key === key &&
+            param.type === "text" &&
+            param.interpolate === "gradient"
+        ) ??
+        null
       const binding = definition ? createParamTimelineBinding(definition) : null
 
       if (
@@ -578,6 +585,7 @@ export function PropertiesSidebar() {
       }
     },
     [
+      selectedDefinition,
       selectedLayer,
       selectedLayerTracks,
       selectedVisibleParams,

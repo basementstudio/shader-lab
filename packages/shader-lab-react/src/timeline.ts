@@ -1,4 +1,5 @@
 import { evaluateCubicBezier } from "./easings"
+import { interpolateGradientMapStops } from "./renderer/color-map-lut"
 import type {
   ShaderLabAnimatedPropertyBinding,
   ShaderLabKeyframeEasing,
@@ -95,12 +96,17 @@ function interpolateValue(
   to: ShaderLabParameterValue,
   progress: number,
   easing: ShaderLabKeyframeEasing,
+  valueType: ShaderLabAnimatedPropertyBinding["valueType"],
 ): ShaderLabParameterValue {
   if (easing.type === "step") {
     return cloneParameterValue(from)
   }
 
   const eased = resolveEasing(progress, easing)
+
+  if (valueType === "gradient" && typeof from === "string" && typeof to === "string") {
+    return interpolateGradientMapStops(from, to, eased)
+  }
 
   if (typeof from === "number" && typeof to === "number") {
     return lerp(from, to, eased)
@@ -184,6 +190,7 @@ function evaluateTrackAtTime(
       nextKeyframe.value,
       progress,
       easing,
+      track.binding.valueType,
     )
   }
 

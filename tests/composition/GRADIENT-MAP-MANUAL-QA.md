@@ -21,4 +21,4 @@ Scope: roadmap 2.5.2. A reorderable effect layer that recolors by tone with an e
 2. Duplicate the layer, edit the copy's ramp: the original is unaffected.
 3. Export PNG and video: identical to the canvas. The runtime package renders the same mapping. Play a video below it: the mapping follows the moving tones.
 
-Limits: ramp stops are not animatable; Amount and Invert are. The default preset values are open to your choice.
+Limits: the default preset values are open to your choice. Amount, Invert and the whole ramp are animatable; see [GRADIENT-MAP-KEYFRAMES-MANUAL-QA.md](GRADIENT-MAP-KEYFRAMES-MANUAL-QA.md).

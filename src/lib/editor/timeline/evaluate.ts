@@ -12,6 +12,7 @@ import type {
   TimelineTrack,
 } from "@/types/editor"
 import { cloneParameterValue } from "@/lib/editor/parameter-schema"
+import { interpolateGradientMapStops } from "@/renderer/color-map-lut"
 
 export interface EvaluatedLayerState {
   layerId: string
@@ -92,12 +93,17 @@ function interpolateValue(
   to: ParameterValue,
   progress: number,
   easing: KeyframeEasing,
+  valueType: AnimatedPropertyBinding["valueType"],
 ): ParameterValue {
   if (easing.type === "step") {
     return cloneParameterValue(from)
   }
 
   const eased = resolveEasing(progress, easing)
+
+  if (valueType === "gradient" && typeof from === "string" && typeof to === "string") {
+    return interpolateGradientMapStops(from, to, eased)
+  }
 
   if (typeof from === "number" && typeof to === "number") {
     return lerp(from, to, eased)
@@ -178,6 +184,7 @@ function evaluateTrackAtTime(track: TimelineTrack, time: number): ParameterValue
       nextKeyframe.value,
       progress,
       easing,
+      track.binding.valueType,
     )
   }
 

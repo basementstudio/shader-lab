@@ -300,6 +300,17 @@ try {
   console.log(
     `PASS gradient map: ${gradientMap.samples} editor/runtime GPU cases, presets, amount, invert, masked group scope, hydration, export, catalog preview`
   )
+  const gradientMapKeyframes = await page.evaluate(() =>
+    window.checkGradientMapKeyframes()
+  )
+  for (const [name, png] of Object.entries(gradientMapKeyframes.frames))
+    await Bun.write(
+      resolve(artifacts, `gradient-map-keyframes-${name}.png`),
+      Buffer.from(png.split(",")[1], "base64")
+    )
+  console.log(
+    `PASS gradient map keyframes: ${gradientMapKeyframes.samples} cases, ramp interpolation, easing, editor/runtime evaluation and GPU parity, auto-key and keyframe store paths, history, duplication, save/reopen, shader export`
+  )
   const patternMotifs = await page.evaluate(() => window.checkPatternMotifs())
   await Bun.write(
     resolve(artifacts, "pattern-motifs.png"),

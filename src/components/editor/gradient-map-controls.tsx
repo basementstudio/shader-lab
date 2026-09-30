@@ -2,6 +2,8 @@
 import { GradientRamp } from "@/components/ui/gradient-ramp"
 import { Select } from "@/components/ui/select"
 import { Typography } from "@/components/ui/typography"
+import { getLayerDefinition } from "@/lib/editor/config/layer-registry"
+import { getParameterDefinition } from "@/lib/editor/parameter-schema"
 import {
   canonicalGradientMapStops,
   GRADIENT_MAP_PRESETS,
@@ -9,6 +11,20 @@ import {
   serializeGradientMapStops,
 } from "@/renderer/color-map-lut"
 import type { LayerParameterValues, ParameterValue } from "@/types/editor"
+import {
+  renderFieldLabel,
+  type TimelineKeyframeControl,
+} from "./properties-sidebar-fields"
+import { createParamTimelineBinding } from "./properties-sidebar-utils"
+
+const rampDefinition = getParameterDefinition(
+  getLayerDefinition("gradient-map").params,
+  "stops"
+)
+
+export const GRADIENT_MAP_RAMP_BINDING = rampDefinition
+  ? createParamTimelineBinding(rampDefinition)
+  : null
 
 const presetOptions = [
   ...GRADIENT_MAP_PRESETS.map((preset) => ({
@@ -24,12 +40,14 @@ export function GradientMapControls({
   updateLayerParam,
   onInteractionStart,
   onInteractionEnd,
+  timelineControl,
 }: {
   layerId: string
   values: LayerParameterValues
   updateLayerParam: (id: string, key: string, value: ParameterValue) => void
   onInteractionStart?: (() => void) | undefined
   onInteractionEnd?: (() => void) | undefined
+  timelineControl?: TimelineKeyframeControl | null
 }) {
   const stops = parseGradientMapStops(values.stops)
   const canonical = canonicalGradientMapStops(stops)
@@ -64,7 +82,7 @@ export function GradientMapControls({
         />
       </div>
       <GradientRamp
-        label="Dark to light"
+        label={renderFieldLabel("Dark to light", timelineControl ?? null)}
         onChange={write}
         onInteractionEnd={onInteractionEnd}
         onInteractionStart={onInteractionStart}

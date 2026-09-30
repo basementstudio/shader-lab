@@ -626,6 +626,24 @@ export class PipelineManager {
       }
     }
 
+    if (pass instanceof ShapePass) {
+      void pass
+        .setSvg(
+          layer.params.shape === "svg" && layer.asset?.kind === "image"
+            ? layer.asset.src
+            : null
+        )
+        .then(() => {
+          this.dirty = true
+        })
+        .catch((error) => {
+          this.onRuntimeError?.(
+            error instanceof Error ? error.message : "Failed to load SVG shape."
+          )
+          this.dirty = true
+        })
+    }
+
     if (pass instanceof PatternPass) {
       void pass
         .setMotifs((layer.patternAssets ?? []).map((motif) => motif.src))

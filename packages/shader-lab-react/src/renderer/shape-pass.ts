@@ -15,14 +15,18 @@ import {
   select,
   sin,
   smoothstep,
+  texture as tslTexture,
   type TSLNode,
   uniform,
   uv,
   vec2,
+  vec3,
   vec4,
 } from "three/tsl"
 import * as THREE from "three/webgpu"
 import { PassNode } from "./pass-node"
+import { parseSvgPalette, serializeSvgPalette } from "./svg-palette"
+import { buildSvgShapeField, type SvgShapeField } from "./svg-shape-field"
 import type { LayerParameterValues } from "../types/editor"
 
 type Node = TSLNode
@@ -35,6 +39,7 @@ export const SHAPE_KINDS = [
   "star",
   "ring",
   "blades",
+  "svg",
 ] as const
 export type ShapeKind = (typeof SHAPE_KINDS)[number]
 
@@ -63,6 +68,35 @@ export class ShapePass extends PassNode {
   private readonly hub = uniform(0.12)
   private readonly aspect = uniform(new THREE.Vector2(1, 1))
   private readonly pixel = uniform(1 / 1080)
+  private readonly svgActive = uniform(0)
+  private readonly svgOriginal = uniform(1)
+  private readonly svgTextureSize = uniform(new THREE.Vector2(1, 1))
+  private readonly svgContentOffset = uniform(new THREE.Vector2(0, 0))
+  private readonly svgContentScale = uniform(new THREE.Vector2(1, 1))
+  private readonly svgContentTexels = uniform(new THREE.Vector2(1, 1))
+  private readonly svgDistancePlaceholder = new THREE.DataTexture(
+    new Uint16Array([0]),
+    1,
+    1,
+    THREE.RedFormat,
+    THREE.HalfFloatType
+  )
+  private readonly svgColorPlaceholder = new THREE.DataTexture(
+    new Uint8Array([0, 0, 0, 255]),
+    1,
+    1,
+    THREE.RGBAFormat
+  )
+  private svgDistanceNode: Node | null = null
+  private svgColorNode: Node | null = null
+  private svgField: SvgShapeField | null = null
+  private readonly retiredFields: { field: SvgShapeField; frames: number }[] = []
+  private svgUrl: string | null = null
+  private svgText: string | null = null
+  private svgPalette = ""
+  private svgRequest = 0
+  private svgPending = false
+  private svgRebuild: Promise<void> = Promise.resolve()
 
   constructor(layerId: string) {
     super(layerId)
@@ -109,12 +143,154 @@ export class ShapePass extends PassNode {
     this.twist.value = number(params.twist, 0.6, -4, 4)
     this.bladeWidth.value = number(params.bladeWidth, 0.7, 0.05, 1)
     this.hub.value = number(params.hub, 0.12, 0, 0.9)
+    this.svgOriginal.value = params.svgColorMode === "single" ? 0 : 1
+    const palette = serializeSvgPalette(parseSvgPalette(params.svgPalette))
+    if (palette !== this.svgPalette) {
+      this.svgPalette = palette
+      if (this.svgText !== null) {
+        this.svgRebuild = this.rebuildSvgField(this.svgText)
+        void this.svgRebuild.catch(() => undefined)
+      }
+    }
+  }
+
+  setSvg(url: string | null): Promise<void> {
+    if (url === this.svgUrl) {
+      return this.svgRebuild
+    }
+    this.svgUrl = url
+    this.svgText = null
+    if (url === null) {
+      this.svgRequest += 1
+      this.svgPending = false
+      this.installSvgField(null)
+      this.svgRebuild = Promise.resolve()
+      return this.svgRebuild
+    }
+    const request = ++this.svgRequest
+    this.svgPending = true
+    this.svgRebuild = fetch(url)
+      .then((response) => {
+        if (!response.ok) throw new Error(`Unable to load SVG: ${response.status}`)
+        return response.text()
+      })
+      .then((text) => {
+        if (request !== this.svgRequest) return
+        this.svgText = text
+        return this.rebuildSvgField(text)
+      })
+      .catch((error: unknown) => {
+        if (request === this.svgRequest) {
+          this.svgPending = false
+          this.installSvgField(null)
+        }
+        throw error
+      })
+    return this.svgRebuild
+  }
+
+  override needsContinuousRender(): boolean {
+    return this.svgPending
+  }
+
+  override render(
+    renderer: THREE.WebGPURenderer,
+    inputTexture: THREE.Texture,
+    outputTarget: THREE.WebGLRenderTarget,
+    time: number,
+    delta: number
+  ): void {
+    for (let index = this.retiredFields.length - 1; index >= 0; index -= 1) {
+      const retired = this.retiredFields[index]!
+      retired.frames += 1
+      if (retired.frames > 3) {
+        if (retired.field.distance !== this.svgField?.distance) {
+          retired.field.distance.dispose()
+        }
+        retired.field.color.dispose()
+        this.retiredFields.splice(index, 1)
+      }
+    }
+    super.render(renderer, inputTexture, outputTarget, time, delta)
+  }
+
+  override dispose(): void {
+    this.svgRequest += 1
+    for (const retired of this.retiredFields) {
+      retired.field.distance.dispose()
+      retired.field.color.dispose()
+    }
+    this.retiredFields.length = 0
+    this.svgField?.distance.dispose()
+    this.svgField?.color.dispose()
+    this.svgField = null
+    this.svgDistancePlaceholder.dispose()
+    this.svgColorPlaceholder.dispose()
+    super.dispose()
+  }
+
+  private async rebuildSvgField(text: string): Promise<void> {
+    const request = ++this.svgRequest
+    this.svgPending = true
+    try {
+      const field = await buildSvgShapeField(
+        text,
+        parseSvgPalette(this.svgPalette),
+        this.svgField
+      )
+      if (request !== this.svgRequest) {
+        if (field.distance !== this.svgField?.distance) field.distance.dispose()
+        field.color.dispose()
+        return
+      }
+      this.installSvgField(field)
+    } finally {
+      if (request === this.svgRequest) this.svgPending = false
+    }
+  }
+
+  private installSvgField(field: SvgShapeField | null): void {
+    if (this.svgField) {
+      this.retiredFields.push({ field: this.svgField, frames: 0 })
+    }
+    this.svgField = field
+    if (this.svgDistanceNode) {
+      this.svgDistanceNode.value = field?.distance ?? this.svgDistancePlaceholder
+    }
+    if (this.svgColorNode) {
+      this.svgColorNode.value = field?.color ?? this.svgColorPlaceholder
+    }
+    this.svgActive.value = field ? 1 : 0
+    if (!field) return
+    ;(this.svgTextureSize.value as THREE.Vector2).set(field.width, field.height)
+    ;(this.svgContentOffset.value as THREE.Vector2).set(
+      (field.width - field.contentWidth) / 2 / field.width,
+      (field.height - field.contentHeight) / 2 / field.height
+    )
+    ;(this.svgContentScale.value as THREE.Vector2).set(
+      field.contentWidth / field.width,
+      field.contentHeight / field.height
+    )
+    ;(this.svgContentTexels.value as THREE.Vector2).set(
+      field.contentWidth,
+      field.contentHeight
+    )
   }
 
   protected override buildEffectNode(): Node {
-    if (!this.aspect) {
+    if (!(this.aspect && this.svgDistancePlaceholder)) {
       return this.inputNode
     }
+    const svgDistanceNode = tslTexture(
+      this.svgField?.distance ?? this.svgDistancePlaceholder,
+      vec2(0)
+    )
+    const svgColorNode = tslTexture(
+      this.svgField?.color ?? this.svgColorPlaceholder,
+      vec2(0)
+    )
+    this.svgDistanceNode = svgDistanceNode
+    this.svgColorNode = svgColorNode
     return Fn(() => {
       const screen = vec2(uv().x, float(1).sub(uv().y))
       const point = screen.sub(0.5).mul(this.aspect).sub(this.center)
@@ -184,6 +360,26 @@ export class ShapePass extends PassNode {
         distance.assign(radius.sub(bladeRadius).mul(unit))
       })
 
+      const svgColor = vec3(this.color).toVar()
+      If(kind.equal(float(7)), () => {
+        distance.assign(float(1000))
+        If(this.svgActive.greaterThan(float(0.5)), () => {
+          const textureUv = this.svgContentOffset.add(
+            u.mul(0.5).add(0.5).mul(this.svgContentScale)
+          )
+          const halfTexel = vec2(0.5).div(this.svgTextureSize)
+          const clamped = clamp(textureUv, halfTexel, vec2(1).sub(halfTexel))
+          const unitsPerTexel = min(
+            half.x.mul(2).div(this.svgContentTexels.x),
+            half.y.mul(2).div(this.svgContentTexels.y)
+          )
+          const beyond = length(textureUv.sub(clamped).mul(this.svgTextureSize))
+          const sampled = float(svgDistanceNode.sample(clamped).level(0).r)
+          distance.assign(sampled.add(beyond).mul(unitsPerTexel))
+          svgColor.assign(vec3(svgColorNode.sample(clamped).level(0).rgb))
+        })
+      })
+
       const outlined = select(
         this.outline.greaterThan(float(0)),
         abs(distance).sub(this.outline.mul(0.5)),
@@ -191,7 +387,12 @@ export class ShapePass extends PassNode {
       )
       const edge = max(this.softness, this.pixel.mul(0.75))
       const coverage = float(1).sub(smoothstep(edge.negate(), edge, outlined))
-      return vec4(this.color, clamp(coverage, 0, 1))
+      const keepsSvgColor = kind
+        .equal(float(7))
+        .and(this.svgOriginal.greaterThan(float(0.5)))
+        .and(this.outline.lessThanEqual(float(0)))
+      const fill = select(keepsSvgColor, svgColor, vec3(this.color))
+      return vec4(fill, clamp(coverage, 0, 1))
     })()
   }
 }

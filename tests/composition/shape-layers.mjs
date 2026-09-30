@@ -202,7 +202,7 @@ async function runtimeRender(config) {
 }
 
 export async function checkShapeLayers(renderProject) {
-  assert(SHAPE_KINDS.length === 7, "Seven shape kinds")
+  assert(SHAPE_KINDS.length === 8 && SHAPE_KINDS.at(-1) === "svg", "Eight shape kinds, SVG last")
   assert(getLayerCatalogEntry("shape").label === "Shape", "Catalog entry")
   const fresh = createLayer("shape")
   assert(fresh.kind === "source" && fresh.params.shape === "ellipse" && fresh.params.color === "#ff4a2a", "New shape defaults")

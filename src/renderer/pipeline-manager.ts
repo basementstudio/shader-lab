@@ -747,6 +747,31 @@ export class PipelineManager {
       this.loadModelResources(pass, renderableLayer)
     }
 
+    if (pass instanceof ShapePass) {
+      const asset = renderableLayer.asset
+      const svgUrl =
+        renderableLayer.params.shape === "svg" &&
+        asset?.kind === "image" &&
+        isSvgMediaSource(asset)
+          ? asset.url
+          : null
+      const svgLoadId = `${pass.layerId}:svg`
+      this.pendingMediaLoads.add(svgLoadId)
+      void pass
+        .setSvg(svgUrl)
+        .then(() => {
+          if (svgUrl) setLayerMediaError(pass.layerId, null)
+          this.markDirty()
+        })
+        .catch(() => {
+          setLayerMediaError(pass.layerId, describeMediaLoadFailure(asset?.fileName))
+          this.markDirty()
+        })
+        .finally(() => {
+          this.pendingMediaLoads.delete(svgLoadId)
+        })
+    }
+
     if (pass instanceof PatternPass) {
       const motifLoadId = `${pass.layerId}:motifs`
       this.pendingMediaLoads.add(motifLoadId)

@@ -26,6 +26,7 @@ import { checkPhotographicCells } from "./photographic-cells.mjs"
 import { checkLayerMasks } from "./layer-masks.mjs"
 import { checkGradientMap } from "./gradient-map.mjs"
 import { checkPatternMotifs } from "./pattern-motifs.mjs"
+import { checkSvgShapes } from "./svg-shapes.mjs"
 import { checkLumenPrint } from "./lumen-print.mjs"
 import { checkSignalRot } from "./signal-rot.mjs"
 import { checkDotGrid } from "./dot-grid.mjs"
@@ -469,6 +470,7 @@ window.checkLayerMasks = () => checkLayerMasks(renderProject)
 
 window.checkGradientMap = () => checkGradientMap(renderProject)
 window.checkPatternMotifs = () => checkPatternMotifs(renderProject)
+window.checkSvgShapes = () => checkSvgShapes(renderProject)
 
 window.checkLumenPrint = () => checkLumenPrint(renderProject)
 

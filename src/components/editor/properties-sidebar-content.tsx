@@ -17,6 +17,7 @@ import { PlotterControls } from "./plotter-controls"
 import { PhotocopyControls } from "./photocopy-controls"
 import { OutlineControls } from "./outline-controls"
 import { PatternMotifControls } from "./pattern-motif-controls"
+import { SvgShapePalette, SvgShapeSource } from "./svg-shape-controls"
 import { ModelControls } from "./model-controls"
 import type { ModelClipInfo } from "@/lib/editor/model-animation"
 import { LayerMaskSection } from "./layer-mask-section"
@@ -577,16 +578,45 @@ export function SelectedLayerPropertiesContent({
     [layerId]
   )
 
-  const renderAfterParam = (key: string) =>
-    layerType === "pattern" && key === "preset" && values.preset === "custom" ? (
-      <PatternMotifControls
-        layerId={layerId}
-        onInteractionEnd={onInteractionEnd}
-        onInteractionStart={onInteractionStart}
-        updateLayerParam={updateLayerParam}
-        values={values}
-      />
-    ) : null
+  const renderAfterParam = (key: string) => {
+    if (layerType === "pattern" && key === "preset" && values.preset === "custom") {
+      return (
+        <PatternMotifControls
+          layerId={layerId}
+          onInteractionEnd={onInteractionEnd}
+          onInteractionStart={onInteractionStart}
+          updateLayerParam={updateLayerParam}
+          values={values}
+        />
+      )
+    }
+    if (layerType === "shape" && values.shape === "svg" && key === "shape") {
+      return (
+        <SvgShapeSource
+          layerId={layerId}
+          updateLayerParam={updateLayerParam}
+          values={values}
+        />
+      )
+    }
+    if (
+      layerType === "shape" &&
+      values.shape === "svg" &&
+      key === "svgColorMode" &&
+      values.svgColorMode !== "single"
+    ) {
+      return (
+        <SvgShapePalette
+          layerId={layerId}
+          onInteractionEnd={onInteractionEnd}
+          onInteractionStart={onInteractionStart}
+          updateLayerParam={updateLayerParam}
+          values={values}
+        />
+      )
+    }
+    return null
+  }
 
   return (
     <>

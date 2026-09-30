@@ -329,6 +329,14 @@ function toShaderLabAssetSource(
     }
   }
 
+  if (layer.type === "shape" && layer.params.shape === "svg" && asset) {
+    return {
+      fileName: asset.fileName,
+      kind: "image",
+      src: buildAssetPlaceholderPath("image", asset.fileName || "shape.svg"),
+    }
+  }
+
   if (layer.type === "video") {
     const fileName = asset?.fileName || "video.mp4"
 

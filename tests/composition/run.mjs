@@ -43,7 +43,7 @@ const server = Bun.serve({
       )
     if (path === "/scenes/default/rings-photo.webp")
       return new Response(Bun.file(resolve(root, "public/examples/slice.webp")))
-    if (/^\/scenes\/default\/motif-[a-z-]+\.svg$/.test(path))
+    if (/^\/scenes\/default\/(motif|shape)-[a-z-]+\.svg$/.test(path))
       return new Response(
         Bun.file(resolve(directory, `fixtures/${path.split("/").pop()}`))
       )
@@ -480,6 +480,14 @@ try {
   )
   console.log(
     `PASS shape layers: ${shapes.samples} editor/runtime GPU cases across seven shapes, outline, softness, blend, mask, hydration, export`
+  )
+  const svgShapes = await page.evaluate(() => window.checkSvgShapes())
+  await Bun.write(
+    resolve(artifacts, "svg-shapes.png"),
+    Buffer.from(svgShapes.png.split(",")[1], "base64")
+  )
+  console.log(
+    `PASS SVG shapes: ${svgShapes.samples} editor/runtime GPU cases, file colors, palette, single color, outline, softness against the procedural rectangle, width/height-only SVGs, history, duplication, save/reopen, missing SVG, export, runtime parity`
   )
   const textEditing = await page.evaluate(() => window.checkTextEditing())
   await Bun.write(

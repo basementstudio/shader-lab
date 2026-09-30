@@ -99,6 +99,11 @@ try {
     }
   })
   page.on("requestfailed", (request) => {
+    if (
+      request.resourceType() === "media" &&
+      request.failure()?.errorText === "net::ERR_ABORTED"
+    )
+      return
     const message = `${request.url()}: ${request.failure()?.errorText}`
     errors.push(message)
     console.error(message)

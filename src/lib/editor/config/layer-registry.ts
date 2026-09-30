@@ -6860,9 +6860,6 @@ const sliceParams = [
   },
 ] as const satisfies ParameterDefinitions
 
-// Hidden-param sentinel (custom-shader precedent): a `visibleWhen` key that
-// never exists keeps the param out of the sidebar while it round-trips
-// through .lab files, undo and change detection like any other param.
 const BLOB_TRACKING_INTERNAL_VISIBILITY = {
   equals: "__never__",
   key: "__blobTrackingInternal",
@@ -6875,10 +6872,6 @@ function formatEffectLabel(type: string): string {
     .join(" ")
 }
 
-// Every effect with a pass implementation, minus blur (no pass exists) and
-// blob-tracking itself (no recursive children in v1). Must stay in sync with
-// INNER_EFFECT_TYPES in @/lib/blob-tracking/inner-effects (which cannot be
-// imported here — it imports this registry).
 const blobInnerEffectOptions = [
   { label: "None", value: "none" },
   ...EFFECT_LAYER_TYPES.filter(
@@ -6901,10 +6894,11 @@ const annotationsParams = [
     options: [
       { label: "Seeded", value: "random" },
       { label: "Edges", value: "edges" },
+      { label: "Regions", value: "regions" },
       { label: "Painted", value: "painted" },
     ],
     type: "select",
-    description: "Where elements may appear: anywhere, along image edges, or inside your brush strokes.",
+    description: "Where elements may appear: anywhere, along image edges, around regions of similar tone and color, or inside your brush strokes.",
   },
   {
     defaultValue: 0.5,
@@ -6940,6 +6934,27 @@ const annotationsParams = [
     description: "Slow seeded motion over time, as on video.",
   },
   {
+    defaultValue: 0,
+    group: "Placement",
+    key: "rotationJitter",
+    label: "Rotation Jitter",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    description: "Turns rings, crosses and boxes by a seeded angle. Text, rulers and metadata stay upright.",
+  },
+  {
+    animatable: false,
+    defaultValue: false,
+    group: "Placement",
+    key: "alignToEdges",
+    label: "Align to Edges",
+    type: "boolean",
+    visibleWhen: { key: "placement", oneOf: ["edges", "regions"] },
+    description: "Turns boxes and crosses along the image edges; with Regions, boxes follow each region's long axis.",
+  },
+  {
     key: "paintMask",
     label: "Painted placement",
     type: "text",
@@ -6948,6 +6963,15 @@ const annotationsParams = [
     visibleWhen: ANNOTATIONS_INTERNAL_VISIBILITY,
   },
   { animatable: false, defaultValue: true, group: "Elements", key: "dots", label: "Dots", type: "boolean" },
+  {
+    animatable: false,
+    defaultValue: false,
+    group: "Elements",
+    key: "connectedDots",
+    label: "Connected Dots",
+    type: "boolean",
+    description: "Small constellations: dots linked to their nearest neighbours.",
+  },
   { animatable: false, defaultValue: true, group: "Elements", key: "rings", label: "Rings", type: "boolean" },
   { animatable: false, defaultValue: true, group: "Elements", key: "crosses", label: "Crosses", type: "boolean" },
   { animatable: false, defaultValue: true, group: "Elements", key: "boxes", label: "Boxes", type: "boolean" },
@@ -6993,7 +7017,7 @@ const annotationsParams = [
     key: "targetSnap",
     label: "Snap to Strongest Edge",
     type: "boolean",
-    visibleWhen: { equals: "edges", key: "placement" },
+    visibleWhen: { key: "placement", oneOf: ["edges", "regions"] },
   },
   {
     animatable: false,

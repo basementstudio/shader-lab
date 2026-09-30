@@ -39,6 +39,11 @@ import {
   MAX_ANNOTATION_GLYPHS,
   parseAnnotationConfig,
 } from "./annotations-layout"
+import {
+  type AnnotationRegions,
+  edgeTangents,
+  segmentAnnotationRegions,
+} from "./annotations-regions"
 import { buildLabelAtlas, LABEL_CHARS } from "./blob-label-atlas"
 import { type CellPaintMask, decodeCellPaintMask } from "./cell-paint-mask"
 import { PassNode } from "./pass-node"
@@ -73,6 +78,9 @@ export class AnnotationsPass extends PassNode {
   private edgeFrame = 0
   private edgeInputVersion = 1
   private edgeReadVersion = 0
+  private edgeReadRich = false
+  private regions: AnnotationRegions | null = null
+  private regionsVersion = -1
   layoutOverride: { elements: AnnotationElement[]; glyphs: AnnotationGlyph[] } | null = null
 
   private readonly orthoCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
@@ -103,9 +111,12 @@ export class AnnotationsPass extends PassNode {
 
   private edgeScene: THREE.Scene | null = null
   private edgeMaterial: THREE.MeshBasicNodeMaterial | null = null
+  private edgeRichMaterial: THREE.MeshBasicNodeMaterial | null = null
+  private edgeMesh: THREE.Mesh | null = null
   private edgeRt: THREE.WebGLRenderTarget | null = null
   private edgeInput: Node | null = null
   private readonly edgeData = new Float32Array(EDGE_WIDTH * EDGE_HEIGHT)
+  private readonly edgeColor = new Float32Array(EDGE_WIDTH * EDGE_HEIGHT * 3)
   private readonly previousClearColor = new THREE.Color()
 
   private deviceWidth = 1
@@ -161,7 +172,11 @@ export class AnnotationsPass extends PassNode {
   }
 
   override needsContinuousRender(): boolean {
-    return (this.config?.drift ?? 0) > 0 || this.config?.placement === "edges"
+    return (
+      (this.config?.drift ?? 0) > 0 ||
+      this.config?.placement === "edges" ||
+      this.config?.placement === "regions"
+    )
   }
 
   override render(
@@ -173,7 +188,7 @@ export class AnnotationsPass extends PassNode {
   ): void {
     this.time = time
     if (this.inputChanged) this.edgeInputVersion += 1
-    if (this.config?.placement === "edges") {
+    if (this.config?.placement === "edges" || this.config?.placement === "regions") {
       this.renderEdges(renderer, inputTexture)
     }
     this.relayout()
@@ -190,6 +205,7 @@ export class AnnotationsPass extends PassNode {
     this.decorationPlaceholder.dispose()
     this.edgeRt?.dispose()
     this.edgeMaterial?.dispose()
+    this.edgeRichMaterial?.dispose()
     this.quad.dispose()
     this.labelAtlas?.dispose()
     super.dispose()
@@ -226,6 +242,7 @@ export class AnnotationsPass extends PassNode {
       time: this.time,
       edges: this.edges,
       paint: this.paintMask,
+      regions: this.regions,
     })
     this.writeElements(layout.elements)
     this.writeGlyphs(layout.glyphs)
@@ -531,13 +548,60 @@ export class AnnotationsPass extends PassNode {
     const mesh = new THREE.Mesh(this.quad, this.edgeMaterial)
     mesh.frustumCulled = false
     this.edgeScene.add(mesh)
+    this.edgeMesh = mesh
+  }
+
+  private richEdgeMaterial(): THREE.MeshBasicNodeMaterial | null {
+    if (this.edgeRichMaterial || !this.edgeInput) return this.edgeRichMaterial
+    const input = this.edgeInput
+    const texel = vec2(1 / EDGE_WIDTH, 1 / EDGE_HEIGHT)
+    const weights = vec3(0.2126, 0.7152, 0.0722)
+    const luma = (dx: number, dy: number) => {
+      const sample = input.sample(renderTargetUv().add(texel.mul(vec2(dx, dy))))
+      return dot(vec3(sample.r, sample.g, sample.b), weights)
+    }
+    const gx = luma(1, -1).add(luma(1, 0).mul(2)).add(luma(1, 1)).sub(luma(-1, -1)).sub(luma(-1, 0).mul(2)).sub(luma(-1, 1))
+    const gy = luma(-1, 1).add(luma(0, 1).mul(2)).add(luma(1, 1)).sub(luma(-1, -1)).sub(luma(0, -1).mul(2)).sub(luma(1, -1))
+    const magnitude = clamp(length(vec2(gx, gy)).mul(0.5), 0, 1)
+    let sum: Node = vec3(0, 0, 0)
+    for (const sx of [-0.375, -0.125, 0.125, 0.375]) {
+      for (const sy of [-0.375, -0.125, 0.125, 0.375]) {
+        const sample = input.sample(renderTargetUv().add(texel.mul(vec2(sx, sy))))
+        sum = sum.add(vec3(sample.r, sample.g, sample.b))
+      }
+    }
+    const average = sum.div(16)
+    const red = float(average.x)
+    const green = float(average.y)
+    const blue = float(average.z)
+    const material = new THREE.MeshBasicNodeMaterial()
+    material.blending = THREE.NoBlending
+    material.colorNode = vec4(
+      magnitude,
+      clamp(dot(average, weights), 0, 1),
+      clamp(red.sub(green).mul(0.5).add(0.5), 0, 1),
+      clamp(red.add(green).mul(0.5).sub(blue).mul(0.5).add(0.5), 0, 1)
+    ) as Node
+    this.edgeRichMaterial = material
+    return material
   }
 
   private renderEdges(renderer: THREE.WebGPURenderer, input: THREE.Texture): void {
-    if (!(this.edgeScene && this.edgeRt && this.edgeInput)) return
-    if (this.edges && this.edgeReadVersion === this.edgeInputVersion) return
+    if (!(this.edgeScene && this.edgeRt && this.edgeInput && this.edgeMesh)) return
+    const segment = this.config?.placement === "regions"
+    const rich = segment || this.config?.alignToEdges === true
+    if (
+      this.edges &&
+      this.edgeReadVersion === this.edgeInputVersion &&
+      this.edgeReadRich === rich &&
+      (!segment || this.regionsVersion === this.edgeReadVersion)
+    )
+      return
     this.edgeFrame += 1
     if (this.edgeFrame % 3 !== 1 || this.pendingReadback) return
+    const material = rich ? this.richEdgeMaterial() : this.edgeMaterial
+    if (!material) return
+    this.edgeMesh.material = material
     this.edgeInput.value = input
     renderer.setRenderTarget(this.edgeRt)
     renderer.render(this.edgeScene, this.orthoCamera)
@@ -569,8 +633,26 @@ export class AnnotationsPass extends PassNode {
           if (value > peak) peak = value
         }
         if (peak > 0) for (let i = 0; i < data.length; i++) data[i] = (data[i] ?? 0) / peak
-        this.edges = { width: EDGE_WIDTH, height: EDGE_HEIGHT, data }
+        let color: Float32Array | null = null
+        let angle: Float32Array | null = null
+        if (rich) {
+          color = this.edgeColor
+          for (let i = 0; i < data.length; i++) {
+            color[i * 3] = (bytes[i * 4 + 1] ?? 0) / 255
+            color[i * 3 + 1] = (bytes[i * 4 + 2] ?? 0) / 255
+            color[i * 3 + 2] = (bytes[i * 4 + 3] ?? 0) / 255
+          }
+          angle = edgeTangents(EDGE_WIDTH, EDGE_HEIGHT, color)
+          if (segment) {
+            this.regions = segmentAnnotationRegions(EDGE_WIDTH, EDGE_HEIGHT, color, this.regions)
+            this.regionsVersion = version
+          }
+        }
+        this.edges = rich
+          ? { width: EDGE_WIDTH, height: EDGE_HEIGHT, data, color, angle }
+          : { width: EDGE_WIDTH, height: EDGE_HEIGHT, data }
         this.edgeReadVersion = version
+        this.edgeReadRich = rich
         this.pendingReadback = null
       })
       .catch(() => {

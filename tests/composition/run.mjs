@@ -524,6 +524,15 @@ try {
   console.log(
     `PASS annotations: ${annotations.samples} layout, placement, text, palette, editor/runtime render, hydration and export checks`
   )
+  const annotationExtras = await page.evaluate(() => window.checkAnnotationExtras())
+  for (const [name, png] of Object.entries(annotationExtras.stills))
+    await Bun.write(
+      resolve(artifacts, `annotation-extras-${name}.png`),
+      Buffer.from(png.split(",")[1], "base64")
+    )
+  console.log(
+    `PASS annotation extras: ${annotationExtras.samples} region segmentation, persistent region ids, region placement, connected dots, rotation jitter, align to edges, legacy layout digest, editor/runtime GPU parity, history, duplication, save/reopen, export and video stability checks`
+  )
   const depth = await page.evaluate(() => window.checkDepthParallax())
   await Bun.write(
     resolve(artifacts, "depth-parallax.png"),

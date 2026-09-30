@@ -46,6 +46,7 @@ import { checkTextEditing } from "./text-editing.mjs"
 import { checkDepthParallax } from "./depth-parallax.mjs"
 import { checkBlobTracking } from "./blob-tracking.mjs"
 import { checkAnnotations } from "./annotations.mjs"
+import { checkAnnotationExtras } from "./annotation-extras.mjs"
 import { checkDisplacedRings } from "./displaced-rings.mjs"
 import { checkModelAnimation } from "./model-animation.mjs"
 import { checkModelLayer } from "./model-layer.mjs"
@@ -504,6 +505,7 @@ window.checkTextEditing = () => checkTextEditing(renderProject)
 window.checkBlobTracking = checkBlobTracking
 
 window.checkAnnotations = () => checkAnnotations(renderProject)
+window.checkAnnotationExtras = () => checkAnnotationExtras(renderProject)
 window.checkDepthParallax = checkDepthParallax
 window.checkModelLayer = checkModelLayer
 window.checkModelAnimation = checkModelAnimation

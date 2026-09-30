@@ -68,6 +68,12 @@ export function AnnotationsControls({
         Decorative only. Words and readouts are picked by seed; nothing is
         detected or recognized.
       </Typography>
+      {values.placement === "regions" && (
+        <Typography tone="muted" variant="caption">
+          Regions are areas of similar tone and color in the image below. Marks
+          follow them; nothing is recognized.
+        </Typography>
+      )}
       {values.colorMode === "palette" && (
         <GradientRamp
           label="Palette (elements pick a stop by seed)"

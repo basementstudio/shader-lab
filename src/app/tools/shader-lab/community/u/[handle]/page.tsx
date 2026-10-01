@@ -125,13 +125,11 @@ async function ProfileRoute({ params }: PageProps) {
           ]}
         />
       ) : null}
-      <div className="rounded-[var(--ds-radius-panel)] bg-[var(--ds-color-card)] p-[var(--ds-space-6)] shadow-[var(--skin-card-shadow)] sm:p-[var(--ds-space-8)]">
-        <ProfileHeader
-          action={<ProfileOwnerActions handle={profile.handle} />}
-          profile={profile}
-          scale="page"
-        />
-      </div>
+      <ProfileHeader
+        action={<ProfileOwnerActions handle={profile.handle} />}
+        profile={profile}
+        scale="page"
+      />
 
       <Suspense fallback={<GridSkeleton />}>
         <ProfileScenes
@@ -181,7 +179,7 @@ function GridSkeleton() {
     <div className={SCENE_GRID_CLASS_NAME}>
       {SKELETON_CARDS.map((id) => (
         <div
-          className="aspect-[16/11] w-full animate-pulse rounded-toolbar bg-[var(--ds-color-card)]"
+          className="aspect-[16/11] w-full animate-pulse rounded-scene-card bg-[var(--ds-color-card)]"
           key={id}
         />
       ))}

@@ -80,6 +80,9 @@ html[data-theme="light"] {
   --skin-tooltip: rgb(250 250 251 / 0.94);
   --skin-grid-line: rgb(var(--ink) / 0.07);
   --skin-xy-handle-shadow: 0 2px 6px rgb(var(--ink) / 0.25), 0 0 0 6px rgb(var(--ink) / 0.06);
+  --ds-color-stat: rgb(var(--ink) / 0.24);
+  --skin-row-hover: rgb(var(--ink) / 0.05);
+  --skin-row-selected: var(--skin-raised);
 }
 
 html[data-theme="dark"] {
@@ -109,6 +112,9 @@ html[data-theme="dark"] {
   --skin-tooltip: rgb(24 24 28 / 0.94);
   --skin-grid-line: rgb(255 255 255 / 0.07);
   --skin-xy-handle-shadow: 0 2px 6px rgb(0 0 0 / 0.5), 0 0 0 6px rgb(255 255 255 / 0.06);
+  --ds-color-stat: rgb(255 255 255 / 0.2);
+  --skin-row-hover: rgb(255 255 255 / 0.05);
+  --skin-row-selected: rgb(255 255 255 / 0.14);
 }
 
 html[data-theme] {
@@ -507,5 +513,64 @@ html[data-theme] .ds-on-media {
   --ds-color-text-on-light: rgb(0 0 0 / 0.9);
   --ds-border-divider: rgb(255 255 255 / 0.12);
   --ds-border-hover: rgb(255 255 255 / 0.2);
+  --ds-color-surface-control: rgb(255 255 255 / 0.08);
+  --ds-color-surface-active: rgb(255 255 255 / 0.12);
+  --ds-color-stat: rgb(255 255 255 / 0.26);
+  color: var(--ds-color-text-primary);
+}
+
+html[data-theme] {
+  --ds-text-stat: 168px;
+  --ds-text-quote: 24px;
+  --ds-stat-crop: 24%;
+  --ds-stat-glyph-width: 0.62;
+  --ds-size-stat-tile: 176px;
+  --ds-size-stat-tile-compact: 128px;
+  --ds-size-hero-card: 300px;
+  --ds-size-hero-card-min-height: 124px;
+  --ds-hero-card-text-share: 52cqw;
+  --ds-radius-banner: calc(var(--ds-radius-card) + var(--ds-space-bar));
+  --ds-radius-row: calc(var(--ds-radius-panel) - var(--ds-space-bar));
+  --ds-space-row-inset: 6px;
+  --ds-radius-row-thumb: calc(var(--ds-radius-row) - var(--ds-space-row-inset));
+  --ds-radius-scene-thumb: 16px;
+  --ds-radius-scene-card: calc(var(--ds-radius-scene-thumb) + var(--ds-space-bar));
+}
+
+html[data-theme] .ds-stat {
+  container-type: inline-size;
+  position: relative;
+  overflow: hidden;
+}
+
+html[data-theme] .ds-stat-compact {
+  --ds-text-stat: 96px;
+}
+
+html[data-theme] .ds-stat-number {
+  position: absolute;
+  right: var(--ds-space-5);
+  bottom: 0;
+  translate: 0 var(--ds-stat-crop);
+  color: var(--ds-color-stat);
+  font-family: var(--ds-font-sans);
+  font-size: min(
+    var(--ds-text-stat),
+    calc(var(--ds-stat-share, 86cqw) / (var(--digits) * var(--ds-stat-glyph-width)))
+  );
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  letter-spacing: -0.05em;
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+}
+
+html[data-theme] .ds-on-paper {
+  --ds-color-text-primary: rgb(23 23 26 / 0.92);
+  --ds-color-text-secondary: rgb(23 23 26 / 0.6);
+  --ds-color-text-tertiary: rgb(23 23 26 / 0.46);
+  --ds-color-text-muted: rgb(23 23 26 / 0.4);
   color: var(--ds-color-text-primary);
 }

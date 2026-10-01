@@ -5,7 +5,7 @@ import { extendTailwindMerge } from "tailwind-merge"
 const twMerge = extendTailwindMerge({
   extend: {
     theme: {
-      radius: ["icon", "group", "toolbar"],
+      radius: ["icon", "group", "toolbar", "scene-thumb", "scene-card"],
       spacing: ["bar", "bar-group"],
     },
   },

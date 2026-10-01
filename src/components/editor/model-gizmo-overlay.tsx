@@ -64,8 +64,17 @@ const CLEAR_KEYS: Record<string, { key: string; value: Vec3 }> = {
   KeyR: { key: "rotation", value: [0, 0, 0] },
   KeyS: { key: "scale", value: [1, 1, 1] },
 }
-const GIZMO_PX = 72
-const RING_SEGMENTS = 64
+const GIZMO_PX = 84
+const RING_MIN_PX = 96
+const RING_MAX_PX = 168
+const RING_BODY_SHARE = 0.72
+const RING_SEGMENTS = 96
+const STROKE = 2.5
+const STROKE_HOVER = 4
+const HIT_STROKE = 20
+const BACK_OPACITY = 0.28
+const FILLED_HANDLES = new Set(["body", "move-view", "scale-uniform"])
+const DIM_OPACITY = 0.35
 
 function selectModelLayer(state: {
   layers: EditorLayer[]
@@ -105,17 +114,24 @@ function buildView(params: LayerParameterValues, width: number, height: number) 
   const worldPerPixel =
     (2 * depth * Math.tan(((camera.fov * Math.PI) / 180) / 2)) / Math.max(1, height)
   const length = GIZMO_PX * worldPerPixel
+  const bodyRadius = modelRadius(framing) / worldPerPixel
+  const ringPx = Math.min(
+    RING_MAX_PX,
+    Math.max(RING_MIN_PX, bodyRadius * RING_BODY_SHARE)
+  )
   const orientation = eulerToQuaternion(framing.rotation)
   const localAxes = UNIT_AXES.map((axis) => axis.clone().applyQuaternion(orientation))
   return {
     basis: modelCameraBasis(framing.orbit, framing.elevation),
-    bodyRadius: modelRadius(framing) / worldPerPixel,
+    bodyRadius,
     camera,
     center: project(pivot),
     length,
     localAxes,
     pivot,
     project,
+    ringLength: ringPx * worldPerPixel,
+    ringPx,
     shorter: Math.min(width, height),
     toCamera: toCamera.normalize(),
     worldPerPixel,
@@ -133,21 +149,36 @@ function axisScreen(view: View, axis: Vector3): { direction: Point; pixels: numb
   }
 }
 
-function ringPath(view: View, axis: Vector3): string {
+function ringPaths(view: View, axis: Vector3): { back: string; front: string } {
   const helper = Math.abs(axis.y) < 0.9 ? new Vector3(0, 1, 0) : new Vector3(1, 0, 0)
   const u = helper.clone().cross(axis).normalize()
   const v = axis.clone().cross(u).normalize()
-  const points: string[] = []
+  const front: string[] = []
+  const back: string[] = []
+  let previous: { facing: boolean; point: Point } | null = null
   for (let index = 0; index <= RING_SEGMENTS; index += 1) {
     const theta = (index / RING_SEGMENTS) * Math.PI * 2
-    const world = view.pivot
+    const offset = u
       .clone()
-      .addScaledVector(u, Math.cos(theta) * view.length)
-      .addScaledVector(v, Math.sin(theta) * view.length)
-    const point = view.project(world)
-    points.push(`${index === 0 ? "M" : "L"}${point.x.toFixed(1)} ${point.y.toFixed(1)}`)
+      .multiplyScalar(Math.cos(theta))
+      .addScaledVector(v, Math.sin(theta))
+    const facing = offset.dot(view.toCamera) >= -1e-3
+    const point = view.project(
+      view.pivot.clone().addScaledVector(offset, view.ringLength)
+    )
+    const target = facing ? front : back
+    const coords = `${point.x.toFixed(1)} ${point.y.toFixed(1)}`
+    if (previous && previous.facing === facing) {
+      target.push(`L${coords}`)
+    } else if (previous) {
+      const join = `${previous.point.x.toFixed(1)} ${previous.point.y.toFixed(1)}`
+      target.push(`M${join}`, `L${coords}`)
+    } else {
+      target.push(`M${coords}`)
+    }
+    previous = { facing, point }
   }
-  return points.join(" ")
+  return { back: back.join(" "), front: front.join(" ") }
 }
 
 function screenAngle(view: View, point: Point): number {
@@ -186,6 +217,8 @@ export function ModelGizmoOverlay({
   const lastPointer = useRef<Point | null>(null)
   const [box, setBox] = useState({ height: 1, width: 1 })
   const [hud, setHud] = useState<string | null>(null)
+  const [hover, setHover] = useState<string | null>(null)
+  const [active, setActive] = useState<string | null>(null)
   const layerId = layer?.id ?? null
 
   useEffect(() => {
@@ -354,6 +387,7 @@ export function ModelGizmoOverlay({
       if (!active) return
       session.current = null
       setHud(null)
+      setActive(null)
       if (!commit) write(active.original)
       useEditorStore.getState().endInteractiveEdit()
     },
@@ -542,16 +576,19 @@ export function ModelGizmoOverlay({
 
   if (!(layer && view) || disabled) return null
 
-  const start = (interaction: Interaction) => (event: ReactPointerEvent<SVGElement>) => {
-    if (panning || event.button !== 0 || session.current) return
-    const point = toLocal(event.clientX, event.clientY)
-    if (!point) return
-    event.preventDefault()
-    event.stopPropagation()
-    if (begin(interaction, point, event.pointerId, false)) {
-      event.currentTarget.setPointerCapture(event.pointerId)
+  const start =
+    (interaction: Interaction, id: string) =>
+    (event: ReactPointerEvent<SVGElement>) => {
+      if (panning || event.button !== 0 || session.current) return
+      const point = toLocal(event.clientX, event.clientY)
+      if (!point) return
+      event.preventDefault()
+      event.stopPropagation()
+      if (begin(interaction, point, event.pointerId, false)) {
+        event.currentTarget.setPointerCapture(event.pointerId)
+        setActive(id)
+      }
     }
-  }
   const drag = (event: ReactPointerEvent<SVGElement>) => {
     const active = session.current
     if (!active || active.modal || active.pointer !== event.pointerId) return
@@ -564,14 +601,31 @@ export function ModelGizmoOverlay({
     if (!active || active.modal || active.pointer !== event.pointerId) return
     finish(true)
   }
-  const handlers = (interaction: Interaction, cursor: string) => ({
+  const dragging = active !== null
+  const cursorFor = (cursor: string) => {
+    if (panning) return "inherit"
+    return dragging ? "grabbing" : cursor
+  }
+  const handlers: Handlers = (interaction, cursor, id) => ({
     onLostPointerCapture: end,
     onPointerCancel: end,
-    onPointerDown: start(interaction),
+    onPointerDown: start(interaction, id),
+    onPointerEnter: () => setHover(id),
+    onPointerLeave: () => setHover((current) => (current === id ? null : current)),
     onPointerMove: drag,
     onPointerUp: end,
-    style: { cursor: panning ? "inherit" : cursor, pointerEvents: "all" as const },
+    style: {
+      cursor: cursorFor(cursor),
+      pointerEvents: FILLED_HANDLES.has(id) ? ("all" as const) : ("stroke" as const),
+    },
   })
+  const look: Look = (id) => {
+    const focus = active ?? hover
+    if (active && active !== id) return { hidden: true, opacity: 0, width: STROKE }
+    if (focus === id) return { hidden: false, opacity: 1, width: STROKE_HOVER }
+    if (focus && focus !== "body") return { hidden: false, opacity: DIM_OPACITY, width: STROKE }
+    return { hidden: false, opacity: 1, width: STROKE }
+  }
 
   const { center } = view
   const body = Math.max(18, Math.min(view.bodyRadius, Math.max(box.width, box.height)))
@@ -590,7 +644,7 @@ export function ModelGizmoOverlay({
         aria-label="3D model gizmo"
         className="absolute inset-0 h-full w-full overflow-visible"
         role="application"
-        style={{ filter: "drop-shadow(0 0 1px rgba(0,0,0,0.85))" }}
+        style={{ filter: "drop-shadow(0 1px 1.5px rgba(0,0,0,0.55))" }}
       >
         <circle
           cx={center.x}
@@ -598,21 +652,20 @@ export function ModelGizmoOverlay({
           data-model-gizmo-handle="body"
           fill="transparent"
           r={body}
-          stroke="rgba(255,255,255,0.35)"
-          strokeDasharray="4 6"
-          {...handlers(free, mode === "move" ? "move" : "grab")}
+          stroke="none"
+          {...handlers(free, mode === "move" ? "move" : "grab", "body")}
         />
-        {mode === "move" ? renderMove(view, handlers) : null}
-        {mode === "rotate" ? renderRotate(view, handlers) : null}
-        {mode === "scale" ? renderScale(view, handlers) : null}
+        {mode === "move" ? renderMove(view, handlers, look) : null}
+        {mode === "rotate" ? renderRotate(view, handlers, look) : null}
+        {mode === "scale" ? renderScale(view, handlers, look) : null}
       </svg>
       {hud ? (
-        <div className="pointer-events-none absolute bottom-3 left-3 rounded-[6px] bg-[rgb(12_12_16_/_0.82)] px-2 py-1 font-[var(--ds-font-mono)] text-[10px] text-white/90">
-          {hud}
-          <span className="text-white/50">
+        <div className="ds-on-media pointer-events-none absolute bottom-[var(--ds-space-4)] left-1/2 inline-flex -translate-x-1/2 items-center gap-[var(--ds-space-2)] rounded-toolbar border border-[var(--ds-border-divider)] bg-[var(--ds-color-media-glass)] px-[var(--ds-space-3)] py-[var(--ds-space-1_5)] backdrop-blur-[12px]">
+          <span className="type-label font-medium">{hud}</span>
+          <span className="type-caption text-[var(--ds-color-text-secondary)]">
             {session.current?.modal
-              ? "  ·  X Y Z lock an axis · click or Enter applies · Esc cancels"
-              : "  ·  Esc cancels"}
+              ? "X, Y or Z locks an axis · Click or Enter applies · Esc cancels"
+              : "Esc cancels"}
           </span>
         </div>
       ) : null}
@@ -628,133 +681,151 @@ function freeInteraction(mode: ModelGizmoMode): Interaction {
 
 type Handlers = (
   interaction: Interaction,
-  cursor: string
+  cursor: string,
+  id: string
 ) => Record<string, unknown>
+type Look = (id: string) => { hidden: boolean; opacity: number; width: number }
 
-function renderMove(view: View, handlers: Handlers) {
+function renderMove(view: View, handlers: Handlers, look: Look) {
   const { center } = view
+  const free = look("move-view")
   return (
     <>
       {UNIT_AXES.map((axis, index) => {
+        const id = `move-${index}`
+        const style = look(id)
+        if (style.hidden) return null
         const screen = axisScreen(view, axis)
         if (screen.pixels < 10) return null
         const end = { x: center.x + screen.direction.x * screen.pixels, y: center.y + screen.direction.y * screen.pixels }
-        const back = { x: end.x - screen.direction.x * 10, y: end.y - screen.direction.y * 10 }
-        const side = { x: -screen.direction.y * 5, y: screen.direction.x * 5 }
+        const back = { x: end.x - screen.direction.x * 12, y: end.y - screen.direction.y * 12 }
+        const side = { x: -screen.direction.y * 6, y: screen.direction.x * 6 }
         const color = AXIS_COLORS[index]
         return (
-          <g data-model-gizmo-handle={`move-${AXIS_NAMES[index]}`} key={AXIS_NAMES[index]}>
-            <line stroke={color} strokeWidth={2} x1={center.x} x2={back.x} y1={center.y} y2={back.y} />
+          <g data-model-gizmo-handle={`move-${AXIS_NAMES[index]}`} key={AXIS_NAMES[index]} opacity={style.opacity}>
+            <line stroke={color} strokeLinecap="round" strokeWidth={style.width} x1={center.x} x2={back.x} y1={center.y} y2={back.y} />
             <polygon
               fill={color}
               points={`${end.x},${end.y} ${back.x + side.x},${back.y + side.y} ${back.x - side.x},${back.y - side.y}`}
             />
             <line
               stroke="transparent"
-              strokeLinecap="round"
-              strokeWidth={16}
-              x1={center.x + screen.direction.x * 12}
+              strokeLinecap="butt"
+              strokeWidth={HIT_STROKE}
+              x1={center.x + screen.direction.x * 14}
               x2={end.x}
-              y1={center.y + screen.direction.y * 12}
+              y1={center.y + screen.direction.y * 14}
               y2={end.y}
-              {...handlers({ axis: index as Axis, kind: "move" }, "move")}
+              {...handlers({ axis: index as Axis, kind: "move" }, "move", id)}
             />
           </g>
         )
       })}
-      <circle
-        cx={center.x}
-        cy={center.y}
-        data-model-gizmo-handle="move-view"
-        fill="rgba(255,255,255,0.12)"
-        r={8}
-        stroke="white"
-        strokeWidth={1.5}
-        {...handlers({ axis: null, kind: "move" }, "move")}
-      />
+      {free.hidden ? null : (
+        <circle
+          cx={center.x}
+          cy={center.y}
+          data-model-gizmo-handle="move-view"
+          fill="rgba(255,255,255,0.18)"
+          opacity={free.opacity}
+          r={9}
+          stroke="white"
+          strokeWidth={free.width - 0.5}
+          {...handlers({ axis: null, kind: "move" }, "move", "move-view")}
+        />
+      )}
     </>
   )
 }
 
-function renderRotate(view: View, handlers: Handlers) {
+function renderRotate(view: View, handlers: Handlers, look: Look) {
   const { center } = view
-  const viewRadius = GIZMO_PX * 1.25
+  const viewRadius = view.ringPx + 16
+  const viewLook = look("rotate-view")
   return (
     <>
-      <circle
-        cx={center.x}
-        cy={center.y}
-        data-model-gizmo-handle="rotate-view"
-        fill="none"
-        r={viewRadius}
-        stroke="rgba(255,255,255,0.85)"
-        strokeWidth={1.5}
-      />
-      <circle
-        cx={center.x}
-        cy={center.y}
-        fill="none"
-        r={viewRadius}
-        stroke="transparent"
-        strokeWidth={14}
-        {...handlers({ axis: "view", kind: "rotate" }, "grab")}
-      />
       {UNIT_AXES.map((axis, index) => {
-        const path = ringPath(view, axis)
+        const id = `rotate-${index}`
+        const style = look(id)
+        if (style.hidden) return null
+        const { back, front } = ringPaths(view, axis)
+        const color = AXIS_COLORS[index]
         return (
-          <g data-model-gizmo-handle={`rotate-${AXIS_NAMES[index]}`} key={AXIS_NAMES[index]}>
-            <path d={path} fill="none" stroke={AXIS_COLORS[index]} strokeWidth={2} />
+          <g data-model-gizmo-handle={`rotate-${AXIS_NAMES[index]}`} key={AXIS_NAMES[index]} opacity={style.opacity}>
+            <path d={back} fill="none" opacity={BACK_OPACITY} stroke={color} strokeLinecap="round" strokeWidth={style.width} />
+            <path d={front} fill="none" stroke={color} strokeLinecap="round" strokeWidth={style.width} />
             <path
-              d={path}
+              d={`${front} ${back}`}
               fill="none"
               stroke="transparent"
-              strokeWidth={14}
-              {...handlers({ axis: index as Axis, kind: "rotate" }, "grab")}
+              strokeWidth={HIT_STROKE}
+              {...handlers({ axis: index as Axis, kind: "rotate" }, "grab", id)}
             />
           </g>
         )
       })}
+      {viewLook.hidden ? null : (
+        <g data-model-gizmo-handle="rotate-view" opacity={viewLook.opacity}>
+          <circle cx={center.x} cy={center.y} fill="none" r={viewRadius} stroke="rgba(255,255,255,0.9)" strokeWidth={viewLook.width - 0.5} />
+          <circle
+            cx={center.x}
+            cy={center.y}
+            fill="none"
+            r={viewRadius}
+            stroke="transparent"
+            strokeWidth={HIT_STROKE}
+            {...handlers({ axis: "view", kind: "rotate" }, "grab", "rotate-view")}
+          />
+        </g>
+      )}
       <circle cx={center.x} cy={center.y} fill="white" r={2.5} />
     </>
   )
 }
 
-function renderScale(view: View, handlers: Handlers) {
+function renderScale(view: View, handlers: Handlers, look: Look) {
   const { center } = view
+  const uniform = look("scale-uniform")
   return (
     <>
       {view.localAxes.map((axis, index) => {
+        const id = `scale-${index}`
+        const style = look(id)
+        if (style.hidden) return null
         const screen = axisScreen(view, axis)
         if (screen.pixels < 10) return null
         const end = { x: center.x + screen.direction.x * screen.pixels, y: center.y + screen.direction.y * screen.pixels }
         const color = AXIS_COLORS[index]
         return (
-          <g data-model-gizmo-handle={`scale-${AXIS_NAMES[index]}`} key={AXIS_NAMES[index]}>
-            <line stroke={color} strokeWidth={2} x1={center.x} x2={end.x} y1={center.y} y2={end.y} />
-            <rect fill={color} height={9} width={9} x={end.x - 4.5} y={end.y - 4.5} />
+          <g data-model-gizmo-handle={`scale-${AXIS_NAMES[index]}`} key={AXIS_NAMES[index]} opacity={style.opacity}>
+            <line stroke={color} strokeLinecap="round" strokeWidth={style.width} x1={center.x} x2={end.x} y1={center.y} y2={end.y} />
+            <rect fill={color} height={11} rx={2} width={11} x={end.x - 5.5} y={end.y - 5.5} />
             <line
               stroke="transparent"
-              strokeLinecap="round"
-              strokeWidth={16}
-              x1={center.x + screen.direction.x * 12}
+              strokeLinecap="butt"
+              strokeWidth={HIT_STROKE}
+              x1={center.x + screen.direction.x * 14}
               x2={end.x}
-              y1={center.y + screen.direction.y * 12}
+              y1={center.y + screen.direction.y * 14}
               y2={end.y}
-              {...handlers({ axis: index as Axis, kind: "scale" }, "nwse-resize")}
+              {...handlers({ axis: index as Axis, kind: "scale" }, "nwse-resize", id)}
             />
           </g>
         )
       })}
-      <circle
-        cx={center.x}
-        cy={center.y}
-        data-model-gizmo-handle="scale-uniform"
-        fill="rgba(255,255,255,0.12)"
-        r={9}
-        stroke="white"
-        strokeWidth={1.5}
-        {...handlers({ axis: null, kind: "scale" }, "nwse-resize")}
-      />
+      {uniform.hidden ? null : (
+        <circle
+          cx={center.x}
+          cy={center.y}
+          data-model-gizmo-handle="scale-uniform"
+          fill="rgba(255,255,255,0.18)"
+          opacity={uniform.opacity}
+          r={10}
+          stroke="white"
+          strokeWidth={uniform.width - 0.5}
+          {...handlers({ axis: null, kind: "scale" }, "nwse-resize", "scale-uniform")}
+        />
+      )}
     </>
   )
 }

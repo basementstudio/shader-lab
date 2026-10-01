@@ -9,13 +9,16 @@ import { useDraftStore } from "@/store/draft-store"
 import { useEditorStore } from "@/store/editor-store"
 import { useHistoryStore } from "@/store/history-store"
 import { useRemixOriginStore } from "@/store/remix-origin-store"
+import { useThemeStore } from "@/store/theme-store"
 
 export type ProjectStart = "blank" | "demo"
 
 /** A new document owns its media and history; persisted older documents stay intact. */
 export function replaceWithNewProject(kind: ProjectStart): void {
   const project =
-    kind === "blank" ? getBlankProjectFile() : getDefaultProjectFile()
+    kind === "blank"
+      ? getBlankProjectFile(useThemeStore.getState().theme)
+      : getDefaultProjectFile()
   withAutosaveRestore(() => {
     disarmRemixDraft()
     useDraftStore.getState().clearActiveDraft()

@@ -18,8 +18,8 @@ export function PublicSceneCard({
   showAuthor?: boolean
 }) {
   return (
-    <div className="group flex min-w-0 flex-col gap-[var(--ds-space-2)] rounded-toolbar bg-[var(--ds-color-card)] p-bar pb-[var(--ds-space-3)] shadow-[var(--skin-card-shadow)] transition-[box-shadow,translate] duration-200 ease-[var(--ease-out-cubic)] hover:-translate-y-0.5 hover:shadow-[var(--ds-shadow-panel-dark)]">
-      <div className="relative aspect-[16/10] w-full overflow-hidden rounded-icon bg-[var(--ds-color-media)] has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-[var(--ds-color-accent)] has-[:focus-visible]:outline-offset-2">
+    <div className="group flex min-w-0 flex-col gap-[var(--ds-space-3)] rounded-scene-card bg-[var(--ds-color-card)] p-bar pb-[calc(var(--ds-space-bar)+var(--ds-space-3))] shadow-[var(--skin-card-shadow)] transition-[box-shadow,translate] duration-200 ease-[var(--ease-out-cubic)] hover:-translate-y-0.5 hover:shadow-[var(--ds-shadow-panel-dark)]">
+      <div className="relative aspect-[16/10] w-full overflow-hidden rounded-scene-thumb bg-[var(--ds-color-media)] has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-[var(--ds-color-accent)] has-[:focus-visible]:outline-offset-2">
         {scene.thumbnailUrl ? (
           <Image
             alt={scene.title}
@@ -48,14 +48,15 @@ export function PublicSceneCard({
         </div>
       </div>
 
+      <div className="flex min-w-0 flex-col gap-[var(--ds-space-1)] px-[var(--ds-space-3)]">
       <Link
-        className="min-w-0 rounded-[var(--ds-radius-control)] px-[var(--ds-space-1)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--ds-border-active)] focus-visible:outline-offset-2"
+        className="min-w-0 rounded-[var(--ds-radius-control)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--ds-border-active)] focus-visible:outline-offset-2"
         href={scenePagePath(scene.slug) as Route}
       >
         <Typography
           as="span"
           className="block overflow-hidden text-ellipsis whitespace-nowrap font-medium"
-          variant="label"
+          variant="title"
         >
           {scene.title}
         </Typography>
@@ -64,11 +65,11 @@ export function PublicSceneCard({
       {showAuthor ? (
         <AuthorLink
           avatarUrl={scene.authorAvatarUrl}
-          className="px-[var(--ds-space-1)]"
           handle={scene.authorHandle}
           name={scene.authorName}
         />
       ) : null}
+      </div>
     </div>
   )
 }

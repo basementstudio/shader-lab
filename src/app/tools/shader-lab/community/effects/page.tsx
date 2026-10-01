@@ -18,7 +18,7 @@ import { generateBreadcrumbSchema } from "@/lib/structured-data/schemas/breadcru
 import { generateCollectionPageSchema } from "@/lib/structured-data/schemas/collection"
 
 const DESCRIPTION =
-  "Every shader effect in Shader Lab — stack them on images, video, text, and 3D models, animate them on the timeline, and browse community scenes that use each one."
+  "Every effect in Shader Lab. Open one to see what it does and the community scenes built with it."
 
 export const metadata: Metadata = {
   alternates: { canonical: EFFECTS_PATH },
@@ -79,11 +79,11 @@ export default function EffectsIndexPage() {
           return (
             <li key={effect}>
               <Link
-                className="flex h-full flex-col gap-[var(--ds-space-2)] rounded-toolbar bg-[var(--ds-color-card)] p-bar pb-[var(--ds-space-3)] shadow-[var(--skin-card-shadow)] transition-[box-shadow,translate] duration-200 ease-[var(--ease-out-cubic)] hover:-translate-y-0.5 hover:shadow-[var(--ds-shadow-panel-dark)]"
+                className="flex h-full flex-col gap-[var(--ds-space-3)] rounded-scene-card bg-[var(--ds-color-card)] p-bar pb-[var(--ds-space-4)] shadow-[var(--skin-card-shadow)] transition-[box-shadow,translate] duration-200 ease-[var(--ease-out-cubic)] hover:-translate-y-0.5 hover:shadow-[var(--ds-shadow-panel-dark)]"
                 href={effectPagePath(effect) as Route}
               >
                 {entry.previewSrc ? (
-                  <span className="relative block aspect-[16/10] w-full overflow-hidden rounded-icon bg-[var(--ds-color-media)]">
+                  <span className="relative block aspect-[16/10] w-full overflow-hidden rounded-scene-thumb bg-[var(--ds-color-media)]">
                     <Image
                       alt={`${entry.label} effect example`}
                       className="object-cover"
@@ -93,13 +93,13 @@ export default function EffectsIndexPage() {
                     />
                   </span>
                 ) : null}
-                <Typography as="h2" className="px-[var(--ds-space-1)] font-medium" variant="label">
+                <Typography as="h2" className="px-[var(--ds-space-3)] font-medium" variant="label">
                   {entry.label}
                 </Typography>
                 {entry.description ? (
                   <Typography
                     as="p"
-                    className="px-[var(--ds-space-1)] text-pretty leading-[1.55]"
+                    className="px-[var(--ds-space-3)] text-pretty leading-[1.55]"
                     tone="secondary"
                     variant="caption"
                   >

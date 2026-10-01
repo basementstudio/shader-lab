@@ -296,6 +296,12 @@ function SourceButton({
   )
 }
 
+export const OPEN_LAYER_PICKER_EVENT = "shader-lab:open-layer-picker"
+
+export function requestLayerPicker(): void {
+  window.dispatchEvent(new Event(OPEN_LAYER_PICKER_EVENT))
+}
+
 export function LayerPicker({ className, onSelect }: LayerPickerProps) {
   const reduceMotion = useReducedMotion() ?? false
   const [open, setOpen] = useState(false)
@@ -418,6 +424,21 @@ export function LayerPicker({ className, onSelect }: LayerPickerProps) {
       previousFocusRef.current?.focus()
     }
   }, [open])
+
+  useEffect(() => {
+    const handleRequest = () => {
+      if (!triggerRef.current?.checkVisibility()) {
+        return
+      }
+      setCategory("all")
+      setTooltipWarm(false)
+      setOpen(true)
+    }
+
+    window.addEventListener(OPEN_LAYER_PICKER_EVENT, handleRequest)
+    return () =>
+      window.removeEventListener(OPEN_LAYER_PICKER_EVENT, handleRequest)
+  }, [])
 
   const handleSelect = useCallback(
     (action: AddLayerAction) => {

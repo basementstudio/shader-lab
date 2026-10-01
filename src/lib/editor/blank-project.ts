@@ -16,9 +16,19 @@ export function getBlankProjectAudio(): EditorAudioSnapshot {
   }
 }
 
-export function getBlankSceneConfig(): SceneConfig {
+export const BLANK_BACKGROUNDS = {
+  dark: DEFAULT_SCENE_CONFIG.backgroundColor,
+  light: "#e9e9eb",
+} as const
+
+export const LEGACY_BLANK_BACKGROUNDS = ["#ffffff"] as const
+
+export type BlankTheme = keyof typeof BLANK_BACKGROUNDS
+
+export function getBlankSceneConfig(theme: BlankTheme = "dark"): SceneConfig {
   return {
     ...structuredClone(DEFAULT_SCENE_CONFIG),
+    backgroundColor: BLANK_BACKGROUNDS[theme],
     compositionAspect: "16:9",
     compositionWidth: 1920,
     compositionHeight: 1080,
@@ -26,7 +36,7 @@ export function getBlankSceneConfig(): SceneConfig {
 }
 
 /** Independent objects: editing a scene must never mutate future defaults. */
-export function getBlankProjectFile(): LabProjectFile {
+export function getBlankProjectFile(theme: BlankTheme = "dark"): LabProjectFile {
   return {
     assets: [],
     audio: getBlankProjectAudio(),
@@ -34,7 +44,7 @@ export function getBlankProjectFile(): LabProjectFile {
     exportedAt: new Date().toISOString(),
     format: "shader-lab",
     layers: [],
-    sceneConfig: getBlankSceneConfig(),
+    sceneConfig: getBlankSceneConfig(theme),
     selectedLayerId: null,
     timeline: { duration: 10, loop: true, tracks: [] },
     version: CURRENT_PROJECT_FILE_VERSION,

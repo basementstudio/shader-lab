@@ -35,6 +35,7 @@ import {
 import {
   isAutosaveSuppressed,
   isRestoringAutosave,
+  markAutosaveReady,
   withAutosaveRestore,
 } from "@/lib/editor/autosave/suppress"
 import {
@@ -186,6 +187,7 @@ export function AutosaveMount() {
 
       if (getRequestedSceneSlug()) {
         readyRef.current = true
+        markAutosaveReady()
 
         return
       }
@@ -198,6 +200,7 @@ export function AutosaveMount() {
 
       if (!candidate) {
         readyRef.current = true
+        markAutosaveReady()
         if (editedBeforeReadyRef.current) scheduler.request()
 
         return
@@ -205,6 +208,7 @@ export function AutosaveMount() {
 
       if (editedBeforeReadyRef.current) {
         readyRef.current = true
+        markAutosaveReady()
         scheduler.request()
 
         return
@@ -223,6 +227,7 @@ export function AutosaveMount() {
 
         if (editedBeforeReadyRef.current) {
           readyRef.current = true
+          markAutosaveReady()
           scheduler.request()
 
           return
@@ -273,6 +278,8 @@ export function AutosaveMount() {
       }
 
       readyRef.current = true
+
+      markAutosaveReady()
     }
 
     void boot()
@@ -398,6 +405,7 @@ export function AutosaveMount() {
       scheduler.cancel()
       editedBeforeReadyRef.current = true
       readyRef.current = true
+      markAutosaveReady()
       replaceWithNewProject(kind)
       signatureRef.current = null
       // Persist even an untouched blank project, preventing older scenes returning.

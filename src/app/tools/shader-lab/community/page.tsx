@@ -121,7 +121,7 @@ function CommunityScenesSkeleton() {
       <div className="grid grid-cols-1 gap-[var(--ds-space-5)] min-[640px]:grid-cols-2 min-[1000px]:grid-cols-3">
         {COMMUNITY_SKELETON_KEYS.map((key) => (
           <div
-            className="aspect-[16/11] rounded-toolbar bg-[var(--ds-color-card)]"
+            className="aspect-[16/11] rounded-scene-card bg-[var(--ds-color-card)]"
             key={key}
           />
         ))}

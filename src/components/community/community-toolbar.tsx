@@ -51,7 +51,7 @@ function CommunityToolbarView({ pathname }: { pathname: string | null }) {
         variant="panel"
       >
         <Link
-          className="inline-flex h-[var(--ds-size-icon-button)] items-center rounded-icon px-[var(--ds-space-2)] transition-colors duration-160 ease-[var(--ease-out-cubic)] hover:bg-[var(--ds-color-surface-active)]"
+          className="hidden h-[var(--ds-size-icon-button)] shrink-0 items-center whitespace-nowrap rounded-icon sm:inline-flex px-[var(--ds-space-2)] transition-colors duration-160 ease-[var(--ease-out-cubic)] hover:bg-[var(--ds-color-surface-active)]"
           href={EDITOR_PATH as Route}
         >
           <Typography as="span" variant="label">
@@ -69,7 +69,7 @@ function CommunityToolbarView({ pathname }: { pathname: string | null }) {
               <Link
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "inline-flex h-[var(--ds-size-icon-button)] items-center rounded-icon px-[var(--ds-space-3)] transition-[background-color,box-shadow,color] duration-160 ease-[var(--ease-out-cubic)]",
+                  "inline-flex h-[var(--ds-size-icon-button)] items-center rounded-icon px-[var(--ds-space-2_5)] transition-[background-color,box-shadow,color] sm:px-[var(--ds-space-3)] duration-160 ease-[var(--ease-out-cubic)]",
                   active
                     ? "bg-[var(--skin-raised)] text-[var(--ds-color-text-primary)] shadow-[var(--ds-shadow-raised)]"
                     : "text-[var(--ds-color-text-secondary)] hover:text-[var(--ds-color-text-primary)]"
@@ -85,14 +85,15 @@ function CommunityToolbarView({ pathname }: { pathname: string | null }) {
           })}
         </nav>
 
-        <div className="inline-flex items-center gap-[var(--ds-space-1_5)]">
+        <div className="inline-flex shrink-0 items-center gap-[var(--ds-space-1_5)]">
           <ThemeToggleButton />
           <ButtonLink
             href={EDITOR_PATH as Route}
             size="compact"
             variant="primary"
           >
-            Open Shader Lab
+            <span className="sm:hidden">Open</span>
+            <span className="hidden sm:inline">Open Shader Lab</span>
           </ButtonLink>
         </div>
       </GlassPanel>

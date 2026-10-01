@@ -20,6 +20,8 @@
   --radius-icon: var(--ds-radius-icon);
   --radius-group: var(--ds-radius-group);
   --radius-toolbar: var(--ds-radius-toolbar);
+  --radius-scene-thumb: var(--ds-radius-scene-thumb);
+  --radius-scene-card: var(--ds-radius-scene-card);
   --spacing-bar: var(--ds-space-bar);
   --spacing-bar-group: var(--ds-space-bar-group);
 }

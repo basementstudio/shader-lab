@@ -497,6 +497,7 @@ export function EditorTopBar({
           >
             <IconButton
               aria-label="Drag"
+              tooltipDisabled
               className="h-7 w-7 cursor-grab text-[var(--ds-color-text-muted)] active:cursor-grabbing"
               tooltipSide="bottom"
               variant="ghost"

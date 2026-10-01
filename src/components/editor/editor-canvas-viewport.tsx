@@ -20,6 +20,20 @@ import { TextHandlesOverlay } from "./text-handles-overlay"
 import { MadeByBasement } from "@/components/editor/made-by-basement"
 import { useMobileCanvasFit } from "@/components/editor/use-mobile-canvas-fit"
 import { useEditorRenderer } from "@/hooks/use-editor-renderer"
+import { PlusIcon, StackIcon } from "@radix-ui/react-icons"
+import { requestLayerPicker } from "@/components/editor/layer-picker"
+import { Button } from "@/components/ui/button"
+import { Typography } from "@/components/ui/typography"
+import { cn } from "@/lib/cn"
+import {
+  isAutosaveReady,
+  subscribeAutosaveReady,
+} from "@/lib/editor/autosave/suppress"
+import {
+  BLANK_BACKGROUNDS,
+  LEGACY_BLANK_BACKGROUNDS,
+} from "@/lib/editor/blank-project"
+import { isLightColor } from "@/lib/editor/color-luminance"
 import { getDocumentSize } from "@/lib/editor/composition"
 import { isEditableTarget } from "@/lib/editor/is-editable-target"
 import { inferFileAssetKind } from "@/lib/editor/media-file"
@@ -38,6 +52,7 @@ import { useEditorStore } from "@/store/editor-store"
 import { useLayerStore } from "@/store/layer-store"
 import { useTimelineStore } from "@/store/timeline-store"
 import { findTextLayerToEdit, useTextEditStore } from "@/store/text-edit-store"
+import { useThemeStore } from "@/store/theme-store"
 
 export function EditorCanvasViewport() {
   const { canvasRef, fallbackMessage, isReady, viewportRef } =
@@ -69,6 +84,29 @@ export function EditorCanvasViewport() {
   const [isSpacePressed, setIsSpacePressed] = useState(false)
   const [isPointerPanning, setIsPointerPanning] = useState(false)
   const isEmpty = useLayerStore((state) => state.layers.length === 0)
+  const theme = useThemeStore((state) => state.theme)
+  const autosaveReady = useSyncExternalStore(
+    subscribeAutosaveReady,
+    isAutosaveReady,
+    () => false
+  )
+
+  useEffect(() => {
+    if (!(isEmpty && autosaveReady)) {
+      return
+    }
+    const other = theme === "light" ? "dark" : "light"
+    const { sceneConfig: current, updateSceneConfig } =
+      useEditorStore.getState()
+    const background = current.backgroundColor.toLowerCase()
+    const isOtherDefault =
+      background === BLANK_BACKGROUNDS[other] ||
+      (theme === "light" &&
+        (LEGACY_BLANK_BACKGROUNDS as readonly string[]).includes(background))
+    if (isOtherDefault) {
+      updateSceneConfig({ backgroundColor: BLANK_BACKGROUNDS[theme] })
+    }
+  }, [autosaveReady, isEmpty, theme])
   const addLayer = useLayerStore((state) => state.addLayer)
   const setLayerAsset = useLayerStore((state) => state.setLayerAsset)
   const seedDurationFromMedia = useTimelineStore(
@@ -360,7 +398,7 @@ export function EditorCanvasViewport() {
               data-artboard={fixedArtboard ? "fixed" : "screen"}
               className={
                 fixedArtboard
-                  ? "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-[0_0_0_1px_rgb(255_255_255_/_0.08),0_24px_80px_rgb(0_0_0_/_0.45)]"
+                  ? "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
                   : "absolute inset-0"
               }
               style={
@@ -424,14 +462,46 @@ export function EditorCanvasViewport() {
         !pendingSceneSlug &&
         !immersiveCanvas &&
         !exportingPreview ? (
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
-            <div className="max-w-60 text-center">
-              <p className="text-sm text-[var(--ds-color-text-secondary)]">
-                Add a layer to start
-              </p>
-              <p className="mt-2 text-balance text-xs leading-5 text-[var(--ds-color-text-muted)]">
-                Use + in Layers, or drop an image or video here.
-              </p>
+          <div
+            className={cn(
+              "pointer-events-none absolute inset-0 flex items-center justify-center p-6",
+              isLightColor(sceneConfig.backgroundColor)
+                ? "ds-on-paper"
+                : "ds-on-media"
+            )}
+          >
+            <div className="pointer-events-auto flex max-w-72 flex-col items-center gap-[var(--ds-space-4)] text-center">
+              <span className="inline-flex size-12 items-center justify-center rounded-toolbar bg-[var(--ds-color-surface-control)] text-[var(--ds-color-text-secondary)] shadow-[var(--ds-shadow-recessed)]">
+                <StackIcon height={20} width={20} />
+              </span>
+              <span className="flex flex-col gap-[var(--ds-space-1)]">
+                <Typography
+                  align="center"
+                  as="span"
+                  className="font-medium"
+                  variant="title"
+                >
+                  Start with a layer
+                </Typography>
+                <Typography
+                  align="center"
+                  as="span"
+                  className="text-balance"
+                  tone="secondary"
+                  variant="body"
+                >
+                  Add an effect or a source, or drop an image or video anywhere
+                  on the canvas.
+                </Typography>
+              </span>
+              <Button
+                onClick={requestLayerPicker}
+                size="compact"
+                variant="primary"
+              >
+                <PlusIcon height={14} width={14} />
+                Add layer
+              </Button>
             </div>
           </div>
         ) : null}

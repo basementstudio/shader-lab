@@ -13,108 +13,111 @@ export interface LayerCatalogEntry {
 export const LAYER_CATALOG: Record<LayerType, LayerCatalogEntry> = {
   group: { label: "Group" },
   "photographic-cells": {
+    description:
+      "Reveals the photo through a grid of cells joined into regions, with stepped edges and outlines.",
     category: "distort",
     label: "Photographic Cells",
-    description:
-      "Reveal connected photographic regions with stepped edges and perimeter outlines. Group with a photo to keep the cutout isolated.",
-    previewSrc: "/examples/photographic-cells.webp",
+    previewSrc: "/examples/effects/photographic-cells.webp",
   },
   "displaced-rings": {
+    description:
+      "Cuts the image into concentric rings or half-discs and shifts each one.",
     category: "distort",
     label: "Displaced Rings",
-    description:
-      "Fragment the image into offset rings or half-discs. Use Cutout inside a group to reveal layers beneath it.",
-    previewSrc: "/examples/displaced-rings.webp",
+    previewSrc: "/examples/effects/displaced-rings.webp",
   },
   ascii: {
-    category: "core",
     description:
-      "Turns the image into text glyphs for a classic terminal look.",
+      "Redraws the image as text characters, like an old terminal.",
+    category: "core",
     label: "ASCII",
-    previewSrc: "/examples/ascii.webp",
+    previewSrc: "/examples/effects/ascii.webp",
   },
   annotations: {
-    category: "core",
     description:
-      "Decorative technical marks: target rings, dashed circles and boxes, crosshairs, rulers, connectors, readouts and metadata blocks. Placed by seed, along edges or inside your brush strokes. Nothing is recognized.",
+      "Technical overlay marks: target rings, crosshairs, boxes, rulers, connectors and readouts, placed along edges, at random or where you paint. Purely decorative.",
+    category: "core",
     label: "Annotations",
-    previewSrc: "/examples/annotations.webp",
+    previewSrc: "/examples/effects/annotations.webp",
   },
   "blob-tracking": {
-    category: "distort",
     description:
-      "Tracks moving regions and frames them with CCTV-style shapes, corner brackets, edge dots, labels, and an inner effect. Labels are decorative, not recognition.",
+      "Finds moving regions and frames them with CCTV-style boxes, brackets and labels. Labels are decorative, not real recognition.",
+    category: "distort",
     label: "Blob Tracking",
-    previewSrc: "/examples/blob-tracking.webp",
+    previewSrc: "/examples/effects/blob-tracking.webp",
   },
   bloom: {
-    category: "core",
     description:
-      "Adds a standalone highlight bloom pass to the incoming frame.",
+      "Makes bright areas glow and bleed into their surroundings.",
+    category: "core",
     label: "Bloom",
+    previewSrc: "/examples/effects/bloom.webp",
   },
   blur: {
-    label: "Blur",
+    description:
+      "A plain, even blur over the whole frame.",
+    label: "Basic Blur",
   },
   "chromatic-aberration": {
-    category: "distort",
     description:
-      "Offsets color channels for fringing and lens-separation effects.",
+      "Splits the color channels apart for lens fringing.",
+    category: "distort",
     label: "Chromatic Aberration",
-    previewSrc: "/examples/chromatic-aberration.webp",
+    previewSrc: "/examples/effects/chromatic-aberration.webp",
   },
   "circuit-bent": {
-    category: "distort",
     description:
-      "Renders luma-gated scanlines and bends them around a pull or push attractor.",
+      "Turns the image into scanlines and bends them around a point that pulls or pushes.",
+    category: "distort",
     label: "Circuit Bent",
-    previewSrc: "/examples/circuit-bent.webp",
+    previewSrc: "/examples/effects/circuit-bent.webp",
   },
   crt: {
+    description:
+      "An old CRT screen: scanlines, phosphor glow and signal noise.",
     category: "core",
-    description: "Adds scanlines, phosphor bloom, and display-era noise.",
     label: "CRT",
-    previewSrc: "/examples/crt.webp",
+    previewSrc: "/examples/effects/crt.webp",
   },
   "custom-shader": {
     label: "Custom Shader",
   },
   "directional-blur": {
-    category: "distort",
     description:
-      "Smears pixels linearly or radially for motion, focus, or depth.",
+      "Smears the image in one direction or out from a center, for motion and speed.",
+    category: "distort",
     label: "Directional Blur",
-    previewSrc: "/examples/directional-blur.webp",
   },
   "displacement-map": {
-    category: "distort",
     description:
-      "Pushes pixels along luminance to create warped displacement fields.",
+      "Warps the image by pushing pixels according to brightness.",
+    category: "distort",
     label: "Displacement Map",
-    previewSrc: "/examples/displacement-map.webp",
+    previewSrc: "/examples/effects/displacement-map.webp",
   },
   dithering: {
+    description:
+      "Reduces the image to a few colors with ordered or textured dithering patterns.",
     category: "core",
-    description: "Reduces color resolution into ordered or textured dithering.",
     label: "Dithering",
-    previewSrc: "/examples/dithering.webp",
+    previewSrc: "/examples/effects/dithering.webp",
   },
   "edge-detect": {
-    category: "distort",
     description:
-      "Extracts contrast edges and turns them into graphic outlines.",
+      "Finds edges in the image and draws them as outlines.",
+    category: "distort",
     label: "Edge Detect",
-    previewSrc: "/examples/edge-detect.webp",
+    previewSrc: "/examples/effects/edge-detect.webp",
   },
   fluid: {
     label: "Fluid",
   },
   "fluted-glass": {
-    category: "distort",
     description:
-      "Ribbed lenticular glass distortion with subtle chromatic split.",
+      "Ribbed glass that slices the image into vertical strips with a slight color split.",
+    category: "distort",
     label: "Fluted Glass",
-    previewSrc: "/examples/fluted-glass.webp",
   },
   gradient: {
     label: "Mesh Gradient",
@@ -125,41 +128,42 @@ export const LAYER_CATALOG: Record<LayerType, LayerCatalogEntry> = {
       "A flat color silhouette: ellipse, rectangle, triangle, polygon, star, ring or blades. Blend it over photography or mask it.",
   },
   "connected-dots": {
-    category: "core",
     description:
-      "The image becomes points linked to their neighbors: tone-colored graphs, ink blobs that melt together in the darks, or plexus lines that fade with distance. Points can drift so links form and break over time.",
+      "Turns the image into points linked to their neighbors: tone graphs, ink blobs or fading plexus lines. Points can drift so links form and break.",
+    category: "core",
     label: "Connected Dots",
-    previewSrc: "/examples/connected-dots.webp",
+    previewSrc: "/examples/effects/connected-dots.webp",
   },
   "dot-grid": {
-    category: "core",
     description:
-      "An exact dot grid fixed to the artboard: every cell gets a dot that grows with the tone, shapes fade out into small dots at their edges, and a blurred copy can sit underneath. Not a print simulation; use Halftone for that.",
+      "A precise grid of dots locked to the artboard, each sized by the tone beneath it.",
+    category: "core",
     label: "Dot Grid",
-    previewSrc: "/examples/dot-grid.webp",
+    previewSrc: "/examples/effects/dot-grid.webp",
   },
   relief: {
-    category: "core",
     description:
-      "Emboss or deboss the image into a lit surface: silver plate, letterpress, blind emboss or gold foil, with optional engraved lines and grain. Height can come from tones, a depth map or a cutout's shape.",
+      "Embosses or debosses the image into a lit surface: silver plate, letterpress, blind emboss or gold foil.",
+    category: "core",
     label: "Relief",
-    previewSrc: "/examples/relief.webp",
+    previewSrc: "/examples/effects/relief.webp",
   },
   halftone: {
-    category: "core",
     description:
-      "Converts the frame into graphic dot screens and print textures.",
+      "Turns the image into printed dot screens.",
+    category: "core",
     label: "Halftone",
-    previewSrc: "/examples/halftone.webp",
+    previewSrc: "/examples/effects/halftone.webp",
   },
   image: {
     label: "Image",
   },
   ink: {
+    description:
+      "Smeared glow and fluid bleed for neon, ink-like edges.",
     category: "core",
-    description: "Adds smeared glow and fluid bleed for neon ink-like edges.",
     label: "Ink",
-    previewSrc: "/examples/ink.webp",
+    previewSrc: "/examples/effects/ink.webp",
   },
   live: {
     label: "Camera",
@@ -173,151 +177,152 @@ export const LAYER_CATALOG: Record<LayerType, LayerCatalogEntry> = {
       "A .glb model, with its animation clips, or an .svg logo extruded into a solid. Framed and lit automatically with HDR studios, its own PBR materials or chrome, brushed metal, glass, clay, rubber and iridescent replacements, soft shadows and a contact-shadow floor. Its exact depth drives Blur, Glass, Relief and depth masks.",
   },
   "particle-grid": {
+    description:
+      "Breaks the image into a grid of glowing particles.",
     category: "core",
-    description: "Breaks the image into a glowing particle matrix.",
     label: "Particle Grid",
-    previewSrc: "/examples/particle-grid.webp",
+    previewSrc: "/examples/effects/particle-grid.webp",
   },
   pattern: {
+    description:
+      "Rebuilds the image from repeating graphic patterns, light to dark.",
     category: "core",
-    description: "Maps the source into repeatable woven and graphic textures.",
     label: "Pattern",
-    previewSrc: "/examples/pattern.webp",
+    previewSrc: "/examples/effects/pattern.webp",
   },
   "pixel-sorting": {
-    category: "distort",
     description:
-      "Sorts neighboring pixels into streaks based on luma or color.",
+      "Sorts pixels into streaks by brightness or color.",
+    category: "distort",
     label: "Pixel Sorting",
-    previewSrc: "/examples/pixel-sorting.webp",
+    previewSrc: "/examples/effects/pixel-sorting.webp",
   },
   "pixel-trail": {
     label: "Pixel Trail",
   },
   pixelation: {
-    category: "core",
     description:
-      "Groups neighboring pixels into larger blocks for a low-res look.",
+      "Turns the image into large square pixels.",
+    category: "core",
     label: "Pixelation",
-    previewSrc: "/examples/pixelation.webp",
+    previewSrc: "/examples/effects/pixelation.webp",
   },
   outline: {
-    category: "core",
     description:
-      "Outlines text, cutouts or the dark and light shapes of the image: solid, double, dashed or scalloped cloud outlines, offset outward, repeated as rings and optionally filled.",
+      "Draws outlines around text, cutouts or the shapes in the image: solid, double, dashed or scalloped, repeated as rings.",
+    category: "core",
     label: "Outline",
-    previewSrc: "/examples/outline.webp",
+    previewSrc: "/examples/effects/outline.webp",
   },
   photocopy: {
-    category: "core",
     description:
-      "A degraded photocopy: crushed toner on paper, uneven fill, toner speckle, drum streaks, misregistration and folds. Generations turns it into a copy of a copy.",
+      "A worn photocopy: crushed toner, speckle, streaks, misregistration and folds. Copies of copies degrade further.",
+    category: "core",
     label: "Photocopy",
-    previewSrc: "/examples/photocopy.webp",
+    previewSrc: "/examples/effects/photocopy.webp",
   },
   plotter: {
-    category: "core",
     description:
-      "A pen plotter drawing of the image: hatching and crosshatch, flow lines along the forms, contour lines, squiggles, a single spiral or stipple dots, with pen width, pressure, wobble, ink bleed, up to three pens and paper.",
+      "Redraws the image as a pen plotter would: hatching, flow lines, contours, squiggles, a spiral or stipple.",
+    category: "core",
     label: "Plotter",
-    previewSrc: "/examples/plotter.webp",
+    previewSrc: "/examples/effects/plotter.webp",
   },
   posterize: {
-    category: "core",
     description:
-      "Compresses tones into fewer steps while keeping the image graphic.",
+      "Flattens the image into a few bands of color.",
+    category: "core",
     label: "Posterize",
-    previewSrc: "/examples/posterize.webp",
+    previewSrc: "/examples/effects/posterize.webp",
   },
   slice: {
-    category: "distort",
     description:
-      "Offsets horizontal slices into blocky glitch bands and streaks.",
+      "Shifts horizontal slices of the image sideways into glitchy bands.",
+    category: "distort",
     label: "Slice",
-    previewSrc: "/examples/slice.webp",
+    previewSrc: "/examples/effects/slice.webp",
   },
   "signal-rot": {
-    category: "distort",
     description:
-      "Scanner drag and decaying signal: held streaks, snaking wobble, torn bands with paper dropouts, chroma drift, crushed levels and line noise. Start from a style, then tune.",
+      "A failing scan: dragged streaks, wobble, torn bands, color drift and line noise.",
+    category: "distort",
     label: "Signal Rot",
-    previewSrc: "/examples/signal-rot.webp",
+    previewSrc: "/examples/effects/signal-rot.webp",
   },
   erosion: {
-    category: "distort",
     description:
-      "Crumbles the image into speckle along its edges, light or dark tones, or the border of a cutout, throwing fragments outward. Reveal paper or cut transparent holes. Start from a style, then tune.",
+      "Crumbles the image into speckle along edges, tones or a cutout's border, throwing fragments outward.",
+    category: "distort",
     label: "Erosion",
-    previewSrc: "/examples/erosion.webp",
+    previewSrc: "/examples/effects/erosion.webp",
   },
   smear: {
-    category: "distort",
     description:
-      "Blur that ramps from sharp to soft across a controllable range.",
+      "Blur that ramps from sharp to soft across the frame.",
+    category: "distort",
     label: "Progressive Blur",
-    previewSrc: "/examples/progressive-blur.webp",
   },
   text: {
     label: "Text",
   },
   threshold: {
-    category: "core",
     description:
-      "Turns the frame into stark black and white with controllable cutoff and grain.",
+      "Turns the image into stark black and white at a cutoff you set.",
+    category: "core",
     label: "Threshold",
-    previewSrc: "/examples/threshold.webp",
+    previewSrc: "/examples/effects/threshold.webp",
   },
   "gradient-map": {
-    category: "core",
     description:
-      "Recolors the image by tone with an editable ramp. Unlike the Gradient layer, it maps existing colors instead of painting a field. Scope it with groups and masks.",
+      "Recolors the image by brightness using a color ramp you edit.",
+    category: "core",
     label: "Gradient Map",
-    previewSrc: "/examples/gradient-map.webp",
+    previewSrc: "/examples/effects/gradient-map.webp",
   },
   "lumen-print": {
-    category: "core",
     description:
-      "Analog photographic print: sun-print toning, solarized tones with edge lines, halation, highlights washed into paper, burned borders and grain. Start from a style, then tune.",
+      "An analog sun print: toned shadows, solarized highlights, halation, burned edges and grain.",
+    category: "core",
     label: "Lumen Print",
-    previewSrc: "/examples/lumen-print.webp",
+    previewSrc: "/examples/effects/lumen-print.webp",
   },
   grain: {
-    category: "core",
     description:
-      "Photographic film grain for photos and video: fine 35mm, color negative, 16mm, pushed or digital noise. Strongest in the midtones like film, and at Speed above 0 it changes every frame like real film instead of sliding.",
+      "Film grain for photos and video, from fine 35mm to pushed 16mm. It can change every frame, like real film.",
+    category: "core",
     label: "Grain",
-    previewSrc: "/examples/grain.webp",
+    previewSrc: "/examples/effects/grain.webp",
   },
   "focus-blur": {
-    category: "core",
     description:
-      "High-quality blur that can change across the image: real depth of field from a depth map, tilt-shift bands, radial focus or tone-driven, as smooth Gaussian, lens bokeh or motion streaks, with grain. Large radii stay smooth.",
+      "Blur that varies across the frame: depth of field, tilt-shift, radial focus or tone-based, with Gaussian, lens bokeh or motion streaks.",
+    category: "core",
     label: "Blur",
-    previewSrc: "/examples/focus-blur.webp",
+    previewSrc: "/examples/effects/focus-blur.webp",
   },
   glass: {
-    category: "distort",
     description:
-      "Textured glass in front of the image: reeded flutes, hammered, pyramid or hex cells and frost. Every cell is a small lens, the scene blurs with its distance behind the glass, and edges catch the light.",
+      "Textured glass in front of the image: reeded, hammered, pyramid, hex or frosted. Every cell acts as a small lens.",
+    category: "distort",
     label: "Glass",
-    previewSrc: "/examples/glass.webp",
+    previewSrc: "/examples/effects/glass.webp",
   },
   flares: {
-    category: "core",
     description:
-      "Light flares from the brightest small points in the image: crosses, stars, starbursts or long anamorphic streaks, with a hot core and colored rays. Large bright areas stay clean.",
+      "Light flares on the brightest points: crosses, stars, starbursts or anamorphic streaks.",
+    category: "core",
     label: "Flares",
-    previewSrc: "/examples/flares.webp",
+    previewSrc: "/examples/effects/flares.webp",
   },
   video: {
     label: "Video",
   },
   voxel: {
-    category: "core",
     description:
-      "Quantizes the frame into isometric cubes; depth raises columns by luminance.",
+      "Rebuilds the image from isometric cubes, with brighter areas rising higher.",
+    category: "core",
     label: "Voxel",
-    previewSrc: "/examples/voxel.webp",
+    previewSrc: "/examples/effects/voxel.webp",
   },
 }
 

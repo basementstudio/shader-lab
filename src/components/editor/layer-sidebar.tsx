@@ -36,7 +36,6 @@ import { useLayerDrag } from "@/components/editor/use-layer-drag"
 import { GlassPanel } from "@/components/ui/glass-panel"
 import { IconButton } from "@/components/ui/icon-button"
 import { Select } from "@/components/ui/select"
-import { HoverTooltip } from "@/components/ui/tooltip"
 import { Typography } from "@/components/ui/typography"
 import { playUISound } from "@/lib/audio/shader-lab-sounds"
 import { cn } from "@/lib/cn"
@@ -56,7 +55,7 @@ import type { AssetKind, EditorAsset, EditorLayer } from "@/types/editor"
 type LayerAction = "delete" | "duplicate" | "reset" | "ungroup" | "up" | "down"
 
 const thumbnailBaseClassName =
-  "relative size-7 overflow-hidden rounded-[var(--ds-radius-thumb)] border border-[var(--ds-border-divider)]"
+  "relative size-7 overflow-hidden rounded-[var(--ds-radius-row-thumb)] border border-[var(--ds-border-divider)]"
 
 function LayerThumbnail({
   asset,
@@ -167,7 +166,7 @@ function LayerListShell({
       className={
         nested
           ? "ml-2 flex flex-col gap-0.5 border-l border-[var(--ds-border-divider)] pl-1"
-          : "flex max-h-[min(44vh,320px)] min-[900px]:max-h-[min(52vh,480px)] flex-col gap-0.5 overflow-y-auto overscroll-contain p-1"
+          : "flex max-h-[min(44vh,320px)] min-[900px]:max-h-[min(52vh,480px)] flex-col gap-0.5 overflow-y-auto overscroll-contain p-bar"
       }
     >
       {children}
@@ -230,31 +229,26 @@ const LayerListItem = memo(function LayerListItem({
         className={cn(
           dragPlacement === "inside" &&
             "ring-1 ring-inset ring-[var(--ds-color-text-primary)]",
-          "relative grid min-h-11 grid-cols-[minmax(0,1fr)_28px_28px_28px] items-center gap-1 rounded-[var(--ds-radius-control)] border border-transparent px-1.5 py-[6px]",
-          !layer.locked &&
-            "hover:border-[var(--ds-border-subtle)] hover:bg-[var(--ds-color-surface-subtle)]",
+          "relative grid min-h-11 grid-cols-[minmax(0,1fr)_28px_28px_28px] items-center gap-1 rounded-[var(--ds-radius-row)] p-[var(--ds-space-row-inset)] transition-[background-color,box-shadow] duration-160 ease-[var(--ease-out-cubic)]",
+          !(layer.locked || isSelected) &&
+            "hover:bg-[var(--skin-row-hover)]",
           isSelected &&
-            "border-[var(--ds-border-active)] bg-[var(--ds-color-surface-active)]"
+            "bg-[var(--skin-row-selected)] shadow-[var(--ds-shadow-raised)]"
         )}
       >
         <div className="flex min-w-0 items-center gap-1.5">
-          <HoverTooltip
-            content="Drag to reorder or move between groups"
-            side="right"
+          <button
+            aria-label={`Reorder ${layer.name}`}
+            className="inline-flex size-4 shrink-0 touch-none items-center justify-center bg-transparent p-0 text-[var(--ds-color-text-muted)] enabled:cursor-grab enabled:active:cursor-grabbing disabled:opacity-40"
+            disabled={layer.locked || isFloatingPanelDragging}
+            onPointerDown={(event) => {
+              event.stopPropagation()
+              onDragStart(layer.id, event)
+            }}
+            type="button"
           >
-            <button
-              aria-label={`Reorder ${layer.name}`}
-              className="inline-flex size-4 shrink-0 touch-none items-center justify-center bg-transparent p-0 text-[var(--ds-color-text-muted)] enabled:cursor-grab enabled:active:cursor-grabbing disabled:opacity-40"
-              disabled={layer.locked || isFloatingPanelDragging}
-              onPointerDown={(event) => {
-                event.stopPropagation()
-                onDragStart(layer.id, event)
-              }}
-              type="button"
-            >
-              <DragHandleDots2Icon height={14} width={14} />
-            </button>
-          </HoverTooltip>
+            <DragHandleDots2Icon height={14} width={14} />
+          </button>
           {isGroup && (
             <button
               aria-label={`${layer.expanded ? "Collapse" : "Expand"} ${layer.name}`}
@@ -730,9 +724,7 @@ export function LayerSidebar() {
     <output
       aria-live="polite"
       className={cn(
-        "pointer-events-none absolute right-0 bottom-full left-0 z-10 mb-1 min-[900px]:top-full min-[900px]:bottom-auto min-[900px]:mt-1 min-[900px]:mb-0 rounded-[var(--ds-radius-control)] text-xs text-[var(--ds-color-text-secondary)]",
-        layerDrag.preview &&
-          "border border-[var(--ds-border-divider)] bg-[rgb(20_20_24_/_0.96)] px-3 py-2"
+        "sr-only"
       )}
     >
       {layerDrag.preview?.message}
@@ -862,6 +854,7 @@ export function LayerSidebar() {
                 <div className="inline-flex items-center gap-2">
                   <IconButton
                     aria-label="Move layers panel"
+                    tooltipDisabled
                     className="h-7 w-7 cursor-grab text-[var(--ds-color-text-muted)] active:cursor-grabbing"
                     variant="ghost"
                     {...dragHandleProps}

@@ -277,7 +277,9 @@ export function ModelControls({
           ))}
         </div>
         <Typography tone="muted" variant="caption">
-          Drag the gizmo, or hover the canvas and press G, R or S, then X, Y or Z to lock an axis. Alt with G, R or S clears it. Middle-drag orbits the camera.
+          Drag the model to turn it freely, or drag a colored ring or arrow to
+          use one axis. Shortcuts: G, R, S, then X, Y or Z to lock an axis;
+          Alt resets. Middle-drag orbits the camera.
         </Typography>
       </div>
       {svgSource ? (

@@ -1140,6 +1140,7 @@ export function PropertiesSidebar() {
                   <div className="inline-flex items-center gap-2">
                     <IconButton
                       aria-label="Move properties panel"
+                      tooltipDisabled
                       className="h-7 w-7 cursor-grab text-[var(--ds-color-text-muted)] active:cursor-grabbing"
                       variant="ghost"
                       {...dragHandleProps}

@@ -61,12 +61,14 @@ import {
   buildShaderExportConfig,
   validateShaderExportSupport,
 } from "@/lib/editor/shader-export"
+import { disarmRemixDraft } from "@/lib/editor/remix-draft"
 import { generateShaderExportSnippet } from "@/lib/editor/shader-export-snippet"
 import {
   type AudioAnalysisStatus,
   selectAudioModulationInput,
 } from "@/store/audio-store"
 import { useDraftStore } from "@/store/draft-store"
+import { useRemixOriginStore } from "@/store/remix-origin-store"
 import {
   useAssetStore,
   useAudioStore,
@@ -855,7 +857,9 @@ export function EditorExportDialog({
       }
 
       const result = withAutosaveSuppressed(() => {
+        disarmRemixDraft()
         useDraftStore.getState().clearActiveDraft()
+        useRemixOriginStore.getState().clearRemixOrigin()
 
         return applyLabProjectFile(projectFile, useAssetStore.getState().assets)
       })

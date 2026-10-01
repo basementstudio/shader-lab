@@ -102,6 +102,9 @@ export function TextHandlesOverlay({
         const params = store.layers.find((l) => l.id === id)?.params ?? layer.params
         store.updateLayerParam(id, "offset", offsetFromPivotUnits(params, logical, original.center))
         store.updateLayerParam(id, "rotation", original.rotation)
+        const ratio = original.size[1] / Math.max(1e-6, measure(params, logical)[1])
+        const size = Math.round(Math.min(600, Math.max(8, textFontSize(params) * ratio)))
+        if (size !== textFontSize(params)) store.updateLayerParam(id, "fontSize", size)
       }}
     />
   )

@@ -12,6 +12,8 @@ import { useEditorStore } from "@/store/editor-store"
 import { useLayerStore } from "@/store/layer-store"
 import { canEditTextLayer, useTextEditStore } from "@/store/text-edit-store"
 
+const MAX_TEXT_LENGTH = 600
+
 function shift(placement: "left" | "center" | "right" | "top" | "bottom"): string {
   if (placement === "left" || placement === "top") return "0%"
   if (placement === "right" || placement === "bottom") return "-100%"
@@ -106,7 +108,7 @@ function Editor({ id }: { id: string }) {
           left: px * scale,
           top: py * scale,
           transform: `translate(${translateX}, ${translateY}) rotate(${resolveTextRotation(params.rotation)}deg)`,
-          transformOrigin: horizontal,
+          transformOrigin: `${horizontal} ${placement.vertical}`,
           fontFamily: family,
           fontWeight: weight,
           fontSize: `${fontSize}px`,
@@ -117,7 +119,9 @@ function Editor({ id }: { id: string }) {
         }}
         value={text}
         onChange={(event) =>
-          useLayerStore.getState().updateLayerParam(id, "text", event.currentTarget.value)
+          useLayerStore
+            .getState()
+            .updateLayerParam(id, "text", event.currentTarget.value.slice(0, MAX_TEXT_LENGTH))
         }
         onKeyDown={(event) => {
           if (event.key === "Escape") {

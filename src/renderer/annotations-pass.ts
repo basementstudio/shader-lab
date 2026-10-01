@@ -75,6 +75,14 @@ export class AnnotationsPass extends PassNode {
   private paintMask: CellPaintMask | null = null
   private edges: EdgeField | null = null
   pendingReadback: Promise<void> | null = null
+  private lastFrame: {
+    renderer: THREE.WebGPURenderer
+    inputTexture: THREE.Texture
+    outputTarget: THREE.WebGLRenderTarget
+    time: number
+    delta: number
+  } | null = null
+  private disposed = false
   private edgeFrame = 0
   private edgeInputVersion = 1
   private edgeReadVersion = 0
@@ -187,6 +195,7 @@ export class AnnotationsPass extends PassNode {
     delta: number
   ): void {
     this.time = time
+    this.lastFrame = { renderer, inputTexture, outputTarget, time, delta }
     if (this.inputChanged) this.edgeInputVersion += 1
     if (this.config?.placement === "edges" || this.config?.placement === "regions") {
       this.renderEdges(renderer, inputTexture)
@@ -201,6 +210,8 @@ export class AnnotationsPass extends PassNode {
   }
 
   override dispose(): void {
+    this.disposed = true
+    this.lastFrame = null
     this.elementMesh?.geometry.dispose()
     ;(this.elementMesh?.material as THREE.Material | undefined)?.dispose()
     this.glyphMesh?.geometry.dispose()
@@ -590,6 +601,14 @@ export class AnnotationsPass extends PassNode {
     return material
   }
 
+  private redrawAfterReadback(): void {
+    const frame = this.lastFrame
+    if (!frame || this.disposed) return
+    this.relayout()
+    this.renderDecorations(frame.renderer)
+    super.render(frame.renderer, frame.inputTexture, frame.outputTarget, frame.time, frame.delta)
+  }
+
   private renderEdges(renderer: THREE.WebGPURenderer, input: THREE.Texture): void {
     if (!(this.edgeScene && this.edgeRt && this.edgeInput && this.edgeMesh)) return
     const segment = this.config?.placement === "regions"
@@ -658,6 +677,7 @@ export class AnnotationsPass extends PassNode {
         this.edgeReadVersion = version
         this.edgeReadRich = rich
         this.pendingReadback = null
+        this.redrawAfterReadback()
       })
       .catch(() => {
         this.pendingReadback = null

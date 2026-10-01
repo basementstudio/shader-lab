@@ -316,7 +316,11 @@ function edgeTangentAt(edges: EdgeField, aspect: number, x: number, y: number): 
   if (!edges.angle) return 0
   const u = Math.min(0.999, Math.max(0, x / aspect))
   const v = Math.min(0.999, Math.max(0, y))
-  return edges.angle[Math.floor(v * edges.height) * edges.width + Math.floor(u * edges.width)] ?? 0
+  const stored = edges.angle[Math.floor(v * edges.height) * edges.width + Math.floor(u * edges.width)] ?? 0
+  const squash = edges.width / edges.height / aspect
+  if (Math.abs(squash - 1) < 1e-6) return stored
+  const gradient = stored - Math.PI / 2
+  return Math.atan2(Math.sin(gradient), Math.cos(gradient) * squash) + Math.PI / 2
 }
 
 function boxReach(hw: number, hh: number, rotation: number): [number, number] {
@@ -474,6 +478,13 @@ export function layoutAnnotations(config: AnnotationConfig, context: LayoutConte
     make: (shape: RegionShape, rng: () => number, index: number) => void
   ) => {
     if (!regions || count <= 0) return
+    if (count < regions.length) {
+      for (let made = 0; made < count; made++) {
+        const shape = regions[Math.floor(((made + 0.5) * regions.length) / count)]
+        if (shape) make(shape, regionRandom(shape.id, family, 0), made)
+      }
+      return
+    }
     const quota = Math.ceil(count / regions.length)
     let made = 0
     for (const shape of regions) {

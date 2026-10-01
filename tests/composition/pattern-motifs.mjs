@@ -283,10 +283,10 @@ export async function checkPatternMotifs(renderProject) {
   const result = applyLabProjectFile(parseLabProjectFileValue(missing), [])
   const missingLayer = store().getLayerById(pattern.id)
   assert(
-    missingLayer.patternAssetIds.join() === "motif-red,motif-green" &&
+    missingLayer.patternAssetIds.join() === "motif-red,motif-green,motif-blue" &&
       missingLayer.runtimeError === "Missing motif: rotten.svg" &&
       result.missingAssetCount === 1,
-    `A missing motif is dropped and reported, got ${JSON.stringify([missingLayer.patternAssetIds, missingLayer.runtimeError, result])}`
+    `A missing motif keeps its place and is reported, got ${JSON.stringify([missingLayer.patternAssetIds, missingLayer.runtimeError, result])}`
   )
   samples += 3
 

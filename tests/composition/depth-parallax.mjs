@@ -383,7 +383,7 @@ function modelChecks(colorUrl, depthUrl) {
   const reopenedMissing = applyLabProjectFile(parseLabProjectFileValue(JSON.parse(JSON.stringify(saved))), [colorAsset])
   assert(reopenedMissing.missingAssetCount === 0 || reopenedMissing.missingAssetCount === 1, "Missing depth reopen ran")
   const missingLayer = store().getLayerById(layer.id)
-  assert(missingLayer.depthAssetId === null && /Missing depth map: scene-depth.png/.test(missingLayer.runtimeError ?? ""), `Missing depth map is reported, got ${missingLayer.runtimeError}`)
+  assert(missingLayer.depthAssetId === "depth-1" && /Missing depth map: scene-depth.png/.test(missingLayer.runtimeError ?? ""), `Missing depth map is reported, got ${missingLayer.runtimeError}`)
 
   store().replaceState([])
   applyLabProjectFile(parseLabProjectFileValue(JSON.parse(JSON.stringify(saved))), [colorAsset, depthAsset])

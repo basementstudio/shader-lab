@@ -29,7 +29,10 @@ const SUPPORTED_SHADER_EXPORT_LAYER_TYPES = new Set<LayerType>([
   "text",
   "live",
   "custom-shader",
+  "pixel-trail",
+  "magnify-lens",
   "ascii",
+  "blob-tracking",
   "bloom",
   "circuit-bent",
   "directional-blur",
@@ -72,7 +75,6 @@ const SUPPORTED_SHADER_EXPORT_LAYER_TYPES = new Set<LayerType>([
 const UNSUPPORTED_SHADER_EXPORT_LAYER_TYPES = new Set<LayerType>([
   "model",
   "blur",
-  "blob-tracking",
 ] as const)
 
 type SupportedShaderExportLayerType = Extract<
@@ -80,6 +82,7 @@ type SupportedShaderExportLayerType = Extract<
   | "group"
   | "annotations"
   | "ascii"
+  | "blob-tracking"
   | "bloom"
   | "circuit-bent"
   | "directional-blur"
@@ -97,10 +100,12 @@ type SupportedShaderExportLayerType = Extract<
   | "ink"
   | "live"
   | "lumen-print"
+  | "magnify-lens"
   | "particle-grid"
   | "pattern"
   | "pixelation"
   | "pixel-sorting"
+  | "pixel-trail"
   | "plotter"
   | "posterize"
   | "photographic-cells"

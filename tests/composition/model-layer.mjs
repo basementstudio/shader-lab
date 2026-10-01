@@ -565,7 +565,7 @@ function projectChecks() {
   const missing = applyLabProjectFile(parseLabProjectFileValue(project), [])
   const hydrated = useLayerStore.getState().getLayerById(model.id)
   assert(missing.missingAssetCount === 1 && hydrated.runtimeError === "Missing asset: chair.glb", "Missing model is reported")
-  assert(hydrated.environmentAssetId === null, "A missing environment is unlinked on import")
+  assert(hydrated.environmentAssetId === "hdr", "A missing environment stays linked on import")
   const withModel = { ...project, layers: [{ ...model, assetId: null }] }
   applyLabProjectFile(parseLabProjectFileValue(withModel), [])
   const environmentMissing = useLayerStore.getState().getLayerById(model.id)

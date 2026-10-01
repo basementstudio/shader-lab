@@ -163,6 +163,11 @@ export class ModelPass extends PassNode {
   private readonly depthTarget: THREE.WebGLRenderTarget
   private readonly sceneDepthTarget: THREE.WebGLRenderTarget
   private readonly depthMaterial = new THREE.MeshBasicNodeMaterial()
+  private readonly depthCutouts = new Map<
+    string,
+    THREE.MeshBasicNodeMaterial
+  >()
+  private readonly depthColor: Node
   private readonly depthNear: Node
   private readonly depthFar: Node
   private readonly composeScene = new THREE.Scene()
@@ -257,7 +262,8 @@ export class ModelPass extends PassNode {
       float(1)
     )
     this.depthMaterial.blending = THREE.NoBlending
-    this.depthMaterial.colorNode = vec4(depth, 1, 0, 1)
+    this.depthColor = vec4(depth, 1, 0, 1)
+    this.depthMaterial.colorNode = this.depthColor
 
     this.hasIncomingDepth = uniform(0)
     this.incomingDepthNode = tslTexture(
@@ -455,6 +461,7 @@ export class ModelPass extends PassNode {
     this.floorGeometry.dispose()
     this.keyLight.shadow.dispose()
     this.depthMaterial.dispose()
+    this.disposeDepthCutouts()
     this.composeMaterial.dispose()
     this.composeGeometry.dispose()
     this.composeScene.clear()
@@ -571,6 +578,7 @@ export class ModelPass extends PassNode {
       disposeObject(this.model)
     }
     this.originalMaterials.clear()
+    this.disposeDepthCutouts()
     this.overrides?.dispose()
     this.overrides = null
     this.materialPreset = "original"
@@ -694,6 +702,7 @@ export class ModelPass extends PassNode {
       this.floorY = this.lowestPoint()
     }
 
+    const floorWorldY = this.floorY + ly
     this.spinGroup.rotation.y = framing.spin * time * DEG
     this.locationGroup.updateMatrixWorld(true)
 
@@ -724,7 +733,7 @@ export class ModelPass extends PassNode {
     const light = this.keyLight
     light.intensity = readNumber(params.lightIntensity, 1, 0, 20)
     light.color.set(readColor(params.lightColor, "#ffffff"))
-    light.target.position.set(lx, this.floorY + radius, lz)
+    light.target.position.set(lx, floorWorldY + radius, lz)
     light.target.updateMatrixWorld(true)
     light.position.copy(light.target.position).addScaledVector(direction, radius * 8)
     const shadowCamera = light.shadow.camera as THREE.OrthographicCamera
@@ -742,7 +751,7 @@ export class ModelPass extends PassNode {
     const floorShadow = readNumber(params.floorShadow, 0.5, 0, 1)
     const contactShadow = readNumber(params.contactShadow, 0.6, 0, 1)
     this.floor.visible = floorOn && floorShadow > 0 && light.intensity > 0
-    this.floor.position.set(lx, this.floorY, lz)
+    this.floor.position.set(lx, floorWorldY, lz)
     this.floor.scale.set(radius * 80, radius * 80, 1)
     this.floorMaterial.opacity = floorShadow
     this.contact.mesh.visible = floorOn && contactShadow > 0
@@ -752,7 +761,7 @@ export class ModelPass extends PassNode {
       centerZ: lz,
       extent: radius * 2.2,
       fadeHeight: radius * 1.2,
-      floorY: this.floorY,
+      floorY: floorWorldY,
       opacity: contactShadow,
     })
   }
@@ -779,6 +788,7 @@ export class ModelPass extends PassNode {
     renderer.getClearColor(this.clearColor)
     const floorVisible = this.floor.visible
     const contactVisible = this.contact.mesh.visible
+    let swapped: Array<[THREE.Mesh, THREE.Material | THREE.Material[]]> = []
 
     try {
       renderer.setClearColor(0, 0)
@@ -798,16 +808,68 @@ export class ModelPass extends PassNode {
 
       this.floor.visible = false
       this.contact.mesh.visible = false
-      this.modelScene.overrideMaterial = this.depthMaterial
+      swapped = this.useDepthMaterials()
       renderer.setRenderTarget(this.depthTarget)
       renderer.render(this.modelScene, this.modelCamera)
     } finally {
-      this.modelScene.overrideMaterial = null
+      for (const [mesh, material] of swapped) {
+        mesh.material = material
+      }
       this.floor.visible = floorVisible
       this.contact.mesh.visible = contactVisible
       renderer.setClearColor(this.clearColor, alpha)
       renderer.setRenderTarget(previousTarget)
     }
+  }
+
+  private useDepthMaterials(): Array<
+    [THREE.Mesh, THREE.Material | THREE.Material[]]
+  > {
+    const swapped: Array<[THREE.Mesh, THREE.Material | THREE.Material[]]> = []
+    for (const [mesh, original] of this.originalMaterials) {
+      swapped.push([mesh, mesh.material])
+      const hasUv = mesh.geometry.hasAttribute("uv")
+      mesh.material = Array.isArray(original)
+        ? original.map((entry) => this.depthMaterialFor(entry, hasUv))
+        : this.depthMaterialFor(original, hasUv)
+    }
+    return swapped
+  }
+
+  private depthMaterialFor(
+    source: THREE.Material,
+    hasUv: boolean
+  ): THREE.MeshBasicNodeMaterial {
+    const cutout = source as THREE.Material & {
+      alphaMap?: THREE.Texture | null
+      map?: THREE.Texture | null
+    }
+    const alphaMap = hasUv ? (cutout.alphaMap ?? null) : null
+    const map =
+      hasUv && cutout.map && (source.transparent || source.alphaTest > 0)
+        ? cutout.map
+        : null
+    if (!alphaMap && !map) return this.depthMaterial
+    const key = `${source.uuid}:${alphaMap ? 1 : 0}:${map ? 1 : 0}`
+    let material = this.depthCutouts.get(key)
+    if (!material) {
+      material = new THREE.MeshBasicNodeMaterial()
+      material.blending = THREE.NoBlending
+      material.colorNode = this.depthColor
+      material.side = source.side
+      material.alphaTest = source.alphaTest > 0 ? source.alphaTest : 0.5
+      if (alphaMap) Object.assign(material, { alphaMap })
+      if (map) material.opacityNode = tslTexture(map).a
+      this.depthCutouts.set(key, material)
+    }
+    return material
+  }
+
+  private disposeDepthCutouts(): void {
+    for (const material of this.depthCutouts.values()) {
+      material.dispose()
+    }
+    this.depthCutouts.clear()
   }
 
   private composeSceneDepth(renderer: THREE.WebGPURenderer): void {

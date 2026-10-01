@@ -10,6 +10,7 @@ import {
   normalView,
   positionLocal,
   positionView,
+  texture,
   type TSLNode,
   uniform,
   vec3,
@@ -25,6 +26,8 @@ export type OverrideSettings = {
 }
 
 type SourceMaterial = THREE.Material & {
+  alphaMap?: THREE.Texture | null
+  map?: THREE.Texture | null
   normalMap?: THREE.Texture | null
   normalScale?: THREE.Vector2
 }
@@ -70,6 +73,17 @@ export class ModelOverrideMaterials {
   ): THREE.MeshPhysicalNodeMaterial {
     const material = new THREE.MeshPhysicalNodeMaterial()
     material.side = source.side
+    material.transparent = source.transparent
+    material.opacity = source.opacity
+    material.alphaTest = source.alphaTest
+    material.alphaToCoverage = source.alphaToCoverage
+    material.depthWrite = source.depthWrite
+    if (hasUv) {
+      if (source.alphaMap) material.alphaMap = source.alphaMap
+      if (source.map && (source.transparent || source.alphaTest > 0)) {
+        material.opacityNode = texture(source.map).a.mul(float(source.opacity))
+      }
+    }
     if (source.normalMap && hasUv) {
       material.normalMap = source.normalMap
       if (source.normalScale) material.normalScale.copy(source.normalScale)

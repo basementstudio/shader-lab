@@ -161,6 +161,11 @@ export class PipelineManager {
   private readonly strictPassFailures: boolean
   private pendingMediaLoads = new Set<string>()
   private reportedStrictFailures = new WeakSet<object>()
+  private mediaLoads = new Map<string, { key: string }>()
+  private mediaErrorSlots = new Map<
+    string,
+    { model: string | null; environment: string | null }
+  >()
   private cachedActivePasses: LayerPassNode[] = []
   private activePassesDirty = true
   private dirty = true
@@ -693,58 +698,97 @@ export class PipelineManager {
     renderableLayer: RenderableLayerPass
   ): void {
     const asset = renderableLayer.asset
-    const modelLoadId = `${pass.layerId}:model`
 
     if (asset?.kind === "model") {
-      this.pendingMediaLoads.add(modelLoadId)
-      void pass
-        .setModel({ url: asset.url })
-        .then(() => {
-          setLayerMediaError(pass.layerId, null)
-          this.markDirty()
-        })
-        .catch((cause: unknown) => {
-          setLayerMediaError(
-            pass.layerId,
-            describeModelLoadFailure(asset.fileName, cause)
-          )
-          this.markDirty()
-        })
-        .finally(() => {
-          this.pendingMediaLoads.delete(modelLoadId)
-        })
+      this.startMediaLoad(
+        pass.layerId,
+        "model",
+        asset.url,
+        () => pass.setModel({ url: asset.url }),
+        (cause) => describeModelLoadFailure(asset.fileName, cause)
+      )
     } else {
-      this.pendingMediaLoads.delete(modelLoadId)
+      this.mediaLoads.delete(`${pass.layerId}:model`)
+      this.pendingMediaLoads.delete(`${pass.layerId}:model`)
+      this.setMediaErrorSlot(pass.layerId, "model", null)
       pass.clearModel()
     }
 
     const environmentAsset = renderableLayer.environmentAsset
-    const environmentUrl =
-      renderableLayer.params.environment === CUSTOM_MODEL_ENVIRONMENT &&
-      environmentAsset?.kind === "environment"
-        ? environmentAsset.url
-        : resolveBundledEnvironmentUrl(renderableLayer.params.environment)
-    const environmentLoadId = `${pass.layerId}:environment`
-    this.pendingMediaLoads.add(environmentLoadId)
-    void pass
-      .setEnvironment(environmentUrl)
+    const customRequested =
+      renderableLayer.params.environment === CUSTOM_MODEL_ENVIRONMENT
+    const customAsset =
+      customRequested && environmentAsset?.kind === "environment"
+        ? environmentAsset
+        : null
+    const environmentUrl = customAsset
+      ? customAsset.url
+      : resolveBundledEnvironmentUrl(renderableLayer.params.environment)
+    const missingCustom = customRequested && !customAsset
+    this.startMediaLoad(
+      pass.layerId,
+      "environment",
+      `${environmentUrl}|${missingCustom ? 1 : 0}`,
+      async () => {
+        await pass.setEnvironment(environmentUrl)
+        if (missingCustom) {
+          throw new Error("The custom environment is missing.")
+        }
+      },
+      () =>
+        describeMediaLoadFailure(
+          environmentAsset?.url === environmentUrl
+            ? environmentAsset.fileName
+            : "the environment"
+        )
+    )
+  }
+
+  private startMediaLoad(
+    layerId: string,
+    kind: "model" | "environment",
+    key: string,
+    load: () => Promise<void>,
+    describeFailure: (cause: unknown) => string
+  ): void {
+    const loadId = `${layerId}:${kind}`
+    if (this.mediaLoads.get(loadId)?.key === key) {
+      return
+    }
+
+    const entry = { key }
+    this.mediaLoads.set(loadId, entry)
+    this.pendingMediaLoads.add(loadId)
+    void load()
       .then(() => {
+        if (this.mediaLoads.get(loadId) !== entry) return
+        this.setMediaErrorSlot(layerId, kind, null)
         this.markDirty()
       })
-      .catch(() => {
-        setLayerMediaError(
-          pass.layerId,
-          describeMediaLoadFailure(
-            environmentAsset?.url === environmentUrl
-              ? environmentAsset.fileName
-              : "the environment"
-          )
-        )
+      .catch((cause: unknown) => {
+        if (this.mediaLoads.get(loadId) !== entry) return
+        this.setMediaErrorSlot(layerId, kind, describeFailure(cause))
         this.markDirty()
       })
       .finally(() => {
-        this.pendingMediaLoads.delete(environmentLoadId)
+        if (this.mediaLoads.get(loadId) !== entry) return
+        this.mediaLoads.delete(loadId)
+        this.pendingMediaLoads.delete(loadId)
       })
+  }
+
+  private setMediaErrorSlot(
+    layerId: string,
+    kind: "model" | "environment",
+    message: string | null
+  ): void {
+    const slots = this.mediaErrorSlots.get(layerId) ?? {
+      model: null,
+      environment: null,
+    }
+    slots[kind] = message
+    this.mediaErrorSlots.set(layerId, slots)
+    setLayerMediaError(layerId, slots.model ?? slots.environment)
   }
 
   private isActive(pass: PassNode): boolean {

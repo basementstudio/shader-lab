@@ -7,9 +7,11 @@ import { HoverTooltip } from "@/components/ui/tooltip"
 export function InfoHint({
   children,
   className,
+  focusable = false,
 }: {
   children: ReactNode
   className?: string | undefined
+  focusable?: boolean | undefined
 }) {
   return (
     <HoverTooltip
@@ -22,11 +24,12 @@ export function InfoHint({
       <span
         aria-label={typeof children === "string" ? children : "More info"}
         className={cn(
-          "inline-flex h-3.5 w-3.5 shrink-0 cursor-help items-center justify-center rounded-full text-[var(--ds-color-text-muted)] transition-colors duration-120 ease-[ease] hover:text-[var(--ds-color-text-secondary)]",
+          "inline-flex h-3.5 w-3.5 shrink-0 cursor-help items-center justify-center rounded-full focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--ds-color-text-secondary)] text-[var(--ds-color-text-muted)] transition-colors duration-120 ease-[ease] hover:text-[var(--ds-color-text-secondary)]",
           className
         )}
         data-info-hint="true"
         role="img"
+        tabIndex={focusable ? 0 : undefined}
       >
         <svg aria-hidden="true" fill="none" height="11" viewBox="0 0 12 12" width="11">
           <circle cx="6" cy="6" r="5.25" stroke="currentColor" strokeWidth="1" />

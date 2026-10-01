@@ -3,6 +3,8 @@ import {
   cos,
   dot,
   float,
+  Fn,
+  If,
   materialColor,
   materialRoughness,
   mix,
@@ -191,17 +193,33 @@ export class ModelOverrideMaterials {
           vec2(0),
           vec2(1)
         )
-      )
+      ).level(0)
     const channel = (shift: number, pick: "r" | "g" | "b") =>
       GLASS_TAPS.reduce<TSLNode>(
         (sum, [x, y]) => sum.add(float(sample(shift, x, y)[pick])),
         float(0)
       ).div(GLASS_TAPS.length)
-    const refracted = vec3(
-      channel(1 - GLASS_DISPERSION, "r"),
-      channel(1, "g"),
-      channel(1 + GLASS_DISPERSION, "b")
-    )
+    const refracted = Fn(() => {
+      const result = vec3(0).toVar()
+      If(spread.greaterThan(0.0005), () => {
+        result.assign(
+          vec3(
+            channel(1 - GLASS_DISPERSION, "r"),
+            channel(1, "g"),
+            channel(1 + GLASS_DISPERSION, "b")
+          )
+        )
+      }).Else(() => {
+        result.assign(
+          vec3(
+            float(sample(1 - GLASS_DISPERSION, 0, 0).r),
+            float(sample(1, 0, 0).g),
+            float(sample(1 + GLASS_DISPERSION, 0, 0).b)
+          )
+        )
+      })
+      return result
+    })()
     material.backdropNode = refracted.mul(materialColor)
     material.backdropAlphaNode = float(1).sub(fresnel.mul(0.85))
   }

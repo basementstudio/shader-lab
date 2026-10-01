@@ -251,7 +251,7 @@ export function ModelControls({
       <Typography className="uppercase" tone="secondary" variant="overline">
         <span className="inline-flex items-center gap-1.5">
           Model
-          <InfoHint>
+          <InfoHint focusable>
             Drag the model to turn it freely, or drag a colored ring or arrow
             to use one axis. Shortcuts: G, R, S, then X, Y or Z to lock an
             axis; Alt resets. Middle-drag orbits the camera.

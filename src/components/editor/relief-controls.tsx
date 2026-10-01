@@ -55,9 +55,8 @@ export function ReliefControls({
         />
       </div>
       <Typography tone="muted" variant="caption">
-        A style sets every control below; editing any of them makes it Custom.
-        A style sets every control below except Height From; editing any of
-        them makes it Custom.
+        A style sets every control below except Height From and Amount; editing
+        any of the others makes it Custom.
       </Typography>
     </section>
   )

@@ -300,7 +300,7 @@ export class ReliefPass extends PassNode {
       .add(vec3(specular))
     return vec4(
       mix(source, clamp(lit, 0, 1), this.amountUniform),
-      float(1)
+      colorNode.a
     )
   }
 

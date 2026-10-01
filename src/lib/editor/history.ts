@@ -1,3 +1,4 @@
+import { getDocumentSize } from "@/lib/editor/composition"
 import { useEditorStore } from "@/store/editor-store"
 import type {
   EditorAudioSnapshot,
@@ -101,9 +102,13 @@ export function applyEditorHistorySnapshot(
     tracks: snapshot.timeline.tracks,
   })
   useAudioStore.getState().restoreSnapshot(snapshot.audio)
-  useEditorStore
-    .getState()
-    .updateSceneConfig(structuredClone(snapshot.sceneConfig))
+  const editorStore = useEditorStore.getState()
+  const sceneConfig = structuredClone(snapshot.sceneConfig)
+  const documentSize = getDocumentSize(sceneConfig, editorStore.outputSize)
+  if (documentSize) {
+    editorStore.setOutputSize(documentSize.width, documentSize.height)
+  }
+  editorStore.updateSceneConfig(sceneConfig)
 }
 
 export function getHistorySnapshotSignature(

@@ -148,13 +148,21 @@ export function normalizeCompositionForDocument(
   sceneConfig: SceneConfig,
   composition: Size
 ): SceneConfig {
+  if (sceneConfig.compositionAspect === "screen") {
+    return sceneConfig
+  }
   if (
-    sceneConfig.compositionAspect === "screen" ||
-    sceneConfig.compositionAspect === "custom"
+    sceneConfig.compositionAspect === "custom" &&
+    Math.round(sceneConfig.compositionWidth) === composition.width &&
+    Math.round(sceneConfig.compositionHeight) === composition.height
   ) {
     return sceneConfig
   }
-  const ratio = getCompositionAspectRatio(sceneConfig.compositionAspect, 1, 1)
+  const ratio = getCompositionAspectRatio(
+    sceneConfig.compositionAspect,
+    sceneConfig.compositionWidth,
+    sceneConfig.compositionHeight
+  )
   const frame = getCenteredCropFrame(composition, ratio)
   return {
     ...sceneConfig,

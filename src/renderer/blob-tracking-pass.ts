@@ -1095,8 +1095,10 @@ export class BlobTrackingPass extends PassNode {
     const outline = this.strokeBandNode(sdf).mul(presence)
 
     let stroke: Node = float(0)
+    let frameForTrail: Node = float(0)
     if (this.decorations.frameStyle === "outline") {
       stroke = outline
+      frameForTrail = outline
     } else if (this.decorations.frameStyle === "brackets") {
       const hw = max(halfW, float(SHAPE_EXTENT_EPSILON))
       const hh = max(halfH, float(SHAPE_EXTENT_EPSILON))
@@ -1110,6 +1112,7 @@ export class BlobTrackingPass extends PassNode {
         step(hh.sub(reach), offsetY)
       )
       stroke = this.strokeBandNode(rectSdf).mul(cornerMask).mul(presence)
+      frameForTrail = stroke
     }
     if (this.decorations.centerShape !== "none") {
       const markerRadius = this.markerRadiusUniform
@@ -1133,8 +1136,6 @@ export class BlobTrackingPass extends PassNode {
     }
 
     // B carries the bare frame: it is what the trail ribbon accumulates.
-    const frameForTrail: Node =
-      this.decorations.frameStyle === "none" ? float(0) : outline
     material.colorNode = vec4(fill, stroke, frameForTrail, float(1)) as Node
     this.shapeMesh = this.addDecorationMesh(material, {
       iMeta: meta,

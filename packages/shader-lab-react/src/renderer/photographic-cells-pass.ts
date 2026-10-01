@@ -277,7 +277,7 @@ export class PhotographicCellsPass extends PassNode {
               .greaterThan(0.5)
               .and(distance.greaterThanEqual(reach.negate())),
             () => {
-              const rows = floor(reach.div(this.size)).add(1)
+              const rows = min(floor(reach.div(this.size)).add(1), 2)
               Loop(
                 { start: 0, end: int(rows.mul(2).add(1)), type: "int" },
                 ({ i }) => {
@@ -286,7 +286,10 @@ export class PhotographicCellsPass extends PassNode {
                   const nearestColumn = floor(
                     point.x.add(adjacent.shift).div(adjacent.width)
                   )
-                  const columns = floor(reach.div(adjacent.width)).add(1)
+                  const columns = min(
+                    floor(reach.div(adjacent.width)).add(1),
+                    2
+                  )
                   Loop(
                     {
                       start: 0,

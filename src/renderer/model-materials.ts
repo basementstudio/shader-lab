@@ -10,9 +10,12 @@ import {
   normalView,
   positionGeometry,
   positionView,
-  texture,
+  pow,
+  screenUV,
+  texture as tslTexture,
   type TSLNode,
   uniform,
+  vec2,
   vec3,
 } from "three/tsl"
 import * as THREE from "three/webgpu"
@@ -22,8 +25,23 @@ export type OverrideMaterialId = Exclude<ModelMaterialId, "original">
 
 export type OverrideSettings = {
   color: string
+  metalness: number
   roughness: number
 }
+
+const GLASS_REFRACTION = 0.09
+const GLASS_FROST = 0.03
+const GLASS_DISPERSION = 0.06
+const GLASS_TAP_COUNT = 12
+const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5))
+const GLASS_TAPS: readonly [number, number][] = Array.from(
+  { length: GLASS_TAP_COUNT },
+  (_, index) => {
+    const radius = Math.sqrt((index + 0.5) / GLASS_TAP_COUNT)
+    const angle = index * GOLDEN_ANGLE
+    return [Math.cos(angle) * radius, Math.sin(angle) * radius]
+  }
+)
 
 type SourceMaterial = THREE.Material & {
   alphaMap?: THREE.Texture | null
@@ -36,7 +54,10 @@ export class ModelOverrideMaterials {
   readonly streakScale: TSLNode = uniform(1)
   private readonly byKey = new Map<string, THREE.MeshPhysicalNodeMaterial>()
 
-  constructor(readonly id: OverrideMaterialId) {}
+  constructor(
+    readonly id: OverrideMaterialId,
+    private readonly backdrop: THREE.Texture | null = null
+  ) {}
 
   materialFor(
     source: THREE.Material,
@@ -81,7 +102,7 @@ export class ModelOverrideMaterials {
     if (hasUv) {
       if (source.alphaMap) material.alphaMap = source.alphaMap
       if (source.map && (source.transparent || source.alphaTest > 0)) {
-        material.opacityNode = texture(source.map).a.mul(float(source.opacity))
+        material.opacityNode = tslTexture(source.map).a.mul(float(source.opacity))
       }
     }
     if (source.normalMap && hasUv) {
@@ -105,12 +126,7 @@ export class ModelOverrideMaterials {
         break
       }
       case "glass":
-        material.metalness = 0
-        material.transmission = 1
-        material.thickness = 0.45
-        material.ior = 1.5
-        material.dispersion = 0.25
-        material.specularIntensity = 1
+        this.setupGlass(material)
         break
       case "clay":
         material.metalness = 0
@@ -148,11 +164,54 @@ export class ModelOverrideMaterials {
     return material
   }
 
+  private setupGlass(material: THREE.MeshPhysicalNodeMaterial): void {
+    material.metalness = 0
+    material.transmission = 0
+    material.ior = 1.5
+    material.specularIntensity = 1
+    material.clearcoat = 1
+    material.clearcoatRoughness = 0.02
+    if (!this.backdrop) return
+    const facing = clamp(
+      dot(normalView, positionView.negate().normalize()),
+      float(0),
+      float(1)
+    )
+    const fresnel = pow(float(1).sub(facing), float(3))
+    const bend = vec2(normalView.x, normalView.y.negate()).mul(
+      GLASS_REFRACTION
+    )
+    const spread = materialRoughness.mul(GLASS_FROST)
+    const backdrop = this.backdrop
+    const sample = (shift: number, x: number, y: number) =>
+      tslTexture(
+        backdrop,
+        clamp(
+          screenUV.sub(bend.mul(shift)).add(vec2(x, y).mul(spread)),
+          vec2(0),
+          vec2(1)
+        )
+      )
+    const channel = (shift: number, pick: "r" | "g" | "b") =>
+      GLASS_TAPS.reduce<TSLNode>(
+        (sum, [x, y]) => sum.add(float(sample(shift, x, y)[pick])),
+        float(0)
+      ).div(GLASS_TAPS.length)
+    const refracted = vec3(
+      channel(1 - GLASS_DISPERSION, "r"),
+      channel(1, "g"),
+      channel(1 + GLASS_DISPERSION, "b")
+    )
+    material.backdropNode = refracted.mul(materialColor)
+    material.backdropAlphaNode = float(1).sub(fresnel.mul(0.85))
+  }
+
   private apply(
     material: THREE.MeshPhysicalNodeMaterial,
     settings: OverrideSettings
   ): void {
     material.color.set(settings.color)
     material.roughness = Math.min(1, Math.max(0, settings.roughness))
+    material.metalness = Math.min(1, Math.max(0, settings.metalness))
   }
 }

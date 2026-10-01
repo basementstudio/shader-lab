@@ -1,4 +1,8 @@
 import { Euler, type PerspectiveCamera, Quaternion, Vector3 } from "three"
+import {
+  type ModelProjectionId,
+  resolveModelProjection,
+} from "@/lib/editor/config/model-options"
 import type { LayerParameterValues } from "@/types/editor"
 
 export type Vec3 = [number, number, number]
@@ -8,6 +12,7 @@ export type ModelFraming = {
   focalLength: number
   location: Vec3
   orbit: number
+  projection: ModelProjectionId
   rotation: Vec3
   scale: Vec3
   shift: [number, number]
@@ -15,6 +20,15 @@ export type ModelFraming = {
 }
 
 export const MODEL_FRAME_FILL = 0.9
+export const PARALLEL_FOCAL_LENGTH = 2400
+const AXONOMETRIC_ELEVATION: Partial<Record<ModelProjectionId, number>> = {
+  dimetric: 30,
+  isometric: Math.atan(1 / Math.SQRT2) * (180 / Math.PI),
+}
+
+function axonometricOrbit(orbit: number): number {
+  return 45 + Math.round((orbit - 45) / 90) * 90
+}
 const SHORT_SENSOR_MM = 24
 const DEG = Math.PI / 180
 
@@ -36,11 +50,19 @@ export function readModelFraming(params: LayerParameterValues): ModelFraming {
   const scale = vector<Vec3>(params.scale, [1, 1, 1]).map((entry) =>
     Math.min(50, Math.max(0.01, Math.abs(entry)))
   ) as Vec3
+  const projection = resolveModelProjection(params.projection)
+  const elevation = finite(params.elevation, 15, -89, 89)
+  const orbit = finite(params.orbit, 30, -360, 360)
+  const fixedElevation = AXONOMETRIC_ELEVATION[projection]
   return {
-    elevation: finite(params.elevation, 15, -89, 89),
-    focalLength: finite(params.focalLength, 50, 8, 400),
+    elevation: fixedElevation ?? elevation,
+    focalLength:
+      projection === "perspective"
+        ? finite(params.focalLength, 50, 8, 400)
+        : PARALLEL_FOCAL_LENGTH,
     location: vector<Vec3>(params.location, [0, 0, 0]),
-    orbit: finite(params.orbit, 30, -360, 360),
+    orbit: fixedElevation === undefined ? orbit : axonometricOrbit(orbit),
+    projection,
     rotation: vector<Vec3>(params.rotation, [0, 0, 0]),
     scale,
     shift: vector<[number, number]>(params.shift, [0, 0]),

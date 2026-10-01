@@ -28,6 +28,7 @@ import {
 import {
   MODEL_TONE_MAPPINGS,
   type ModelMaterialId,
+  modelMaterialDefaults,
   type ModelToneMappingId,
   resolveModelMaterial,
 } from "@/lib/editor/config/model-options"
@@ -179,6 +180,7 @@ export class ModelPass extends PassNode {
   private readonly modelGroup = new THREE.Group()
   private readonly fitGroup = new THREE.Group()
   private readonly keyLight = new THREE.DirectionalLight("#ffffff", 1)
+  private readonly rimLight = new THREE.DirectionalLight("#ffffff", 0)
   private readonly floorMaterial = new THREE.ShadowNodeMaterial()
   private readonly floorGeometry = new THREE.PlaneGeometry(1, 1)
   private readonly floor: THREE.Mesh
@@ -186,6 +188,11 @@ export class ModelPass extends PassNode {
   private readonly colorTarget: THREE.WebGLRenderTarget
   private readonly depthTarget: THREE.WebGLRenderTarget
   private readonly sceneDepthTarget: THREE.WebGLRenderTarget
+  private readonly backdropTarget: THREE.WebGLRenderTarget
+  private readonly backdropScene = new THREE.Scene()
+  private readonly backdropMaterial = new THREE.MeshBasicNodeMaterial()
+  private readonly backdropGeometry = new THREE.PlaneGeometry(2, 2)
+  private readonly backdropInput: Node
   private readonly depthMaterial = new THREE.MeshBasicNodeMaterial()
   private readonly depthCutouts = new Map<
     string,
@@ -209,6 +216,7 @@ export class ModelPass extends PassNode {
   private overrides: ModelOverrideMaterials | null = null
   private materialPreset: ModelMaterialId = "original"
   private toneMapping: ModelToneMappingId = "neutral"
+  private wireframe = false
   private params: LayerParameterValues = {}
   private model: THREE.Object3D | null = null
   private modelSignature: string | null = null
@@ -269,6 +277,20 @@ export class ModelPass extends PassNode {
       type: THREE.HalfFloatType,
     })
 
+    this.backdropTarget = new THREE.WebGLRenderTarget(1, 1, {
+      depthBuffer: false,
+      generateMipmaps: false,
+      magFilter: THREE.LinearFilter,
+      minFilter: THREE.LinearFilter,
+      type: THREE.HalfFloatType,
+    })
+    this.backdropInput = tslTexture(new THREE.Texture(), renderTargetUv())
+    this.backdropMaterial.blending = THREE.NoBlending
+    this.backdropMaterial.colorNode = this.backdropInput
+    const backdropMesh = new THREE.Mesh(this.backdropGeometry, this.backdropMaterial)
+    backdropMesh.frustumCulled = false
+    this.backdropScene.add(backdropMesh)
+
     this.modelScene.add(this.locationGroup)
     this.locationGroup.add(this.spinGroup)
     this.spinGroup.add(this.modelGroup)
@@ -279,6 +301,8 @@ export class ModelPass extends PassNode {
     this.keyLight.shadow.bias = -0.0005
     this.keyLight.shadow.normalBias = 0.02
     this.modelScene.add(this.keyLight, this.keyLight.target)
+    this.rimLight.castShadow = false
+    this.modelScene.add(this.rimLight, this.rimLight.target)
 
     this.floorMaterial.opacity = 0.5
     this.floor = new THREE.Mesh(this.floorGeometry, this.floorMaterial)
@@ -443,7 +467,14 @@ export class ModelPass extends PassNode {
       this.rebuildEffectNode()
     }
 
-    if (this.applyMaterial(false)) {
+    const wireframe = params.wireframe === true
+    const wireframeChanged = wireframe !== this.wireframe
+    this.wireframe = wireframe
+    const materialChanged = this.applyMaterial(false)
+    if (wireframeChanged && !materialChanged) {
+      this.applyWireframe()
+    }
+    if (materialChanged) {
       void this.compileScene()
     }
 
@@ -466,6 +497,7 @@ export class ModelPass extends PassNode {
     this.colorTarget.setSize(nextWidth, nextHeight)
     this.depthTarget.setSize(nextWidth, nextHeight)
     this.sceneDepthTarget.setSize(nextWidth, nextHeight)
+    this.backdropTarget.setSize(nextWidth, nextHeight)
     this.sceneDirty = true
     this.targetsCleared = false
     this.sceneDepthComposed = false
@@ -492,8 +524,16 @@ export class ModelPass extends PassNode {
   ): void {
     this.resize(outputTarget.width, outputTarget.height)
 
+    const refracting = this.materialPreset === "glass"
+    if (this.model && refracting) {
+      this.copyBackdrop(renderer, inputTexture)
+    }
+
     if (this.model && !this.compiling) {
       if ((this.spin !== 0 || this.isAnimating()) && time !== this.lastTime) {
+        this.sceneDirty = true
+      }
+      if (refracting) {
         this.sceneDirty = true
       }
 
@@ -528,6 +568,7 @@ export class ModelPass extends PassNode {
     this.floorMaterial.dispose()
     this.floorGeometry.dispose()
     this.keyLight.shadow.dispose()
+    this.rimLight.dispose()
     this.depthMaterial.dispose()
     this.disposeDepthCutouts()
     this.composeMaterial.dispose()
@@ -537,6 +578,10 @@ export class ModelPass extends PassNode {
     this.colorTarget.dispose()
     this.depthTarget.dispose()
     this.sceneDepthTarget.dispose()
+    this.backdropTarget.dispose()
+    this.backdropMaterial.dispose()
+    this.backdropGeometry.dispose()
+    this.backdropScene.clear()
     this.modelScene.clear()
     super.dispose()
   }
@@ -866,8 +911,31 @@ export class ModelPass extends PassNode {
   private overrideSettings(): OverrideSettings {
     return {
       color: readColor(this.params.materialColor, "#ffffff"),
+      metalness: readNumber(
+        this.params.materialMetalness,
+        modelMaterialDefaults(this.params.material)?.metalness ?? 1,
+        0,
+        1
+      ),
       roughness: readNumber(this.params.materialRoughness, 0.2, 0, 1),
     }
+  }
+
+  private applyWireframe(): void {
+    for (const mesh of this.originalMaterials.keys()) {
+      const materials = Array.isArray(mesh.material)
+        ? mesh.material
+        : [mesh.material]
+      for (const material of materials) {
+        const wired = material as THREE.Material & { wireframe?: boolean }
+        if (wired.wireframe === undefined || wired.wireframe === this.wireframe) {
+          continue
+        }
+        wired.wireframe = this.wireframe
+        material.needsUpdate = true
+      }
+    }
+    this.sceneDirty = true
   }
 
   private applyMaterial(force: boolean): boolean {
@@ -879,7 +947,10 @@ export class ModelPass extends PassNode {
     }
 
     const previous = this.overrides
-    this.overrides = next === "original" ? null : new ModelOverrideMaterials(next)
+    this.overrides =
+      next === "original"
+        ? null
+        : new ModelOverrideMaterials(next, this.backdropTarget.texture)
     const settings = this.overrideSettings()
 
     for (const [mesh, original] of this.originalMaterials) {
@@ -898,6 +969,7 @@ export class ModelPass extends PassNode {
     if (this.overrides) {
       this.overrides.streakScale.value = this.fitGroup.scale.x
     }
+    this.applyWireframe()
     previous?.dispose()
     this.materialPreset = next
     this.sceneDirty = true
@@ -906,6 +978,14 @@ export class ModelPass extends PassNode {
 
   private async compileScene(): Promise<void> {
     if (!this.model) {
+      return
+    }
+
+    if (this.wireframe) {
+      this.compileGeneration += 1
+      this.compiling = false
+      this.pendingCompile = null
+      this.sceneDirty = true
       return
     }
 
@@ -998,6 +1078,21 @@ export class ModelPass extends PassNode {
     shadowCamera.far = radius * 16 + Math.abs(ly) * 2
     shadowCamera.updateProjectionMatrix()
     light.shadow.radius = 1 + readNumber(params.shadowSoftness, 0.4, 0, 1) * 10
+
+    const rim = this.rimLight
+    rim.intensity = readNumber(params.rimLight, 0, 0, 20)
+    rim.visible = rim.intensity > 0
+    rim.color.set(readColor(params.rimColor, "#ffffff"))
+    const rimDirection = new THREE.Vector3(
+      -Math.cos(lightAngle) * 0.7,
+      0.45,
+      -1
+    )
+      .normalize()
+      .applyQuaternion(camera.quaternion)
+    rim.target.position.copy(light.target.position)
+    rim.target.updateMatrixWorld(true)
+    rim.position.copy(rim.target.position).addScaledVector(rimDirection, radius * 8)
 
     const floorOn = params.floor !== false
     const floorShadow = readNumber(params.floorShadow, 0.5, 0, 1)
@@ -1120,6 +1215,17 @@ export class ModelPass extends PassNode {
       material.dispose()
     }
     this.depthCutouts.clear()
+  }
+
+  private copyBackdrop(
+    renderer: THREE.WebGPURenderer,
+    inputTexture: THREE.Texture
+  ): void {
+    const previous = (renderer as unknown as RendererInternals).getRenderTarget()
+    this.backdropInput.value = inputTexture
+    renderer.setRenderTarget(this.backdropTarget)
+    renderer.render(this.backdropScene, this.camera)
+    renderer.setRenderTarget(previous)
   }
 
   private composeSceneDepth(renderer: THREE.WebGPURenderer): void {

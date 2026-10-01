@@ -62,6 +62,7 @@ import {
   DEFAULT_MODEL_ENVIRONMENT,
   MODEL_ENVIRONMENTS,
   MODEL_MATERIALS,
+  MODEL_PROJECTIONS,
   MODEL_TONE_MAPPINGS,
 } from "@/lib/editor/config/model-options"
 import type {
@@ -1715,6 +1716,25 @@ const modelParams = [
     visibleWhen: { key: "material", notEquals: "original" },
   },
   {
+    defaultValue: 1,
+    group: "Material",
+    key: "materialMetalness",
+    label: "Metalness",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    visibleWhen: { key: "material", notEquals: "original" },
+  },
+  {
+    animatable: false,
+    defaultValue: false,
+    group: "Material",
+    key: "wireframe",
+    label: "Wireframe",
+    type: "boolean",
+  },
+  {
     animatable: false,
     defaultValue: DEFAULT_MODEL_ENVIRONMENT.id,
     group: "Light",
@@ -1789,6 +1809,25 @@ const modelParams = [
     type: "color",
   },
   {
+    defaultValue: 0,
+    group: "Light",
+    key: "rimLight",
+    label: "Rim Light",
+    max: 20,
+    min: 0,
+    step: 0.1,
+    type: "number",
+    description: "A light behind the model that outlines its edges.",
+  },
+  {
+    defaultValue: "#ffffff",
+    group: "Light",
+    key: "rimColor",
+    label: "Rim Light Color",
+    type: "color",
+    visibleWhen: { key: "rimLight", gte: 0.01 },
+  },
+  {
     defaultValue: true,
     group: "Shadows",
     key: "floor",
@@ -1840,6 +1879,20 @@ const modelParams = [
     type: "number",
   },
   {
+    animatable: false,
+    defaultValue: "perspective",
+    group: "Camera",
+    key: "projection",
+    label: "Projection",
+    options: MODEL_PROJECTIONS.map((entry) => ({
+      label: entry.label,
+      value: entry.id,
+    })),
+    type: "select",
+    description:
+      "Orthographic removes perspective. Isometric and Dimetric also fix the angle; Orbit turns them in 90° steps.",
+  },
+  {
     defaultValue: 50,
     group: "Camera",
     key: "focalLength",
@@ -1850,6 +1903,7 @@ const modelParams = [
     type: "number",
     unit: "mm",
     description: "Wide exaggerates the perspective, long flattens it.",
+    visibleWhen: { key: "projection", equals: "perspective" },
   },
   {
     defaultValue: 30,
@@ -1870,6 +1924,7 @@ const modelParams = [
     min: -85,
     step: 1,
     type: "number",
+    visibleWhen: { key: "projection", oneOf: ["perspective", "orthographic"] },
   },
   {
     defaultValue: [0, 0] as [number, number],

@@ -663,6 +663,9 @@ export class PipelineManager {
       renderableLayer.layer.saturation
     )
     pass.updateParams(renderableLayer.params)
+    if (pass instanceof ModelPass) {
+      void pass.whenCompiled().then(() => this.markDirty())
+    }
     if (
       pass instanceof FluidPass ||
       pass instanceof PixelTrailPass ||

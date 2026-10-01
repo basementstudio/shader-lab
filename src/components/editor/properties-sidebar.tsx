@@ -564,6 +564,11 @@ export function PropertiesSidebar() {
             "materialRoughness",
             defaults.roughness
           )
+          updateLayerParam(
+            selectedLayer.id,
+            "materialMetalness",
+            defaults.metalness
+          )
         }
       }
 

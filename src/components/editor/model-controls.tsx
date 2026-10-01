@@ -1,13 +1,13 @@
 "use client"
 import { useMemo } from "react"
 import { Button } from "@/components/ui/button"
+import { InfoHint } from "@/components/ui/info-hint"
 import { Typography } from "@/components/ui/typography"
 import { ParameterField } from "@/components/editor/properties-sidebar-fields"
 import { cn } from "@/lib/cn"
 import { getLayerDefinition } from "@/lib/editor/config/layer-registry"
 import {
   CUSTOM_MODEL_ENVIRONMENT,
-  MODEL_ENVIRONMENTS,
 } from "@/lib/editor/config/model-options"
 import {
   MODEL_ANIMATION_ALL,
@@ -146,17 +146,13 @@ function ModelAnimationControls({
 function environmentCaption(
   values: LayerParameterValues,
   environmentFileName: string | null
-): string {
-  if (values.environment === CUSTOM_MODEL_ENVIRONMENT) {
-    return environmentFileName
-      ? `Lit by ${environmentFileName}.`
-      : "Custom is selected but no .hdr is attached, so the Studio lights it."
+): string | null {
+  if (values.environment !== CUSTOM_MODEL_ENVIRONMENT) {
+    return null
   }
-
-  const studio =
-    MODEL_ENVIRONMENTS.find((entry) => entry.id === values.environment) ??
-    MODEL_ENVIRONMENTS[0]
-  return `Lit by the ${studio.label} studio. Attach an .hdr to use your own.`
+  return environmentFileName
+    ? `Lit by ${environmentFileName}.`
+    : "Custom is selected but no .hdr is attached, so the Studio lights it."
 }
 
 function ModelExtrudeControls({
@@ -253,7 +249,14 @@ export function ModelControls({
       data-model-section="true"
     >
       <Typography className="uppercase" tone="secondary" variant="overline">
-        Model
+        <span className="inline-flex items-center gap-1.5">
+          Model
+          <InfoHint>
+            Drag the model to turn it freely, or drag a colored ring or arrow
+            to use one axis. Shortcuts: G, R, S, then X, Y or Z to lock an
+            axis; Alt resets. Middle-drag orbits the camera.
+          </InfoHint>
+        </span>
       </Typography>
       <div className="flex flex-col gap-2">
         <div className="grid grid-cols-3 gap-1 rounded-[var(--ds-radius-control)] border border-[var(--ds-border-divider)] p-0.5">
@@ -276,11 +279,6 @@ export function ModelControls({
             </button>
           ))}
         </div>
-        <Typography tone="muted" variant="caption">
-          Drag the model to turn it freely, or drag a colored ring or arrow to
-          use one axis. Shortcuts: G, R, S, then X, Y or Z to lock an axis;
-          Alt resets. Middle-drag orbits the camera.
-        </Typography>
       </div>
       {svgSource ? (
         <ModelExtrudeControls
@@ -307,9 +305,9 @@ export function ModelControls({
           values={values}
         />
       ) : null}
-      <div className="flex items-center justify-between gap-3">
-        <Typography tone="muted" variant="caption">
-          Swap in a different .glb, .gltf or .svg and keep this layer's settings.
+      <div className="flex items-center justify-between gap-[var(--ds-space-3)]">
+        <Typography tone="secondary" variant="label">
+          Swap
         </Typography>
         <Button
           onClick={onReplaceModel}
@@ -320,16 +318,18 @@ export function ModelControls({
           Replace
         </Button>
       </div>
-      <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between gap-[var(--ds-space-3)]">
         <div className="flex min-w-0 flex-col gap-0.5">
-          <Typography tone="secondary" variant="caption">
+          <Typography tone="secondary" variant="label">
             Environment
           </Typography>
-          <Typography className="truncate" tone="muted" variant="caption">
-            {environmentCaption(values, environmentFileName)}
-          </Typography>
+          {environmentCaption(values, environmentFileName) ? (
+            <Typography className="truncate" tone="muted" variant="caption">
+              {environmentCaption(values, environmentFileName)}
+            </Typography>
+          ) : null}
         </div>
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="flex shrink-0 items-center gap-1.5">
           <Button
             onClick={onAttachEnvironment}
             size="compact"

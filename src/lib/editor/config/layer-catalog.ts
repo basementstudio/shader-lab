@@ -326,6 +326,41 @@ export const LAYER_CATALOG: Record<LayerType, LayerCatalogEntry> = {
   },
 }
 
+export const NEW_LAYER_TYPES: ReadonlySet<LayerType> = new Set<LayerType>([
+  "annotations",
+  "connected-dots",
+  "displaced-rings",
+  "dot-grid",
+  "erosion",
+  "flares",
+  "focus-blur",
+  "glass",
+  "gradient-map",
+  "grain",
+  "lumen-print",
+  "model",
+  "outline",
+  "photocopy",
+  "photographic-cells",
+  "relief",
+  "shape",
+  "signal-rot",
+])
+
+export const REWORKED_LAYER_TYPES: ReadonlySet<LayerType> = new Set<LayerType>([
+  "blob-tracking",
+  "pattern",
+  "plotter",
+  "threshold",
+])
+
+export function isNewLayerType(type: string): boolean {
+  return (
+    NEW_LAYER_TYPES.has(type as LayerType) ||
+    REWORKED_LAYER_TYPES.has(type as LayerType)
+  )
+}
+
 export function getLayerCatalogEntry(type: LayerType): LayerCatalogEntry {
   return LAYER_CATALOG[type]
 }

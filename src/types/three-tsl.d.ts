@@ -165,6 +165,7 @@ declare module "three/tsl" {
   export function mod(left: unknown, right: unknown): TSLNode
   export function mul(left: unknown, right: unknown): TSLNode
   export const screenSize: TSLNode
+  export const screenUV: TSLNode
   export function select(
     condition: unknown,
     whenTrue: unknown,

@@ -2,6 +2,7 @@ import {
   getDocumentSize,
   normalizeCompositionForDocument,
 } from "@/lib/editor/composition"
+import { modelMaterialDefaults } from "@/lib/editor/config/model-options"
 import { CURRENT_PROJECT_FILE_VERSION } from "./project-version"
 import { validateLayerHierarchy } from "@/renderer/layer-hierarchy"
 import { MISSING_DEPTH_ERROR_PREFIX } from "@/renderer/layer-media-error"
@@ -748,6 +749,10 @@ export function migrateLayerParams(
     typeof params.sensitivity === "number"
   ) {
     params.sensitivity = 1 - params.sensitivity
+  }
+
+  if (layer.type === "model" && params.materialMetalness === undefined) {
+    params.materialMetalness = modelMaterialDefaults(params.material)?.metalness ?? 1
   }
 
   for (const parameter of getLayerDefinition(layer.type).params) {

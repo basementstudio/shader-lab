@@ -25,6 +25,8 @@ declare module "three/webgpu" {
   }
 
   export class MeshPhysicalNodeMaterial extends MeshPhysicalMaterial {
+    backdropAlphaNode: TSLNode | null
+    backdropNode: TSLNode | null
     colorNode: TSLNode | null
     iridescenceThicknessNode: TSLNode | null
     metalnessNode: TSLNode | null

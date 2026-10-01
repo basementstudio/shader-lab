@@ -81,6 +81,8 @@ html[data-theme="light"] {
   --skin-grid-line: rgb(var(--ink) / 0.07);
   --skin-xy-handle-shadow: 0 2px 6px rgb(var(--ink) / 0.25), 0 0 0 6px rgb(var(--ink) / 0.06);
   --ds-color-stat: rgb(var(--ink) / 0.24);
+  --ds-badge-new-bg: var(--ds-color-accent);
+  --ds-badge-new-text: #ffe4d6;
   --skin-row-hover: rgb(var(--ink) / 0.05);
   --skin-row-selected: var(--skin-raised);
 }
@@ -113,6 +115,8 @@ html[data-theme="dark"] {
   --skin-grid-line: rgb(255 255 255 / 0.07);
   --skin-xy-handle-shadow: 0 2px 6px rgb(0 0 0 / 0.5), 0 0 0 6px rgb(255 255 255 / 0.06);
   --ds-color-stat: rgb(255 255 255 / 0.2);
+  --ds-badge-new-bg: var(--ds-color-accent);
+  --ds-badge-new-text: #ffe4d6;
   --skin-row-hover: rgb(255 255 255 / 0.05);
   --skin-row-selected: rgb(255 255 255 / 0.14);
 }
@@ -573,4 +577,41 @@ html[data-theme] .ds-on-paper {
   --ds-color-text-tertiary: rgb(23 23 26 / 0.46);
   --ds-color-text-muted: rgb(23 23 26 / 0.4);
   color: var(--ds-color-text-primary);
+}
+
+html[data-theme] {
+  --ds-radius-badge: 6px;
+  --ds-space-badge-inset: var(--ds-space-1);
+  --ds-radius-picker-thumb: calc(var(--ds-radius-badge) + var(--ds-space-badge-inset));
+  --ds-radius-picker-card: calc(var(--ds-radius-picker-thumb) + var(--ds-space-1));
+  --ds-size-new-dot: 9px;
+}
+
+html[data-theme] .ds-badge-new {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--ds-space-1) var(--ds-space-1_5);
+  border-radius: var(--ds-radius-badge);
+  background: var(--ds-badge-new-bg);
+  color: var(--ds-badge-new-text);
+  font-family: var(--ds-font-sans);
+  font-size: var(--ds-text-xs);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: normal;
+  white-space: nowrap;
+}
+
+html[data-theme] .ds-badge-new > span {
+  display: block;
+  text-box: trim-both cap alphabetic;
+}
+
+html[data-theme] .ds-dot-new {
+  width: var(--ds-size-new-dot);
+  height: var(--ds-size-new-dot);
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-color-accent);
+  box-shadow: 0 0 0 1.5px var(--ds-color-card);
 }

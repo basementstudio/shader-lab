@@ -21,12 +21,12 @@ export function resolveBundledEnvironmentUrl(value: unknown): string {
 
 export const MODEL_MATERIALS = [
   { id: "original", label: "Original" },
-  { id: "chrome", label: "Chrome", color: "#ffffff", roughness: 0.04 },
-  { id: "brushed-metal", label: "Brushed Metal", color: "#e4e4e4", roughness: 0.3 },
-  { id: "glass", label: "Glass", color: "#ffffff", roughness: 0.02 },
-  { id: "clay", label: "Clay", color: "#d9d1c5", roughness: 0.88 },
-  { id: "rubber", label: "Rubber", color: "#1b1b1b", roughness: 0.55 },
-  { id: "iridescent", label: "Iridescent", color: "#ffffff", roughness: 0.12 },
+  { id: "chrome", label: "Chrome", color: "#ffffff", metalness: 1, roughness: 0.04 },
+  { id: "brushed-metal", label: "Brushed Metal", color: "#e4e4e4", metalness: 1, roughness: 0.3 },
+  { id: "glass", label: "Glass", color: "#ffffff", metalness: 0, roughness: 0.02 },
+  { id: "clay", label: "Clay", color: "#d9d1c5", metalness: 0, roughness: 0.88 },
+  { id: "rubber", label: "Rubber", color: "#1b1b1b", metalness: 0, roughness: 0.55 },
+  { id: "iridescent", label: "Iridescent", color: "#ffffff", metalness: 1, roughness: 0.12 },
 ] as const
 
 export type ModelMaterialId = (typeof MODEL_MATERIALS)[number]["id"]
@@ -39,11 +39,26 @@ export function resolveModelMaterial(value: unknown): ModelMaterialId {
 
 export function modelMaterialDefaults(
   value: unknown
-): { color: string; roughness: number } | null {
+): { color: string; metalness: number; roughness: number } | null {
   const entry = MODEL_MATERIALS.find((item) => item.id === value)
   return entry && "color" in entry
-    ? { color: entry.color, roughness: entry.roughness }
+    ? { color: entry.color, metalness: entry.metalness, roughness: entry.roughness }
     : null
+}
+
+export const MODEL_PROJECTIONS = [
+  { id: "perspective", label: "Perspective" },
+  { id: "orthographic", label: "Orthographic" },
+  { id: "isometric", label: "Isometric" },
+  { id: "dimetric", label: "Dimetric" },
+] as const
+
+export type ModelProjectionId = (typeof MODEL_PROJECTIONS)[number]["id"]
+
+export function resolveModelProjection(value: unknown): ModelProjectionId {
+  return (
+    MODEL_PROJECTIONS.find((entry) => entry.id === value)?.id ?? "perspective"
+  )
 }
 
 export const MODEL_TONE_MAPPINGS = [

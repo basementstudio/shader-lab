@@ -136,11 +136,17 @@ export function buildPublishableProjectFile(
       : layer.visible && !isHiddenByAncestor(layer)
   )
   const keptLayerIds = new Set(keptLayers.map((layer) => layer.id))
-  const layers = keptLayers.map((layer) =>
-    layer.parentId && !keptLayerIds.has(layer.parentId)
-      ? { ...layer, parentId: null }
-      : layer
-  )
+  const layers = keptLayers.map((layer) => {
+    const detached =
+      layer.parentId && !keptLayerIds.has(layer.parentId)
+        ? { ...layer, parentId: null }
+        : layer
+    return layer.id === audioLayerId &&
+      layer.visible &&
+      isHiddenByAncestor(layer)
+      ? { ...detached, visible: false }
+      : detached
+  })
 
   if (layers.length === file.layers.length) {
     return file
@@ -780,30 +786,20 @@ function hydrateImportedLayer(
   )
   const depthIsImage = !depthRef || depthRef.kind === "image"
   const depthAssetId =
-    depthApplies && depthResolved && depthIsImage ? layer.depthAssetId : null
+    depthApplies && depthIsImage ? (layer.depthAssetId ?? null) : null
   const depthFileName = depthRef?.fileName ?? "unknown file"
   const depthErrorDetail = depthResolved ? " is not an image" : ""
   const depthError =
-    layer.depthAssetId && depthApplies && !depthAssetId
+    layer.depthAssetId && depthApplies && !(depthResolved && depthIsImage)
       ? `${MISSING_DEPTH_ERROR_PREFIX}: ${depthFileName}${depthErrorDetail}`
       : null
-  const environmentAssetId =
-    layer.environmentAssetId && assetIds.has(layer.environmentAssetId)
-      ? layer.environmentAssetId
-      : null
-  const patternAssetIds = layer.patternAssetIds?.filter((id) =>
-    assetIds.has(id)
-  )
   const missingMotifId = layer.patternAssetIds?.find((id) => !assetIds.has(id))
-  const linkedAssets = {
-    ...(layer.depthAssetId !== undefined ? { depthAssetId } : {}),
-    ...(layer.environmentAssetId !== undefined ? { environmentAssetId } : {}),
-    ...(patternAssetIds ? { patternAssetIds } : {}),
-  }
+  const linkedAssets =
+    layer.depthAssetId !== undefined ? { depthAssetId } : {}
 
   if (!(layer.assetId && !assetIds.has(layer.assetId))) {
     const environmentError =
-      layer.environmentAssetId && !environmentAssetId
+      layer.environmentAssetId && !assetIds.has(layer.environmentAssetId)
         ? `Missing environment: ${assetRefById.get(layer.environmentAssetId)?.fileName ?? "unknown file"}`
         : null
     const motifError = missingMotifId

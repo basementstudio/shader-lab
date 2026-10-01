@@ -788,7 +788,7 @@ export class ModelPass extends PassNode {
     renderer.getClearColor(this.clearColor)
     const floorVisible = this.floor.visible
     const contactVisible = this.contact.mesh.visible
-    let swapped: Array<[THREE.Mesh, THREE.Material | THREE.Material[]]> = []
+    let swapped: [THREE.Mesh, THREE.Material | THREE.Material[]][] = []
 
     try {
       renderer.setClearColor(0, 0)
@@ -808,7 +808,7 @@ export class ModelPass extends PassNode {
 
       this.floor.visible = false
       this.contact.mesh.visible = false
-      swapped = this.useDepthMaterials()
+      swapped = this.swapInDepthMaterials()
       renderer.setRenderTarget(this.depthTarget)
       renderer.render(this.modelScene, this.modelCamera)
     } finally {
@@ -822,10 +822,8 @@ export class ModelPass extends PassNode {
     }
   }
 
-  private useDepthMaterials(): Array<
-    [THREE.Mesh, THREE.Material | THREE.Material[]]
-  > {
-    const swapped: Array<[THREE.Mesh, THREE.Material | THREE.Material[]]> = []
+  private swapInDepthMaterials(): [THREE.Mesh, THREE.Material | THREE.Material[]][] {
+    const swapped: [THREE.Mesh, THREE.Material | THREE.Material[]][] = []
     for (const [mesh, original] of this.originalMaterials) {
       swapped.push([mesh, mesh.material])
       const hasUv = mesh.geometry.hasAttribute("uv")
@@ -849,7 +847,7 @@ export class ModelPass extends PassNode {
       hasUv && cutout.map && (source.transparent || source.alphaTest > 0)
         ? cutout.map
         : null
-    if (!alphaMap && !map) return this.depthMaterial
+    if (!(alphaMap || map)) return this.depthMaterial
     const key = `${source.uuid}:${alphaMap ? 1 : 0}:${map ? 1 : 0}`
     let material = this.depthCutouts.get(key)
     if (!material) {

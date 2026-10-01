@@ -8,6 +8,7 @@ export type ErosionStyleValues = {
   output: "paper" | "transparent"
   paperColor: string
   scatter: number
+  seed: number
   speckleSize: number
   speed: number
 }
@@ -30,6 +31,7 @@ export const EROSION_STYLES: ErosionStyle[] = [
       output: "paper",
       paperColor: "#f2efe8",
       scatter: 0.5,
+      seed: 0,
       speckleSize: 3,
       speed: 0,
     },
@@ -45,6 +47,7 @@ export const EROSION_STYLES: ErosionStyle[] = [
       output: "paper",
       paperColor: "#fbf6f2",
       scatter: 0.25,
+      seed: 0,
       speckleSize: 1.5,
       speed: 0,
     },
@@ -60,6 +63,7 @@ export const EROSION_STYLES: ErosionStyle[] = [
       output: "transparent",
       paperColor: "#f2efe8",
       scatter: 0.6,
+      seed: 0,
       speckleSize: 2.5,
       speed: 0,
     },

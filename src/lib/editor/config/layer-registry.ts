@@ -3804,7 +3804,7 @@ const erosionParams = [
       "0 freezes the crumbs; higher values make them flicker and shift over time.",
   },
   {
-    defaultValue: 0,
+    defaultValue: erosionDefaults.seed as number,
     group: "Motion",
     key: "seed",
     label: "Seed",

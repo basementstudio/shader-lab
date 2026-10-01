@@ -111,6 +111,7 @@ type Point = Site & { position: Node; color: Node }
 
 const SITE_MARGIN = 2
 const SNAP_STEPS = 4
+const MAX_EDGE_TEXTURE = 8192
 const SNAP_FLOOR = 0.08
 const SNAP_RAMP = 0.15
 const SNAP_REACH = 5
@@ -142,6 +143,7 @@ export class ConnectedDotsPass extends PassNode {
   private readonly wireColorUniform: Node
   private readonly seedUniform: Node
   private readonly edgeSnapUniform: Node
+  private edgeSnapRequested = 0
   private readonly timeUniform: Node
   private readonly documentSizeUniform: Node
   private readonly siteGridUniform: Node
@@ -262,6 +264,9 @@ export class ConnectedDotsPass extends PassNode {
       this.siteTarget.setSize(columns, rows)
       ;(this.siteGridUniform.value as THREE.Vector2).set(columns, rows)
     }
+    const fits =
+      columns * SNAP_STEPS <= MAX_EDGE_TEXTURE && rows * SNAP_STEPS <= MAX_EDGE_TEXTURE
+    this.edgeSnapUniform.value = fits ? this.edgeSnapRequested : 0
     const snapping = (this.edgeSnapUniform.value as number) > 0
     const edgeColumns = snapping ? columns * SNAP_STEPS : 1
     const edgeRows = snapping ? rows * SNAP_STEPS : 1
@@ -305,7 +310,8 @@ export class ConnectedDotsPass extends PassNode {
       typeof params.wireColor === "string" ? params.wireColor : "#ffffff"
     )
     this.seedUniform.value = readNumber(params.seed, 0, 0, 999)
-    this.edgeSnapUniform.value = readNumber(params.edgeSnap, 0, 0, 1)
+    this.edgeSnapRequested = readNumber(params.edgeSnap, 0, 0, 1)
+    this.edgeSnapUniform.value = this.edgeSnapRequested
     this.speed = readNumber(params.speed, 0, 0, 4)
     const stops =
       typeof params.stops === "string" && params.stops.trim() !== ""
@@ -410,7 +416,8 @@ export class ConnectedDotsPass extends PassNode {
           .level(0)
         const tone = perceptualLuma(sample)
         const darkness = select(this.invertUniform.greaterThan(0.5), tone, float(1).sub(tone))
-        return vec2(darkness, clamp(sample.a, 0, 1)).toVar()
+        const alpha = clamp(sample.a, 0, 1)
+        return vec2(darkness.mul(alpha), alpha).toVar()
       }
       const middle = read(vec2(0))
       const left = read(vec2(step.negate(), 0))

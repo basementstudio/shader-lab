@@ -135,8 +135,14 @@ export function EditorCanvasViewport() {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === " " && !isEditableTarget(event.target)) {
-        // Space belongs to canvas panning, even after a toolbar button had focus.
-        event.preventDefault()
+        if (
+          !(
+            event.target instanceof Element &&
+            event.target.closest("button, a[href], summary, [role='button']")
+          )
+        ) {
+          event.preventDefault()
+        }
         setIsSpacePressed(true)
       }
     }

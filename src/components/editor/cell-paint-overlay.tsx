@@ -33,6 +33,9 @@ export function CellPaintOverlay({
   const allowed = useLayerStore((s) =>
     canPaintCellLayer(s.layers, id, s.selectedLayerId)
   )
+  useEffect(() => {
+    if (id && !allowed) useCellPaintStore.getState().edit(null)
+  }, [id, allowed])
   // Unmount the gesture surface on selection, mode, visibility, lock or export changes.
   return id && allowed && !disabled ? (
     <PaintSurface key={id} id={id} panning={panning} />

@@ -248,11 +248,18 @@ export class ConnectedDotsPass extends PassNode {
     const spacing = this.spacingUniform
     const random = hash2(cell.add(this.seedUniform.mul(13.1)))
     const phase = random.mul(6.2831853)
-    const drift = vec2(
+    const wobble = vec2(
       sin(this.timeUniform.add(phase.x)),
       cos(this.timeUniform.mul(0.8).add(phase.y))
-    ).mul(this.driftUniform.mul(0.35))
-    const local = random.sub(0.5).mul(this.jitterUniform).add(0.5).add(drift)
+    )
+    const scatter = random.sub(0.5).mul(this.jitterUniform)
+    const meshMode = this.modeUniform.greaterThan(2.5)
+    const drift = select(
+      meshMode,
+      wobble.mul(vec2(0.5).sub(abs(scatter))).mul(this.driftUniform),
+      wobble.mul(this.driftUniform.mul(0.35))
+    )
+    const local = scatter.add(0.5).add(drift)
     const position = cell.add(local).mul(spacing)
     const sample = colorNode
       .sample(position.div(this.documentSizeUniform))
@@ -348,9 +355,22 @@ export class ConnectedDotsPass extends PassNode {
           const p10 = this.point(cell.add(vec2(1, 0)), colorNode)
           const p01 = this.point(cell.add(vec2(0, 1)), colorNode)
           const p11 = this.point(cell.add(vec2(1, 1)), colorNode)
+          const diagonalSide = (p: Point, q: Point, r: Point) =>
+            q.position.x
+              .sub(p.position.x)
+              .mul(r.position.y.sub(p.position.y))
+              .sub(q.position.y.sub(p.position.y).mul(r.position.x.sub(p.position.x)))
+          const splitMain = diagonalSide(p00, p11, p10).mul(diagonalSide(p00, p11, p01)).lessThanEqual(0)
+          const pickPoint = (when: Node, yes: Point, no: Point): Point => ({
+            position: select(when, yes.position, no.position),
+            tone: select(when, yes.tone, no.tone),
+            color: select(when, yes.color, no.color),
+            present: select(when, yes.present, no.present),
+            radius: select(when, yes.radius, no.radius),
+          })
           for (const [a, b, c] of [
-            [p00, p10, p11],
-            [p00, p11, p01],
+            [p00, p10, pickPoint(splitMain, p11, p01)],
+            [pickPoint(splitMain, p00, p10), p11, p01],
           ] as const) {
             const cross = (u: Node, v: Node, w: Node) =>
               v.x.sub(u.x).mul(w.y.sub(u.y)).sub(v.y.sub(u.y).mul(w.x.sub(u.x)))

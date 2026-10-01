@@ -211,7 +211,7 @@ export type ParameterVisibilityCondition = {
       notEquals: boolean | number | string
     }
   | {
-      oneOf: (boolean | number | string)[]
+      oneOf: readonly (boolean | number | string)[]
     }
 )
 

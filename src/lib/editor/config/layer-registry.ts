@@ -4673,6 +4673,7 @@ const connectedDotsParams = [
     animatable: false,
     defaultValue: dotsDefaults.dotShape as string,
     group: "Dots",
+    visibleWhen: { key: "mode", notEquals: "mesh" },
     key: "dotShape",
     label: "Dot Shape",
     options: [
@@ -4688,6 +4689,7 @@ const connectedDotsParams = [
   {
     defaultValue: dotsDefaults.minSize as number,
     group: "Dots",
+    visibleWhen: { key: "mode", notEquals: "mesh" },
     key: "minSize",
     label: "Min Size",
     max: 1,
@@ -4700,6 +4702,7 @@ const connectedDotsParams = [
   {
     defaultValue: dotsDefaults.maxSize as number,
     group: "Dots",
+    visibleWhen: { key: "mode", notEquals: "mesh" },
     key: "maxSize",
     label: "Max Size",
     max: 1,
@@ -4712,7 +4715,7 @@ const connectedDotsParams = [
   {
     defaultValue: dotsDefaults.links as number,
     group: "Links",
-    visibleWhen: { key: "mode", notEquals: "plexus" },
+    visibleWhen: { key: "mode", oneOf: ["graph", "blobs"] },
     key: "links",
     label: "Links",
     max: 1,
@@ -4725,7 +4728,7 @@ const connectedDotsParams = [
   {
     defaultValue: dotsDefaults.linkThreshold as number,
     group: "Links",
-    visibleWhen: { key: "mode", notEquals: "plexus" },
+    visibleWhen: { key: "mode", oneOf: ["graph", "blobs"] },
     key: "linkThreshold",
     label: "Link Threshold",
     max: 1,
@@ -4738,7 +4741,7 @@ const connectedDotsParams = [
   {
     defaultValue: dotsDefaults.linkMin as number,
     group: "Links",
-    visibleWhen: { key: "mode", notEquals: "plexus" },
+    visibleWhen: { key: "mode", oneOf: ["graph", "blobs"] },
     key: "linkMin",
     label: "Thin Links",
     max: 1,
@@ -4751,7 +4754,7 @@ const connectedDotsParams = [
   {
     defaultValue: dotsDefaults.linkMax as number,
     group: "Links",
-    visibleWhen: { key: "mode", notEquals: "plexus" },
+    visibleWhen: { key: "mode", oneOf: ["graph", "blobs"] },
     key: "linkMax",
     label: "Thick Links",
     max: 1.5,

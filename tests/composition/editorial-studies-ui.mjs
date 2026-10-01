@@ -1,6 +1,9 @@
 // Dev server required: bun tests/composition/editorial-studies-ui.mjs
 import assert from "node:assert/strict"
+import { mkdirSync } from "node:fs"
 import { chromium } from "playwright"
+mkdirSync(".context", { recursive: true })
+const modifier = process.platform === "darwin" ? "Meta" : "Control"
 const browser = await chromium.launch({
   headless: true,
   args: [
@@ -83,9 +86,9 @@ try {
   await scatter.focus()
   await scatter.press("ArrowRight")
   assert.equal(params(await save("changed")).edgeScatter, 0.66)
-  await page.keyboard.press("Meta+z")
+  await page.keyboard.press(`${modifier}+z`)
   assert.equal(params(await save("undo")).edgeScatter, 0.65)
-  await page.keyboard.press("Meta+Shift+z")
+  await page.keyboard.press(`${modifier}+Shift+z`)
   assert.equal(params(await save("redo")).edgeScatter, 0.66)
   await page
     .getByRole("combobox")

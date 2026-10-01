@@ -109,6 +109,15 @@ function whiteSphere(scene) {
   )
 }
 
+function transmissiveSphere(scene) {
+  scene.add(
+    new THREE.Mesh(
+      new THREE.SphereGeometry(1, 64, 32),
+      new THREE.MeshPhysicalMaterial({ color: "#ffffff", roughness: 0.1, transmission: 1, thickness: 0.5 })
+    )
+  )
+}
+
 export function assetFor(blob, id, fileName = `${id}.glb`, kind = "model") {
   return {
     createdAt: new Date(0).toISOString(),
@@ -267,6 +276,7 @@ async function passChecks() {
     gray: URL.createObjectURL(await exportGlb(unlitGray)),
     sphere: URL.createObjectURL(await exportGlb(unlitSphere)),
     lit: URL.createObjectURL(await exportGlb(whiteSphere)),
+    transmissive: URL.createObjectURL(await exportGlb(transmissiveSphere)),
   }
   const pass = new ModelPass("model-check", renderer)
   pass.updateCompositionRole("source")
@@ -378,6 +388,11 @@ async function passChecks() {
       assert(shaded.every(Number.isFinite), `${material} renders finite pixels`)
       samples++
     }
+
+    const transmissive = await render(urls.transmissive, { orbit: 30, elevation: 15, toneMapping: "neutral", material: "original" })
+    assert(transmissive.every(Number.isFinite), "An imported transmissive material compiles and renders finite pixels")
+    assert(sample(transmissive, 0, 0)[3] > 0.99, "An imported transmissive model still covers its silhouette")
+    samples += 2
 
     await render(urls.sphere)
     pass.setSceneDepth(incomingDepth)

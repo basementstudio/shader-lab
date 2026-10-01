@@ -92,8 +92,33 @@ export function buildPublishableProjectFile(
   const audioSource = file.audio?.source ?? null
   const audioLayerId =
     audioSource?.kind === "video-layer" ? audioSource.layerId : null
-  const layers = file.layers.filter(
-    (layer) => layer.visible || layer.id === audioLayerId
+  const layersById = new Map(file.layers.map((layer) => [layer.id, layer]))
+  const isHiddenByAncestor = (layer: (typeof file.layers)[number]) => {
+    const seen = new Set<string>()
+    let parentId = layer.parentId ?? null
+    while (parentId && !seen.has(parentId)) {
+      seen.add(parentId)
+      const parent = layersById.get(parentId)
+      if (!parent) {
+        return false
+      }
+      if (!parent.visible) {
+        return true
+      }
+      parentId = parent.parentId ?? null
+    }
+    return false
+  }
+  const keptLayers = file.layers.filter((layer) =>
+    layer.id === audioLayerId
+      ? true
+      : layer.visible && !isHiddenByAncestor(layer)
+  )
+  const keptLayerIds = new Set(keptLayers.map((layer) => layer.id))
+  const layers = keptLayers.map((layer) =>
+    layer.parentId && !keptLayerIds.has(layer.parentId)
+      ? { ...layer, parentId: null }
+      : layer
   )
 
   if (layers.length === file.layers.length) {

@@ -102,6 +102,7 @@ export class GlassPass extends PassNode {
   private readonly depthPlaceholder = new THREE.Texture()
   private colorNode: Node | null = null
   private depthNode: Node | null = null
+  private needsPyramid = true
   private outputWidth = 1
   private logicalWidth = 1
 
@@ -155,6 +156,9 @@ export class GlassPass extends PassNode {
     this.distanceUniform.value = readNumber(params.distance, 10, 0, 240)
     this.fromDepthUniform.value = params.distanceFrom === "depth" ? 1 : 0
     this.frostUniform.value = readNumber(params.frost, 0, 0, 1)
+    this.needsPyramid =
+      (this.distanceUniform.value as number) > 0 ||
+      (this.frostUniform.value as number) > 0
     this.frostSizeUniform.value = readNumber(params.frostSize, 1.5, 0.5, 8)
     this.highlightsUniform.value = readNumber(params.highlights, 0.8, 0, 3)
     this.lightAngleUniform.value =
@@ -174,7 +178,7 @@ export class GlassPass extends PassNode {
     time: number,
     delta: number
   ): void {
-    this.pyramid.render(renderer, inputTexture)
+    if (this.needsPyramid) this.pyramid.render(renderer, inputTexture)
     if (this.colorNode) this.colorNode.value = inputTexture
     const depth = this.sceneDepthTexture
     this.hasDepthUniform.value = depth ? 1 : 0
@@ -320,6 +324,7 @@ export class GlassPass extends PassNode {
       const green = this.pyramid.sample(colorNode, seen, level, true)
       const red = this.pyramid.sample(colorNode, seen.add(spread), level, true)
       const blue = this.pyramid.sample(colorNode, seen.sub(spread), level, true)
+      const coverage = max(max(red.a, green.a), blue.a)
       const alpha = max(green.a, float(0.0001))
       let rgb: Node = vec3(
         red.r.div(max(red.a, float(0.0001))),
@@ -360,7 +365,7 @@ export class GlassPass extends PassNode {
       const crinkle = valueNoise(frostPoint.mul(1.7).add(11.3)).sub(0.5)
       rgb = rgb.mul(float(1).add(crinkle.mul(this.frostUniform).mul(0.14)))
       rgb = mix(rgb, rgb.mul(vec3(this.tintUniform)), this.tintAmountUniform)
-      return vec4(clamp(rgb, 0, 1), clamp(green.a, 0, 1))
+      return vec4(clamp(rgb, 0, 1), clamp(coverage, 0, 1))
     })()
   }
 

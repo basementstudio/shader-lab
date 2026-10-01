@@ -220,6 +220,7 @@ export function Slider({
     "--slider-pull-scale-x": thumbScaleX.toString(),
     "--slider-pull-scale-y": thumbScaleY.toString(),
     "--slider-pull-x": `${pullOffset}px`,
+    "--slider-progress": getSliderNormalizedProgress(currentValue, min, max).toString(),
   } as CSSProperties
 
   const handleValueChange = (
@@ -337,7 +338,7 @@ export function Slider({
     >
       <div className="flex items-center justify-between gap-[var(--ds-space-3)]">
         {label ? (
-          <BaseSlider.Label className="text-[11px] leading-[14px] font-normal text-white/45">
+          <BaseSlider.Label data-ds="slider-label" className="text-[11px] leading-[14px] font-normal text-white/45">
             {label}
           </BaseSlider.Label>
         ) : (
@@ -353,6 +354,7 @@ export function Slider({
                 aria-label={
                   typeof label === "string" ? `${label} value` : "Slider value"
                 }
+                data-ds="slider-value"
                 className="h-[14px] border-none bg-transparent p-0 text-right text-[11px] leading-[14px] text-[var(--ds-color-text-primary)] outline-none transition-[color] duration-160 ease-[var(--ease-out-cubic)]"
                 id={inputId}
                 inputMode="decimal"
@@ -373,6 +375,7 @@ export function Slider({
                     ? `Edit ${label} value`
                     : "Edit slider value"
                 }
+                data-ds="slider-value"
                 className="cursor-pointer border-none bg-transparent p-0 text-right text-[11px] leading-[14px] text-[var(--ds-color-text-secondary)] transition-[color] duration-160 ease-[var(--ease-out-cubic)] hover:text-[var(--ds-color-text-primary)]"
                 onClick={() => {
                   setDraftValue(formattedValue)
@@ -397,14 +400,15 @@ export function Slider({
       </div>
 
       <BaseSlider.Control
+        data-ds="slider-control"
         className="relative flex min-h-5 w-full cursor-grab items-center touch-none active:cursor-grabbing data-[disabled]:cursor-not-allowed"
         onPointerDownCapture={handlePointerDown}
         ref={controlRef}
       >
-        <BaseSlider.Track className="relative h-1 flex-1 rounded-[2px] bg-white/10">
-          <BaseSlider.Indicator className="h-full rounded-[2px] bg-white/25" />
+        <BaseSlider.Track data-ds="slider-track" className="relative h-1 flex-1 rounded-[2px] bg-white/10">
+          <BaseSlider.Indicator data-ds="slider-indicator" className="h-full rounded-[2px] bg-white/25" />
         </BaseSlider.Track>
-        <BaseSlider.Thumb className="relative h-3 w-4 cursor-inherit overflow-visible transition-[transform,outline-offset] duration-120 ease-[var(--ease-out-cubic)] focus-visible:outline-none focus-visible:[&>span]:bg-white focus-visible:[&>span]:shadow-[var(--ds-shadow-knob),0_0_0_3px_rgb(255_255_255_/_0.16)] active:scale-[0.96] data-[dragging]:scale-[0.96] data-[disabled]:opacity-45">
+        <BaseSlider.Thumb data-ds="slider-thumb" className="relative h-3 w-4 cursor-inherit overflow-visible transition-[transform,outline-offset] duration-120 ease-[var(--ease-out-cubic)] focus-visible:outline-none focus-visible:[&>span]:bg-white focus-visible:[&>span]:shadow-[var(--ds-shadow-knob),0_0_0_3px_rgb(255_255_255_/_0.16)] active:scale-[0.96] data-[dragging]:scale-[0.96] data-[disabled]:opacity-45">
           <span
             className="block h-full w-full rounded-[var(--ds-radius-thumb)] border-2 border-white/15 bg-white/85 shadow-[var(--ds-shadow-knob)] transition-[background-color,box-shadow,transform] duration-[160ms,160ms,260ms] ease-[var(--ease-out-cubic),var(--ease-out-cubic),cubic-bezier(0.34,1.56,0.64,1)] will-change-transform hover:bg-white/92"
             style={{

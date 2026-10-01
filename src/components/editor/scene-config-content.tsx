@@ -108,7 +108,10 @@ export function SceneConfigContent() {
   )
 
   return (
-    <div className="flex min-h-0 max-h-[min(62vh,620px)] flex-col gap-0 overflow-x-hidden overflow-y-auto">
+    <div
+      className="flex min-h-0 max-h-[min(62vh,620px)] flex-col gap-0 overflow-x-hidden overflow-y-auto"
+      data-ds="panel-scroll"
+    >
       <section
         className="flex flex-col gap-2 px-4 py-3"
         aria-label="Global color adjustments"

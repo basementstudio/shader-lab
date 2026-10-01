@@ -66,6 +66,7 @@ export function Select({
   const trigger = (
     <BaseSelect.Trigger
       aria-label={triggerAriaLabel}
+      data-ds={isIconTrigger ? "select-icon-trigger" : "select-trigger"}
       data-ds-value={isIconTrigger ? undefined : ""}
       className={cn(
         isIconTrigger
@@ -75,6 +76,7 @@ export function Select({
       )}
     >
       <BaseSelect.Value
+        data-ds="select-value"
         className={cn(
           isIconTrigger
             ? "inline-flex items-center justify-center leading-none text-inherit"
@@ -133,6 +135,7 @@ export function Select({
           sideOffset={8}
         >
           <BaseSelect.Popup
+            data-ds="select-popup"
             className={cn(
               "max-h-[min(320px,var(--available-height))] min-w-[var(--anchor-width)] overflow-y-auto overscroll-contain rounded-[var(--ds-radius-control)] border border-[var(--ds-border-panel)] bg-[rgb(18_18_22_/_0.72)] shadow-[var(--ds-shadow-panel-dark)] backdrop-blur-[24px]",
               popupClassName
@@ -141,12 +144,14 @@ export function Select({
             <BaseSelect.List className="flex flex-col gap-0.5 p-1">
               {options.map((option) => (
                 <BaseSelect.Item
+                  data-ds="select-item"
                   className="cursor-pointer rounded-[var(--ds-radius-icon)] px-[10px] py-[6px] text-[var(--ds-color-text-secondary)] outline-none transition-[background-color,color] duration-140 ease-[var(--ease-out-cubic)] data-[highlighted]:bg-[var(--ds-color-surface-active)] data-[selected]:bg-[var(--ds-color-surface-active)] data-[highlighted]:text-[var(--ds-color-text-primary)] data-[selected]:text-[var(--ds-color-text-primary)] data-[disabled]:cursor-not-allowed data-[disabled]:text-[var(--ds-color-text-disabled)]"
                   disabled={option.disabled}
                   key={option.value}
                   value={option.value}
                 >
                   <BaseSelect.ItemText
+                    data-ds="select-item-text"
                     className="block text-[11px] leading-[14px]"
                     data-ds-value=""
                   >

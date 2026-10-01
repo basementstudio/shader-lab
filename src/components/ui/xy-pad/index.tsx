@@ -183,6 +183,7 @@ export function XYPad({
 
       <button
         aria-label={typeof label === "string" ? label : "XY pad"}
+        data-ds="xy-pad"
         className="relative h-[156px] w-full cursor-crosshair overflow-hidden rounded-[calc(var(--ds-radius-control)+2px)] border border-white/8 bg-[radial-gradient(circle_at_center,rgb(255_255_255_/_0.05),transparent_58%),linear-gradient(180deg,rgb(255_255_255_/_0.04),rgb(255_255_255_/_0.01))] shadow-[inset_0_1px_0_rgb(255_255_255_/_0.04)] touch-none focus-visible:outline-none focus-visible:shadow-[inset_0_1px_0_rgb(255_255_255_/_0.04),0_0_0_3px_rgb(255_255_255_/_0.12)] active:[&_.xy-handle]:scale-90"
         onKeyDown={handleKeyDown}
         onPointerCancel={handlePointerEnd}
@@ -193,12 +194,14 @@ export function XYPad({
         style={style}
         type="button"
       >
-        <div className="absolute inset-0 bg-[linear-gradient(rgb(255_255_255_/_0.06)_1px,transparent_1px),linear-gradient(90deg,rgb(255_255_255_/_0.06)_1px,transparent_1px)] bg-center bg-[length:25%_25%]" />
+        <div data-ds="xy-grid" className="absolute inset-0 bg-[linear-gradient(rgb(255_255_255_/_0.06)_1px,transparent_1px),linear-gradient(90deg,rgb(255_255_255_/_0.06)_1px,transparent_1px)] bg-center bg-[length:25%_25%]" />
         <div
+          data-ds="xy-cross"
           className="pointer-events-none absolute inset-x-0 h-px bg-[linear-gradient(90deg,transparent,rgb(255_255_255_/_0.28),transparent)] transition-[top] duration-[220ms] ease-[cubic-bezier(0.34,1.56,0.64,1)]"
           style={{ top: "var(--xy-pad-display-y)" }}
         />
         <div
+          data-ds="xy-cross"
           className="pointer-events-none absolute top-0 bottom-0 w-px bg-[linear-gradient(180deg,transparent,rgb(255_255_255_/_0.28),transparent)] transition-[left] duration-[220ms] ease-[cubic-bezier(0.34,1.56,0.64,1)]"
           style={{ left: "var(--xy-pad-display-x)" }}
         />
@@ -209,7 +212,7 @@ export function XYPad({
             top: "var(--xy-pad-display-y)",
           }}
         >
-          <span className="block h-full w-full rounded-full border-2 border-white/14 bg-[radial-gradient(circle_at_30%_30%,rgb(255_255_255_/_0.95),rgb(255_255_255_/_0.76)),linear-gradient(180deg,rgb(255_255_255_/_0.2),rgb(255_255_255_/_0.06))] shadow-[0_10px_20px_rgb(0_0_0_/_0.26),0_0_0_6px_rgb(255_255_255_/_0.05)] transition-[background-color,box-shadow] duration-160 ease-[var(--ease-out-cubic)]" />
+          <span data-ds="xy-handle" className="block h-full w-full rounded-full border-2 border-white/14 bg-[radial-gradient(circle_at_30%_30%,rgb(255_255_255_/_0.95),rgb(255_255_255_/_0.76)),linear-gradient(180deg,rgb(255_255_255_/_0.2),rgb(255_255_255_/_0.06))] shadow-[0_10px_20px_rgb(0_0_0_/_0.26),0_0_0_6px_rgb(255_255_255_/_0.05)] transition-[background-color,box-shadow] duration-160 ease-[var(--ease-out-cubic)]" />
         </div>
       </button>
     </div>

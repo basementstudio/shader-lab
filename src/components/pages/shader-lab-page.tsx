@@ -9,6 +9,7 @@ import { EditorTimelineOverlay } from "@/components/editor/editor-timeline-overl
 import { EditorTopBar } from "@/components/editor/editor-topbar"
 import { LayerSidebar } from "@/components/editor/layer-sidebar"
 import { PropertiesSidebar } from "@/components/editor/properties-sidebar"
+import { ThemeMount } from "@/components/editor/theme-mount"
 import {
   SCENE_LOADING_OVERLAY_ID,
   SceneDeepLinkMount,
@@ -66,6 +67,7 @@ export function ShaderLabPage({
       <h1 className="sr-only">
         Shader Lab — browser-based WebGPU shader editor
       </h1>
+      <ThemeMount />
       <AgentBridgeMount />
       <AutosaveMount />
       <DraftSaveMount />

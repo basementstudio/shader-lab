@@ -42,6 +42,8 @@ export function Button({
   const button = (
     <button
       className={cn(buttonVariants({ variant, size, fullWidth }), className)}
+      data-ds="button"
+      data-variant={variant ?? "secondary"}
       type="button"
       {...props}
       onClick={(event) => {

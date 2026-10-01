@@ -692,7 +692,10 @@ export function SelectedLayerPropertiesContent({
         </div>
       </div>
 
-      <div className="flex min-h-0 max-h-[min(62vh,620px)] flex-col gap-0 overflow-x-hidden overflow-y-auto">
+      <div
+        className="flex min-h-0 max-h-[min(62vh,620px)] flex-col gap-0 overflow-x-hidden overflow-y-auto"
+        data-ds="panel-scroll"
+      >
         <section className="flex flex-col gap-3 border-t border-[var(--ds-border-divider)] px-4 pt-[14px] pb-4 first:border-t-0">
           <Typography className="uppercase" tone="secondary" variant="overline">
             General

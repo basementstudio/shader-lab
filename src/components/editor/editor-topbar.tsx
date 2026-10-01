@@ -6,10 +6,12 @@ import {
   DragHandleDots2Icon,
   GearIcon,
   GlobeIcon,
+  MoonIcon,
   GitHubLogoIcon,
   ResetIcon,
   SpeakerLoudIcon,
   SpeakerOffIcon,
+  SunIcon,
   ZoomInIcon,
   ZoomOutIcon,
 } from "@radix-ui/react-icons"
@@ -31,6 +33,7 @@ import { Typography } from "@/components/ui/typography"
 import { playUISound } from "@/lib/audio/shader-lab-sounds"
 import { cn } from "@/lib/cn"
 import { COMMUNITY_PATH } from "@/lib/community/scene-links"
+import { useThemeStore } from "@/store/theme-store"
 import { useCommunityUnread } from "@/lib/community/use-community-unread"
 import {
   applyEditorHistorySnapshot,
@@ -571,6 +574,7 @@ export function EditorTopBar({
               </IconButton>
               <TopbarDivider className="mx-0.5" />
 
+              <ThemeToggleButton />
               {rightSidebarVisible ? (
                 <IconButton
                   aria-label={
@@ -847,5 +851,29 @@ export function EditorTopBar({
         />
       ) : null}
     </>
+  )
+}
+
+function ThemeToggleButton() {
+  const theme = useThemeStore((state) => state.theme)
+  const toggleTheme = useThemeStore((state) => state.toggleTheme)
+  return (
+    <IconButton
+      aria-label={theme === "light" ? "Dark theme" : "Light theme"}
+      className="h-7 w-7"
+      onClick={() => {
+        toggleTheme()
+        playUISound("action.panelSwitch")
+      }}
+      tooltipSide="bottom"
+      uiSound="none"
+      variant="default"
+    >
+      {theme === "light" ? (
+        <MoonIcon height={15} width={15} />
+      ) : (
+        <SunIcon height={15} width={15} />
+      )}
+    </IconButton>
   )
 }

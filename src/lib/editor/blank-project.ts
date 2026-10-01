@@ -25,7 +25,7 @@ export const LEGACY_BLANK_BACKGROUNDS = ["#ffffff"] as const
 
 export type BlankTheme = keyof typeof BLANK_BACKGROUNDS
 
-export function getBlankSceneConfig(theme: BlankTheme = "dark"): SceneConfig {
+export function getBlankSceneConfig(theme: BlankTheme = "light"): SceneConfig {
   return {
     ...structuredClone(DEFAULT_SCENE_CONFIG),
     backgroundColor: BLANK_BACKGROUNDS[theme],
@@ -36,7 +36,7 @@ export function getBlankSceneConfig(theme: BlankTheme = "dark"): SceneConfig {
 }
 
 /** Independent objects: editing a scene must never mutate future defaults. */
-export function getBlankProjectFile(theme: BlankTheme = "dark"): LabProjectFile {
+export function getBlankProjectFile(theme: BlankTheme = "light"): LabProjectFile {
   return {
     assets: [],
     audio: getBlankProjectAudio(),

@@ -29,8 +29,6 @@ export function SceneCard({
         featured && "col-span-2 row-span-2 h-full"
       )}
     >
-      {/* Hover, click and focus all live on the thumbnail; the title and
-          author row below stays inert. */}
       <div
         className={cn(
           "group relative w-full overflow-hidden rounded-[8px] border border-[var(--ds-border-subtle)] bg-[var(--ds-color-surface-subtle)] transition-[border-color] duration-160 ease-[var(--ease-out-cubic)] hover:border-[var(--ds-border-hover)] has-[:focus-visible]:outline has-[:focus-visible]:outline-1 has-[:focus-visible]:outline-[var(--ds-border-active)] has-[:focus-visible]:outline-offset-2",
@@ -58,7 +56,7 @@ export function SceneCard({
           type="button"
         />
 
-        <div className="pointer-events-none absolute top-1.5 right-1.5 z-[2] inline-flex items-center gap-1.5 rounded-[var(--ds-radius-control)] border border-white/10 bg-[rgb(8_9_12_/_0.68)] px-1.5 py-[3px] backdrop-blur-[8px]">
+        <div className="ds-on-media pointer-events-none absolute top-1.5 right-1.5 z-[2] inline-flex items-center gap-1.5 rounded-[var(--ds-radius-control)] border border-white/10 bg-[rgb(8_9_12_/_0.68)] px-1.5 py-[3px] backdrop-blur-[8px]">
           <span className="inline-flex items-center gap-1">
             <span className="text-[var(--ds-color-text-secondary)]">
               <HeartIcon height={11} width={11} />
@@ -81,7 +79,7 @@ export function SceneCard({
         </div>
 
         {onRemix ? (
-          <div className="pointer-events-none absolute right-1.5 bottom-1.5 z-[2] opacity-0 transition-opacity duration-160 ease-[var(--ease-out-cubic)] group-focus-within:opacity-100 group-hover:opacity-100">
+          <div className="ds-on-media pointer-events-none absolute right-1.5 bottom-1.5 z-[2] opacity-0 transition-opacity duration-160 ease-[var(--ease-out-cubic)] group-focus-within:opacity-100 group-hover:opacity-100">
             <IconButton
               aria-label={`Remix ${scene.title}`}
               className={CARD_CTA_CLASSES}

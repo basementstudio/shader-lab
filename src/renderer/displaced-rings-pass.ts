@@ -184,6 +184,34 @@ export class DisplacedRingsPass extends PassNode {
     return select(interior, base.add(shift), base)
   }
 
+  private bandLocal(point: Node, index: Node, progress: Node): Node {
+    const alternating = select(index.mod(2).lessThan(1), float(-1), float(1))
+    const random = fract(
+      sin(index.mul(127.1).add(this.seed.mul(311.7))).mul(43758.5453)
+    )
+      .mul(2)
+      .sub(1)
+    const displacement = select(
+      this.pattern.greaterThan(1.5),
+      random,
+      select(
+        this.pattern.greaterThan(0.5),
+        progress,
+        alternating.mul(progress.mul(0.65).add(0.35))
+      )
+    )
+    const moved = point.sub(this.offset.mul(displacement))
+    const angle = this.rotation
+      .add(this.rotationStep.mul(index))
+      .add(this.random(index, 5.1).mul(2).sub(1).mul(this.rotationJitter))
+    const c = cos(angle)
+    const s = sin(angle)
+    return vec2(
+      moved.x.mul(c).add(moved.y.mul(s)),
+      moved.y.mul(c).sub(moved.x.mul(s))
+    )
+  }
+
   private shapeDistance(local: Node): Node {
     const n = max(this.sides, float(3))
     const segment = float(Math.PI * 2).div(n)
@@ -224,42 +252,17 @@ export class DisplacedRingsPass extends PassNode {
         .and(this.softness.equal(0))
         .and(length(this.offset).equal(0))
         .and(this.halfDiscs.equal(0))
-        .and(this.sides.lessThan(2.5))
-        .and(this.rotationJitter.equal(0).or(this.sides.lessThan(2.5)))
+        .and(
+          this.sides
+            .lessThan(2.5)
+            .or(this.rotationStep.equal(0).and(this.rotationJitter.equal(0)))
+        )
       const lines = float(0).toVar()
       const lineHalf = this.lineWidth.mul(0.5)
       Loop({ start: 0, end: int(this.count), type: "int" }, ({ i }) => {
         const index = this.count.sub(1).sub(float(i))
         const progress = index.div(max(this.count.sub(1), 1))
-        const alternating = select(
-          index.mod(2).lessThan(1),
-          float(-1),
-          float(1)
-        )
-        const random = fract(
-          sin(index.mul(127.1).add(this.seed.mul(311.7))).mul(43758.5453)
-        )
-          .mul(2)
-          .sub(1)
-        const displacement = select(
-          this.pattern.greaterThan(1.5),
-          random,
-          select(
-            this.pattern.greaterThan(0.5),
-            progress,
-            alternating.mul(progress.mul(0.65).add(0.35))
-          )
-        )
-        const moved = point.sub(this.offset.mul(displacement))
-        const angle = this.rotation
-          .add(this.rotationStep.mul(index))
-          .add(this.random(index, 5.1).mul(2).sub(1).mul(this.rotationJitter))
-        const c = cos(angle)
-        const s = sin(angle)
-        const local = vec2(
-          moved.x.mul(c).add(moved.y.mul(s)),
-          moved.y.mul(c).sub(moved.x.mul(s))
-        )
+        const local = this.bandLocal(point, index, progress)
         const distance = this.shapeDistance(local)
         const inner = this.boundary(index)
         const outer = this.boundary(index.add(1))
@@ -340,10 +343,11 @@ export class DisplacedRingsPass extends PassNode {
           )
         })
       })
-      const baseAngle = this.rotation
-      const baseLocal = vec2(
-        point.x.mul(cos(baseAngle)).add(point.y.mul(sin(baseAngle))),
-        point.y.mul(cos(baseAngle)).sub(point.x.mul(sin(baseAngle)))
+      const outerIndex = this.count.sub(1)
+      const baseLocal = this.bandLocal(
+        point,
+        outerIndex,
+        outerIndex.div(max(this.count.sub(1), 1))
       )
       const beyond = this.shapeDistance(baseLocal).sub(this.radius)
       const spacing = max(

@@ -20,7 +20,7 @@ const SCALES = {
   page: {
     avatar: 96,
     gap: "var(--ds-space-5)",
-    meta: "monoMd",
+    meta: "body",
     name: "display",
     statLabel: "body",
     statValue: "heading",
@@ -28,7 +28,7 @@ const SCALES = {
   panel: {
     avatar: 56,
     gap: "var(--ds-space-4)",
-    meta: "monoSm",
+    meta: "caption",
     name: "heading",
     statLabel: "caption",
     statValue: "label",
@@ -74,7 +74,7 @@ export function ProfileHeader({
         {action ? <div className="shrink-0">{action}</div> : null}
       </div>
 
-      <dl className="flex flex-wrap gap-[var(--ds-space-5)]">
+      <dl className="flex flex-wrap gap-[var(--ds-space-2)]">
         <ProfileStat
           count={profile.publishedCount}
           noun="scene"
@@ -100,9 +100,9 @@ function ProfileStat({
   const label = pluralize(count, noun)
 
   return (
-    <div className="flex items-baseline gap-1.5">
+    <div className="flex min-w-[96px] flex-col rounded-[var(--ds-radius-control)] bg-[var(--ds-color-surface-control)] px-[var(--ds-space-3)] py-[var(--ds-space-2)] shadow-[var(--ds-shadow-recessed)]">
       <dt className="sr-only">{label}</dt>
-      <dd className="flex items-baseline gap-1.5">
+      <dd className="flex flex-col gap-0.5">
         <Typography as="span" className="tabular-nums" variant={step.statValue}>
           {count}
         </Typography>

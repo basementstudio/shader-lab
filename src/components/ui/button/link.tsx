@@ -20,6 +20,8 @@ export function ButtonLink({
   return (
     <Link
       className={cn(buttonVariants({ fullWidth, size, variant }), className)}
+      data-ds="button"
+      data-variant={variant ?? "secondary"}
       {...props}
     >
       {children}

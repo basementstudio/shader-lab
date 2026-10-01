@@ -1,4 +1,4 @@
-import { ArrowLeftIcon, HeartIcon, ShuffleIcon } from "@radix-ui/react-icons"
+import { HeartIcon, ShuffleIcon } from "@radix-ui/react-icons"
 import type { Metadata, Route } from "next"
 import Image from "next/image"
 import Link from "next/link"
@@ -112,21 +112,19 @@ async function SceneRoute({ params, searchParams }: RouteProps) {
 }
 
 function SceneBoot() {
-  return <div aria-hidden="true" className="fixed inset-0 bg-[#050507]" />
+  return (
+    <div
+      aria-hidden="true"
+      className="fixed inset-0 bg-[var(--ds-color-canvas)]"
+    />
+  )
 }
 
 function SceneSkeleton() {
   return (
-    <main className="mx-auto flex w-full max-w-[1180px] flex-col gap-[var(--ds-space-16)] px-4 py-10 sm:px-6">
-      <div className="flex flex-col gap-[var(--ds-space-6)]">
-        <div className="h-7 w-24 animate-pulse rounded-[4px] bg-[var(--ds-color-surface-subtle)]" />
-        <div className="aspect-[16/10] w-full animate-pulse rounded-[12px] border border-[var(--ds-border-subtle)] bg-[var(--ds-color-surface-subtle)]" />
-      </div>
-
-      <div className="flex animate-pulse flex-col gap-[var(--ds-space-3)]">
-        <div className="h-12 w-2/5 rounded-[4px] bg-[var(--ds-color-surface-subtle)]" />
-        <div className="h-5 w-3/5 rounded-[4px] bg-[var(--ds-color-surface-subtle)]" />
-      </div>
+    <main className="mx-auto flex w-full max-w-[1180px] flex-col gap-[var(--ds-space-3)] px-4 pt-24 pb-10 sm:px-6">
+      <div className="aspect-[16/10] w-full animate-pulse rounded-[var(--ds-radius-panel)] bg-[var(--ds-color-media)]" />
+      <div className="h-40 w-full animate-pulse rounded-[var(--ds-radius-panel)] bg-[var(--ds-color-card)]" />
     </main>
   )
 }
@@ -150,7 +148,7 @@ async function SceneBody({ params }: PageProps) {
     : null
 
   return (
-    <main className="mx-auto flex w-full max-w-[1180px] flex-col gap-[var(--ds-space-10)] px-4 py-10 sm:px-6">
+    <main className="mx-auto flex w-full max-w-[1180px] flex-col gap-[var(--ds-space-3)] px-4 pt-24 pb-16 sm:px-6">
       <PageJsonLd
         nodes={[
           generateSceneSchema(
@@ -168,18 +166,8 @@ async function SceneBody({ params }: PageProps) {
           ]),
         ]}
       />
-      <div className="flex flex-col gap-[var(--ds-space-6)]">
-        <ButtonLink
-          className="w-fit px-0"
-          href={COMMUNITY_PATH as Route}
-          size="compact"
-          variant="ghost"
-        >
-          <ArrowLeftIcon height={14} width={14} />
-          All scenes
-        </ButtonLink>
-
-        <figure className="relative m-0 aspect-[16/10] w-full overflow-hidden rounded-[12px] border border-[var(--ds-border-subtle)] bg-[var(--ds-color-surface-subtle)] min-[860px]:aspect-auto min-[860px]:h-[clamp(320px,calc(100svh-380px),700px)]">
+      <div className="flex flex-col">
+        <figure className="ds-on-media relative m-0 aspect-[16/10] w-full overflow-hidden rounded-[var(--ds-radius-panel)] bg-[var(--ds-color-media)] shadow-[var(--skin-card-shadow)] min-[860px]:aspect-auto min-[860px]:h-[clamp(320px,calc(100svh-380px),700px)]">
           {scene.thumbnailUrl ? (
             <Image
               alt={scene.title}
@@ -202,7 +190,7 @@ async function SceneBody({ params }: PageProps) {
 
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute right-4 bottom-4 z-[2] inline-flex items-center gap-[var(--ds-space-3)] rounded-[var(--ds-radius-control)] border border-white/10 bg-[rgb(8_9_12_/_0.62)] px-4 py-2.5 backdrop-blur-[10px]"
+            className="pointer-events-none absolute right-[var(--ds-space-4)] bottom-[var(--ds-space-4)] z-[2] inline-flex items-center gap-[var(--ds-space-3)] rounded-toolbar border border-[var(--ds-border-divider)] bg-[var(--ds-color-media-glass)] px-[var(--ds-space-4)] py-[var(--ds-space-2_5)] backdrop-blur-[10px]"
           >
             <span className="inline-flex items-center gap-2 text-[var(--ds-color-text-secondary)]">
               <HeartIcon height={16} width={16} />
@@ -234,7 +222,7 @@ async function SceneBody({ params }: PageProps) {
         </figure>
       </div>
 
-      <div className="mt-[var(--ds-space-6)] grid grid-cols-1 gap-[var(--ds-space-8)] min-[860px]:grid-cols-[minmax(0,1fr)_auto]">
+      <div className="grid grid-cols-1 gap-[var(--ds-space-8)] rounded-[var(--ds-radius-panel)] bg-[var(--ds-color-card)] p-[var(--ds-space-6)] shadow-[var(--skin-card-shadow)] min-[860px]:grid-cols-[minmax(0,1fr)_auto] sm:p-[var(--ds-space-8)]">
         <div className="flex min-w-0 flex-col gap-[var(--ds-space-5)]">
           <div className="flex flex-col gap-[var(--ds-space-3)]">
             <Typography as="h1" className="text-balance" variant="display">
@@ -267,7 +255,7 @@ async function SceneBody({ params }: PageProps) {
                   {authorName}
                 </Typography>
                 {publishedAt ? (
-                  <Typography as="span" tone="secondary" variant="monoXs">
+                  <Typography as="span" tone="secondary" variant="caption">
                     {publishedAt}
                   </Typography>
                 ) : null}
@@ -354,16 +342,15 @@ async function MoreByAuthor({
   }
 
   return (
-    <section className="flex flex-col gap-[var(--ds-space-6)]">
-      <div className="flex flex-wrap items-baseline justify-between gap-[var(--ds-space-3)]">
+    <section className="mt-[var(--ds-space-10)] flex flex-col gap-[var(--ds-space-5)]">
+      <div className="flex flex-wrap items-center justify-between gap-[var(--ds-space-3)] px-[var(--ds-space-1)]">
         <Typography as="h2" variant="heading">
           More by {authorName}
         </Typography>
         <ButtonLink
-          className="px-0"
           href={profilePagePath(authorHandle) as Route}
           size="compact"
-          variant="ghost"
+          variant="secondary"
         >
           View profile
         </ButtonLink>

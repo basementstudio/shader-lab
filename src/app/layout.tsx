@@ -91,7 +91,7 @@ export default function RootLayout({ children }: PropsWithChildren) {
         <script
           // biome-ignore lint/security/noDangerouslySetInnerHtml: sets the editor theme before first paint
           dangerouslySetInnerHTML={{
-            __html: `try{if(location.pathname.replace(/\\/$/,"")==="/tools/shader-lab")document.documentElement.dataset.theme=JSON.parse(localStorage.getItem("shader-lab-theme")||"{}").state?.theme==="light"?"light":"dark"}catch(e){}`,
+            __html: `try{var p=location.pathname.replace(/\\/$/,"");if(p==="/tools/shader-lab"||p.indexOf("/tools/shader-lab/community")===0)document.documentElement.dataset.theme=JSON.parse(localStorage.getItem("shader-lab-theme")||"{}").state?.theme==="light"?"light":"dark"}catch(e){}`,
           }}
         />
       </head>

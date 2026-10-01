@@ -491,3 +491,21 @@ html[data-theme="light"] [data-ds="xy-cross"] {
   opacity: 0.5;
   filter: invert(1);
 }
+
+html[data-theme] {
+  --ds-color-media: #050507;
+  --ds-color-media-glass: rgb(8 9 12 / 0.62);
+}
+
+html[data-theme] .ds-on-media {
+  --color-white: #ffffff;
+  --color-black: #000000;
+  --ds-color-text-primary: rgb(255 255 255 / 0.92);
+  --ds-color-text-secondary: rgb(255 255 255 / 0.64);
+  --ds-color-text-tertiary: rgb(255 255 255 / 0.48);
+  --ds-color-text-muted: rgb(255 255 255 / 0.36);
+  --ds-color-text-on-light: rgb(0 0 0 / 0.9);
+  --ds-border-divider: rgb(255 255 255 / 0.12);
+  --ds-border-hover: rgb(255 255 255 / 0.2);
+  color: var(--ds-color-text-primary);
+}

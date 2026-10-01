@@ -89,11 +89,10 @@ export default function EffectPage({ params }: PageProps) {
 
 function EffectSkeleton() {
   return (
-    <main className="mx-auto flex w-full max-w-[1180px] animate-pulse flex-col gap-[var(--ds-space-6)] px-4 py-10 sm:px-6">
-      <div className="h-7 w-24 rounded-[4px] bg-[var(--ds-color-surface-subtle)]" />
+    <main className="mx-auto flex w-full max-w-[1180px] animate-pulse flex-col gap-[var(--ds-space-6)] px-4 pt-24 pb-16 sm:px-6">
       <div className="h-12 w-2/5 rounded-[4px] bg-[var(--ds-color-surface-subtle)]" />
       <div className="h-5 w-3/5 rounded-[4px] bg-[var(--ds-color-surface-subtle)]" />
-      <div className="aspect-[16/10] w-full max-w-[720px] rounded-[12px] border border-[var(--ds-border-subtle)] bg-[var(--ds-color-surface-subtle)]" />
+      <div className="aspect-[16/10] w-full max-w-[720px] rounded-[var(--ds-radius-panel)] bg-[var(--ds-color-media)] shadow-[var(--skin-card-shadow)]" />
     </main>
   )
 }
@@ -111,15 +110,8 @@ async function EffectRoute({ params }: PageProps) {
   )
 
   return (
-    <main className="mx-auto flex w-full max-w-[1180px] flex-col gap-[var(--ds-space-12)] px-4 py-10 sm:px-6">
+    <main className="mx-auto flex w-full max-w-[1180px] flex-col gap-[var(--ds-space-12)] px-4 pt-24 pb-16 sm:px-6">
       <header className="flex flex-col items-start gap-[var(--ds-space-5)]">
-        <Link
-          className="text-[var(--ds-color-text-tertiary)] transition-colors hover:text-[var(--ds-color-text-primary)] type-mono-xs"
-          href={EFFECTS_PATH as Route}
-        >
-          ← All effects
-        </Link>
-
         <div className="flex flex-col gap-[var(--ds-space-3)]">
           <Typography as="h1" className="text-balance" variant="display">
             {entry.label} shader effect
@@ -147,7 +139,7 @@ async function EffectRoute({ params }: PageProps) {
         </div>
 
         {entry.previewSrc ? (
-          <figure className="relative m-0 aspect-[16/10] w-full max-w-[720px] overflow-hidden rounded-[12px] border border-[var(--ds-border-subtle)] bg-[var(--ds-color-surface-subtle)]">
+          <figure className="relative m-0 aspect-[16/10] w-full max-w-[720px] overflow-hidden rounded-[var(--ds-radius-panel)] bg-[var(--ds-color-media)] shadow-[var(--skin-card-shadow)]">
             <Image
               alt={`${entry.label} effect example`}
               className="object-cover"

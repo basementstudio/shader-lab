@@ -5,7 +5,6 @@ import { CommunityHero } from "@/components/community/community-hero"
 import { SCENES_ANCHOR_ID } from "@/components/community/scenes-anchor"
 import { PublicSceneGrid } from "@/components/community/public-scene-grid"
 import { PublicSceneEffectFilter } from "@/components/community/public-scene-effect-filter"
-import { Typography } from "@/components/ui/typography"
 import { APP_BASE_URL } from "@/lib/app"
 import { isCommunityEnabled } from "@/lib/community/config"
 import { getHeroScene, getPublicScenes } from "@/lib/community/public-scenes"
@@ -98,12 +97,7 @@ async function CommunityScenes({ searchParams }: PageProps) {
           ]),
         ]}
       />
-      <div className="flex items-center gap-2">
-        <Typography as="span" tone="tertiary" variant="overline">
-          Effect
-        </Typography>
-        <PublicSceneEffectFilter effects={effects} />
-      </div>
+      <PublicSceneEffectFilter effects={effects} />
 
       <PublicSceneGrid
         emptyLabel={emptyLabel}
@@ -123,11 +117,11 @@ function CommunityScenesSkeleton() {
       aria-hidden="true"
       className="flex animate-pulse flex-col gap-[var(--ds-space-6)]"
     >
-      <div className="h-8 w-full max-w-[720px] rounded-[var(--ds-radius-control)] bg-[var(--ds-color-surface-subtle)]" />
+      <div className="h-9 w-full rounded-group bg-[var(--ds-color-surface-control)]" />
       <div className="grid grid-cols-1 gap-[var(--ds-space-5)] min-[640px]:grid-cols-2 min-[1000px]:grid-cols-3">
         {COMMUNITY_SKELETON_KEYS.map((key) => (
           <div
-            className="aspect-[16/10] rounded-[12px] border border-[var(--ds-border-subtle)] bg-[var(--ds-color-surface-subtle)]"
+            className="aspect-[16/11] rounded-toolbar bg-[var(--ds-color-card)]"
             key={key}
           />
         ))}

@@ -38,7 +38,7 @@ export default function EffectsIndexPage() {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-[1180px] flex-col gap-[var(--ds-space-10)] px-4 py-10 sm:px-6">
+    <main className="mx-auto flex w-full max-w-[1180px] flex-col gap-[var(--ds-space-10)] px-4 pt-24 pb-16 sm:px-6">
       <PageJsonLd
         nodes={[
           generateCollectionPageSchema({
@@ -59,12 +59,6 @@ export default function EffectsIndexPage() {
       />
 
       <header className="flex flex-col items-start gap-[var(--ds-space-4)]">
-        <Link
-          className="text-[var(--ds-color-text-tertiary)] transition-colors hover:text-[var(--ds-color-text-primary)] type-mono-xs"
-          href={COMMUNITY_PATH as Route}
-        >
-          ← Community
-        </Link>
         <Typography as="h1" className="text-balance" variant="display">
           Shader effects
         </Typography>
@@ -85,11 +79,11 @@ export default function EffectsIndexPage() {
           return (
             <li key={effect}>
               <Link
-                className="flex flex-col gap-[var(--ds-space-2)] rounded-[var(--ds-radius-control)] transition-opacity duration-160 hover:opacity-80"
+                className="flex h-full flex-col gap-[var(--ds-space-2)] rounded-toolbar bg-[var(--ds-color-card)] p-bar pb-[var(--ds-space-3)] shadow-[var(--skin-card-shadow)] transition-[box-shadow,translate] duration-200 ease-[var(--ease-out-cubic)] hover:-translate-y-0.5 hover:shadow-[var(--ds-shadow-panel-dark)]"
                 href={effectPagePath(effect) as Route}
               >
                 {entry.previewSrc ? (
-                  <span className="relative block aspect-[16/10] w-full overflow-hidden rounded-[8px] border border-[var(--ds-border-subtle)] bg-[var(--ds-color-surface-subtle)]">
+                  <span className="relative block aspect-[16/10] w-full overflow-hidden rounded-icon bg-[var(--ds-color-media)]">
                     <Image
                       alt={`${entry.label} effect example`}
                       className="object-cover"
@@ -99,13 +93,13 @@ export default function EffectsIndexPage() {
                     />
                   </span>
                 ) : null}
-                <Typography as="h2" variant="label">
+                <Typography as="h2" className="px-[var(--ds-space-1)] font-medium" variant="label">
                   {entry.label}
                 </Typography>
                 {entry.description ? (
                   <Typography
                     as="p"
-                    className="text-pretty leading-[1.55]"
+                    className="px-[var(--ds-space-1)] text-pretty leading-[1.55]"
                     tone="secondary"
                     variant="caption"
                   >

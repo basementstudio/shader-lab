@@ -5,7 +5,6 @@ import { ProfileHeader } from "@/components/community/profile-header"
 import { ProfileOwnerActions } from "@/components/community/profile-owner-actions"
 import { PublicSceneGrid } from "@/components/community/public-scene-grid"
 import { SCENE_GRID_CLASS_NAME } from "@/components/community/scene-grid"
-import { ButtonLink } from "@/components/ui/button/link"
 import { APP_BASE_URL } from "@/lib/app"
 import { isCommunityEnabled } from "@/lib/community/config"
 import { isLookupableHandle } from "@/lib/community/handle"
@@ -109,7 +108,7 @@ async function ProfileRoute({ params }: PageProps) {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-[1180px] flex-col gap-[var(--ds-space-6)] px-4 py-10 sm:px-6">
+    <main className="mx-auto flex w-full max-w-[1180px] flex-col gap-[var(--ds-space-5)] px-4 pt-24 pb-16 sm:px-6">
       {/* Zero-scene profiles are noindexed; keep structured data consistent. */}
       {profile.publishedCount > 0 ? (
         <PageJsonLd
@@ -126,16 +125,7 @@ async function ProfileRoute({ params }: PageProps) {
           ]}
         />
       ) : null}
-      <div className="flex flex-col gap-[var(--ds-space-3)]">
-        <ButtonLink
-          className="w-fit px-0"
-          href={COMMUNITY_PATH as Route}
-          size="compact"
-          variant="ghost"
-        >
-          All scenes
-        </ButtonLink>
-
+      <div className="rounded-[var(--ds-radius-panel)] bg-[var(--ds-color-card)] p-[var(--ds-space-6)] shadow-[var(--skin-card-shadow)] sm:p-[var(--ds-space-8)]">
         <ProfileHeader
           action={<ProfileOwnerActions handle={profile.handle} />}
           profile={profile}
@@ -176,14 +166,8 @@ async function ProfileScenes({
 
 function ProfileSkeleton() {
   return (
-    <main className="mx-auto flex w-full max-w-[1180px] flex-col gap-[var(--ds-space-6)] px-4 py-10 sm:px-6">
-      <div className="flex animate-pulse items-center gap-[var(--ds-space-3)]">
-        <div className="size-[56px] shrink-0 rounded-full bg-[var(--ds-color-surface-subtle)]" />
-        <div className="flex flex-col gap-[var(--ds-space-2)]">
-          <div className="h-7 w-[220px] rounded-[4px] bg-[var(--ds-color-surface-subtle)]" />
-          <div className="h-3 w-[160px] rounded-[4px] bg-[var(--ds-color-surface-subtle)]" />
-        </div>
-      </div>
+    <main className="mx-auto flex w-full max-w-[1180px] flex-col gap-[var(--ds-space-5)] px-4 pt-24 pb-16 sm:px-6">
+      <div className="h-[220px] w-full animate-pulse rounded-[var(--ds-radius-panel)] bg-[var(--ds-color-card)]" />
 
       <GridSkeleton />
     </main>
@@ -196,12 +180,10 @@ function GridSkeleton() {
   return (
     <div className={SCENE_GRID_CLASS_NAME}>
       {SKELETON_CARDS.map((id) => (
-        <div className="flex animate-pulse flex-col gap-[5px]" key={id}>
-          <div className="flex flex-col gap-[var(--ds-space-2)]">
-            <div className="aspect-[16/10] w-full rounded-[8px] border border-[var(--ds-border-subtle)] bg-[var(--ds-color-surface-subtle)]" />
-            <div className="h-4 w-3/5 rounded-[4px] bg-[var(--ds-color-surface-subtle)]" />
-          </div>
-        </div>
+        <div
+          className="aspect-[16/11] w-full animate-pulse rounded-toolbar bg-[var(--ds-color-card)]"
+          key={id}
+        />
       ))}
     </div>
   )

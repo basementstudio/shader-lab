@@ -167,7 +167,9 @@ export class PhotocopyPass extends PassNode {
     time: number,
     delta: number
   ): void {
-    this.pyramid.render(renderer, inputTexture)
+    if ((this.amountUniform.value as number) > 0) {
+      this.pyramid.render(renderer, inputTexture)
+    }
     if (this.colorNode) this.colorNode.value = inputTexture
     super.render(renderer, inputTexture, outputTarget, time, delta)
   }
@@ -280,12 +282,15 @@ export class PhotocopyPass extends PassNode {
       const onPaper = mix(paper, inkColor, toner)
       const transparent = this.transparentUniform.greaterThan(0.5)
       const rgb = select(transparent, inkColor, onPaper)
-      const alpha = select(transparent, toner, float(1))
+      const alpha = select(transparent, toner.mul(sample.a), float(1))
       const original = colorNode.sample(targetUv).level(0)
-      return vec4(
-        mix(vec3(original.r, original.g, original.b), rgb, this.amountUniform),
-        mix(float(original.a), alpha, this.amountUniform)
+      const outAlpha = mix(float(original.a), alpha, this.amountUniform)
+      const premultiplied = mix(
+        vec3(original.r, original.g, original.b),
+        rgb.mul(alpha),
+        this.amountUniform
       )
+      return vec4(premultiplied.div(max(outAlpha, float(0.0001))), outAlpha)
     })()
   }
 

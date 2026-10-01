@@ -280,7 +280,7 @@ export async function checkPhotocopy(renderProject) {
     "History lost photocopy settings"
   )
   const duplicateId = store().duplicateLayer(grid.id)
-  store().updateLayerParam(duplicateId, "photocopy", "deboss")
+  store().updateLayerParam(duplicateId, "tonerColor", "#ff0000")
   assert(store().getLayerById(grid.id).params.tonerColor === "#141414", "Duplicate must be independent")
   applyEditorHistorySnapshot(before)
   const saved = buildLabProjectFile()

@@ -121,8 +121,51 @@ function configure(texture: THREE.DataTexture): void {
   texture.needsUpdate = true
 }
 
-function buildDistance(
+function analyzeAlpha(
   pixels: Uint8ClampedArray,
+  width: number,
+  height: number
+): { coverage: Float32Array; opacity: Uint8Array } {
+  const coverage = new Float32Array(width * height)
+  const opacity = new Uint8Array(width * height)
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const index = y * width + x
+      const own = pixels[index * 4 + 3] ?? 0
+      if (own === 0) continue
+      if (own === 255) {
+        coverage[index] = 1
+        opacity[index] = 255
+        continue
+      }
+      let min = 255
+      let max = 0
+      for (let dy = -1; dy <= 1; dy += 1) {
+        const ny = y + dy
+        for (let dx = -1; dx <= 1; dx += 1) {
+          const nx = x + dx
+          const alpha =
+            nx < 0 || ny < 0 || nx >= width || ny >= height
+              ? 0
+              : (pixels[(ny * width + nx) * 4 + 3] ?? 0)
+          if (alpha < min) min = alpha
+          if (alpha > max) max = alpha
+        }
+      }
+      if (min > 0) {
+        coverage[index] = 1
+        opacity[index] = own
+      } else {
+        coverage[index] = Math.min(1, own / max)
+        opacity[index] = max
+      }
+    }
+  }
+  return { coverage, opacity }
+}
+
+function buildDistance(
+  coverageMap: Float32Array,
   width: number,
   height: number
 ): { distance: THREE.DataTexture; nearest: Int32Array } {
@@ -130,7 +173,7 @@ function buildDistance(
   const inside = new Uint8Array(count)
   const outside = new Uint8Array(count)
   for (let index = 0; index < count; index += 1) {
-    const covered = (pixels[index * 4 + 3] ?? 0) >= 128
+    const covered = (coverageMap[index] ?? 0) >= 0.5
     inside[index] = covered ? 1 : 0
     outside[index] = covered ? 0 : 1
   }
@@ -139,7 +182,7 @@ function buildDistance(
   const distances = new Uint16Array(count)
   const nearest = new Int32Array(count)
   for (let index = 0; index < count; index += 1) {
-    const alpha = (pixels[index * 4 + 3] ?? 0) / 255
+    const alpha = coverageMap[index] ?? 0
     let signed = inside[index]
       ? -(toOutside.distance[index]! - 0.5)
       : toInside.distance[index]! - 0.5
@@ -192,17 +235,18 @@ export async function buildSvgShapeField(
   )
   const pixels = context.getImageData(0, 0, width, height).data
   const count = width * height
+  const { coverage, opacity } = analyzeAlpha(pixels, width, height)
   const geometry =
     reuse && reuse.source === text && reuse.width === width && reuse.height === height
       ? { distance: reuse.distance, nearest: reuse.nearest }
-      : buildDistance(pixels, width, height)
+      : buildDistance(coverage, width, height)
   const colors = new Uint8Array(count * 4)
   for (let index = 0; index < count; index += 1) {
     const source = geometry.nearest[index]!
     colors[index * 4] = pixels[source * 4] ?? 0
     colors[index * 4 + 1] = pixels[source * 4 + 1] ?? 0
     colors[index * 4 + 2] = pixels[source * 4 + 2] ?? 0
-    colors[index * 4 + 3] = 255
+    colors[index * 4 + 3] = opacity[source] ?? 255
   }
   const color = new THREE.DataTexture(colors, width, height, THREE.RGBAFormat)
   color.colorSpace = THREE.SRGBColorSpace

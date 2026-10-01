@@ -204,7 +204,7 @@ export function SvgShapePalette({
                   serializeSvgPalette({ ...palette, [color]: next.toLowerCase() })
                 )
               }
-              value={palette[color] ?? color}
+              value={(palette[color] ?? color).slice(0, 7)}
             />
           </div>
         ))}

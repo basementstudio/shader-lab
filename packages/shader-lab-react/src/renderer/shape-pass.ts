@@ -182,11 +182,17 @@ export class ShapePass extends PassNode {
       .catch((error: unknown) => {
         if (request === this.svgRequest) {
           this.svgPending = false
+          this.svgUrl = null
+          this.svgText = null
           this.installSvgField(null)
         }
         throw error
       })
     return this.svgRebuild
+  }
+
+  isSvgPending(): boolean {
+    return this.svgPending
   }
 
   override needsContinuousRender(): boolean {
@@ -361,6 +367,7 @@ export class ShapePass extends PassNode {
       })
 
       const svgColor = vec3(this.color).toVar()
+      const svgAlpha = float(1).toVar()
       If(kind.equal(float(7)), () => {
         distance.assign(float(1000))
         If(this.svgActive.greaterThan(float(0.5)), () => {
@@ -369,14 +376,31 @@ export class ShapePass extends PassNode {
           )
           const halfTexel = vec2(0.5).div(this.svgTextureSize)
           const clamped = clamp(textureUv, halfTexel, vec2(1).sub(halfTexel))
-          const unitsPerTexel = min(
+          const texelUnits = vec2(
             half.x.mul(2).div(this.svgContentTexels.x),
             half.y.mul(2).div(this.svgContentTexels.y)
           )
           const beyond = length(textureUv.sub(clamped).mul(this.svgTextureSize))
           const sampled = float(svgDistanceNode.sample(clamped).level(0).r)
+          const step = vec2(1).div(this.svgTextureSize)
+          const gradient = vec2(
+            float(svgDistanceNode.sample(clamped.add(vec2(step.x, 0))).level(0).r).sub(
+              float(svgDistanceNode.sample(clamped.sub(vec2(step.x, 0))).level(0).r)
+            ),
+            float(svgDistanceNode.sample(clamped.add(vec2(0, step.y))).level(0).r).sub(
+              float(svgDistanceNode.sample(clamped.sub(vec2(0, step.y))).level(0).r)
+            )
+          )
+          const direction = gradient.div(max(length(gradient), float(0.0001)))
+          const unitsPerTexel = select(
+            length(gradient).greaterThan(float(0.0001)),
+            length(direction.mul(texelUnits)),
+            min(texelUnits.x, texelUnits.y)
+          )
           distance.assign(sampled.add(beyond).mul(unitsPerTexel))
-          svgColor.assign(vec3(svgColorNode.sample(clamped).level(0).rgb))
+          const colorSample = svgColorNode.sample(clamped).level(0)
+          svgColor.assign(vec3(colorSample.rgb))
+          svgAlpha.assign(float(colorSample.a))
         })
       })
 
@@ -392,7 +416,8 @@ export class ShapePass extends PassNode {
         .and(this.svgOriginal.greaterThan(float(0.5)))
         .and(this.outline.lessThanEqual(float(0)))
       const fill = select(keepsSvgColor, svgColor, vec3(this.color))
-      return vec4(fill, clamp(coverage, 0, 1))
+      const opacity = select(keepsSvgColor, svgAlpha, float(1))
+      return vec4(fill, clamp(coverage.mul(opacity), 0, 1))
     })()
   }
 }

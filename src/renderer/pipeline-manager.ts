@@ -768,7 +768,7 @@ export class PipelineManager {
           this.markDirty()
         })
         .finally(() => {
-          this.pendingMediaLoads.delete(svgLoadId)
+          if (!pass.isSvgPending()) this.pendingMediaLoads.delete(svgLoadId)
         })
     }
 

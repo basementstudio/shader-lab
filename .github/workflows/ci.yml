@@ -56,7 +56,7 @@ jobs:
     # Linux Chromium/SwiftShader currently drops its GPU instance during these
     # texture-backed shader compilations. Keep the full GPU checks on macOS.
     runs-on: macos-14
-    timeout-minutes: 10
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2

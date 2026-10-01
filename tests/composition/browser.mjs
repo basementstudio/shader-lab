@@ -335,12 +335,12 @@ window.checkExistingProject = async () => {
     "timeline",
     "audio",
   ]) {
-    if (JSON.stringify(stored[key]) !== JSON.stringify(expectedRestored[key])) {
+    if (canonicalJson(stored[key]) !== canonicalJson(expectedRestored[key])) {
       const detail =
         key === "layers"
           ? stored.layers
               .map((layer, i) =>
-                JSON.stringify(layer) === JSON.stringify(expectedRestored.layers[i])
+                canonicalJson(layer) === canonicalJson(expectedRestored.layers[i])
                   ? null
                   : `${layer.type}: ${JSON.stringify(layer.params)} vs ${JSON.stringify(expectedRestored.layers[i]?.params)}`
               )

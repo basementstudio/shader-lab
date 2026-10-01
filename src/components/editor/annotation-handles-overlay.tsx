@@ -14,6 +14,8 @@ function selectAnnotationsLayer(state: {
   const layer = state.layers.find((l) => l.id === state.selectedLayerId)
   if (!layer || layer.type !== "annotations" || layer.params.targetEnabled === false)
     return null
+  if (layer.params.targetSnap === true && layer.params.placement === "edges")
+    return null
   return isEditableLayerChain(state.layers, layer) ? layer : null
 }
 

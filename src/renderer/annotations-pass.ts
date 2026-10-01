@@ -174,6 +174,10 @@ export class AnnotationsPass extends PassNode {
     super.render(renderer, inputTexture, outputTarget, time, delta)
   }
 
+  override async prepareForExportFrame(): Promise<void> {
+    if (this.pendingReadback) await this.pendingReadback
+  }
+
   override dispose(): void {
     this.elementMesh?.geometry.dispose()
     ;(this.elementMesh?.material as THREE.Material | undefined)?.dispose()
@@ -208,6 +212,11 @@ export class AnnotationsPass extends PassNode {
       return
     }
     if (!this.config) return
+    if (this.config.placement === "edges" && !this.edges) {
+      this.writeElements([])
+      this.writeGlyphs([])
+      return
+    }
     const aspect = this.logicalWidth / this.logicalHeight
     const layout = layoutAnnotations(this.config, {
       aspect,

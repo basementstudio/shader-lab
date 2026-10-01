@@ -208,6 +208,11 @@ export class AnnotationsPass extends PassNode {
       return
     }
     if (!this.config) return
+    if (this.config.placement === "edges" && !this.edges) {
+      this.writeElements([])
+      this.writeGlyphs([])
+      return
+    }
     const aspect = this.logicalWidth / this.logicalHeight
     const layout = layoutAnnotations(this.config, {
       aspect,

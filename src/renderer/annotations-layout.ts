@@ -385,7 +385,13 @@ export function layoutAnnotations(config: AnnotationConfig, context: LayoutConte
       const point = pick()
       if (!point) continue
       const [dx, dy] = drift(elements.length + i)
-      make(point[0] + dx, point[1] + dy, i)
+      let x = point[0] + dx
+      let y = point[1] + dy
+      if (paint && paintCoverage(paint, aspect, x, y) <= 0.5) {
+        x = point[0]
+        y = point[1]
+      }
+      make(x, y, i)
     }
   }
 

@@ -66,6 +66,7 @@ const UNSUPPORTED_SHADER_EXPORT_LAYER_TYPES = new Set<LayerType>([
 type SupportedShaderExportLayerType = Extract<
   LayerType,
   | "group"
+  | "annotations"
   | "ascii"
   | "bloom"
   | "circuit-bent"

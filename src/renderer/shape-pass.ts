@@ -11,7 +11,6 @@ import {
   PI,
   pow,
   select,
-  sign,
   sin,
   smoothstep,
   type TSLNode,
@@ -128,7 +127,8 @@ export class ShapePass extends PassNode {
     const radius = length(u)
     const atan2 = (y: Node, x: Node) => {
       const base = atan(y.div(x))
-      return select(x.greaterThanEqual(0), base, base.add(sign(y).mul(PI)))
+      const wrap = select(y.greaterThanEqual(0), PI, PI.negate())
+      return select(x.greaterThanEqual(0), base, base.add(wrap))
     }
     const theta = atan2(u.x, u.y.negate())
 

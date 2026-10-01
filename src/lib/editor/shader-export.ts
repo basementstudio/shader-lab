@@ -90,6 +90,7 @@ type SupportedShaderExportLayerType = Extract<
   | "posterize"
   | "photographic-cells"
   | "displaced-rings"
+  | "shape"
   | "slice"
   | "smear"
   | "text"

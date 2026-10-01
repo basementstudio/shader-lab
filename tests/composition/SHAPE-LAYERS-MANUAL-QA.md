@@ -2,6 +2,10 @@
 
 Scope: roadmap 2.7, first stage. A **Shape** source layer draws a flat-color silhouette with editable geometry. No pen tool, no Bézier editing; the brush still paints mask coverage, not paths.
 
+## Automated UI check
+
+With the dev server running: `bun tests/composition/shape-layers-ui.mjs` (`SHADER_LAB_URL` overrides localhost:55000). It drives the real handles, undo, conditional controls and the layer picker. Artifacts are under `.context/shape-*`.
+
 ## Basics
 
 1. Add a photo. In the layer picker, add **Shape** (sources row, star icon). A red ellipse appears centered.

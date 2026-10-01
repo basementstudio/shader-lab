@@ -85,16 +85,15 @@ export function GeometryHandles({
   const yHandle: [number, number] = [cx + perp[0] * half[1], cy + perp[1] * half[1]]
   const start: [number, number] = [cx - dir[0] * half[0], cy - dir[1] * half[0]]
   const end = xHandle
-  const finish = useCallback(
-    (commit: boolean) => {
-      const active = drag.current
-      if (!active) return
-      drag.current = null
-      if (!commit) restore(active.original)
-      useEditorStore.getState().endInteractiveEdit()
-    },
-    [restore]
-  )
+  const restoreRef = useRef(restore)
+  restoreRef.current = restore
+  const finish = useCallback((commit: boolean) => {
+    const active = drag.current
+    if (!active) return
+    drag.current = null
+    if (!commit) restoreRef.current(active.original)
+    useEditorStore.getState().endInteractiveEdit()
+  }, [])
   useEffect(() => {
     const cancel = () => finish(false)
     const key = (event: KeyboardEvent) => {

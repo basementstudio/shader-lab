@@ -23,6 +23,7 @@ import {
   modelClipTime,
   readModelAnimation,
   resolveModelClips,
+  uniqueClipValues,
 } from "@/lib/editor/model-animation"
 import {
   MODEL_TONE_MAPPINGS,
@@ -56,7 +57,9 @@ type RendererInternals = {
 const DEG = Math.PI / 180
 const FLOOR_SAMPLES = 16384
 const POSE_SAMPLES = 24
-const POSE_POINTS = 4096
+const POSE_POINTS = 16384
+const POSE_TIMES_MAX = 96
+const POSE_FLOOR_POINTS = 98304
 
 function samplesFor(width: number, height: number): number {
   return width * height <= 8_400_000 ? 4 : 0
@@ -586,13 +589,14 @@ export class ModelPass extends PassNode {
     this.fitGroup.add(root)
     this.model = root
     this.clips = animations
+    const fallbackValues = uniqueClipValues(animations.map((clip) => clip.name))
     this.clipInfo =
       clipInfo.length === animations.length
         ? clipInfo
-        : animations.map((clip) => ({
+        : animations.map((clip, index) => ({
             duration: clip.duration,
             label: clip.name,
-            name: clip.name,
+            name: fallbackValues[index] ?? clip.name,
             targets: [],
           }))
     this.mixer = animations.length > 0 ? new THREE.AnimationMixer(root) : null
@@ -626,10 +630,43 @@ export class ModelPass extends PassNode {
   }
 
   private isAnimating(): boolean {
-    return (
-      this.actions.length > 0 &&
-      this.animation.playing &&
-      this.animation.speed !== 0
+    if (
+      !(
+        this.actions.length > 0 &&
+        this.animation.playing &&
+        this.animation.speed !== 0
+      )
+    ) {
+      return false
+    }
+    if (this.animation.repeat === "once" && Number.isFinite(this.lastTime)) {
+      const longest = Math.max(...this.actions.map((entry) => entry.duration))
+      const elapsed = this.animation.start + this.lastTime * this.animation.speed
+      return elapsed < longest
+    }
+    return true
+  }
+
+  private poseTimes(longest: number): number[] {
+    const times = new Set<number>()
+    for (let step = 0; step < POSE_SAMPLES; step += 1) {
+      times.add((longest * step) / (POSE_SAMPLES - 1))
+    }
+    for (const { action } of this.actions) {
+      for (const track of action.getClip().tracks) {
+        for (const time of track.times) {
+          if (time >= 0 && time <= longest) times.add(time)
+        }
+      }
+    }
+    const sorted = [...times].sort((a, b) => a - b)
+    if (sorted.length <= POSE_TIMES_MAX) return sorted
+    return Array.from(
+      { length: POSE_TIMES_MAX },
+      (_, index) =>
+        sorted[
+          Math.round((index * (sorted.length - 1)) / (POSE_TIMES_MAX - 1))
+        ] as number
     )
   }
 
@@ -675,8 +712,7 @@ export class ModelPass extends PassNode {
     root.updateMatrixWorld(true)
     const longest = Math.max(...this.actions.map((entry) => entry.duration), 0)
     const samples: Float32Array[] = []
-    for (let step = 0; step < POSE_SAMPLES; step += 1) {
-      const time = (longest * step) / (POSE_SAMPLES - 1)
+    for (const time of this.poseTimes(longest)) {
       for (const { action, duration } of this.actions) {
         action.time = Math.min(time, duration)
       }
@@ -686,19 +722,14 @@ export class ModelPass extends PassNode {
     }
     parent?.add(root)
 
-    const total = samples.reduce((sum, entry) => sum + entry.length, 0)
-    const points = new Float32Array(total)
-    let offset = 0
-    for (const entry of samples) {
-      points.set(entry, offset)
-      offset += entry.length
-    }
     const box = new THREE.Box3()
     const vertex = new THREE.Vector3()
-    for (let index = 0; index < points.length; index += 3) {
-      box.expandByPoint(
-        vertex.set(points[index] ?? 0, points[index + 1] ?? 0, points[index + 2] ?? 0)
-      )
+    for (const entry of samples) {
+      for (let index = 0; index < entry.length; index += 3) {
+        box.expandByPoint(
+          vertex.set(entry[index] ?? 0, entry[index + 1] ?? 0, entry[index + 2] ?? 0)
+        )
+      }
     }
     if (box.isEmpty()) {
       this.applyFit(rest.center, rest.radius, rest.points)
@@ -706,11 +737,26 @@ export class ModelPass extends PassNode {
     }
     const center = box.getCenter(new THREE.Vector3())
     let radiusSquared = 0
-    for (let index = 0; index < points.length; index += 3) {
-      vertex.set(points[index] ?? 0, points[index + 1] ?? 0, points[index + 2] ?? 0)
-      radiusSquared = Math.max(radiusSquared, vertex.distanceToSquared(center))
+    for (const entry of samples) {
+      for (let index = 0; index < entry.length; index += 3) {
+        vertex.set(entry[index] ?? 0, entry[index + 1] ?? 0, entry[index + 2] ?? 0)
+        radiusSquared = Math.max(radiusSquared, vertex.distanceToSquared(center))
+      }
     }
-    this.applyFit(center, Math.sqrt(radiusSquared), points)
+
+    const total = samples.reduce((sum, entry) => sum + entry.length / 3, 0)
+    const keep = Math.max(1, Math.ceil(total / POSE_FLOOR_POINTS))
+    const floor: number[] = []
+    let counter = 0
+    for (const entry of samples) {
+      for (let index = 0; index < entry.length; index += 3) {
+        if (counter % keep === 0) {
+          floor.push(entry[index] ?? 0, entry[index + 1] ?? 0, entry[index + 2] ?? 0)
+        }
+        counter += 1
+      }
+    }
+    this.applyFit(center, Math.sqrt(radiusSquared), new Float32Array(floor))
   }
 
   private applyPose(time: number): void {

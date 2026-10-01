@@ -37,6 +37,7 @@ import { canPaintCellLayer, useCellPaintStore } from "@/store/cell-paint-store"
 import { useAssetStore } from "@/store/asset-store"
 import { useModelClips } from "@/components/editor/use-model-clips"
 import { useEditorStore } from "@/store/editor-store"
+import { getSeedableMediaDuration } from "@/lib/editor/timeline-duration"
 import { useLayerStore } from "@/store/layer-store"
 import {
   createLayerPropertyBinding,
@@ -124,6 +125,9 @@ export function PropertiesSidebar() {
   )
   const setLayerRuntimeError = useLayerStore(
     (state) => state.setLayerRuntimeError
+  )
+  const seedDurationFromMedia = useTimelineStore(
+    (state) => state.seedDurationFromMedia
   )
   const timelineTracks = useTimelineStore((state) => state.tracks)
   const upsertKeyframe = useTimelineStore((state) => state.upsertKeyframe)
@@ -711,6 +715,7 @@ export function PropertiesSidebar() {
         }
 
         setLayerAsset(layerId, asset.id)
+        seedDurationFromMedia(getSeedableMediaDuration(asset))
       } catch (error) {
         setLayerRuntimeError(
           layerId,
@@ -718,7 +723,13 @@ export function PropertiesSidebar() {
         )
       }
     },
-    [loadAsset, removeAsset, setLayerAsset, setLayerRuntimeError]
+    [
+      loadAsset,
+      removeAsset,
+      seedDurationFromMedia,
+      setLayerAsset,
+      setLayerRuntimeError,
+    ]
   )
 
   const handleEnvironmentPick = useCallback(() => {

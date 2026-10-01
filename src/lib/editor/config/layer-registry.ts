@@ -4268,7 +4268,7 @@ const focusBlurParams = [
   {
     defaultValue: focusBlurDefaults.focus as number,
     group: "Focus",
-    visibleWhen: { key: "blurFrom", notEquals: "uniform" },
+    visibleWhen: { key: "blurFrom", oneOf: ["depth", "luminance"] },
     key: "focus",
     label: "Focus",
     max: 1,
@@ -4281,7 +4281,7 @@ const focusBlurParams = [
   {
     defaultValue: focusBlurDefaults.range as number,
     group: "Focus",
-    visibleWhen: { key: "blurFrom", notEquals: "uniform" },
+    visibleWhen: { key: "blurFrom", oneOf: ["depth", "linear", "radial"] },
     key: "range",
     label: "Focus Range",
     max: 2,
@@ -4313,7 +4313,7 @@ const focusBlurParams = [
     min: -1,
     step: 0.01,
     type: "vec2",
-    visibleWhen: { key: "blurFrom", notEquals: "uniform" },
+    visibleWhen: { key: "blurFrom", oneOf: ["linear", "radial"] },
     description: "Center of the sharp band or spot for Linear and Radial.",
   },
   {

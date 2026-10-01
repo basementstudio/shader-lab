@@ -313,7 +313,7 @@ export async function checkFocusBlur(renderProject) {
     "History lost focus blur settings"
   )
   const duplicateId = store().duplicateLayer(grid.id)
-  store().updateLayerParam(duplicateId, "focus-blur", "deboss")
+  store().updateLayerParam(duplicateId, "kind", "motion")
   assert(store().getLayerById(grid.id).params.kind === "lens", "Duplicate must be independent")
   applyEditorHistorySnapshot(before)
   const saved = buildLabProjectFile()

@@ -208,6 +208,9 @@ export type ParameterVisibilityCondition = {
   | {
       notEquals: boolean | number | string
     }
+  | {
+      oneOf: (boolean | number | string)[]
+    }
 )
 
 type ParameterDefinitionBase<

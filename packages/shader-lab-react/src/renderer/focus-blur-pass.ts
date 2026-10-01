@@ -33,7 +33,7 @@ import type { LayerParameterValues } from "../types/editor"
 
 type Node = TSLNode
 
-const LEVELS = 7
+const LEVELS = 10
 const LEVEL_RADIUS = 1.2
 const LENS_TAPS = 24
 const MOTION_TAPS = 24

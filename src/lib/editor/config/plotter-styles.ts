@@ -12,6 +12,7 @@ export type PlotterStyleValues = {
   inkColor: string
   levels: number
   mode: "contour" | "flow" | "hatch" | "spiral" | "squiggle" | "stipple"
+  paper: "color" | "transparent"
   paperColor: string
   pressure: number
   smoothing: number
@@ -34,6 +35,7 @@ const BASE: PlotterStyleValues = {
   inkColor: "#1a1a1a",
   levels: 8,
   mode: "hatch",
+  paper: "color",
   paperColor: "#f5f0e8",
   pressure: 0.5,
   smoothing: 4,

@@ -5100,7 +5100,7 @@ const plotterParams = [
   {
     defaultValue: 90,
     group: "Hatch",
-    visibleWhen: { key: "mode", equals: "hatch" },
+    visibleWhen: { key: "mode", oneOf: ["hatch", "squiggle"] },
     key: "angle",
     label: "Angle",
     max: 180,
@@ -5122,7 +5122,7 @@ const plotterParams = [
   {
     defaultValue: 135,
     group: "Hatch",
-    visibleWhen: { key: "crosshatch", equals: true },
+    visibleWhen: { key: "mode", equals: "hatch" },
     key: "crossAngle",
     label: "Cross Angle",
     max: 180,

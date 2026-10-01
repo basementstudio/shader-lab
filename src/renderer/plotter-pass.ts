@@ -403,8 +403,13 @@ export class PlotterPass extends PassNode {
       )
       const inkOnly = apply(apply(apply(vec3(1), pen1, ink1), pen2, ink2), pen3, ink3)
       const transparent = this.transparentUniform.greaterThan(0.5)
+      const inkStraight = clamp(
+        float(1).sub(float(1).sub(inkOnly).div(max(cover, float(0.0001)))),
+        0,
+        1
+      )
       return vec4(
-        select(transparent, inkOnly, onPaper),
+        select(transparent, inkStraight, onPaper),
         select(transparent, cover, float(1))
       )
     })()

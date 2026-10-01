@@ -318,8 +318,12 @@ export async function checkPlotter(renderProject) {
     "History lost plotter settings"
   )
   const duplicateId = store().duplicateLayer(grid.id)
-  store().updateLayerParam(duplicateId, "plotter", "deboss")
-  assert(store().getLayerById(grid.id).params.mode === "hatch", "Duplicate must be independent")
+  store().updateLayerParam(duplicateId, "mode", "spiral")
+  assert(
+    store().getLayerById(duplicateId).params.mode === "spiral" &&
+      store().getLayerById(grid.id).params.mode === "hatch",
+    "Duplicate must be independent"
+  )
   applyEditorHistorySnapshot(before)
   const saved = buildLabProjectFile()
   store().replaceState([])

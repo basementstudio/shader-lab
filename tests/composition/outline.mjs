@@ -308,8 +308,12 @@ export async function checkOutline(renderProject) {
     "History lost outline settings"
   )
   const duplicateId = store().duplicateLayer(grid.id)
-  store().updateLayerParam(duplicateId, "outline", "deboss")
-  assert(store().getLayerById(grid.id).params.lineColor === "#111111", "Duplicate must be independent")
+  store().updateLayerParam(duplicateId, "lineColor", "#ff0000")
+  assert(
+    store().getLayerById(grid.id).params.lineColor === "#111111" &&
+      store().getLayerById(duplicateId).params.lineColor === "#ff0000",
+    "Duplicate must be independent"
+  )
   applyEditorHistorySnapshot(before)
   const saved = buildLabProjectFile()
   store().replaceState([])

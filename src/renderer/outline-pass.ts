@@ -29,7 +29,7 @@ import type { LayerParameterValues } from "@/types/editor"
 type Node = TSLNode
 
 const FAR = 1e5
-const MAX_REACH = 512
+const MAX_REACH = 4096
 const SOURCES: Record<string, number> = { alpha: 0, dark: 1, light: 2 }
 const STYLES: Record<string, number> = { dashed: 2, double: 1, scalloped: 3, solid: 0 }
 
@@ -177,7 +177,12 @@ export class OutlinePass extends PassNode {
     const spacing = max(this.spacingUniform.mul(this.scaleUniform), float(2))
     const crossX = abs(floor(pixel.x.div(spacing)).sub(floor(pixel.x.sub(1).div(spacing)))).greaterThan(0.5)
     const crossY = abs(floor(pixel.y.div(spacing)).sub(floor(pixel.y.sub(1).div(spacing)))).greaterThan(0.5)
-    const sparse = boundary.and(crossX.or(crossY))
+    const tip = boundary
+      .and(at(-1, 0).lessThan(0.5))
+      .and(at(0, -1).lessThan(0.5))
+      .and(at(-1, -1).lessThan(0.5))
+      .and(at(1, -1).lessThan(0.5))
+    const sparse = boundary.and(crossX.or(crossY).or(tip))
     const far = vec2(FAR)
     return vec4(select(boundary, pixel, far), select(sparse, pixel, far))
   }
@@ -300,8 +305,12 @@ export class OutlinePass extends PassNode {
       const style = this.styleUniform
       const scalloped = style.greaterThan(2.5)
       const toSeed = length(vec2(field.z, field.w).sub(pixel)).div(scale)
-      const radius = max(this.offsetUniform, this.spacingUniform.mul(0.6))
-      const cloud = min(signed, toSeed.sub(radius))
+      const radius = max(abs(this.offsetUniform), this.spacingUniform.mul(0.6))
+      const cloud = select(
+        this.offsetUniform.greaterThanEqual(0),
+        min(signed, toSeed.sub(radius)),
+        max(signed, radius.sub(toSeed))
+      )
       const base = select(scalloped, cloud, signed.sub(this.offsetUniform))
 
       const half = this.widthUniform.mul(0.5)

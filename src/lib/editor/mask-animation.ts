@@ -51,8 +51,21 @@ export function getMaskParameterDefinitions(
 
   let definitions: ParameterDefinition[]
 
-  if (shape === "none" || shape === "brush") {
+  if (shape === "none") {
     definitions = []
+  } else if (shape === "brush") {
+    definitions = [
+      {
+        defaultValue: 0.01,
+        group: "Mask",
+        key: maskParamKey("feather"),
+        label: "Mask Feather",
+        max: 0.25,
+        min: 0,
+        step: 0.005,
+        type: "number",
+      },
+    ]
   } else if (shape === "depth") {
     definitions = [
       {

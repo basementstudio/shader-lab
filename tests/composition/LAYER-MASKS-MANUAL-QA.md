@@ -33,7 +33,7 @@ Scope: roadmap 1.4. **Cut content** is available only for effects inside a group
 2. Duplicate a masked layer; edit the copy's mask: the original is unaffected.
 3. Export PNG and video: identical to the canvas. The runtime package renders the same masks.
 
-Limits: masks follow the viewport like Cells paint (stable artboard remains roadmap 2.8). Brush edges are bilinear, not feathered. Masks are not animatable yet.
+Limits: masks follow the viewport like Cells paint (stable artboard remains roadmap 2.8). Brush edges are bilinear unless Feather is raised. Mask fields, including Feather on every shape, are keyframable.
 
 
 ## Brush feather (September 23, 2026)

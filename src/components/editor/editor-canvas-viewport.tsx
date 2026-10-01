@@ -507,7 +507,7 @@ export function EditorCanvasViewport() {
         ) : null}
 
         {isDragOver ? (
-          <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center border-2 border-dashed border-white/30 bg-black/30 backdrop-blur-[2px]">
+          <div className="ds-on-media pointer-events-none absolute inset-0 z-40 flex items-center justify-center border-2 border-dashed border-white/30 bg-black/30 backdrop-blur-[2px]">
             <span className="font-[var(--ds-font-sans)] text-xs text-white/70">
               Drop to add layer
             </span>
@@ -539,7 +539,7 @@ export function EditorCanvasViewport() {
 
       {/* Guarded: otherwise this sweeps forever on a dead renderer. */}
       {fallbackMessage || (isReady && !pendingSceneSlug) ? null : (
-        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-[var(--ds-color-surface-canvas,#050507)] p-6">
+        <div className="ds-on-media pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-[var(--ds-color-surface-canvas,#050507)] p-6">
           <div
             aria-hidden="true"
             className="relative h-[3px] w-[min(220px,32vw)] overflow-hidden rounded-full bg-white/12"

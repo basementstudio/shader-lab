@@ -752,7 +752,7 @@ export function EditorTopBar({
               </IconButton>
             </div>
 
-            <div className="grid grid-cols-5 gap-1.5">
+            <div className="grid grid-cols-4 gap-1.5">
               <IconButton
                 aria-label="Export"
                 className="size-full min-h-11 disabled:opacity-45"
@@ -787,8 +787,9 @@ export function EditorTopBar({
               >
                 <GitHubLogoIcon height={18} width={18} />
               </IconButtonLink>
+              <ThemeToggleButton mobile />
               {communityEnabled ? (
-                <span className="relative col-span-2 inline-flex">
+                <span className="relative col-span-4 inline-flex">
                   <ButtonLink
                     className="min-h-11 w-full gap-2"
                     href={COMMUNITY_PATH as Route}

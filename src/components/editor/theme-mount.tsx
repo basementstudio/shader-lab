@@ -9,14 +9,17 @@ export function ThemeMount() {
   useEffect(() => {
     const root = document.documentElement
     root.dataset.theme = theme
-    document
-      .querySelector('meta[name="theme-color"]')
-      ?.setAttribute(
-        "content",
-        getComputedStyle(root).getPropertyValue("--ds-color-canvas").trim()
-      )
+    const meta = document.querySelector('meta[name="theme-color"]')
+    const previousColor = meta?.getAttribute("content") ?? null
+    meta?.setAttribute(
+      "content",
+      getComputedStyle(root).getPropertyValue("--ds-color-canvas").trim()
+    )
     return () => {
       delete root.dataset.theme
+      if (meta && previousColor !== null) {
+        meta.setAttribute("content", previousColor)
+      }
     }
   }, [theme])
 

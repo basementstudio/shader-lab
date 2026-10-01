@@ -249,12 +249,14 @@ function alignRampStops(
   }
   const aligned: ResolvedStop[] = []
   let floor = 0
+  let previous = -1
   for (let j = 0; j < m; j++) {
     const matched = partner[j]!
     if (matched >= 0) {
       const stop = few[matched]!
       aligned.push(stop)
       floor = stop.position
+      previous = matched
       continue
     }
     let ceiling = 1
@@ -265,7 +267,21 @@ function alignRampStops(
       }
     }
     const position = Math.min(ceiling, Math.max(floor, many[j]!.position))
-    aligned.push({ position, rgb: evaluateResolvedStops(few, position) })
+    const before = few[previous]
+    const after = few[previous + 1]
+    let rgb: [number, number, number]
+    if (!before) rgb = after ? after.rgb : evaluateResolvedStops(few, position)
+    else if (!after) rgb = before.rgb
+    else {
+      const range = after.position - before.position
+      const local = range > 0 ? (position - before.position) / range : 0
+      rgb = [
+        before.rgb[0] + (after.rgb[0] - before.rgb[0]) * local,
+        before.rgb[1] + (after.rgb[1] - before.rgb[1]) * local,
+        before.rgb[2] + (after.rgb[2] - before.rgb[2]) * local,
+      ]
+    }
+    aligned.push({ position, rgb })
     floor = position
   }
   return aligned

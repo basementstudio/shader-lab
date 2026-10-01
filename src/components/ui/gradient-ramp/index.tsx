@@ -186,6 +186,8 @@ export function GradientRamp({
             Stop {selectedIndex + 1}
           </span>
           <ColorPicker
+            onInteractionEnd={onInteractionEnd}
+            onInteractionStart={onInteractionStart}
             onValueChange={(color) => handleColorChange(selectedIndex, color)}
             value={stops[selectedIndex].color}
           />

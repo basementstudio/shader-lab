@@ -59,7 +59,7 @@ export function PaintBrushControls({
         </Button>
         <IconButton
           aria-label={clearLabel}
-          className="h-auto w-[34px] rounded-[var(--ds-radius-control)]"
+          className="h-auto w-[var(--ds-size-control)] rounded-[var(--ds-radius-control)]"
           disabled={!(allowed && hasPaint)}
           onClick={() => writePaint(layerId, target, "")}
           variant="outline"

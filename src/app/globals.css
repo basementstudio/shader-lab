@@ -17,6 +17,11 @@
   --color-text-on-light: rgb(0 0 0 / 0.9);
   --color-border-divider: rgb(255 255 255 / 0.08);
   --color-border-active: rgb(255 255 255 / 0.14);
+  --radius-icon: var(--ds-radius-icon);
+  --radius-group: var(--ds-radius-group);
+  --radius-toolbar: var(--ds-radius-toolbar);
+  --spacing-bar: var(--ds-space-bar);
+  --spacing-bar-group: var(--ds-space-bar-group);
 }
 
 @layer base {
@@ -123,6 +128,13 @@
     --ds-radius-control: 8px;
     --ds-radius-bar: 10px;
     --ds-radius-panel: 12px;
+    --ds-border-width: 1px;
+    --ds-space-bar: var(--ds-space-2);
+    --ds-space-bar-group: 3px;
+    --ds-radius-toolbar: calc(var(--ds-radius-icon) + var(--ds-space-bar));
+    --ds-radius-group: calc(
+      var(--ds-radius-icon) + var(--ds-space-bar-group) + var(--ds-border-width)
+    );
     --ds-space-1: 4px;
     --ds-space-1_5: 6px;
     --ds-space-2: 8px;

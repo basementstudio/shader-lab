@@ -493,7 +493,8 @@ export function EditorTopBar({
       >
         {({ dragHandleProps }) => (
           <GlassPanel
-            className="flex min-h-11 w-auto items-center justify-between gap-[var(--ds-space-4)] px-[10px] py-[3px]"
+            className="flex min-h-11 w-auto items-center justify-between gap-[var(--ds-space-4)] rounded-toolbar px-bar"
+            data-toolbar=""
             variant="panel"
           >
             <IconButton
@@ -508,7 +509,7 @@ export function EditorTopBar({
 
             <ProjectMenu />
 
-            <div className="inline-flex items-center gap-0.5 rounded-[var(--ds-radius-bar)] border border-white/8 bg-black/25 p-[3px]">
+            <div className="inline-flex items-center gap-0.5 rounded-group border border-white/8 bg-black/25 p-bar-group">
               <IconButton
                 aria-label="Undo"
                 className="h-7 w-7 disabled:opacity-45"
@@ -693,7 +694,7 @@ export function EditorTopBar({
       {mobileActionsOpen ? (
         <div className="pointer-events-none fixed right-0 bottom-[88px] left-0 z-45 flex justify-center px-3 min-[900px]:hidden">
           <GlassPanel
-            className="pointer-events-auto flex w-full max-w-[420px] flex-col gap-1.5 p-1.5"
+            className="pointer-events-auto flex w-full max-w-[420px] flex-col gap-1.5 rounded-toolbar p-bar"
             variant="panel"
           >
             <ProjectMenu mobile />

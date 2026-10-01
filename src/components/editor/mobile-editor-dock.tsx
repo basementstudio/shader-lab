@@ -44,7 +44,7 @@ export function MobileEditorDock() {
   return (
     <div className="pointer-events-none fixed right-0 bottom-4 left-0 z-50 flex justify-center px-3 min-[900px]:hidden">
       <GlassPanel
-        className="pointer-events-auto grid w-full max-w-[420px] grid-cols-4 gap-1 p-1.5"
+        className="pointer-events-auto grid w-full max-w-[420px] grid-cols-4 gap-1 rounded-toolbar p-bar"
         variant="panel"
       >
         {MOBILE_DOCK_ITEMS.map(({ icon: Icon, label, panel }) => {

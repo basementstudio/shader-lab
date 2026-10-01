@@ -1335,12 +1335,13 @@ export function EditorTimelineOverlay() {
           }
         >
           <GlassPanel
-            className="pointer-events-auto flex h-full max-h-inherit w-full flex-col overflow-hidden"
+            className="pointer-events-auto flex h-full max-h-inherit w-full flex-col overflow-hidden rounded-toolbar"
+            data-toolbar=""
             variant="panel"
           >
             <div
               className={cn(
-                "border-b border-[var(--ds-border-divider)] p-2 transition-[border-color] duration-160 ease-[var(--ease-out-cubic)]",
+                "border-b border-[var(--ds-border-divider)] p-bar transition-[border-color] duration-160 ease-[var(--ease-out-cubic)]",
                 !timelinePanelOpen && "border-b-transparent"
               )}
             >

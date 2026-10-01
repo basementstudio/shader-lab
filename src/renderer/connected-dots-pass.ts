@@ -397,7 +397,11 @@ export class ConnectedDotsPass extends PassNode {
         vec3(this.backgroundUniform),
         vec3(input.r, input.g, input.b)
       )
-      const backgroundAlpha = select(backgroundMode.greaterThan(1.5), float(0), float(1))
+      const backgroundAlpha = select(
+        backgroundMode.lessThan(0.5),
+        float(1),
+        select(backgroundMode.lessThan(1.5), float(input.a), float(0))
+      )
       const withLines = mix(backgroundRgb.mul(backgroundAlpha), plexusColor, lineCoverage)
       const linesAlpha = mix(backgroundAlpha, float(1), lineCoverage)
       const premultiplied = mix(withLines, dotColor, coverage)

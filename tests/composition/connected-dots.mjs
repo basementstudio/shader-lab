@@ -318,7 +318,8 @@ export async function checkConnectedDots(renderProject) {
     "History lost connected dots settings"
   )
   const duplicateId = store().duplicateLayer(grid.id)
-  store().updateLayerParam(duplicateId, "connected-dots", "deboss")
+  store().updateLayerParam(duplicateId, "mode", "blobs")
+  assert(store().getLayerById(duplicateId).params.mode === "blobs", "Duplicate must accept independent edits")
   assert(store().getLayerById(grid.id).params.mode === "graph", "Duplicate must be independent")
   applyEditorHistorySnapshot(before)
   const saved = buildLabProjectFile()

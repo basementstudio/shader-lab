@@ -1,5 +1,6 @@
 // Bounded, opt-in pass benchmark. Software-adapter numbers are not native FPS.
 import { BlobTrackingPass } from "@/renderer/blob-tracking-pass"
+import { ConnectedDotsPass } from "@/renderer/connected-dots-pass"
 import {
   emptyCellPaintMask,
   encodeCellPaintMask,
@@ -8,7 +9,11 @@ import { paintCellSegment } from "@/lib/editor/paint/cell-paint-brush"
 import * as THREE from "three/webgpu"
 import { DisplacedRingsPass } from "@/renderer/displaced-rings-pass"
 import { PhotographicCellsPass } from "@/renderer/photographic-cells-pass"
-window.run = async ({ scatterOnly = false, blobOnly = false } = {}) => {
+window.run = async ({
+  scatterOnly = false,
+  blobOnly = false,
+  dotsOnly = false,
+} = {}) => {
   const renderer = new THREE.WebGPURenderer({ antialias: false })
   await renderer.init()
   renderer.toneMapping = THREE.NoToneMapping
@@ -51,6 +56,9 @@ window.run = async ({ scatterOnly = false, blobOnly = false } = {}) => {
   const blob = new BlobTrackingPass("blob")
   blob.updateCompositionRole("effect")
   blob.flushColorNode()
+  const dots = new ConnectedDotsPass("dots")
+  dots.updateCompositionRole("transform")
+  dots.flushColorNode()
   const adapter = await navigator.gpu.requestAdapter()
   const results = []
   const mask = emptyCellPaintMask(2, 1)
@@ -69,7 +77,11 @@ window.run = async ({ scatterOnly = false, blobOnly = false } = {}) => {
       rings.updateLogicalSize(width, height)
       blob.resize(width, height)
       blob.updateLogicalSize(width, height)
-      const scenarios = blobOnly
+      dots.resize(width, height)
+      dots.updateLogicalSize(width, height)
+      const scenarios = dotsOnly
+        ? ["dots-graph", "dots-blobs", "dots-plexus"]
+        : blobOnly
         ? ["blob-outline", "blob-brackets-dots-labels"]
         : null
       for (const scenario of scenarios ??
@@ -109,6 +121,16 @@ window.run = async ({ scatterOnly = false, blobOnly = false } = {}) => {
             trailDecay: 0.35,
           })
         }
+        if (scenario.startsWith("dots")) {
+          dots.updateParams({
+            mode: scenario.slice(5),
+            spacing: 12,
+            jitter: 0.85,
+            links: 0.7,
+            range: 1.6,
+            background: "image",
+          })
+        }
         const selection = scenario.startsWith("cells-light")
           ? "light"
           : "random"
@@ -141,7 +163,9 @@ window.run = async ({ scatterOnly = false, blobOnly = false } = {}) => {
           const start = performance.now()
           context.drawImage(video, 0, 0)
           input.needsUpdate = true
-          if (scenario.startsWith("blob")) {
+          if (scenario.startsWith("dots")) {
+            dots.render(renderer, input, target, frame / 30, 1 / 30)
+          } else if (scenario.startsWith("blob")) {
             blob.render(renderer, input, target, frame / 30, 1 / 30, frame / 30)
           } else if (scenario === "rings")
             rings.render(renderer, input, target, frame / 30, 1 / 30)
@@ -189,6 +213,7 @@ window.run = async ({ scatterOnly = false, blobOnly = false } = {}) => {
     rings.dispose()
     intermediate.dispose()
     pass.dispose()
+    dots.dispose()
     target.dispose()
     input.dispose()
     renderer.dispose()

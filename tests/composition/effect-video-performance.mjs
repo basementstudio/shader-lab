@@ -20,7 +20,8 @@ const server = Bun.serve({
     })
   },
 })
-function outputFile(blobOnly, scatterOnly) {
+function outputFile(blobOnly, scatterOnly, dotsOnly) {
+  if (dotsOnly) return ".context/connected-dots-video-performance.json"
   if (blobOnly) return ".context/blob-video-performance.json"
   if (scatterOnly) return ".context/scatter-video-performance.json"
   return ".context/effect-video-performance.json"
@@ -37,13 +38,15 @@ try {
   await page.waitForFunction(() => window.run)
   const scatterOnly = process.argv.includes("--scatter")
   const blobOnly = process.argv.includes("--blob")
+  const dotsOnly = process.argv.includes("--dots")
   const result = await page.evaluate(
-    ({ scatterOnly, blobOnly }) => window.run({ scatterOnly, blobOnly }),
-    { scatterOnly, blobOnly }
+    ({ scatterOnly, blobOnly, dotsOnly }) =>
+      window.run({ scatterOnly, blobOnly, dotsOnly }),
+    { scatterOnly, blobOnly, dotsOnly }
   )
   console.log(JSON.stringify(result, null, 2))
   await Bun.write(
-    outputFile(blobOnly, scatterOnly),
+    outputFile(blobOnly, scatterOnly, dotsOnly),
     JSON.stringify(result, null, 2)
   )
 } finally {

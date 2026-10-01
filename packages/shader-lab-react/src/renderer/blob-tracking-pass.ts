@@ -43,6 +43,7 @@ import { CrtPass } from "./crt-pass"
 import { DirectionalBlurPass } from "./directional-blur-pass"
 import { DisplacementMapPass } from "./displacement-map-pass"
 import { DitheringPass } from "./dithering-pass"
+import { DotGridPass } from "./dot-grid-pass"
 import { EdgeDetectPass } from "./edge-detect-pass"
 import { FlutedGlassPass } from "./fluted-glass-pass"
 import { HalftonePass } from "./halftone-pass"
@@ -332,6 +333,8 @@ function createInnerEffectPass(
       return new DisplacementMapPass(layerId)
     case "dithering":
       return new DitheringPass(layerId)
+    case "dot-grid":
+      return new DotGridPass(layerId)
     case "edge-detect":
       return new EdgeDetectPass(layerId)
     case "fluted-glass":

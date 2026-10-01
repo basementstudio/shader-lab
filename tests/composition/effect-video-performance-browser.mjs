@@ -79,11 +79,10 @@ window.run = async ({
       blob.updateLogicalSize(width, height)
       dots.resize(width, height)
       dots.updateLogicalSize(width, height)
-      const scenarios = dotsOnly
-        ? ["dots-graph", "dots-blobs", "dots-plexus"]
-        : blobOnly
-        ? ["blob-outline", "blob-brackets-dots-labels"]
-        : null
+      let scenarios = null
+      if (dotsOnly) scenarios = ["dots-graph", "dots-blobs", "dots-plexus"]
+      else if (blobOnly)
+        scenarios = ["blob-outline", "blob-brackets-dots-labels"]
       for (const scenario of scenarios ??
         (scatterOnly
         ? [

@@ -145,6 +145,7 @@ export class PipelineManager {
   private passFailures = new Map<string, PassFailureState>()
   private readonly strictPassFailures: boolean
   private pendingMediaLoads = new Set<string>()
+  private reportedStrictFailures = new WeakSet<object>()
   private cachedActivePasses: LayerPassNode[] = []
   private activePassesDirty = true
   private dirty = true
@@ -227,6 +228,7 @@ export class PipelineManager {
 
       pass.dispose()
       this.passMap.delete(layerId)
+      this.pendingMediaLoads.delete(layerId)
       this.layerSignatures.delete(layerId)
       this.compilingPasses.delete(layerId)
       this.compiledVersions.delete(layerId)
@@ -246,6 +248,7 @@ export class PipelineManager {
       if (pass && pass instanceof GroupPass !== group) {
         pass.dispose()
         this.passMap.delete(layerId)
+        this.pendingMediaLoads.delete(layerId)
         this.layerSignatures.delete(layerId)
         this.compilingPasses.delete(layerId)
         this.compiledVersions.delete(layerId)
@@ -534,10 +537,12 @@ export class PipelineManager {
             width: asset.width,
           })
           .then(() => {
+            if (this.passMap.get(pass.layerId) !== pass) return
             setLayerMediaError(pass.layerId, null)
             this.markDirty()
           })
           .catch(() => {
+            if (this.passMap.get(pass.layerId) !== pass) return
             setLayerMediaError(
               pass.layerId,
               describeMediaLoadFailure(asset.fileName)
@@ -545,6 +550,7 @@ export class PipelineManager {
             this.markDirty()
           })
           .finally(() => {
+            if (this.passMap.get(pass.layerId) !== pass) return
             this.pendingMediaLoads.delete(pass.layerId)
           })
       } else {
@@ -607,12 +613,21 @@ export class PipelineManager {
       )(this.renderer, input, output, time, delta, timelineTime)
     } catch (error) {
       if (this.strictPassFailures) {
-        reportPassFailure(
-          this.layerTypes.get(pass.layerId),
-          pass.layerId,
-          "pass-render",
-          error
-        )
+        const alreadyReported =
+          typeof error === "object" &&
+          error !== null &&
+          this.reportedStrictFailures.has(error)
+        if (!alreadyReported) {
+          if (typeof error === "object" && error !== null) {
+            this.reportedStrictFailures.add(error)
+          }
+          reportPassFailure(
+            this.layerTypes.get(pass.layerId),
+            pass.layerId,
+            "pass-render",
+            error
+          )
+        }
         throw error
       }
       this.handlePassRenderFailure(pass.layerId, error)

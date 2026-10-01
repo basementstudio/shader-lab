@@ -114,6 +114,7 @@ export class PatternPass extends PassNode {
   private motifsKey = ""
   private readonly motifImages = new Map<string, Promise<HTMLImageElement>>()
   private motifCount = 0
+  private motifsFailed = 0
 
   constructor(layerId: string) {
     super(layerId)
@@ -200,7 +201,7 @@ export class PatternPass extends PassNode {
     this.bloomSoftnessUniform.value = nextBloomSoftness
     this.bloomThresholdUniform.value = nextBloomThreshold
     this.cellSizeUniform.value = nextCellSize
-    this.colorModeUniform.value = this.getColorModeValue(nextColorMode)
+    this.colorModeUniform.value = this.getColorModeValue(nextColorMode, nextPreset)
     this.customColorCountUniform.value = nextCustomColorCount
     this.customLuminanceBiasUniform.value = nextCustomLuminanceBias
     this.invertUniform.value = params.invert === true ? 1 : 0
@@ -251,11 +252,14 @@ export class PatternPass extends PassNode {
     const nextKey = nextUrls.join("\n")
 
     if (nextKey === this.motifsKey) {
-      return Promise.resolve()
+      return this.motifsFailed > 0
+        ? Promise.reject(new MotifLoadError(this.motifsFailed))
+        : Promise.resolve()
     }
 
     this.motifsKey = nextKey
     this.motifUrls = nextUrls
+    this.motifsFailed = 0
 
     for (const url of this.motifImages.keys()) {
       if (!nextUrls.includes(url)) {
@@ -521,7 +525,7 @@ export class PatternPass extends PassNode {
     return this.bloomCompositor.build(baseSample.rgb)
   }
 
-  private getColorModeValue(colorMode: PatternColorMode): number {
+  private getColorModeValue(colorMode: PatternColorMode, preset: PatternSource): number {
     switch (colorMode) {
       case "quantized":
         return 1
@@ -530,7 +534,7 @@ export class PatternPass extends PassNode {
       case "custom":
         return 3
       case "original":
-        return 4
+        return preset === "custom" ? 4 : 0
       default:
         return 0
     }
@@ -560,6 +564,7 @@ export class PatternPass extends PassNode {
         this.atlasTexture?.dispose()
         this.atlasTexture = texture
         this.motifCount = motifs
+        this.motifsFailed = failed
         this.numPatternsUniform.value = texture
           ? texture.image.width / cellSize
           : 1

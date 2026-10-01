@@ -114,6 +114,7 @@ export function PatternMotifControls({
   const reduceMotion = useReducedMotion() ?? false
   const inputRef = useRef<HTMLInputElement | null>(null)
   const tileRefs = useRef<(HTMLButtonElement | null)[]>([])
+  const dragActiveRef = useRef(false)
   const [drag, setDrag] = useState<DragState | null>(null)
   const [fileHover, setFileHover] = useState(false)
   const [loading, setLoading] = useState(0)
@@ -145,13 +146,16 @@ export function PatternMotifControls({
         }
       }
       setLoading(0)
-      setNotice(describeSkipped(files.length - accepted.length, failed))
-      if (loaded.length === 0) return
       const current = readIds()
-      setLayerPatternAssets(
-        layerId,
-        [...current, ...loaded].slice(0, MAX_PATTERN_MOTIFS)
+      const fits = loaded.slice(0, Math.max(0, MAX_PATTERN_MOTIFS - current.length))
+      setNotice(
+        describeSkipped(
+          files.length - accepted.length + (loaded.length - fits.length),
+          failed
+        )
       )
+      if (fits.length === 0) return
+      setLayerPatternAssets(layerId, [...current, ...fits])
       if (
         current.length === 0 &&
         (values.colorMode === undefined || values.colorMode === "source")
@@ -171,12 +175,11 @@ export function PatternMotifControls({
   )
 
   const cancelDrag = useCallback(() => {
-    setDrag((current) => {
-      if (current?.active) {
-        onInteractionEnd?.()
-      }
-      return null
-    })
+    if (dragActiveRef.current) {
+      dragActiveRef.current = false
+      onInteractionEnd?.()
+    }
+    setDrag(null)
   }, [onInteractionEnd])
 
   useEffect(() => {
@@ -222,6 +225,7 @@ export function PatternMotifControls({
     )
     if (!drag.active && moved < DRAG_THRESHOLD) return
     if (!drag.active) {
+      dragActiveRef.current = true
       onInteractionStart?.()
       playOptionalUISound("generic.dragStart")
     }
@@ -241,7 +245,10 @@ export function PatternMotifControls({
         commit(moveMotif(motifIds, drag.from, drag.target))
       }
       playOptionalUISound("generic.dragEnd")
-      onInteractionEnd?.()
+      if (dragActiveRef.current) {
+        dragActiveRef.current = false
+        onInteractionEnd?.()
+      }
     }
     setDrag(null)
   }
@@ -342,9 +349,7 @@ export function PatternMotifControls({
                   )}
                   data-motif-tile={index}
                   onKeyDown={(event) => handleTileKeyDown(index, event)}
-                  onLostPointerCapture={() => {
-                    if (drag && !drag.active) setDrag(null)
-                  }}
+                  onLostPointerCapture={cancelDrag}
                   onPointerCancel={cancelDrag}
                   onPointerDown={(event) => handlePointerDown(index, event)}
                   onPointerMove={handlePointerMove}

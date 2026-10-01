@@ -200,6 +200,7 @@ export function buildShaderExportConfig(
   }
 
   const assetById = new Map(input.assets.map((asset) => [asset.id, asset]))
+  const usedMotifPaths = new Set<string>()
 
   return {
     composition: {
@@ -216,7 +217,8 @@ export function buildShaderExportConfig(
         (layer.patternAssetIds ?? []).flatMap((id) => {
           const motif = assetById.get(id)
           return motif ? [motif] : []
-        })
+        }),
+        usedMotifPaths
       )
     ),
     timeline: {
@@ -233,7 +235,8 @@ function toShaderLabLayerConfig(
   layer: EditorLayer,
   asset: EditorAsset | null,
   depthAsset: EditorAsset | null,
-  patternAssets: EditorAsset[]
+  patternAssets: EditorAsset[],
+  usedMotifPaths: Set<string>
 ): ShaderLabLayerConfig {
   const supportedLayer = assertSupportedShaderExportLayer(layer)
   const sketch =
@@ -272,16 +275,13 @@ function toShaderLabLayerConfig(
   }
 
   if (supportedLayer.type === "pattern" && patternAssets.length > 0) {
-    const usedPaths = new Set<string>()
-    baseLayer.patternAssets = patternAssets.map((motif, index) => {
-      let src = buildAssetPlaceholderPath("image", motif.fileName || "motif.png")
-      if (usedPaths.has(src)) {
-        src = buildAssetPlaceholderPath(
-          "image",
-          `motif-${index + 1}-${motif.fileName || "motif.png"}`
-        )
+    baseLayer.patternAssets = patternAssets.map((motif) => {
+      const fileName = motif.fileName || "motif.png"
+      let src = buildAssetPlaceholderPath("image", fileName)
+      for (let suffix = 2; usedMotifPaths.has(src); suffix += 1) {
+        src = buildAssetPlaceholderPath("image", `${suffix}-${fileName}`)
       }
-      usedPaths.add(src)
+      usedMotifPaths.add(src)
       return { fileName: motif.fileName, kind: "image" as const, src }
     })
   }

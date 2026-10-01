@@ -162,14 +162,10 @@ export function clipsFromGltfJson(
     }
     const raw = rawNames[index] ?? ""
     const duplicated = (rawCounts.get(raw) ?? 0) > 1
+    const named = duplicated ? `${raw} (${index + 1})` : raw
     return {
       duration,
-      label:
-        raw.length === 0
-          ? `Animation ${index + 1}`
-          : duplicated
-            ? `${raw} (${index + 1})`
-            : raw,
+      label: raw.length === 0 ? `Animation ${index + 1}` : named,
       name: values[index] ?? `animation_${index}`,
       targets: [...targets],
     }

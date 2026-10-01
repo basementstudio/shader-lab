@@ -42,7 +42,7 @@ const server = Bun.serve({
         Bun.file(resolve(directory, `fixtures/${path.split("/").pop()}`))
       )
     if (path === "/scenes/default/rings-photo.webp")
-      return new Response(Bun.file(resolve(root, "public/examples/slice.webp")))
+      return new Response(Bun.file(resolve(root, "public/examples/effects/slice.webp")))
     if (/^\/scenes\/default\/(motif|shape)-[a-z-]+\.svg$/.test(path))
       return new Response(
         Bun.file(resolve(directory, `fixtures/${path.split("/").pop()}`))

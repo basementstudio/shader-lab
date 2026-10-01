@@ -372,7 +372,7 @@ window.checkExistingProject = async () => {
       "opacity",
       "params",
     ]) {
-      if (JSON.stringify(layer[key]) !== JSON.stringify(saved[key]))
+      if (canonicalJson(layer[key]) !== canonicalJson(saved[key]))
         throw new Error(`Existing ${layer.type} layer changed ${key}`)
     }
   }

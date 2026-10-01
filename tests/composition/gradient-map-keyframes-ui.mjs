@@ -112,7 +112,7 @@ try {
     .getByRole("button", { name: "Replace", exact: true })
     .filter({ visible: true })
     .click()
-  await (await chooser).setFiles("public/examples/slice.webp")
+  await (await chooser).setFiles("public/examples/effects/slice.webp")
   await ready()
   await page.waitForTimeout(1000)
   await panel

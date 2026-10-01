@@ -93,7 +93,7 @@ try {
     .locator(`[id="${menu}"]`)
     .getByRole("button", { name: /^Image$/ })
     .click()
-  await (await chooser).setFiles("public/examples/slice.webp")
+  await (await chooser).setFiles("public/examples/effects/slice.webp")
   await page.waitForFunction(
     () =>
       document.querySelectorAll(

@@ -148,13 +148,6 @@ export function isParamVisible(
       if (controllingValue === definition.visibleWhen.notEquals) {
         return false
       }
-    } else if ("oneOf" in definition.visibleWhen) {
-      if (
-        controllingValue === undefined ||
-        !definition.visibleWhen.oneOf.includes(controllingValue as string)
-      ) {
-        return false
-      }
     } else if (
       typeof controllingValue !== "number" ||
       controllingValue < definition.visibleWhen.gte

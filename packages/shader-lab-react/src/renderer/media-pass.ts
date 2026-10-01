@@ -528,8 +528,20 @@ export class MediaPass extends PassNode {
       .and(finalUv.x.lessThanEqual(1))
       .and(finalUv.y.greaterThanEqual(0))
       .and(finalUv.y.lessThanEqual(1))
+    const frameInBounds = sampledUv.x
+      .greaterThanEqual(0)
+      .and(sampledUv.x.lessThanEqual(1))
+      .and(sampledUv.y.greaterThanEqual(0))
+      .and(sampledUv.y.lessThanEqual(1))
+    const containedInBounds = aux
+      ? select(
+          this.depthEdgesAlphaUniform.greaterThan(0.5),
+          frameInBounds,
+          inBounds
+        )
+      : inBounds
     const contained = select(
-      inBounds,
+      containedInBounds,
       this.mediaTextureNode,
       vec4(0, 0, 0, this.boundsAlphaUniform)
     )

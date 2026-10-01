@@ -1,5 +1,7 @@
 import { useLayerStore } from "@/store/layer-store"
 
+export const MISSING_DEPTH_ERROR_PREFIX = "Missing depth map"
+
 export function setLayerMediaError(
   layerId: string,
   message: string | null
@@ -8,6 +10,13 @@ export function setLayerMediaError(
   const layer = store.layers.find((entry) => entry.id === layerId)
 
   if (!layer || layer.runtimeError === message) {
+    return
+  }
+
+  if (
+    message === null &&
+    layer.runtimeError?.startsWith(MISSING_DEPTH_ERROR_PREFIX)
+  ) {
     return
   }
 

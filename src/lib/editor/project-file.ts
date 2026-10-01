@@ -4,6 +4,7 @@ import {
 } from "@/lib/editor/composition"
 import { CURRENT_PROJECT_FILE_VERSION } from "./project-version"
 import { validateLayerHierarchy } from "@/renderer/layer-hierarchy"
+import { MISSING_DEPTH_ERROR_PREFIX } from "@/renderer/layer-media-error"
 import { z } from "zod"
 import { useAssetStore } from "@/store/asset-store"
 import { useAudioStore } from "@/store/audio-store"
@@ -768,9 +769,21 @@ function hydrateImportedLayer(
   version: number
 ): EditorLayer {
   const params = migrateLayerParams(layer, version)
-  const depthAssetId =
+  const depthRef = layer.depthAssetId
+    ? assetRefById.get(layer.depthAssetId)
+    : undefined
+  const depthApplies = layer.type === "image"
+  const depthResolved = Boolean(
     layer.depthAssetId && assetIds.has(layer.depthAssetId)
-      ? layer.depthAssetId
+  )
+  const depthIsImage = !depthRef || depthRef.kind === "image"
+  const depthAssetId =
+    depthApplies && depthResolved && depthIsImage ? layer.depthAssetId : null
+  const depthError =
+    layer.depthAssetId && depthApplies && !depthAssetId
+      ? depthResolved
+        ? `${MISSING_DEPTH_ERROR_PREFIX}: ${depthRef?.fileName ?? "unknown file"} is not an image`
+        : `${MISSING_DEPTH_ERROR_PREFIX}: ${depthRef?.fileName ?? "unknown file"}`
       : null
 
   if (!(layer.assetId && !assetIds.has(layer.assetId))) {
@@ -778,10 +791,7 @@ function hydrateImportedLayer(
       ...layer,
       ...(layer.depthAssetId !== undefined ? { depthAssetId } : {}),
       params,
-      runtimeError:
-        layer.depthAssetId && !depthAssetId
-          ? `Missing depth map: ${assetRefById.get(layer.depthAssetId)?.fileName ?? "unknown file"}`
-          : (layer.runtimeError ?? null),
+      runtimeError: depthError ?? layer.runtimeError ?? null,
     }
   }
 

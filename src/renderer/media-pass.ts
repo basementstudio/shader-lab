@@ -86,6 +86,7 @@ export function parallaxCameraAt(
 }
 
 export class MediaPass extends PassNode {
+  private parallaxTime = 0
   private readonly canvasAspectUniform: Node
   private readonly fitModeUniform: Node
   private readonly boundsAlphaUniform: Node
@@ -256,13 +257,13 @@ export class MediaPass extends PassNode {
     this.syncDepthActive()
   }
 
-  protected override beforeRender(time: number): void {
+  protected override beforeRender(_time: number): void {
     const camera = parallaxCameraAt(
       this.parallaxMotion,
       this.parallaxAmount,
       this.parallaxSpeed,
       this.parallaxOffset,
-      time
+      this.parallaxTime
     )
     this.depthShiftXUniform.value = camera.shiftX
     this.depthShiftYUniform.value = camera.shiftY
@@ -483,8 +484,11 @@ export class MediaPass extends PassNode {
     inputTexture: THREE.Texture,
     outputTarget: THREE.WebGLRenderTarget,
     time: number,
-    delta: number
+    delta: number,
+    timelineTime = time
   ): void {
+    this.parallaxTime = timelineTime
+
     if (this.videoTexture) {
       this.videoTexture.needsUpdate = true
     }
@@ -494,7 +498,7 @@ export class MediaPass extends PassNode {
     }
 
     if (this.depthActive && this.auxTarget && this.depthTexture) {
-      this.beforeRender(time)
+      this.beforeRender(timelineTime)
       for (const node of this.depthTextureNodes) {
         node.value = this.depthTexture
       }
@@ -566,8 +570,20 @@ export class MediaPass extends PassNode {
       .and(finalUv.x.lessThanEqual(1))
       .and(finalUv.y.greaterThanEqual(0))
       .and(finalUv.y.lessThanEqual(1))
+    const frameInBounds = sampledUv.x
+      .greaterThanEqual(0)
+      .and(sampledUv.x.lessThanEqual(1))
+      .and(sampledUv.y.greaterThanEqual(0))
+      .and(sampledUv.y.lessThanEqual(1))
+    const containedInBounds = aux
+      ? select(
+          this.depthEdgesAlphaUniform.greaterThan(0.5),
+          frameInBounds,
+          inBounds
+        )
+      : inBounds
     const contained = select(
-      inBounds,
+      containedInBounds,
       this.mediaTextureNode,
       vec4(0, 0, 0, this.boundsAlphaUniform)
     )

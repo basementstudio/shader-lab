@@ -352,8 +352,14 @@ export class FlaresPass extends PassNode {
     const screened = float(1).sub(
       float(1).sub(source).mul(vec3(1).sub(light))
     )
-    const coverage = max(sourceAlpha, max(rays, core))
-    const rgb = mix(light, screened, sourceAlpha.div(max(coverage, float(0.0001))))
+    const lightAlpha = max(rays, core)
+    const lightStraight = clamp(light.div(max(lightAlpha, float(0.0001))), 0, 1)
+    const coverage = max(sourceAlpha, lightAlpha)
+    const rgb = mix(
+      lightStraight,
+      screened,
+      sourceAlpha.div(max(coverage, float(0.0001)))
+    )
     return vec4(rgb, coverage)
   }
 

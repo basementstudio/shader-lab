@@ -779,11 +779,11 @@ function hydrateImportedLayer(
   const depthIsImage = !depthRef || depthRef.kind === "image"
   const depthAssetId =
     depthApplies && depthResolved && depthIsImage ? layer.depthAssetId : null
+  const depthFileName = depthRef?.fileName ?? "unknown file"
+  const depthErrorDetail = depthResolved ? " is not an image" : ""
   const depthError =
     layer.depthAssetId && depthApplies && !depthAssetId
-      ? depthResolved
-        ? `${MISSING_DEPTH_ERROR_PREFIX}: ${depthRef?.fileName ?? "unknown file"} is not an image`
-        : `${MISSING_DEPTH_ERROR_PREFIX}: ${depthRef?.fileName ?? "unknown file"}`
+      ? `${MISSING_DEPTH_ERROR_PREFIX}: ${depthFileName}${depthErrorDetail}`
       : null
 
   if (!(layer.assetId && !assetIds.has(layer.assetId))) {

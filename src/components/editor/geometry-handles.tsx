@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
 } from "react"
+import { getCompositionFrame } from "@/lib/editor/composition"
 import { useEditorStore } from "@/store/editor-store"
 
 export type Geometry = {
@@ -31,6 +32,7 @@ export function GeometryHandles({
   restore,
   dataPrefix,
   label,
+  framed = false,
 }: {
   geometry: Geometry
   outline: GeometryOutline
@@ -40,6 +42,7 @@ export function GeometryHandles({
   restore: (original: Geometry) => void
   dataPrefix: string
   label: string
+  framed?: boolean
 }) {
   const host = useRef<HTMLDivElement>(null)
   const drag = useRef<Drag | null>(null)
@@ -57,7 +60,9 @@ export function GeometryHandles({
     observer.observe(element)
     return () => observer.disconnect()
   }, [])
-  const shorter = Math.min(box.width, box.height)
+  const sceneConfig = useEditorStore((state) => state.sceneConfig)
+  const space = framed ? getCompositionFrame(sceneConfig, box) : box
+  const shorter = Math.max(1, Math.min(space.width, space.height))
   const toPx = (x: number, y: number): [number, number] => [
     x * shorter + box.width / 2,
     y * shorter + box.height / 2,
@@ -98,7 +103,10 @@ export function GeometryHandles({
     window.addEventListener("blur", cancel)
     window.addEventListener("keydown", key)
     return () => {
-      finish(false)
+      if (drag.current) {
+        drag.current = null
+        useEditorStore.getState().endInteractiveEdit()
+      }
       window.removeEventListener("blur", cancel)
       window.removeEventListener("keydown", key)
     }

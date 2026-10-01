@@ -93,17 +93,20 @@ export function canonicalGradientMapStops(stops: GradientMapStop[]): string {
   )
 }
 
-export function parseGradientMapStops(value: unknown): GradientMapStop[] {
+export function parseGradientMapStops(
+  value: unknown,
+  fallback: GradientMapStop[] = DEFAULT_GRADIENT_MAP_STOPS
+): GradientMapStop[] {
   let raw: unknown = value
   if (typeof value === "string") {
-    if (value.trim() === "") return DEFAULT_GRADIENT_MAP_STOPS.map((s) => ({ ...s }))
+    if (value.trim() === "") return fallback.map((s) => ({ ...s }))
     try {
       raw = JSON.parse(value)
     } catch {
-      return DEFAULT_GRADIENT_MAP_STOPS.map((s) => ({ ...s }))
+      return fallback.map((s) => ({ ...s }))
     }
   }
-  if (!Array.isArray(raw)) return DEFAULT_GRADIENT_MAP_STOPS.map((s) => ({ ...s }))
+  if (!Array.isArray(raw)) return fallback.map((s) => ({ ...s }))
   const stops: GradientMapStop[] = []
   for (const entry of raw.slice(0, 8)) {
     if (!entry || typeof entry !== "object") continue
@@ -115,7 +118,7 @@ export function parseGradientMapStops(value: unknown): GradientMapStop[] {
       position: Math.min(1, Math.max(0, position)),
     })
   }
-  if (stops.length < 2) return DEFAULT_GRADIENT_MAP_STOPS.map((s) => ({ ...s }))
+  if (stops.length < 2) return fallback.map((s) => ({ ...s }))
   return stops
 }
 

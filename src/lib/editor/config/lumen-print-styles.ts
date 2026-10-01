@@ -186,7 +186,9 @@ const STYLE_KEYS = Object.keys(
 ) as (keyof LumenPrintStyleValues)[]
 
 export function matchLumenPrintStyle(values: LayerParameterValues): string {
-  const stops = canonicalGradientMapStops(parseGradientMapStops(values.stops))
+  const stops = canonicalGradientMapStops(
+    parseGradientMapStops(values.stops, DEFAULT_LUMEN_PRINT_STOPS)
+  )
   const match = LUMEN_PRINT_STYLES.find(
     (style) =>
       canonicalGradientMapStops(style.stops) === stops &&

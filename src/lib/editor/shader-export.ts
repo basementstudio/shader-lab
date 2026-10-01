@@ -85,6 +85,7 @@ type SupportedShaderExportLayerType = Extract<
   | "image"
   | "ink"
   | "live"
+  | "lumen-print"
   | "particle-grid"
   | "pattern"
   | "pixelation"

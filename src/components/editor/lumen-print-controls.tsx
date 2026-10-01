@@ -37,7 +37,7 @@ export function LumenPrintControls({
 }) {
   const stops =
     typeof values.stops === "string" && values.stops.trim() !== ""
-      ? parseGradientMapStops(values.stops)
+      ? parseGradientMapStops(values.stops, DEFAULT_LUMEN_PRINT_STOPS)
       : DEFAULT_LUMEN_PRINT_STOPS
   const style = matchLumenPrintStyle(values)
   return (
@@ -80,7 +80,8 @@ export function LumenPrintControls({
       />
       <Typography tone="muted" variant="caption">
         The right end is the paper: washed-out areas take that color. A style
-        sets every control below; editing any of them makes it Custom.
+        sets the tone and surface controls below, not Amount or Seed; editing
+        any of those makes it Custom.
       </Typography>
     </section>
   )

@@ -175,7 +175,7 @@ export class LumenPrintPass extends PassNode {
     this.seedUniform.value = readNumber(params.seed, 0, 0, 9999)
     const stops =
       typeof params.stops === "string" && params.stops.trim() !== ""
-        ? parseGradientMapStops(params.stops)
+        ? parseGradientMapStops(params.stops, DEFAULT_LUMEN_PRINT_STOPS)
         : DEFAULT_LUMEN_PRINT_STOPS
     const key = serializeGradientMapStops(stops)
     if (key !== this.stopsKey) {
@@ -211,28 +211,44 @@ export class LumenPrintPass extends PassNode {
     const jitter = hash(pixel.add(seedOffset).add(3.7)).mul(6.2831853)
     const jitterCos = cos(jitter)
     const jitterSin = sin(jitter)
-    let blurred: Node = centerTone
-    let bright: Node = smoothstep(0.6, 1, centerTone).mul(centerTone)
+    const centerAlpha = float(center.a)
+    let weightSum: Node = centerAlpha
+    let blurred: Node = centerTone.mul(centerAlpha)
+    let bright: Node = smoothstep(0.6, 1, centerTone).mul(centerTone).mul(centerAlpha)
     for (const [x, y] of TAPS) {
       const rotated = vec2(
         jitterCos.mul(x).sub(jitterSin.mul(y)),
         jitterSin.mul(x).add(jitterCos.mul(y))
       )
-      const tone = perceptualLuma(
-        this.sample(targetUv.add(rotated.mul(texel).mul(this.radiusUniform)))
+      const tapSample = this.sample(
+        targetUv.add(rotated.mul(texel).mul(this.radiusUniform))
       )
-      blurred = blurred.add(tone)
-      bright = bright.add(smoothstep(0.6, 1, tone).mul(tone))
+      const tone = perceptualLuma(tapSample)
+      const weight = float(tapSample.a)
+      weightSum = weightSum.add(weight)
+      blurred = blurred.add(tone.mul(weight))
+      bright = bright.add(smoothstep(0.6, 1, tone).mul(tone).mul(weight))
     }
-    blurred = blurred.div(TAP_COUNT + 1)
-    bright = bright.div(TAP_COUNT + 1)
+    const safeWeight = max(weightSum, float(0.0001))
+    const hasCoverage = weightSum.greaterThan(float(0.0001))
+    blurred = select(hasCoverage, blurred.div(safeWeight), centerTone)
+    bright = select(hasCoverage, bright.div(safeWeight), float(0))
 
     const edgeStep = texel.mul(1.25)
-    const left = perceptualLuma(this.sample(targetUv.sub(vec2(edgeStep.x, 0))))
-    const right = perceptualLuma(this.sample(targetUv.add(vec2(edgeStep.x, 0))))
-    const up = perceptualLuma(this.sample(targetUv.sub(vec2(0, edgeStep.y))))
-    const down = perceptualLuma(this.sample(targetUv.add(vec2(0, edgeStep.y))))
-    const gradient = vec2(right.sub(left), down.sub(up)).length()
+    const leftSample = this.sample(targetUv.sub(vec2(edgeStep.x, 0)))
+    const rightSample = this.sample(targetUv.add(vec2(edgeStep.x, 0)))
+    const upSample = this.sample(targetUv.sub(vec2(0, edgeStep.y)))
+    const downSample = this.sample(targetUv.add(vec2(0, edgeStep.y)))
+    const edgeCoverage = min(
+      min(min(float(leftSample.a), float(rightSample.a)), min(float(upSample.a), float(downSample.a))),
+      centerAlpha
+    )
+    const gradient = vec2(
+      perceptualLuma(rightSample).sub(perceptualLuma(leftSample)),
+      perceptualLuma(downSample).sub(perceptualLuma(upSample))
+    )
+      .length()
+      .mul(edgeCoverage)
 
     let tone: Node = mix(centerTone, blurred, this.diffusionUniform)
     tone = tone.sub(0.5).mul(this.contrastUniform).add(0.5).add(this.exposureUniform)

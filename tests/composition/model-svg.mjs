@@ -2,7 +2,7 @@ import * as THREE from "three/webgpu"
 import { createLayer } from "@/lib/editor/layers"
 import { useLayerStore } from "@/store/layer-store"
 import { MODEL_ENVIRONMENTS } from "@/lib/editor/config/model-options"
-import { getAssetAccept, isSvgMediaSource } from "@/lib/editor/media-file"
+import { getAssetAccept } from "@/lib/editor/media-file"
 import {
   applyLabProjectFile,
   buildLabProjectFile,

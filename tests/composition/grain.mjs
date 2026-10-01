@@ -355,13 +355,13 @@ async function timing() {
     pass.render(renderer, input, target, 0, 0)
     await renderer.readRenderTargetPixelsAsync(target, 0, 0, 1, 1)
     const runs = []
-    for (let run = 0; run < 5; run++) {
+    for (let run = 0; run < 3; run++) {
       const start = performance.now()
-      for (let frame = 0; frame < 30; frame++) pass.render(renderer, input, target, frame / 24, 0)
+      for (let frame = 0; frame < 10; frame++) pass.render(renderer, input, target, frame / 24, 0)
       await renderer.readRenderTargetPixelsAsync(target, 0, 0, 1, 1)
-      runs.push((performance.now() - start) / 30)
+      runs.push((performance.now() - start) / 10)
     }
-    return runs.sort((a, b) => a - b)[2]
+    return runs.sort((a, b) => a - b)[1]
   }
   try {
     const off = await measure({ ...NEUTRAL, amount: 0 })

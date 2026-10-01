@@ -265,12 +265,25 @@ export class GrainPass extends PassNode {
         const scaled = encoded.mul(
           select(additive, float(1), float(1).add(lift.mul(perTone)))
         )
-        const grained = max(
-          scaled
-            .add(select(additive, lift, float(0)))
-            .add(tint.mul(strength).mul(gain)),
+        const lifted = max(
+          scaled.add(select(additive, lift, float(0))),
           vec3(0)
         )
+        const chromaShift = tint.mul(strength).mul(gain)
+        const headroom = (channel: Node, shift: Node): Node =>
+          select(shift.lessThan(0), channel.div(shift.negate()), float(1))
+        const chromaScale = clamp(
+          min(
+            min(
+              headroom(lifted.x, chromaShift.x),
+              headroom(lifted.y, chromaShift.y)
+            ),
+            headroom(lifted.z, chromaShift.z)
+          ),
+          0,
+          1
+        )
+        const grained = lifted.add(chromaShift.mul(chromaScale))
         color.assign(pow(grained, vec3(2.2)))
       })
 

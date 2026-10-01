@@ -101,6 +101,7 @@ export class GrainPass extends PassNode {
   private readonly placeholder = new THREE.Texture()
   private readonly source: Node
   private speed = 1
+  private grainClock = 0
 
   constructor(layerId: string) {
     super(layerId)
@@ -125,9 +126,11 @@ export class GrainPass extends PassNode {
     inputTexture: THREE.Texture,
     outputTarget: THREE.WebGLRenderTarget,
     time: number,
-    delta: number
+    delta: number,
+    timelineTime = time
   ): void {
     this.source.value = inputTexture
+    this.grainClock = timelineTime
     super.render(renderer, inputTexture, outputTarget, time, delta)
   }
 
@@ -153,11 +156,12 @@ export class GrainPass extends PassNode {
     return this.speed > 0.0001
   }
 
-  protected override beforeRender(time: number): void {
+  protected override beforeRender(): void {
     this.frameUniform.value =
       this.speed > 0.0001
-        ? Math.floor(Math.max(0, time) * FILM_FRAME_RATE * this.speed) %
-          FRAME_CYCLE
+        ? Math.floor(
+            Math.max(0, this.grainClock) * FILM_FRAME_RATE * this.speed
+          ) % FRAME_CYCLE
         : 0
   }
 
@@ -265,12 +269,25 @@ export class GrainPass extends PassNode {
         const scaled = encoded.mul(
           select(additive, float(1), float(1).add(lift.mul(perTone)))
         )
-        const grained = max(
-          scaled
-            .add(select(additive, lift, float(0)))
-            .add(tint.mul(strength).mul(gain)),
+        const lifted = max(
+          scaled.add(select(additive, lift, float(0))),
           vec3(0)
         )
+        const chromaShift = tint.mul(strength).mul(gain)
+        const headroom = (channel: Node, shift: Node): Node =>
+          select(shift.lessThan(0), channel.div(shift.negate()), float(1))
+        const chromaScale = clamp(
+          min(
+            min(
+              headroom(lifted.x, chromaShift.x),
+              headroom(lifted.y, chromaShift.y)
+            ),
+            headroom(lifted.z, chromaShift.z)
+          ),
+          0,
+          1
+        )
+        const grained = lifted.add(chromaShift.mul(chromaScale))
         color.assign(pow(grained, vec3(2.2)))
       })
 

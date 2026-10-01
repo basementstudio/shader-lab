@@ -1,7 +1,8 @@
 import * as THREE from "three/webgpu"
 import { createLayer } from "@/lib/editor/layers"
+import { useLayerStore } from "@/store/layer-store"
 import { MODEL_ENVIRONMENTS } from "@/lib/editor/config/model-options"
-import { getAssetAccept } from "@/lib/editor/media-file"
+import { getAssetAccept, isSvgMediaSource } from "@/lib/editor/media-file"
 import {
   applyLabProjectFile,
   buildLabProjectFile,
@@ -10,6 +11,7 @@ import {
 import { describeModelLoadFailure } from "@/renderer/layer-media-error"
 import { ModelPass } from "@/renderer/model-pass"
 import { buildSvgModel, parseSvg } from "@/renderer/model-svg"
+import { useAssetStore } from "@/store/asset-store"
 import { DEFAULT_SCENE_CONFIG } from "@/types/editor"
 import { modelLayer } from "./model-layer.mjs"
 
@@ -27,6 +29,7 @@ const N = 96
 const RING = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path fill="#ff0000" fill-rule="evenodd" d="M10 50 A40 40 0 1 0 90 50 A40 40 0 1 0 10 50 Z M30 50 A20 20 0 1 0 70 50 A20 20 0 1 0 30 50 Z"/></svg>`
 const STACK = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect x="0" y="0" width="100" height="100" fill="#0000ff"/><rect x="25" y="25" width="50" height="50" fill="#ffffff"/></svg>`
 const STROKE = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><polyline points="10,90 50,10 90,90" fill="none" stroke="#00ff00" stroke-width="10"/></svg>`
+const FADED = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#ff0000" fill-opacity="0.5"/><polyline points="10,90 50,10 90,90" fill="none" stroke="#00ff00" stroke-width="10" stroke-opacity="0.25"/></svg>`
 const TEXT = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text x="10" y="50">Logo</text></svg>`
 
 function boxOf(group) {
@@ -70,6 +73,17 @@ function unitChecks() {
     "Strokes extrude by the same share of the logo size"
   )
   assert(hits(stroke, 50, -14) && !hits(stroke, 50, -60), "Stroke-only shapes become solid lines")
+  const faded = buildSvgModel(parseSvg(FADED), flat)
+  const [fadedFill, fadedStroke] = faded.children
+  assert(
+    fadedFill.material.transparent && Math.abs(fadedFill.material.opacity - 0.5) < 1e-6,
+    "Fill opacity becomes material opacity"
+  )
+  assert(
+    fadedStroke.material.transparent && Math.abs(fadedStroke.material.opacity - 0.25) < 1e-6,
+    "Stroke opacity becomes material opacity"
+  )
+  assert(!ring.children[0].material.transparent, "Opaque shapes stay opaque")
   let error = ""
   try {
     buildSvgModel(parseSvg(TEXT), flat)
@@ -78,10 +92,10 @@ function unitChecks() {
   }
   assert(error.includes("Convert text to outlines"), `Text-only SVGs explain what to do (${error})`)
   assert(getAssetAccept("model").includes(".svg"), "The 3D Model picker accepts .svg")
-  return 14
+  return 17
 }
 
-async function passChecks() {
+async function passChecks(reopened) {
   const renderer = new THREE.WebGPURenderer({ antialias: false })
   await renderer.init()
   renderer.toneMapping = THREE.NoToneMapping
@@ -95,7 +109,7 @@ async function passChecks() {
   pass.updateLogicalSize(N, N)
   pass.updateOpacity(1)
   const ringUrl = URL.createObjectURL(new Blob([RING], { type: "image/svg+xml" }))
-  const render = async (params = {}) => {
+  const render = async (params = {}, asset = null) => {
     pass.updateParams({
       ...createLayer("model").params,
       floor: false,
@@ -105,7 +119,7 @@ async function passChecks() {
       ...params,
     })
     await pass.setEnvironment(MODEL_ENVIRONMENTS[0].url)
-    await pass.setModel({ format: "svg", url: ringUrl })
+    await pass.setModel({ format: "svg", url: asset ? asset.url : ringUrl })
     await pass.whenCompiled()
     pass.render(renderer, input, target, 0, 0)
     pass.render(renderer, input, target, 0, 0)
@@ -130,6 +144,15 @@ async function passChecks() {
   }
   let samples = 0
   try {
+    if (reopened) {
+      const restored = await render(
+        { ...reopened.params, floor: false, orbit: 0, elevation: 0, toneMapping: "none" },
+        reopened.asset
+      )
+      assert(covered(restored, Math.round(N * 0.2), N / 2), "The reopened project renders its SVG asset")
+      assert(!covered(restored, N / 2, N / 2), "The reopened SVG keeps its hole")
+      return 2
+    }
     const front = await render({ material: "clay" })
     assert(!covered(front, N / 2, N / 2), "The hole in the middle shows the layers below")
     assert(covered(front, Math.round(N * 0.2), N / 2), "The ring itself is solid")
@@ -173,18 +196,40 @@ function projectChecks() {
     sceneConfig: DEFAULT_SCENE_CONFIG,
     timeline: { duration: 2, loop: true, tracks: [] },
   }
-  applyLabProjectFile(parseLabProjectFileValue(project), [])
+  const asset = {
+    createdAt: new Date(0).toISOString(),
+    duration: null,
+    error: null,
+    fileName: "logo.svg",
+    height: null,
+    id: "logo",
+    kind: "model",
+    mimeType: "image/svg+xml",
+    sizeBytes: RING.length,
+    source: "local",
+    status: "ready",
+    url: URL.createObjectURL(new Blob([RING], { type: "image/svg+xml" })),
+    width: null,
+  }
+  useAssetStore.getState().replaceAssets([asset])
+  applyLabProjectFile(parseLabProjectFileValue(project), [asset])
   const saved = parseLabProjectFileValue(JSON.parse(JSON.stringify(buildLabProjectFile())))
+  assert(saved.assets.some((entry) => entry.id === "logo"), "The saved project references the SVG asset")
+  const missing = applyLabProjectFile(saved, [asset])
+  const layer = useLayerStore.getState().getLayerById("logo-layer")
+  assert(missing.missingAssetCount === 0 && layer.assetId === "logo" && !layer.runtimeError, "The SVG asset resolves after reopen")
   const params = saved.layers.find((entry) => entry.id === "logo-layer").params
   assert(params.extrudeDepth === 0.4 && params.extrudeBevel === 0.03 && params.extrudeBevelSegments === 6, "Extrude settings survive save and reopen")
   const defaults = createLayer("model").params
   assert(defaults.extrudeDepth === 0.15 && defaults.extrudeBevel === 0.02 && defaults.extrudeBevelSegments === 4, "Default extrusion")
-  return 2
+  return { asset, params: layer.params, samples: 4 }
 }
 
 export async function checkModelSvg() {
   let samples = unitChecks()
-  samples += projectChecks()
-  samples += await passChecks()
+  const reopened = projectChecks()
+  samples += reopened.samples
+  samples += await passChecks(null)
+  samples += await passChecks(reopened)
   return samples
 }

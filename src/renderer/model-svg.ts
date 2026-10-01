@@ -17,8 +17,8 @@ type SvgStyle = {
 }
 
 type SvgPiece =
-  | { color: THREE.Color; kind: "fill"; shapes: THREE.Shape[] }
-  | { color: THREE.Color; flat: THREE.BufferGeometry; kind: "stroke" }
+  | { color: THREE.Color; kind: "fill"; opacity: number; shapes: THREE.Shape[] }
+  | { color: THREE.Color; flat: THREE.BufferGeometry; kind: "stroke"; opacity: number }
 
 const CURVE_SEGMENTS = 48
 const CREASE_ANGLE = Math.PI / 6
@@ -48,7 +48,12 @@ function svgPieces(result: SVGResult): SvgPiece[] {
     if (style.fill !== undefined && style.fill !== "none" && (style.fillOpacity ?? 1) > 0) {
       const shapes = path.toShapes().map(flipShape)
       if (shapes.length > 0) {
-        pieces.push({ color: path.color.clone(), kind: "fill", shapes })
+        pieces.push({
+          color: path.color.clone(),
+          kind: "fill",
+          opacity: Math.min(style.fillOpacity ?? 1, 1),
+          shapes,
+        })
       }
     }
     if (
@@ -58,6 +63,7 @@ function svgPieces(result: SVGResult): SvgPiece[] {
       (style.strokeOpacity ?? 1) > 0
     ) {
       const color = new THREE.Color().setStyle(style.stroke)
+      const opacity = Math.min(style.strokeOpacity ?? 1, 1)
       for (const subPath of path.subPaths) {
         const flat = SVGLoader.pointsToStroke(
           subPath.getPoints(CURVE_SEGMENTS),
@@ -65,7 +71,7 @@ function svgPieces(result: SVGResult): SvgPiece[] {
         )
         if (flat) {
           flat.scale(1, -1, 1)
-          pieces.push({ color, flat, kind: "stroke" })
+          pieces.push({ color, flat, kind: "stroke", opacity })
         }
       }
     }
@@ -158,11 +164,17 @@ export function buildSvgModel(result: SVGResult, extrusion: SvgExtrusion): THREE
   const bevel = Math.min(Math.max(extrusion.bevel, 0), 0.5) * size
   const segments = Math.round(Math.min(Math.max(extrusion.bevelSegments, 1), 12))
   const materials = new Map<string, THREE.MeshStandardMaterial>()
-  const materialFor = (color: THREE.Color) => {
-    const id = color.getHexString()
+  const materialFor = (color: THREE.Color, opacity: number) => {
+    const id = `${color.getHexString()}|${opacity}`
     let material = materials.get(id)
     if (!material) {
-      material = new THREE.MeshStandardMaterial({ color, metalness: 0, roughness: 0.35 })
+      material = new THREE.MeshStandardMaterial({
+        color,
+        metalness: 0,
+        opacity,
+        roughness: 0.35,
+        transparent: opacity < 1,
+      })
       materials.set(id, material)
     }
     return material
@@ -186,7 +198,7 @@ export function buildSvgModel(result: SVGResult, extrusion: SvgExtrusion): THREE
     const geometry = toCreasedNormals(extruded, CREASE_ANGLE)
     if (geometry !== extruded) extruded.dispose()
     geometry.translate(0, 0, index * LAYER_GAP * size)
-    const mesh = new THREE.Mesh(geometry, materialFor(piece.color))
+    const mesh = new THREE.Mesh(geometry, materialFor(piece.color, piece.opacity))
     mesh.name = `${piece.kind}-${index}`
     group.add(mesh)
   })

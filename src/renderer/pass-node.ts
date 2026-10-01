@@ -158,8 +158,13 @@ export class PassNode {
     }
   }
 
-  updateMaskLogicalSize(width: number, height: number): void {
-    this.layerMask.updateLogicalSize(width, height)
+  updateMaskLogicalSize(
+    width: number,
+    height: number,
+    frameWidth: number,
+    frameHeight: number
+  ): void {
+    this.layerMask.updateLogicalSize(width, height, frameWidth, frameHeight)
   }
 
   flushColorNode(): void {

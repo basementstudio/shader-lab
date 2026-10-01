@@ -181,8 +181,13 @@ export class LayerMaskNode {
     return structural
   }
 
-  updateLogicalSize(width: number, height: number): void {
-    const shorter = Math.max(1, Math.min(width, height))
+  updateLogicalSize(
+    width: number,
+    height: number,
+    frameWidth = width,
+    frameHeight = height
+  ): void {
+    const shorter = Math.max(1, Math.min(frameWidth, frameHeight))
     ;(this.aspect.value as THREE.Vector2).set(
       Math.max(1, width) / shorter,
       Math.max(1, height) / shorter

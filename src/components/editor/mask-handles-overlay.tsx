@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
 } from "react"
+import { getCompositionFrame } from "@/lib/editor/composition"
 import { useEditorStore } from "@/store/editor-store"
 import { useLayerStore } from "@/store/layer-store"
 import type { EditorLayer, LayerMask } from "@/types/editor"
@@ -85,7 +86,9 @@ function Handles({
     observer.observe(element)
     return () => observer.disconnect()
   }, [])
-  const shorter = Math.min(box.width, box.height)
+  const sceneConfig = useEditorStore((state) => state.sceneConfig)
+  const frame = getCompositionFrame(sceneConfig, box)
+  const shorter = Math.max(1, Math.min(frame.width, frame.height))
   const toPx = (x: number, y: number): [number, number] => [
     x * shorter + box.width / 2,
     y * shorter + box.height / 2,
@@ -138,7 +141,10 @@ function Handles({
     window.addEventListener("blur", cancel)
     window.addEventListener("keydown", key)
     return () => {
-      finish(false)
+      if (drag.current) {
+        drag.current = null
+        useEditorStore.getState().endInteractiveEdit()
+      }
       window.removeEventListener("blur", cancel)
       window.removeEventListener("keydown", key)
     }

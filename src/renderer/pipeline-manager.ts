@@ -7,6 +7,7 @@ import { GroupPass } from "./group-pass"
 import { layerMaskSignature, normalizeLayerMask } from "./layer-mask"
 import { float, type TSLNode, texture as tslTexture, uv, vec2 } from "three/tsl"
 import * as THREE from "three/webgpu"
+import { getCompositionFrame } from "@/lib/editor/composition"
 import { isSvgMediaSource } from "@/lib/editor/media-file"
 import { parameterValuesSignature } from "@/lib/editor/parameter-schema"
 import type { RenderableLayerPass } from "@/renderer/contracts"
@@ -162,6 +163,7 @@ export class PipelineManager {
   private height: number
   private logicalWidth: number
   private logicalHeight: number
+  private sceneConfig: SceneConfig | null = null
   private readonly baseMaterial: THREE.MeshBasicMaterial
   private currentBackgroundColor = "#080808"
   private readonly postProcess: ScenePostProcess
@@ -274,7 +276,7 @@ export class PipelineManager {
           : this.createPass(node.layer)
         pass.resize(this.width, this.height)
         pass.updateLogicalSize(this.logicalWidth, this.logicalHeight)
-        pass.updateMaskLogicalSize(this.logicalWidth, this.logicalHeight)
+        this.syncMaskFrame(pass)
         this.passMap.set(layerId, pass)
         this.markDirty()
       }
@@ -421,7 +423,7 @@ export class PipelineManager {
 
     for (const pass of this.passMap.values()) {
       pass.updateLogicalSize(this.logicalWidth, this.logicalHeight)
-      pass.updateMaskLogicalSize(this.logicalWidth, this.logicalHeight)
+      this.syncMaskFrame(pass)
     }
 
     this.markDirty()
@@ -437,12 +439,41 @@ export class PipelineManager {
     this.markDirty()
   }
 
+  private syncMaskFrame(pass: PassNode): void {
+    const frame = this.sceneConfig
+      ? getCompositionFrame(this.sceneConfig, {
+          height: this.logicalHeight,
+          width: this.logicalWidth,
+        })
+      : { height: this.logicalHeight, width: this.logicalWidth }
+    pass.updateMaskLogicalSize(
+      this.logicalWidth,
+      this.logicalHeight,
+      frame.width,
+      frame.height
+    )
+  }
+
   updateSceneConfig(config: SceneConfig): void {
+    const previous = this.sceneConfig
+    this.sceneConfig = config
     const postProcessChanged = this.postProcess.update(config)
     let passChanged = false
 
     for (const pass of this.passMap.values()) {
       passChanged = pass.updateSceneConfig(config) || passChanged
+    }
+
+    if (
+      !previous ||
+      previous.compositionAspect !== config.compositionAspect ||
+      previous.compositionWidth !== config.compositionWidth ||
+      previous.compositionHeight !== config.compositionHeight
+    ) {
+      for (const pass of this.passMap.values()) {
+        this.syncMaskFrame(pass)
+      }
+      passChanged = true
     }
 
     if (postProcessChanged || passChanged) {

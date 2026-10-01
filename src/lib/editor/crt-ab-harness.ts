@@ -1,3 +1,4 @@
+import { getDocumentSize } from "@/lib/editor/composition"
 type Capture = {
   data: Uint8ClampedArray
   height: number
@@ -144,13 +145,18 @@ export async function measureCrtGpu(options?: {
         )
       : allLayers
 
+  const documentSize = getDocumentSize(
+    editorState.sceneConfig,
+    editorState.outputSize
+  )
   const frame = buildRendererFrame({
     assets: useAssetStore.getState().assets,
     audio: selectAudioModulationInput(useAudioStore.getState()),
     clockTime: 2.5,
     delta: 1 / 60,
     layers,
-    outputSize: editorState.outputSize,
+    ...(documentSize ? { logicalSize: documentSize } : {}),
+    outputSize: documentSize ?? editorState.outputSize,
     pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
     sceneConfig: editorState.sceneConfig,
     timeline: useTimelineStore.getState(),

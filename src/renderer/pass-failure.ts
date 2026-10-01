@@ -2,7 +2,7 @@ import * as Sentry from "@sentry/nextjs"
 import { useLayerStore } from "@/store/layer-store"
 import type { EditorLayer } from "@/types/editor"
 
-export type LayerType = EditorLayer["type"]
+export type LayerType = EditorLayer["type"] | "group"
 
 export type PassFailureSurface =
   | "build-effect-node"

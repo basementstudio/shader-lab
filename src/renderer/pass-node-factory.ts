@@ -1,3 +1,4 @@
+import { AnnotationsPass } from "@/renderer/annotations-pass"
 import { AsciiPass } from "@/renderer/ascii-pass"
 import { BlobTrackingPass } from "@/renderer/blob-tracking-pass"
 import { BloomPass } from "@/renderer/bloom-pass"
@@ -9,6 +10,19 @@ import { DisplacementMapPass } from "@/renderer/displacement-map-pass"
 import { DitheringPass } from "@/renderer/dithering-pass"
 import { EdgeDetectPass } from "@/renderer/edge-detect-pass"
 import { FlutedGlassPass } from "@/renderer/fluted-glass-pass"
+import { GradientMapPass } from "@/renderer/gradient-map-pass"
+import { LumenPrintPass } from "@/renderer/lumen-print-pass"
+import { GrainPass } from "@/renderer/grain-pass"
+import { SignalRotPass } from "@/renderer/signal-rot-pass"
+import { DotGridPass } from "@/renderer/dot-grid-pass"
+import { ErosionPass } from "@/renderer/erosion-pass"
+import { ReliefPass } from "@/renderer/relief-pass"
+import { FlaresPass } from "@/renderer/flares-pass"
+import { FocusBlurPass } from "@/renderer/focus-blur-pass"
+import { GlassPass } from "@/renderer/glass-pass"
+import { ConnectedDotsPass } from "@/renderer/connected-dots-pass"
+import { PhotocopyPass } from "@/renderer/photocopy-pass"
+import { OutlinePass } from "@/renderer/outline-pass"
 import { HalftonePass } from "@/renderer/halftone-pass"
 import { InkPass } from "@/renderer/ink-pass"
 import { ParticleGridPass } from "@/renderer/particle-grid-pass"
@@ -18,6 +32,8 @@ import { PixelSortingPass } from "@/renderer/pixel-sorting-pass"
 import { PixelationPass } from "@/renderer/pixelation-pass"
 import { PlotterPass } from "@/renderer/plotter-pass"
 import { PosterizePass } from "@/renderer/posterize-pass"
+import { PhotographicCellsPass } from "./photographic-cells-pass"
+import { DisplacedRingsPass } from "./displaced-rings-pass"
 import { SlicePass } from "@/renderer/slice-pass"
 import { SmearPass } from "@/renderer/smear-pass"
 import { ThresholdPass } from "@/renderer/threshold-pass"
@@ -29,6 +45,8 @@ export function createPassNode(
   type: EffectLayerType
 ): PassNode {
   switch (type) {
+    case "annotations":
+      return new AnnotationsPass(layerId)
     case "ascii":
       return new AsciiPass(layerId)
     case "blob-tracking":
@@ -67,8 +85,38 @@ export function createPassNode(
       return new PosterizePass(layerId)
     case "threshold":
       return new ThresholdPass(layerId)
+    case "gradient-map":
+      return new GradientMapPass(layerId)
+    case "lumen-print":
+      return new LumenPrintPass(layerId)
+    case "grain":
+      return new GrainPass(layerId)
+    case "signal-rot":
+      return new SignalRotPass(layerId)
+    case "dot-grid":
+      return new DotGridPass(layerId)
+    case "erosion":
+      return new ErosionPass(layerId)
+    case "relief":
+      return new ReliefPass(layerId)
+    case "flares":
+      return new FlaresPass(layerId)
+    case "focus-blur":
+      return new FocusBlurPass(layerId)
+    case "glass":
+      return new GlassPass(layerId)
+    case "connected-dots":
+      return new ConnectedDotsPass(layerId)
+    case "photocopy":
+      return new PhotocopyPass(layerId)
+    case "outline":
+      return new OutlinePass(layerId)
     case "pixel-sorting":
       return new PixelSortingPass(layerId)
+    case "photographic-cells":
+      return new PhotographicCellsPass(layerId)
+    case "displaced-rings":
+      return new DisplacedRingsPass(layerId)
     case "slice":
       return new SlicePass(layerId)
     case "smear":

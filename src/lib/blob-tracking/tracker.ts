@@ -20,6 +20,7 @@ export interface Blob {
   area: number
   cx: number
   cy: number
+  edge: BlobPoint[]
   halfHeight: number
   halfWidth: number
   history: BlobPoint[]
@@ -45,6 +46,10 @@ export const MOTION_ENERGY_CHANNEL = 2
 
 export const STATIC_STEPS_BEFORE_FALLBACK = 30
 export const MOTION_ENERGY_EPSILON = 0.01
+/** Fewer moving cells than this for STATIC_STEPS_BEFORE_FALLBACK steps means a still scene. */
+export const STATIC_ACTIVE_CELLS = 2
+/** Cells that were on stay on down to this fraction of the threshold. */
+export const MOTION_HYSTERESIS = 0.55
 export const TRACK_GRACE_FRAMES = 10
 export const HISTORY_LENGTH = 16
 export const MAX_MATCH_DISTANCE = 0.25
@@ -56,11 +61,13 @@ export const VELOCITY_BLEND = 0.35
  * two frames ago. Extrapolating by the estimated velocity cancels that lag.
  */
 export const VELOCITY_LOOKAHEAD = 1.5
+export const MAX_EDGE_POINTS = 64
 
 type Detection = {
   area: number
   cx: number
   cy: number
+  edge: BlobPoint[]
   halfHeight: number
   halfWidth: number
 }
@@ -78,6 +85,7 @@ type Track = {
   area: number
   cx: number
   cy: number
+  edge: BlobPoint[]
   halfHeight: number
   halfWidth: number
   history: BlobPoint[]
@@ -108,6 +116,7 @@ export class BlobTracker {
   private priorState: TrackerState | null = null
 
   private binary = new Uint8Array(0)
+  private previousBinary = new Uint8Array(0)
   private visited = new Int32Array(0)
   private stack = new Int32Array(0)
   private visitGeneration = 0
@@ -121,6 +130,7 @@ export class BlobTracker {
     this.tracks = []
     this.priorState = null
     this.visited.fill(0)
+    this.previousBinary.fill(0)
     this.visitGeneration = 0
   }
 
@@ -185,6 +195,7 @@ export class BlobTracker {
       return
     }
     this.binary = new Uint8Array(cellCount)
+    this.previousBinary = new Uint8Array(cellCount)
     this.visited = new Int32Array(cellCount)
     this.stack = new Int32Array(cellCount)
     this.visitGeneration = 0
@@ -201,13 +212,13 @@ export class BlobTracker {
     }
 
     const cellCount = gridWidth * gridHeight
-    let motionSum = 0
+    const cutoff = config.motionThreshold * 255
+    let activeCells = 0
     for (let index = 0; index < cellCount; index += 1) {
-      motionSum += (grid[index * 4 + MOTION_CHANNEL] ?? 0) / 255
+      if ((grid[index * 4 + MOTION_CHANNEL] ?? 0) >= cutoff) activeCells += 1
     }
-    const meanMotion = cellCount > 0 ? motionSum / cellCount : 0
 
-    if (meanMotion < MOTION_ENERGY_EPSILON) {
+    if (activeCells < STATIC_ACTIVE_CELLS) {
       this.staticStepCount += 1
       if (this.staticStepCount >= STATIC_STEPS_BEFORE_FALLBACK) {
         this.luminanceFallbackActive = true
@@ -237,11 +248,15 @@ export class BlobTracker {
       (mode === "motion" ? config.motionThreshold : 1 - config.sensitivity) *
       255
     const binary = this.binary
+    const previous = this.previousBinary
+    const low = mode === "motion" ? threshold * MOTION_HYSTERESIS : threshold
 
     for (let index = 0; index < cellCount; index += 1) {
       const value = grid[index * 4 + channelOffset] ?? 0
-      binary[index] = value >= threshold ? 1 : 0
+      const on = value >= threshold || (value >= low && previous[index] === 1)
+      binary[index] = on ? 1 : 0
     }
+    previous.set(binary)
   }
 
   private detect(
@@ -275,6 +290,7 @@ export class BlobTracker {
         visited[startIndex] = generation
         stack[0] = startIndex
         let stackSize = 1
+        const boundary: number[] = []
 
         while (stackSize > 0) {
           stackSize -= 1
@@ -289,6 +305,18 @@ export class BlobTracker {
           if (x > maxX) maxX = x
           if (y < minY) minY = y
           if (y > maxY) maxY = y
+          if (
+            x === 0 ||
+            y === 0 ||
+            x === gridWidth - 1 ||
+            y === gridHeight - 1 ||
+            binary[index - 1] !== 1 ||
+            binary[index + 1] !== 1 ||
+            binary[index - gridWidth] !== 1 ||
+            binary[index + gridWidth] !== 1
+          ) {
+            boundary.push(index)
+          }
 
           if (x > 0) {
             const neighbor = index - 1
@@ -330,10 +358,26 @@ export class BlobTracker {
 
         const boxWidth = maxX - minX + 1
         const boxHeight = maxY - minY + 1
+        const stride = Math.max(1, Math.ceil(boundary.length / MAX_EDGE_POINTS))
+        const edge: BlobPoint[] = []
+        for (
+          let i = 0;
+          i < boundary.length && edge.length < MAX_EDGE_POINTS;
+          i += stride
+        ) {
+          const cell = boundary[i] as number
+          const bx = cell % gridWidth
+          const by = (cell - bx) / gridWidth
+          edge.push({
+            x: clamp01((bx + 0.5) / gridWidth),
+            y: clamp01((by + 0.5) / gridHeight),
+          })
+        }
         detections.push({
           area,
           cx: clamp01((sumX / area + 0.5) / gridWidth),
           cy: clamp01((sumY / area + 0.5) / gridHeight),
+          edge,
           halfHeight: boxHeight / 2 / gridHeight,
           halfWidth: boxWidth / 2 / gridWidth,
         })
@@ -352,6 +396,7 @@ export class BlobTracker {
       area: detection.area,
       cx: detection.cx,
       cy: detection.cy,
+      edge: detection.edge,
       halfHeight: detection.halfHeight,
       halfWidth: detection.halfWidth,
       history: [{ x: detection.cx, y: detection.cy }],
@@ -410,6 +455,7 @@ export class BlobTracker {
         bestTrack.halfHeight +=
           (detection.halfHeight - bestTrack.halfHeight) * blend
         bestTrack.area = detection.area
+        bestTrack.edge = detection.edge
         bestTrack.active = true
         bestTrack.missedFrames = 0
         bestTrack.ageFrames += 1
@@ -424,6 +470,7 @@ export class BlobTracker {
           area: detection.area,
           cx: detection.cx,
           cy: detection.cy,
+          edge: detection.edge,
           halfHeight: detection.halfHeight,
           halfWidth: detection.halfWidth,
           history: [{ x: detection.cx, y: detection.cy }],
@@ -458,6 +505,7 @@ export class BlobTracker {
       area: track.area,
       cx: track.cx,
       cy: track.cy,
+      edge: track.edge,
       halfHeight: track.halfHeight,
       halfWidth: track.halfWidth,
       history: track.history.slice(),

@@ -16,6 +16,7 @@ export function Menu({
   label,
   side = "bottom",
   triggerClassName,
+  trigger,
   triggerVariant = "ghost",
 }: {
   align?: "center" | "start" | "end"
@@ -24,6 +25,7 @@ export function Menu({
   disabled?: boolean
   label: string
   side?: "top" | "right" | "bottom" | "left"
+  trigger?: ReactNode
   triggerClassName?: string
   triggerVariant?: "default" | "ghost" | "outline" | "overlay"
 }) {
@@ -37,7 +39,7 @@ export function Menu({
         )}
         disabled={disabled}
       >
-        <DotsHorizontalIcon height={14} width={14} />
+        {trigger ?? <DotsHorizontalIcon height={14} width={14} />}
       </Popover.Trigger>
 
       <Popover.Portal>
@@ -75,6 +77,7 @@ export function MenuItem({
 }) {
   return (
     <Popover.Close
+      data-ds="menu-item"
       className="inline-flex min-h-8 w-full cursor-pointer items-center rounded-[var(--ds-radius-icon)] border-0 bg-transparent px-[var(--ds-space-2)] text-left text-[var(--ds-color-text-secondary)] transition-[background-color,color] duration-160 ease-[var(--ease-out-cubic)] disabled:cursor-not-allowed disabled:text-[var(--ds-color-text-disabled)] hover:not-disabled:bg-[var(--ds-color-surface-active)] hover:not-disabled:text-[var(--ds-color-text-primary)]"
       disabled={disabled}
       onClick={onClick}

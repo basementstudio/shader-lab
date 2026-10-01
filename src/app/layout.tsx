@@ -11,6 +11,7 @@ import {
 import { cn } from "@/lib/cn"
 import { fontsVariable } from "@/lib/fonts"
 import "@/app/globals.css"
+import "@/app/theme-skin.css"
 import { Analytics } from "@vercel/analytics/next"
 import { SpeedInsights } from "@vercel/speed-insights/next"
 
@@ -86,6 +87,14 @@ export default function RootLayout({ children }: PropsWithChildren) {
       className={cn(fontsVariable)}
       suppressHydrationWarning
     >
+      <head>
+        <script
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: sets the editor theme before first paint
+          dangerouslySetInnerHTML={{
+            __html: `try{var p=location.pathname.replace(/\\/$/,"");if(p==="/tools/shader-lab"||p.indexOf("/tools/shader-lab/community")===0)document.documentElement.dataset.theme=JSON.parse(localStorage.getItem("shader-lab-theme")||"{}").state?.theme==="dark"?"dark":"light"}catch(e){}`,
+          }}
+        />
+      </head>
       <body>
         {children}
         <Suspense fallback={null}>

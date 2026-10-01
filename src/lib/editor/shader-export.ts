@@ -11,6 +11,7 @@ import type {
   ShaderLabTimelineTrack,
 } from "@basementstudio/shader-lab"
 import { CUSTOM_SHADER_INTERNAL_KEYS } from "@/lib/editor/custom-shader/shared"
+import { validateLayerHierarchy } from "@/renderer/layer-hierarchy"
 import type {
   EditorAsset,
   EditorLayer,
@@ -19,14 +20,19 @@ import type {
 } from "@/types/editor"
 
 const SUPPORTED_SHADER_EXPORT_LAYER_TYPES = new Set<LayerType>([
+  "group",
   "image",
   "video",
   "gradient",
+  "shape",
   "fluid",
   "text",
   "live",
   "custom-shader",
+  "pixel-trail",
+  "magnify-lens",
   "ascii",
+  "blob-tracking",
   "bloom",
   "circuit-bent",
   "directional-blur",
@@ -34,6 +40,20 @@ const SUPPORTED_SHADER_EXPORT_LAYER_TYPES = new Set<LayerType>([
   "pattern",
   "posterize",
   "threshold",
+  "gradient-map",
+  "lumen-print",
+  "grain",
+  "signal-rot",
+  "dot-grid",
+  "erosion",
+  "relief",
+  "flares",
+  "focus-blur",
+  "glass",
+  "connected-dots",
+  "photocopy",
+  "outline",
+  "annotations",
   "crt",
   "chromatic-aberration",
   "dithering",
@@ -45,6 +65,8 @@ const SUPPORTED_SHADER_EXPORT_LAYER_TYPES = new Set<LayerType>([
   "pixel-sorting",
   "pixelation",
   "plotter",
+  "photographic-cells",
+  "displaced-rings",
   "slice",
   "smear",
   "voxel",
@@ -53,12 +75,14 @@ const SUPPORTED_SHADER_EXPORT_LAYER_TYPES = new Set<LayerType>([
 const UNSUPPORTED_SHADER_EXPORT_LAYER_TYPES = new Set<LayerType>([
   "model",
   "blur",
-  "blob-tracking",
 ] as const)
 
 type SupportedShaderExportLayerType = Extract<
   LayerType,
+  | "group"
+  | "annotations"
   | "ascii"
+  | "blob-tracking"
   | "bloom"
   | "circuit-bent"
   | "directional-blur"
@@ -75,12 +99,18 @@ type SupportedShaderExportLayerType = Extract<
   | "image"
   | "ink"
   | "live"
+  | "lumen-print"
+  | "magnify-lens"
   | "particle-grid"
   | "pattern"
   | "pixelation"
   | "pixel-sorting"
+  | "pixel-trail"
   | "plotter"
   | "posterize"
+  | "photographic-cells"
+  | "displaced-rings"
+  | "shape"
   | "slice"
   | "smear"
   | "text"
@@ -168,6 +198,7 @@ export function validateShaderExportSupport(
 export function buildShaderExportConfig(
   input: BuildShaderExportConfigInput
 ): ShaderLabConfig {
+  validateLayerHierarchy(input.layers)
   const issues = validateShaderExportSupport(input.layers, input.assets)
 
   if (issues.length > 0) {
@@ -175,6 +206,7 @@ export function buildShaderExportConfig(
   }
 
   const assetById = new Map(input.assets.map((asset) => [asset.id, asset]))
+  const usedMotifPaths = new Set<string>()
 
   return {
     composition: {
@@ -184,7 +216,15 @@ export function buildShaderExportConfig(
     layers: input.layers.map((layer) =>
       toShaderLabLayerConfig(
         layer,
-        layer.assetId ? (assetById.get(layer.assetId) ?? null) : null
+        layer.assetId ? (assetById.get(layer.assetId) ?? null) : null,
+        layer.depthAssetId
+          ? (assetById.get(layer.depthAssetId) ?? null)
+          : null,
+        (layer.patternAssetIds ?? []).flatMap((id) => {
+          const motif = assetById.get(id)
+          return motif ? [motif] : []
+        }),
+        usedMotifPaths
       )
     ),
     timeline: {
@@ -199,7 +239,10 @@ export function buildShaderExportConfig(
 
 function toShaderLabLayerConfig(
   layer: EditorLayer,
-  asset: EditorAsset | null
+  asset: EditorAsset | null,
+  depthAsset: EditorAsset | null,
+  patternAssets: EditorAsset[],
+  usedMotifPaths: Set<string>
 ): ShaderLabLayerConfig {
   const supportedLayer = assertSupportedShaderExportLayer(layer)
   const sketch =
@@ -208,9 +251,11 @@ function toShaderLabLayerConfig(
       : undefined
   const assetSource = toShaderLabAssetSource(supportedLayer, asset)
   const baseLayer: ShaderLabLayerConfig = {
+    ...(supportedLayer.parentId ? { parentId: supportedLayer.parentId } : {}),
     blendMode: supportedLayer.blendMode as ShaderLabBlendMode,
     compositeMode: supportedLayer.compositeMode as ShaderLabCompositeMode,
     maskConfig: supportedLayer.maskConfig,
+    ...(supportedLayer.mask ? { mask: structuredClone(supportedLayer.mask) } : {}),
     hue: supportedLayer.hue,
     id: supportedLayer.id,
     kind: supportedLayer.kind,
@@ -226,6 +271,27 @@ function toShaderLabLayerConfig(
     baseLayer.asset = assetSource
   }
 
+  if (supportedLayer.type === "image" && supportedLayer.depthAssetId) {
+    const depthFileName = depthAsset?.fileName || "depth.png"
+    baseLayer.depthAsset = {
+      ...(depthAsset?.fileName ? { fileName: depthAsset.fileName } : {}),
+      kind: "image",
+      src: buildAssetPlaceholderPath("image", depthFileName),
+    }
+  }
+
+  if (supportedLayer.type === "pattern" && patternAssets.length > 0) {
+    baseLayer.patternAssets = patternAssets.map((motif) => {
+      const fileName = motif.fileName || "motif.png"
+      let src = buildAssetPlaceholderPath("image", fileName)
+      for (let suffix = 2; usedMotifPaths.has(src); suffix += 1) {
+        src = buildAssetPlaceholderPath("image", `${suffix}-${fileName}`)
+      }
+      usedMotifPaths.add(src)
+      return { fileName: motif.fileName, kind: "image" as const, src }
+    })
+  }
+
   if (sketch) {
     baseLayer.sketch = sketch
   }
@@ -236,7 +302,11 @@ function toShaderLabLayerConfig(
 function assertSupportedShaderExportLayer(
   layer: EditorLayer
 ): SupportedShaderExportLayer {
-  if (layer.kind !== "effect" && layer.kind !== "source") {
+  if (
+    layer.kind !== "effect" &&
+    layer.kind !== "source" &&
+    layer.kind !== "group"
+  ) {
     throw new Error(
       `Layer "${layer.name}" uses unsupported kind "${layer.kind}".`
     )
@@ -262,6 +332,14 @@ function toShaderLabAssetSource(
       ...(asset?.fileName ? { fileName: asset.fileName } : {}),
       kind: "image",
       src: buildAssetPlaceholderPath("image", fileName),
+    }
+  }
+
+  if (layer.type === "shape" && layer.params.shape === "svg" && asset) {
+    return {
+      fileName: asset.fileName,
+      kind: "image",
+      src: buildAssetPlaceholderPath("image", asset.fileName || "shape.svg"),
     }
   }
 

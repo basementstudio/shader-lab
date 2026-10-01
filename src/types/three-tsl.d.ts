@@ -1,7 +1,8 @@
 declare module "three/tsl" {
   export interface LoopConfig {
+    name?: string
     condition?: string
-    end: number
+    end: number | TSLNode
     start: number
     type: "float" | "int"
   }
@@ -80,6 +81,7 @@ declare module "three/tsl" {
     mulAssign(value: unknown): TSLNode
     negate(): TSLNode
     level(value: unknown): TSLNode
+    grad(gradX: unknown, gradY: unknown): TSLNode
     load(uv: unknown): TSLNode
     normalize(): TSLNode
     sample(uv: unknown): TSLNode
@@ -91,7 +93,22 @@ declare module "three/tsl" {
   export function attribute(name: string, type: string): TSLNode
   export const instanceIndex: TSLNode
   export const pointUV: TSLNode
+  export const positionGeometry: TSLNode
   export const positionLocal: TSLNode
+  export const positionView: TSLNode
+  export const positionWorld: TSLNode
+  export const materialRoughness: TSLNode
+  export const materialColor: TSLNode
+  export function pmremTexture(value: unknown): TSLNode
+  export const normalView: TSLNode
+  export function mx_noise_float(
+    position: unknown,
+    amplitude?: unknown,
+    pivot?: unknown
+  ): TSLNode
+  export function acesFilmicToneMapping(color: unknown, exposure: unknown): TSLNode
+  export function agxToneMapping(color: unknown, exposure: unknown): TSLNode
+  export function neutralToneMapping(color: unknown, exposure: unknown): TSLNode
 
   export const EPSILON: TSLNode
   export const PI: TSLNode
@@ -103,16 +120,35 @@ declare module "three/tsl" {
   export function cross(left: unknown, right: unknown): TSLNode
   export function div(left: unknown, right: unknown): TSLNode
   export function dot(left: unknown, right: unknown): TSLNode
+  export interface ShaderFunction {
+    (...args: unknown[]): TSLNode & { compute(count: number): unknown }
+    setLayout(layout: {
+      name: string
+      type: string
+      inputs: { name: string; type: string }[]
+    }): ShaderFunction
+  }
+  export interface ConditionalNode extends TSLNode {
+    Else(callback: () => unknown): ConditionalNode
+  }
   export function Fn(
     fn: ShaderNodeFn | ((...args: never[]) => unknown),
     layout?: unknown
-  ): (...args: unknown[]) => TSLNode & { compute(count: number): unknown }
+  ): ShaderFunction
   export function Loop(
     config: LoopConfig | TSLNode | number,
     callback: (inputs: LoopInputs) => unknown
   ): TSLNode
   export function exp(value: unknown): TSLNode
+  export function dFdx(value: unknown): TSLNode
+  export function dFdy(value: unknown): TSLNode
   export function fract(value: unknown): TSLNode
+  export function log2(value: unknown): TSLNode
+  export function If(
+    condition: TSLNode,
+    callback: () => unknown
+  ): ConditionalNode
+  export function int(value?: unknown): TSLNode
   export function float(value?: unknown): TSLNode
   export function floor(value: unknown): TSLNode
   export function mat2(
@@ -129,6 +165,7 @@ declare module "three/tsl" {
   export function mod(left: unknown, right: unknown): TSLNode
   export function mul(left: unknown, right: unknown): TSLNode
   export const screenSize: TSLNode
+  export const screenUV: TSLNode
   export function select(
     condition: unknown,
     whenTrue: unknown,

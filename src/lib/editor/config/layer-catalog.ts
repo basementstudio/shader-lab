@@ -11,107 +11,159 @@ export interface LayerCatalogEntry {
 }
 
 export const LAYER_CATALOG: Record<LayerType, LayerCatalogEntry> = {
-  ascii: {
-    category: "core",
+  group: { label: "Group" },
+  "photographic-cells": {
     description:
-      "Turns the image into text glyphs for a classic terminal look.",
+      "Reveals the photo through a grid of cells joined into regions, with stepped edges and outlines.",
+    category: "distort",
+    label: "Photographic Cells",
+    previewSrc: "/examples/effects/photographic-cells.webp",
+  },
+  "displaced-rings": {
+    description:
+      "Cuts the image into concentric rings or half-discs and shifts each one.",
+    category: "distort",
+    label: "Displaced Rings",
+    previewSrc: "/examples/effects/displaced-rings.webp",
+  },
+  ascii: {
+    description:
+      "Redraws the image as text characters, like an old terminal.",
+    category: "core",
     label: "ASCII",
-    previewSrc: "/examples/ascii.webp",
+    previewSrc: "/examples/effects/ascii.webp",
+  },
+  annotations: {
+    description:
+      "Technical overlay marks: target rings, crosshairs, boxes, rulers, connectors and readouts, placed along edges, at random or where you paint. Purely decorative.",
+    category: "core",
+    label: "Annotations",
+    previewSrc: "/examples/effects/annotations.webp",
   },
   "blob-tracking": {
-    category: "distort",
     description:
-      "Tracks moving regions and frames them with CCTV-style shapes, labels, and an inner effect.",
+      "Finds moving regions and frames them with CCTV-style boxes, brackets and labels. Labels are decorative, not real recognition.",
+    category: "distort",
     label: "Blob Tracking",
-    previewSrc: "/examples/blob-tracking.webp",
+    previewSrc: "/examples/effects/blob-tracking.webp",
   },
   bloom: {
-    category: "core",
     description:
-      "Adds a standalone highlight bloom pass to the incoming frame.",
+      "Makes bright areas glow and bleed into their surroundings.",
+    category: "core",
     label: "Bloom",
+    previewSrc: "/examples/effects/bloom.webp",
   },
   blur: {
-    label: "Blur",
+    description:
+      "A plain, even blur over the whole frame.",
+    label: "Basic Blur",
   },
   "chromatic-aberration": {
-    category: "distort",
     description:
-      "Offsets color channels for fringing and lens-separation effects.",
+      "Splits the color channels apart for lens fringing.",
+    category: "distort",
     label: "Chromatic Aberration",
-    previewSrc: "/examples/chromatic-aberration.webp",
+    previewSrc: "/examples/effects/chromatic-aberration.webp",
   },
   "circuit-bent": {
-    category: "distort",
     description:
-      "Renders luma-gated scanlines and bends them around a pull or push attractor.",
+      "Turns the image into scanlines and bends them around a point that pulls or pushes.",
+    category: "distort",
     label: "Circuit Bent",
-    previewSrc: "/examples/circuit-bent.webp",
+    previewSrc: "/examples/effects/circuit-bent.webp",
   },
   crt: {
+    description:
+      "An old CRT screen: scanlines, phosphor glow and signal noise.",
     category: "core",
-    description: "Adds scanlines, phosphor bloom, and display-era noise.",
     label: "CRT",
-    previewSrc: "/examples/crt.webp",
+    previewSrc: "/examples/effects/crt.webp",
   },
   "custom-shader": {
     label: "Custom Shader",
   },
   "directional-blur": {
-    category: "distort",
     description:
-      "Smears pixels linearly or radially for motion, focus, or depth.",
+      "Smears the image in one direction or out from a center, for motion and speed.",
+    category: "distort",
     label: "Directional Blur",
-    previewSrc: "/examples/directional-blur.webp",
   },
   "displacement-map": {
-    category: "distort",
     description:
-      "Pushes pixels along luminance to create warped displacement fields.",
+      "Warps the image by pushing pixels according to brightness.",
+    category: "distort",
     label: "Displacement Map",
-    previewSrc: "/examples/displacement-map.webp",
+    previewSrc: "/examples/effects/displacement-map.webp",
   },
   dithering: {
+    description:
+      "Reduces the image to a few colors with ordered or textured dithering patterns.",
     category: "core",
-    description: "Reduces color resolution into ordered or textured dithering.",
     label: "Dithering",
-    previewSrc: "/examples/dithering.webp",
+    previewSrc: "/examples/effects/dithering.webp",
   },
   "edge-detect": {
-    category: "distort",
     description:
-      "Extracts contrast edges and turns them into graphic outlines.",
+      "Finds edges in the image and draws them as outlines.",
+    category: "distort",
     label: "Edge Detect",
-    previewSrc: "/examples/edge-detect.webp",
+    previewSrc: "/examples/effects/edge-detect.webp",
   },
   fluid: {
     label: "Fluid",
   },
   "fluted-glass": {
-    category: "distort",
     description:
-      "Ribbed lenticular glass distortion with subtle chromatic split.",
+      "Ribbed glass that slices the image into vertical strips with a slight color split.",
+    category: "distort",
     label: "Fluted Glass",
-    previewSrc: "/examples/fluted-glass.webp",
   },
   gradient: {
     label: "Mesh Gradient",
   },
-  halftone: {
-    category: "core",
+  shape: {
+    label: "Shape",
     description:
-      "Converts the frame into graphic dot screens and print textures.",
+      "A flat color silhouette: ellipse, rectangle, triangle, polygon, star, ring or blades. Blend it over photography or mask it.",
+  },
+  "connected-dots": {
+    description:
+      "Turns the image into points linked to their neighbors: tone graphs, ink blobs or fading plexus lines. Points can drift so links form and break.",
+    category: "core",
+    label: "Connected Dots",
+    previewSrc: "/examples/effects/connected-dots.webp",
+  },
+  "dot-grid": {
+    description:
+      "A precise grid of dots locked to the artboard, each sized by the tone beneath it.",
+    category: "core",
+    label: "Dot Grid",
+    previewSrc: "/examples/effects/dot-grid.webp",
+  },
+  relief: {
+    description:
+      "Embosses or debosses the image into a lit surface: silver plate, letterpress, blind emboss or gold foil.",
+    category: "core",
+    label: "Relief",
+    previewSrc: "/examples/effects/relief.webp",
+  },
+  halftone: {
+    description:
+      "Turns the image into printed dot screens.",
+    category: "core",
     label: "Halftone",
-    previewSrc: "/examples/halftone.webp",
+    previewSrc: "/examples/effects/halftone.webp",
   },
   image: {
     label: "Image",
   },
   ink: {
+    description:
+      "Smeared glow and fluid bleed for neon, ink-like edges.",
     category: "core",
-    description: "Adds smeared glow and fluid bleed for neon ink-like edges.",
     label: "Ink",
-    previewSrc: "/examples/ink.webp",
+    previewSrc: "/examples/effects/ink.webp",
   },
   live: {
     label: "Camera",
@@ -121,84 +173,192 @@ export const LAYER_CATALOG: Record<LayerType, LayerCatalogEntry> = {
   },
   model: {
     label: "3D Model",
+    description:
+      "A .glb model, with its animation clips, or an .svg logo extruded into a solid. Framed and lit automatically with HDR studios, its own PBR materials or chrome, brushed metal, glass, clay, rubber and iridescent replacements, soft shadows and a contact-shadow floor. Its exact depth drives Blur, Glass, Relief and depth masks.",
   },
   "particle-grid": {
+    description:
+      "Breaks the image into a grid of glowing particles.",
     category: "core",
-    description: "Breaks the image into a glowing particle matrix.",
     label: "Particle Grid",
-    previewSrc: "/examples/particle-grid.webp",
+    previewSrc: "/examples/effects/particle-grid.webp",
   },
   pattern: {
+    description:
+      "Rebuilds the image from repeating graphic patterns, light to dark.",
     category: "core",
-    description: "Maps the source into repeatable woven and graphic textures.",
     label: "Pattern",
-    previewSrc: "/examples/pattern.webp",
+    previewSrc: "/examples/effects/pattern.webp",
   },
   "pixel-sorting": {
-    category: "distort",
     description:
-      "Sorts neighboring pixels into streaks based on luma or color.",
+      "Sorts pixels into streaks by brightness or color.",
+    category: "distort",
     label: "Pixel Sorting",
-    previewSrc: "/examples/pixel-sorting.webp",
+    previewSrc: "/examples/effects/pixel-sorting.webp",
   },
   "pixel-trail": {
     label: "Pixel Trail",
   },
   pixelation: {
-    category: "core",
     description:
-      "Groups neighboring pixels into larger blocks for a low-res look.",
+      "Turns the image into large square pixels.",
+    category: "core",
     label: "Pixelation",
-    previewSrc: "/examples/pixelation.webp",
+    previewSrc: "/examples/effects/pixelation.webp",
+  },
+  outline: {
+    description:
+      "Draws outlines around text, cutouts or the shapes in the image: solid, double, dashed or scalloped, repeated as rings.",
+    category: "core",
+    label: "Outline",
+    previewSrc: "/examples/effects/outline.webp",
+  },
+  photocopy: {
+    description:
+      "A worn photocopy: crushed toner, speckle, streaks, misregistration and folds. Copies of copies degrade further.",
+    category: "core",
+    label: "Photocopy",
+    previewSrc: "/examples/effects/photocopy.webp",
   },
   plotter: {
-    category: "core",
     description:
-      "Pen-plotter aesthetic with hatching, crosshatching, and ink simulation.",
+      "Redraws the image as a pen plotter would: hatching, flow lines, contours, squiggles, a spiral or stipple.",
+    category: "core",
     label: "Plotter",
-    previewSrc: "/examples/plotter.webp",
+    previewSrc: "/examples/effects/plotter.webp",
   },
   posterize: {
-    category: "core",
     description:
-      "Compresses tones into fewer steps while keeping the image graphic.",
+      "Flattens the image into a few bands of color.",
+    category: "core",
     label: "Posterize",
-    previewSrc: "/examples/posterize.webp",
+    previewSrc: "/examples/effects/posterize.webp",
   },
   slice: {
-    category: "distort",
     description:
-      "Offsets horizontal slices into blocky glitch bands and streaks.",
+      "Shifts horizontal slices of the image sideways into glitchy bands.",
+    category: "distort",
     label: "Slice",
-    previewSrc: "/examples/slice.webp",
+    previewSrc: "/examples/effects/slice.webp",
+  },
+  "signal-rot": {
+    description:
+      "A failing scan: dragged streaks, wobble, torn bands, color drift and line noise.",
+    category: "distort",
+    label: "Signal Rot",
+    previewSrc: "/examples/effects/signal-rot.webp",
+  },
+  erosion: {
+    description:
+      "Crumbles the image into speckle along edges, tones or a cutout's border, throwing fragments outward.",
+    category: "distort",
+    label: "Erosion",
+    previewSrc: "/examples/effects/erosion.webp",
   },
   smear: {
-    category: "distort",
     description:
-      "Blur that ramps from sharp to soft across a controllable range.",
+      "Blur that ramps from sharp to soft across the frame.",
+    category: "distort",
     label: "Progressive Blur",
-    previewSrc: "/examples/progressive-blur.webp",
   },
   text: {
     label: "Text",
   },
   threshold: {
-    category: "core",
     description:
-      "Turns the frame into stark black and white with controllable cutoff and grain.",
+      "Turns the image into stark black and white at a cutoff you set.",
+    category: "core",
     label: "Threshold",
-    previewSrc: "/examples/threshold.webp",
+    previewSrc: "/examples/effects/threshold.webp",
+  },
+  "gradient-map": {
+    description:
+      "Recolors the image by brightness using a color ramp you edit.",
+    category: "core",
+    label: "Gradient Map",
+    previewSrc: "/examples/effects/gradient-map.webp",
+  },
+  "lumen-print": {
+    description:
+      "An analog sun print: toned shadows, solarized highlights, halation, burned edges and grain.",
+    category: "core",
+    label: "Lumen Print",
+    previewSrc: "/examples/effects/lumen-print.webp",
+  },
+  grain: {
+    description:
+      "Film grain for photos and video, from fine 35mm to pushed 16mm. It can change every frame, like real film.",
+    category: "core",
+    label: "Grain",
+    previewSrc: "/examples/effects/grain.webp",
+  },
+  "focus-blur": {
+    description:
+      "Blur that varies across the frame: depth of field, tilt-shift, radial focus or tone-based, with Gaussian, lens bokeh or motion streaks.",
+    category: "core",
+    label: "Blur",
+    previewSrc: "/examples/effects/focus-blur.webp",
+  },
+  glass: {
+    description:
+      "Textured glass in front of the image: reeded, hammered, pyramid, hex or frosted. Every cell acts as a small lens.",
+    category: "distort",
+    label: "Glass",
+    previewSrc: "/examples/effects/glass.webp",
+  },
+  flares: {
+    description:
+      "Light flares on the brightest points: crosses, stars, starbursts or anamorphic streaks.",
+    category: "core",
+    label: "Flares",
+    previewSrc: "/examples/effects/flares.webp",
   },
   video: {
     label: "Video",
   },
   voxel: {
-    category: "core",
     description:
-      "Quantizes the frame into isometric cubes; depth raises columns by luminance.",
+      "Rebuilds the image from isometric cubes, with brighter areas rising higher.",
+    category: "core",
     label: "Voxel",
-    previewSrc: "/examples/voxel.webp",
+    previewSrc: "/examples/effects/voxel.webp",
   },
+}
+
+export const NEW_LAYER_TYPES: ReadonlySet<LayerType> = new Set<LayerType>([
+  "annotations",
+  "connected-dots",
+  "displaced-rings",
+  "dot-grid",
+  "erosion",
+  "flares",
+  "focus-blur",
+  "glass",
+  "gradient-map",
+  "grain",
+  "lumen-print",
+  "model",
+  "outline",
+  "photocopy",
+  "photographic-cells",
+  "relief",
+  "shape",
+  "signal-rot",
+])
+
+export const REWORKED_LAYER_TYPES: ReadonlySet<LayerType> = new Set<LayerType>([
+  "blob-tracking",
+  "pattern",
+  "plotter",
+  "threshold",
+])
+
+export function isNewLayerType(type: string): boolean {
+  return (
+    NEW_LAYER_TYPES.has(type as LayerType) ||
+    REWORKED_LAYER_TYPES.has(type as LayerType)
+  )
 }
 
 export function getLayerCatalogEntry(type: LayerType): LayerCatalogEntry {

@@ -1,4 +1,5 @@
 import type {
+  AnimatableValueType,
   LayerParameterValues,
   ParameterDefinition,
   ParameterDefinitions,
@@ -42,14 +43,25 @@ export function getParameterDefinition(
 
 export function isParameterAnimatable(definition: ParameterDefinition): boolean {
   if (definition.type === "text") {
-    return false
+    return definition.interpolate === "gradient" && (definition.animatable ?? true)
   }
 
   return definition.animatable ?? true
 }
 
+export function getAnimatableValueType(
+  definition: ParameterDefinition,
+): AnimatableValueType | null {
+  if (!isParameterAnimatable(definition)) {
+    return null
+  }
+
+  return definition.type === "text" ? "gradient" : definition.type
+}
+
 export function isParameterAudioModulatable(definition: ParameterDefinition): boolean {
   if (
+    definition.type === "text" ||
     definition.type === "color" ||
     definition.type === "select" ||
     definition.type === "vec3"

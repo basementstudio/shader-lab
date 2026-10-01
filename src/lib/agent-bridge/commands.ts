@@ -1,3 +1,5 @@
+import { getDocumentSize } from "@/lib/editor/composition"
+import { normalizeLayerMask } from "@/renderer/layer-mask"
 import { subscribeToCustomShaderCompiles } from "@/lib/agent-bridge/compile-events"
 import { pumpAgentFrame } from "@/lib/agent-bridge/frame-pump"
 import { getLayerDefinition, getLayerDefinitions } from "@/lib/editor/config/layer-registry"
@@ -16,12 +18,17 @@ import type {
   MaskSource,
   ParameterDefinition,
   ParameterValue,
+  LayerMaskScope,
+  LayerMaskShape,
 } from "@/types/editor"
 import {
   BLEND_MODES,
   LAYER_COMPOSITE_MODES,
   MASK_MODES,
   MASK_SOURCES,
+  DEFAULT_LAYER_MASK,
+  LAYER_MASK_SCOPES,
+  LAYER_MASK_SHAPES,
 } from "@/types/editor"
 
 export class AgentCommandError extends Error {}
@@ -173,6 +180,9 @@ function isInternalParameter(definition: ParameterDefinition): boolean {
 function summarizeLayer(layer: EditorLayer, index: number) {
   return {
     assetId: layer.assetId,
+    depthAssetId: layer.depthAssetId ?? null,
+    environmentAssetId: layer.environmentAssetId ?? null,
+    patternAssetIds: layer.patternAssetIds ?? [],
     blendMode: layer.blendMode,
     compositeMode: layer.compositeMode,
     id: layer.id,
@@ -414,7 +424,9 @@ function getProjectState() {
   const editorState = useEditorStore.getState()
 
   return {
-    compositionSize: editorState.outputSize,
+    compositionSize:
+      getDocumentSize(editorState.sceneConfig, editorState.outputSize) ??
+      editorState.outputSize,
     layers: layerState.layers.map(summarizeLayer),
     selectedLayerId: layerState.selectedLayerId,
   }
@@ -428,6 +440,7 @@ function serializeLayer(layer: EditorLayer) {
   return {
     ...summarizeLayer(layer, index),
     hue: layer.hue,
+    mask: layer.mask ?? null,
     maskConfig: layer.maskConfig,
     params: { ...layer.params },
     saturation: layer.saturation,
@@ -551,6 +564,8 @@ function getCustomShader(payload: CommandPayload) {
 
 const MEDIA_MIME_BY_EXTENSION: Record<string, string> = {
   gif: "image/gif",
+  glb: "model/gltf-binary",
+  gltf: "model/gltf+json",
   jpeg: "image/jpeg",
   jpg: "image/jpeg",
   mov: "video/quicktime",
@@ -603,7 +618,8 @@ async function addMediaLayer(payload: CommandPayload) {
       )
     })
 
-  const layerType: LayerType = asset.kind === "video" ? "video" : "image"
+  const layerType: LayerType =
+    asset.kind === "video" || asset.kind === "model" ? asset.kind : "image"
   const store = useLayerStore.getState()
   const layerId = store.addLayer(layerType, insertIndex)
 
@@ -859,6 +875,38 @@ const COMMAND_HANDLERS: Record<string, CommandHandler> = {
       }
 
       store.setLayerMaskConfig(layer.id, updates)
+    }
+
+    if (payload.mask !== undefined) {
+      if (payload.mask === null) {
+        store.setLayerMask(layer.id, { ...DEFAULT_LAYER_MASK })
+      } else {
+        if (!isRecord(payload.mask)) {
+          throw new AgentCommandError("`mask` must be an object or null.")
+        }
+        if (
+          payload.mask.shape !== undefined &&
+          !LAYER_MASK_SHAPES.includes(payload.mask.shape as LayerMaskShape)
+        ) {
+          throw new AgentCommandError(
+            `Invalid mask.shape. Valid values: ${LAYER_MASK_SHAPES.join(", ")}.`
+          )
+        }
+        if (
+          payload.mask.scope !== undefined &&
+          !LAYER_MASK_SCOPES.includes(payload.mask.scope as LayerMaskScope)
+        ) {
+          throw new AgentCommandError(
+            `Invalid mask.scope. Valid values: ${LAYER_MASK_SCOPES.join(", ")}.`
+          )
+        }
+        const normalized = normalizeLayerMask({
+          ...DEFAULT_LAYER_MASK,
+          ...(layer.mask ?? {}),
+          ...payload.mask,
+        })
+        if (normalized) store.setLayerMask(layer.id, normalized)
+      }
     }
 
     return serializeLayer(requireLayer(layer.id))

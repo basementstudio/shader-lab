@@ -13,7 +13,8 @@ import {
   vec3,
   vec4,
 } from "three/tsl"
-import { buildBlendNode } from "@/renderer/blend-modes"
+import { buildBlendNode, type CompositionRole } from "@/renderer/blend-modes"
+import { LayerMaskNode, type LayerMaskState } from "@/renderer/layer-mask"
 import type { BloomCompositor } from "@/renderer/dual-filter-bloom"
 import type {
   LayerCompositeMode,
@@ -28,6 +29,8 @@ export class PassNode {
   readonly layerId: string
 
   enabled = true
+
+  protected inputChanged = true
 
   protected readonly scene: THREE.Scene
   protected readonly camera: THREE.OrthographicCamera
@@ -45,17 +48,23 @@ export class PassNode {
   protected lastOutputTarget: THREE.WebGLRenderTarget | null = null
   private effectSwapGeneration = 0
   private blendMode = "normal"
+  private compositionRole: CompositionRole = "effect"
   private compositeMode: LayerCompositeMode = "filter"
   private maskSource = "luminance"
   private maskMode = "multiply"
   private maskInvert = false
+  private readonly layerMask = new LayerMaskNode()
   private colorNodeDirty = false
+  protected sceneDepthTexture: THREE.Texture | null = null
+  protected sourceMode: "depth" | "luminance" = "luminance"
+  private effectSourceIsDepth = false
 
   constructor(layerId: string) {
     this.layerId = layerId
     this.scene = new THREE.Scene()
     this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
     this.material = new THREE.MeshBasicNodeMaterial()
+    this.material.blending = THREE.NoBlending
     this.opacityUniform = uniform(1)
     this.hueUniform = uniform(0)
     this.saturationUniform = uniform(1)
@@ -104,6 +113,13 @@ export class PassNode {
     this.opacityUniform.value = opacity
   }
 
+  updateCompositionRole(role: CompositionRole): void {
+    if (role !== this.compositionRole) {
+      this.compositionRole = role
+      this.colorNodeDirty = true
+    }
+  }
+
   updateBlendMode(blendMode: string): boolean {
     if (blendMode === this.blendMode) {
       return false
@@ -137,6 +153,51 @@ export class PassNode {
     if (structuralChange) {
       this.colorNodeDirty = true
     }
+  }
+
+  updateLayerMask(mask: LayerMaskState | null | undefined): void {
+    if (this.layerMask.update(mask)) {
+      this.colorNodeDirty = true
+    }
+  }
+
+  updateMaskLogicalSize(
+    width: number,
+    height: number,
+    frameWidth: number,
+    frameHeight: number
+  ): void {
+    this.layerMask.updateLogicalSize(width, height, frameWidth, frameHeight)
+  }
+
+  setSceneDepth(texture: THREE.Texture | null): void {
+    this.sceneDepthTexture = texture
+    this.layerMask.updateSceneDepth(texture)
+    this.syncEffectSource()
+  }
+
+  private syncEffectSource(): void {
+    const next =
+      this.sourceMode === "depth" && this.sceneDepthTexture !== null
+    if (next !== this.effectSourceIsDepth) {
+      this.effectSourceIsDepth = next
+      this.rebuildEffectNode()
+    }
+  }
+
+  getOutputSceneDepth(): THREE.Texture | null {
+    return this.sceneDepthTexture
+  }
+
+  protected updateSourceMode(params: LayerParameterValues): void {
+    this.sourceMode = params.input === "depth" ? "depth" : "luminance"
+    this.syncEffectSource()
+  }
+
+  protected resolveEffectSource(inputTexture: THREE.Texture): THREE.Texture {
+    return this.sourceMode === "depth" && this.sceneDepthTexture
+      ? this.sceneDepthTexture
+      : inputTexture
   }
 
   flushColorNode(): void {
@@ -178,6 +239,14 @@ export class PassNode {
     return false
   }
 
+  setInputChanged(changed: boolean): void {
+    this.inputChanged = changed
+  }
+
+  hasStaticOutput(): boolean {
+    return false
+  }
+
   async prepareForExportFrame(_time: number, _loop: boolean): Promise<void> {
     // Default pass has no export-specific media work.
   }
@@ -186,6 +255,7 @@ export class PassNode {
     this.effectSwapGeneration += 1
     this.bloomCompositor?.dispose()
     this.bloomCompositor = null
+    this.layerMask.dispose()
     this.scene.clear()
     this.material.dispose()
     this.compositeGeometry.dispose()
@@ -229,6 +299,7 @@ export class PassNode {
 
     const generation = ++this.effectSwapGeneration
     const nextMaterial = new THREE.MeshBasicNodeMaterial()
+    nextMaterial.blending = THREE.NoBlending
     nextMaterial.colorNode = this.composeColorNode(nextEffectNode)
 
     const standbyScene = new THREE.Scene()
@@ -275,7 +346,7 @@ export class PassNode {
 
   private composeColorNode(effectNode: Node): Node {
     const adjustedEffectNode = this.applySharedColorAdjustments(effectNode)
-    return buildBlendNode(
+    const blended = buildBlendNode(
       this.blendMode,
       this.inputNode,
       adjustedEffectNode,
@@ -288,7 +359,9 @@ export class PassNode {
             source: this.maskSource,
           }
         : undefined,
+      this.compositionRole,
     ) as Node
+    return this.layerMask.apply(this.inputNode, blended, this.compositionRole)
   }
 
   private applySharedColorAdjustments(sourceNode: Node): Node {

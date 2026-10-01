@@ -5,9 +5,28 @@ import {
   type LayerType,
 } from "@/types/editor"
 
-export const COMMUNITY_EFFECT_TYPES: readonly EffectLayerType[] = [
-  ...EFFECT_LAYER_TYPES,
-].sort((left, right) => getLayerLabel(left).localeCompare(getLayerLabel(right)))
+export const DISCONTINUED_EFFECT_TYPES: readonly EffectLayerType[] = [
+  "blur",
+  "directional-blur",
+  "fluted-glass",
+  "smear",
+]
+
+export const DISCONTINUED_EFFECT_REPLACEMENT: EffectLayerType = "focus-blur"
+
+export function isDiscontinuedEffectType(value: unknown): boolean {
+  return (
+    typeof value === "string" &&
+    (DISCONTINUED_EFFECT_TYPES as readonly string[]).includes(value)
+  )
+}
+
+export const COMMUNITY_EFFECT_TYPES: readonly EffectLayerType[] =
+  EFFECT_LAYER_TYPES.filter(
+    (type) => !DISCONTINUED_EFFECT_TYPES.includes(type)
+  ).sort((left, right) =>
+    getLayerLabel(left).localeCompare(getLayerLabel(right))
+  )
 
 const COMMUNITY_EFFECT_TYPE_SET = new Set<EffectLayerType>(
   COMMUNITY_EFFECT_TYPES

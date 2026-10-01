@@ -1,0 +1,608 @@
+import assert from "node:assert/strict"
+import { mkdir } from "node:fs/promises"
+import { resolve, sep } from "node:path"
+import { chromium } from "playwright"
+
+const root = resolve(import.meta.dir, "../..")
+const directory = resolve(import.meta.dir)
+const update = process.argv.includes("--update")
+const artifacts = resolve(root, ".context/composition-test")
+await mkdir(artifacts, { recursive: true })
+const bundle = await Bun.build({
+  entrypoints: [resolve(directory, "browser.mjs")],
+  target: "browser",
+  define: { "process.env": "{}" },
+})
+if (!bundle.success)
+  throw new AggregateError(bundle.logs, "Composition harness failed to bundle")
+
+const server = Bun.serve({
+  hostname: "127.0.0.1",
+  port: 0,
+  async fetch(request) {
+    const path = new URL(request.url).pathname
+    if (path === "/")
+      return new Response(
+        `<!doctype html><style>
+      @font-face { font-family: "Fixture Mono"; src: url("/fonts/geist/Geist-Mono.woff2"); font-weight: 100 900; }
+      :root { --geist-mono: "Fixture Mono"; }
+      </style><script type="module" src="/browser.js"></script>`,
+        { headers: { "Content-Type": "text/html" } }
+      )
+    if (path === "/browser.js")
+      return new Response(bundle.outputs[0], {
+        headers: { "Content-Type": "text/javascript" },
+      })
+    if (path === "/scenes/default/alpha-sample.svg")
+      return new Response(
+        Bun.file(resolve(directory, "fixtures/alpha-sample.svg"))
+      )
+    if (path === "/scenes/default/dof-study.png" || path === "/scenes/default/dof-study-depth.png")
+      return new Response(
+        Bun.file(resolve(directory, `fixtures/${path.split("/").pop()}`))
+      )
+    if (path === "/scenes/default/rings-photo.webp")
+      return new Response(Bun.file(resolve(root, "public/examples/effects/slice.webp")))
+    if (/^\/scenes\/default\/(motif|shape)-[a-z-]+\.svg$/.test(path))
+      return new Response(
+        Bun.file(resolve(directory, `fixtures/${path.split("/").pop()}`))
+      )
+    const base =
+      path.startsWith("/fixtures/") || path.startsWith("/baselines/")
+        ? directory
+        : resolve(root, "public")
+    const file = resolve(base, `.${path}`)
+    if (!(file.startsWith(`${base}${sep}`) && (await Bun.file(file).exists())))
+      return new Response("Not found", { status: 404 })
+    return new Response(Bun.file(file))
+  },
+})
+
+let browser
+try {
+  browser = await chromium.launch({
+    headless: true,
+    args: [
+      "--enable-unsafe-webgpu",
+      "--use-webgpu-adapter=swiftshader",
+      "--use-angle=swiftshader",
+      "--enable-unsafe-swiftshader",
+    ],
+  })
+  const page = await browser.newPage()
+  page.setDefaultTimeout(120_000)
+  const errors = []
+  const videoImportError =
+    /^THREE\.WebGPURenderer: Uncaptured WebGPU GPUValidationError: [^\n]*\n - While (?:validating \[ExternalTextureDescriptor\]|validating CopyExternalTextureForBrowser)/
+  const videoImportView =
+    /^THREE\.WebGPURenderer: Uncaptured WebGPU GPUValidationError: \[Invalid Texture\] is invalid due to a previous error\.\n - While calling \[Invalid Texture\]\.CreateView/
+  const unexpectedErrors = () => {
+    let views = errors.filter((text) => videoImportError.test(text)).length
+    return errors.filter((text) => {
+      if (videoImportError.test(text)) return false
+      if (views > 0 && videoImportView.test(text)) {
+        views -= 1
+        return false
+      }
+      return true
+    })
+  }
+  page.on("pageerror", (error) => {
+    errors.push(error.message)
+    console.error(error.message)
+  })
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      errors.push(message.text())
+      if (!(videoImportError.test(message.text()) || videoImportView.test(message.text())))
+        console.error(message.text())
+    }
+  })
+  page.on("requestfailed", (request) => {
+    if (
+      request.resourceType() === "media" &&
+      request.failure()?.errorText === "net::ERR_ABORTED"
+    )
+      return
+    const message = `${request.url()}: ${request.failure()?.errorText}`
+    errors.push(message)
+    console.error(message)
+  })
+  await page.goto(server.url.href)
+  await page.waitForFunction(() => typeof window.checkProject === "function")
+  await page.evaluate(() => document.fonts.load('400 96px "Fixture Mono"'))
+  assert.ok(
+    await page.evaluate(async () => !!(await navigator.gpu?.requestAdapter())),
+    "WebGPU is required; no fallback or skipped tests"
+  )
+  console.log(
+    "GPU adapter:",
+    await page.evaluate(async () => {
+      const adapter = await navigator.gpu.requestAdapter()
+      return adapter
+        ? {
+            vendor: adapter.info.vendor,
+            architecture: adapter.info.architecture,
+            device: adapter.info.device,
+            description: adapter.info.description,
+          }
+        : null
+    })
+  )
+
+  console.log(
+    "Clean projects:",
+    await page.evaluate(() => window.checkCleanProjects())
+  )
+
+  console.log(
+    "Existing project:",
+    await page.evaluate(() => window.checkExistingProject())
+  )
+  const blends = await page.evaluate(() => window.checkLegacyBlendContract())
+  const blendPath = resolve(directory, "baselines/legacy-blends.json")
+  for (const sample of blends) {
+    assert.ok(
+      sample.rgba.every(Number.isFinite),
+      `Non-finite pixel: ${JSON.stringify(sample)}`
+    )
+    assert.equal(sample.rgba[3], 1, "Legacy compositor is opaque")
+  }
+  const half = blends.length / 2
+  for (let i = 0; i < half; i++) {
+    assert.deepEqual(
+      blends[i].rgba,
+      blends[i + half].rgba,
+      "Editor/runtime blend mismatch"
+    )
+  }
+  if (update) {
+    await Bun.write(blendPath, `${JSON.stringify(blends, null, 2)}\n`)
+  } else {
+    const expected = await Bun.file(blendPath).json()
+    assert.equal(blends.length, expected.length)
+    for (const [index, sample] of blends.entries()) {
+      const { rgba, ...identity } = sample
+      const { rgba: expectedRgba, ...expectedIdentity } = expected[index]
+      assert.deepEqual(identity, expectedIdentity)
+      for (let channel = 0; channel < 4; channel++) {
+        assert.ok(
+          Math.abs(rgba[channel] - expectedRgba[channel]) < 0.00001,
+          `Legacy blend changed: ${JSON.stringify(sample)}`
+        )
+      }
+    }
+  }
+  console.log(`PASS ${blends.length} editor/runtime blend and mask samples`)
+  for (const name of [
+    "legacy-text-mask",
+    "solid-text-background",
+    "transparent-text-screen",
+    "contained-image-halftone",
+  ]) {
+    const result = await page.evaluate(
+      ({ name, update }) => window.checkProject(name, update),
+      { name, update }
+    )
+    const output = update
+      ? resolve(directory, `baselines/${name}.png`)
+      : resolve(artifacts, `${name}.png`)
+    await Bun.write(output, Buffer.from(result.png.split(",")[1], "base64"))
+    assert.equal(
+      result.baselineDiff?.changedPixels ?? 0,
+      0,
+      `${name}: ${JSON.stringify(result.baselineDiff)}; actual image: ${output}`
+    )
+    console.log(
+      `PASS ${name}: preview/export and reopen match; ${result.colors} colors`
+    )
+  }
+  const mediaBounds = await page.evaluate(() => window.checkMediaBounds())
+  await Bun.write(
+    resolve(artifacts, "transparent-media-bounds.png"),
+    Buffer.from(mediaBounds.transparentPng.split(",")[1], "base64")
+  )
+  await Bun.write(
+    resolve(artifacts, "solid-media-bounds.png"),
+    Buffer.from(mediaBounds.solidPng.split(",")[1], "base64")
+  )
+  console.log(
+    `PASS media bounds: ${mediaBounds.samples} editor/runtime image/video samples, migration, save/reopen, shader export, and PNG export`
+  )
+  const alphaSamples = await page.evaluate(() => window.checkAlphaCompositing())
+  console.log(
+    `PASS ${alphaSamples} alpha samples: source-over, effects, pass materials, grading, and the runtime texture pipeline`
+  )
+  const groups = await page.evaluate(() => window.checkGroups())
+  await Bun.write(
+    resolve(artifacts, "isolated-groups.png"),
+    Buffer.from(groups.png.split(",")[1], "base64")
+  )
+  console.log(
+    `PASS ${groups.samples} group checks: isolation, nesting, opacity, ordering, lifecycle, and editor PNG export`
+  )
+  assert.deepEqual(unexpectedErrors(), [], "Browser or GPU errors occurred")
+  const editorGroups = await page.evaluate(() => window.checkEditorGroups())
+  await Bun.write(
+    resolve(artifacts, "saved-editor-group.png"),
+    Buffer.from(editorGroups.png.split(",")[1], "base64")
+  )
+  console.log(
+    `PASS editor groups: store operations, history, v7 hydration, ${editorGroups.tracks} animation tracks, shader export, and saved/reopened pixels`
+  )
+  const text = await page.evaluate(() => window.checkTransparentText())
+  await Bun.write(
+    resolve(artifacts, "new-transparent-text.png"),
+    Buffer.from(text.png.split(",")[1], "base64")
+  )
+  console.log(
+    `PASS transparent text: ${text.samples} editor/runtime pixel checks, legacy hydration, save/reopen, and PNG export`
+  )
+  const rings = await page.evaluate(() => window.checkDisplacedRings())
+  for (const [label, png] of Object.entries(rings.studies))
+    await Bun.write(
+      resolve(artifacts, `rings-study-${label}.png`),
+      Buffer.from(png.split(",")[1], "base64")
+    )
+  await Bun.write(
+    resolve(artifacts, "displaced-rings-preview.webp"),
+    Buffer.from(rings.previewWebp.split(",")[1], "base64")
+  )
+  for (const [name, png] of [
+    ["ring-cutout", rings.png],
+    ["displaced-rings-preview", rings.previewPng],
+  ]) {
+    await Bun.write(
+      resolve(artifacts, `${name}.png`),
+      Buffer.from(png.split(",")[1], "base64")
+    )
+  }
+  console.log(
+    `PASS displaced rings: ${rings.samples} GPU cases, 48 distinct bands (${rings.denseMs}ms including readback), hydration, runtime export, group cutouts, preview/PNG`
+  )
+  const threshold = await page.evaluate(() => window.checkThresholdColors())
+  await Bun.write(
+    resolve(artifacts, "threshold-colors.png"),
+    Buffer.from(threshold.png.split(",")[1], "base64")
+  )
+  console.log(
+    `PASS threshold colors: ${threshold.samples} editor/runtime GPU cases, decoded video, alpha, history, hydration and PNG export`
+  )
+  const cells = await page.evaluate(() => window.checkPhotographicCells())
+  await Bun.write(
+    resolve(artifacts, "photographic-cells-preview.webp"),
+    Buffer.from(cells.previewWebp.split(",")[1], "base64")
+  )
+  for (const [name, png] of [
+    ["cell-cutout", cells.png],
+    ["photographic-cells-preview", cells.previewPng],
+  ]) {
+    await Bun.write(
+      resolve(artifacts, `${name}.png`),
+      Buffer.from(png.split(",")[1], "base64")
+    )
+  }
+  console.log(
+    `PASS photographic cells: ${cells.samples} editor/runtime GPU cases, full-detail interiors, alpha, hydration, runtime export, groups, preview/PNG`
+  )
+  const masks = await page.evaluate(() => window.checkLayerMasks())
+  await Bun.write(
+    resolve(artifacts, "layer-masks.png"),
+    Buffer.from(masks.png.split(",")[1], "base64")
+  )
+  console.log(
+    `PASS layer masks: ${masks.samples} editor/runtime GPU cases, group cutouts, brush parity with Cells paint, hydration, history, duplication, export`
+  )
+  const gradientMap = await page.evaluate(() => window.checkGradientMap())
+  await Bun.write(
+    resolve(artifacts, "gradient-map.png"),
+    Buffer.from(gradientMap.png.split(",")[1], "base64")
+  )
+  await Bun.write(
+    resolve(artifacts, "gradient-map-preview.webp"),
+    Buffer.from(gradientMap.previewWebp.split(",")[1], "base64")
+  )
+  console.log(
+    `PASS gradient map: ${gradientMap.samples} editor/runtime GPU cases, presets, amount, invert, masked group scope, hydration, export, catalog preview`
+  )
+  const gradientMapKeyframes = await page.evaluate(() =>
+    window.checkGradientMapKeyframes()
+  )
+  for (const [name, png] of Object.entries(gradientMapKeyframes.frames))
+    await Bun.write(
+      resolve(artifacts, `gradient-map-keyframes-${name}.png`),
+      Buffer.from(png.split(",")[1], "base64")
+    )
+  console.log(
+    `PASS gradient map keyframes: ${gradientMapKeyframes.samples} cases, ramp interpolation, easing, editor/runtime evaluation and GPU parity, auto-key and keyframe store paths, history, duplication, save/reopen, shader export`
+  )
+  const patternMotifs = await page.evaluate(() => window.checkPatternMotifs())
+  await Bun.write(
+    resolve(artifacts, "pattern-motifs.png"),
+    Buffer.from(patternMotifs.png.split(",")[1], "base64")
+  )
+  console.log(
+    `PASS pattern motifs: ${patternMotifs.samples} editor/runtime GPU cases, light-to-dark bands, motif colors, alpha shapes, invert, reorder, failed loads, history, duplication, save/reopen, missing motifs, export, runtime parity`
+  )
+  const lumenPrint = await page.evaluate(() => window.checkLumenPrint())
+  for (const [style, png] of Object.entries(lumenPrint.styles))
+    await Bun.write(
+      resolve(artifacts, `lumen-print-${style}.png`),
+      Buffer.from(png.split(",")[1], "base64")
+    )
+  await Bun.write(
+    resolve(artifacts, "lumen-print-preview.webp"),
+    Buffer.from(lumenPrint.previewWebp.split(",")[1], "base64")
+  )
+  console.log(
+    `PASS lumen print: ${lumenPrint.samples} editor/runtime GPU cases, identity, solarize, washout, grain, styles, hydration, history, export, photo renders`
+  )
+  const grain = await page.evaluate(() => window.checkGrain())
+  for (const [style, png] of Object.entries(grain.styles))
+    await Bun.write(
+      resolve(artifacts, `grain-${style}.png`),
+      Buffer.from(png.split(",")[1], "base64")
+    )
+  for (const [frame, png] of Object.entries(grain.frames))
+    await Bun.write(
+      resolve(artifacts, `grain-frame-${frame}.png`),
+      Buffer.from(png.split(",")[1], "base64")
+    )
+  await Bun.write(
+    resolve(artifacts, "grain-preview.webp"),
+    Buffer.from(grain.previewWebp.split(",")[1], "base64")
+  )
+  console.log(
+    `PASS grain: ${grain.samples} editor/runtime GPU cases, identity, mean tone, mono and luminance-neutral chroma, clean blacks and whites, overlay and add, tonal response, size and roughness, document-pixel resolution, clumping, seed, stepped frames, coverage, styles, hydration, history, export, photo renders`
+  )
+  const signalRot = await page.evaluate(() => window.checkSignalRot())
+  for (const [style, png] of Object.entries(signalRot.styles))
+    await Bun.write(
+      resolve(artifacts, `signal-rot-${style}.png`),
+      Buffer.from(png.split(",")[1], "base64")
+    )
+  await Bun.write(
+    resolve(artifacts, "signal-rot-preview.webp"),
+    Buffer.from(signalRot.previewWebp.split(",")[1], "base64")
+  )
+  console.log(
+    `PASS signal rot: ${signalRot.samples} editor/runtime GPU cases, identity, drag both directions, tear, dropout, chroma, crush, wobble, speed, styles, hydration, history, export, photo renders`
+  )
+  const dotGrid = await page.evaluate(() => window.checkDotGrid())
+  for (const [style, png] of Object.entries(dotGrid.styles))
+    await Bun.write(
+      resolve(artifacts, `dot-grid-${style}.png`),
+      Buffer.from(png.split(",")[1], "base64")
+    )
+  await Bun.write(
+    resolve(artifacts, "dot-grid-preview.webp"),
+    Buffer.from(dotGrid.previewWebp.split(",")[1], "base64")
+  )
+  console.log(
+    `PASS dot grid: ${dotGrid.samples} editor/runtime GPU cases, exact cells, coverage, shapes, min dot, invert, tone, source ink, underlay, styles, hydration, history, export, photo renders`
+  )
+  const erosion = await page.evaluate(() => window.checkErosion())
+  for (const [style, png] of Object.entries(erosion.styles))
+    await Bun.write(
+      resolve(artifacts, `erosion-${style}.png`),
+      Buffer.from(png.split(",")[1], "base64")
+    )
+  await Bun.write(
+    resolve(artifacts, "erosion-preview.webp"),
+    Buffer.from(erosion.previewWebp.split(",")[1], "base64")
+  )
+  console.log(
+    `PASS erosion: ${erosion.samples} editor/runtime GPU cases, identity, edge, light, dark and cutout modes, speckle blocks, transparent holes, scatter, speed, styles, hydration, history, export, photo renders`
+  )
+  const relief = await page.evaluate(() => window.checkRelief())
+  for (const [style, png] of Object.entries(relief.styles))
+    await Bun.write(
+      resolve(artifacts, `relief-${style}.png`),
+      Buffer.from(png.split(",")[1], "base64")
+    )
+  await Bun.write(
+    resolve(artifacts, "relief-preview.webp"),
+    Buffer.from(relief.previewWebp.split(",")[1], "base64")
+  )
+  console.log(
+    `PASS relief: ${relief.samples} editor/runtime GPU cases, flat identity, emboss, deboss, light angle and elevation, cutout and depth height, engraving, grain, styles, hydration, history, export, photo renders`
+  )
+  const flares = await page.evaluate(() => window.checkFlares())
+  for (const [style, png] of Object.entries(flares.styles))
+    await Bun.write(
+      resolve(artifacts, `flares-${style}.png`),
+      Buffer.from(png.split(",")[1], "base64")
+    )
+  await Bun.write(
+    resolve(artifacts, "flares-preview.webp"),
+    Buffer.from(flares.previewWebp.split(",")[1], "base64")
+  )
+  console.log(
+    `PASS flares: ${flares.samples} editor/runtime GPU cases, no false flares, cross, rotation, star, secondary rays, streak, isolation, core color, transparency, core glow, styles, hydration, history, export, renders`
+  )
+  const focusBlur = await page.evaluate(() => window.checkFocusBlur())
+  for (const [style, png] of Object.entries(focusBlur.styles))
+    await Bun.write(
+      resolve(artifacts, `focus-blur-${style}.png`),
+      Buffer.from(png.split(",")[1], "base64")
+    )
+  await Bun.write(
+    resolve(artifacts, "focus-blur-preview.webp"),
+    Buffer.from(focusBlur.previewWebp.split(",")[1], "base64")
+  )
+  console.log(
+    `PASS blur: ${focusBlur.samples} editor/runtime GPU cases, identity, flat color, smooth wide radii without ringing, linear, radial, invert, depth with and without a map, lens, motion, alpha edges, grain, styles, hydration, history, export, renders`
+  )
+  const glass = await page.evaluate(() => window.checkGlass())
+  for (const [style, png] of Object.entries(glass.styles))
+    await Bun.write(
+      resolve(artifacts, `glass-${style}.png`),
+      Buffer.from(png.split(",")[1], "base64")
+    )
+  await Bun.write(
+    resolve(artifacts, "glass-preview.webp"),
+    Buffer.from(glass.previewWebp.split(",")[1], "base64")
+  )
+  if (glass.failure) throw new Error(glass.failure)
+  console.log(
+    `PASS glass: ${glass.samples} editor/runtime GPU cases, identity for every pattern, flute flip, sharp prisms, distance blur, depth, edges, highlights, cell refraction, dispersion, frost, tint, styles, hydration, history, export, renders`
+  )
+  const dots = await page.evaluate(() => window.checkConnectedDots())
+  for (const [style, png] of Object.entries(dots.styles))
+    await Bun.write(
+      resolve(artifacts, `connected-dots-${style}.png`),
+      Buffer.from(png.split(",")[1], "base64")
+    )
+  await Bun.write(
+    resolve(artifacts, "connected-dots-preview.webp"),
+    Buffer.from(dots.previewWebp.split(",")[1], "base64")
+  )
+  if (dots.failure) throw new Error(dots.failure)
+  console.log(
+    `PASS connected dots: ${dots.samples} editor/runtime GPU cases, empty light areas, dots, links, blobs, tone sizes, cutoff, invert, shapes, plexus range, palette, source, transparency, drift, styles, hydration, history, export, renders`
+  )
+  const dotsEdges = await page.evaluate(() => window.checkConnectedDotsEdges())
+  for (const [name, png] of Object.entries(dotsEdges.renders))
+    await Bun.write(
+      resolve(artifacts, `connected-dots-edges-${name}.png`),
+      Buffer.from(png.split(",")[1], "base64")
+    )
+  console.log(
+    `PASS connected dots edge snap: ${dotsEdges.samples} editor/runtime GPU cases, neutral identity, flat and grainy images, step edges, halfway snapping, noise stability, thin lines, cutout edges, blobs, plexus, mesh edges and facets, styles, hydration, history, duplication, save/reopen, export, runtime parity, renders`
+  )
+  const plotter = await page.evaluate(() => window.checkPlotter())
+  for (const [style, png] of Object.entries(plotter.styles))
+    await Bun.write(
+      resolve(artifacts, `plotter-${style}.png`),
+      Buffer.from(png.split(",")[1], "base64")
+    )
+  await Bun.write(
+    resolve(artifacts, "plotter-preview.webp"),
+    Buffer.from(plotter.previewWebp.split(",")[1], "base64")
+  )
+  if (plotter.failure) throw new Error(plotter.failure)
+  console.log(
+    `PASS plotter: ${plotter.samples} editor/runtime GPU cases, blank paper and strokes for every mode, line coverage, crosshatch, tone, pressure, wobble, squiggle, three pens, transparent paper, legacy defaults, styles, hydration, history, export, renders`
+  )
+  const photocopy = await page.evaluate(() => window.checkPhotocopy())
+  for (const [style, png] of Object.entries(photocopy.styles))
+    await Bun.write(
+      resolve(artifacts, `photocopy-${style}.png`),
+      Buffer.from(png.split(",")[1], "base64")
+    )
+  await Bun.write(
+    resolve(artifacts, "photocopy-preview.webp"),
+    Buffer.from(photocopy.previewWebp.split(",")[1], "base64")
+  )
+  if (photocopy.failure) throw new Error(photocopy.failure)
+  console.log(
+    `PASS photocopy: ${photocopy.samples} editor/runtime GPU cases, blank paper, solid toner, contrast crush, speckle, streaks, misregistration, generations, creases, transparent paper, styles, hydration, history, export, renders`
+  )
+  const outline = await page.evaluate(() => window.checkOutline())
+  for (const [style, png] of Object.entries(outline.styles))
+    await Bun.write(
+      resolve(artifacts, `outline-${style}.png`),
+      Buffer.from(png.split(",")[1], "base64")
+    )
+  await Bun.write(
+    resolve(artifacts, "outline-preview.webp"),
+    Buffer.from(outline.previewWebp.split(",")[1], "base64")
+  )
+  if (outline.failure) throw new Error(outline.failure)
+  console.log(
+    `PASS outline: ${outline.samples} editor/runtime GPU cases, offset, rings, inside, fill, line only, scalloped cloud, dashes, dark shapes, styles, hydration, history, export, renders`
+  )
+  const artboard = await page.evaluate(() => window.checkArtboard())
+  console.log(
+    `PASS artboard: ${artboard.samples} document size, fit, composition update, save/reopen and legacy checks`
+  )
+  const shapes = await page.evaluate(() => window.checkShapeLayers())
+  await Bun.write(
+    resolve(artifacts, "shape-layers.png"),
+    Buffer.from(shapes.png.split(",")[1], "base64")
+  )
+  console.log(
+    `PASS shape layers: ${shapes.samples} editor/runtime GPU cases across seven shapes, outline, softness, blend, mask, hydration, export`
+  )
+  const svgShapes = await page.evaluate(() => window.checkSvgShapes())
+  await Bun.write(
+    resolve(artifacts, "svg-shapes.png"),
+    Buffer.from(svgShapes.png.split(",")[1], "base64")
+  )
+  console.log(
+    `PASS SVG shapes: ${svgShapes.samples} editor/runtime GPU cases, file colors, palette, single color, outline, softness against the procedural rectangle, width/height-only SVGs, history, duplication, save/reopen, missing SVG, export, runtime parity`
+  )
+  const textEditing = await page.evaluate(() => window.checkTextEditing())
+  await Bun.write(
+    resolve(artifacts, "text-editing.png"),
+    Buffer.from(textEditing.png.split(",")[1], "base64")
+  )
+  console.log(
+    `PASS text editing: ${textEditing.samples} editor/runtime checks for multiline, align, line height, rotation, small sizes, geometry helpers, hydration and export`
+  )
+  const blob = await page.evaluate(() => window.checkBlobTracking())
+  console.log(
+    `PASS blob tracking: ${blob.samples} tracker edge points, seeded labels, atlas glyphs, editor/runtime frames, brackets, edge dots, label modes, migration`
+  )
+  const annotations = await page.evaluate(() => window.checkAnnotations())
+  await Bun.write(
+    resolve(artifacts, "annotations.png"),
+    Buffer.from(annotations.png.split(",")[1], "base64")
+  )
+  await Bun.write(
+    resolve(artifacts, "annotations-preview.webp"),
+    Buffer.from(annotations.previewWebp.split(",")[1], "base64")
+  )
+  console.log(
+    `PASS annotations: ${annotations.samples} layout, placement, text, palette, editor/runtime render, hydration and export checks`
+  )
+  const annotationExtras = await page.evaluate(() => window.checkAnnotationExtras())
+  for (const [name, png] of Object.entries(annotationExtras.stills))
+    await Bun.write(
+      resolve(artifacts, `annotation-extras-${name}.png`),
+      Buffer.from(png.split(",")[1], "base64")
+    )
+  console.log(
+    `PASS annotation extras: ${annotationExtras.samples} region segmentation, persistent region ids, region placement, connected dots, rotation jitter, align to edges, legacy layout digest, editor/runtime GPU parity, history, duplication, save/reopen, export and video stability checks`
+  )
+  const depth = await page.evaluate(() => window.checkDepthParallax())
+  await Bun.write(
+    resolve(artifacts, "depth-parallax.png"),
+    Buffer.from(depth.png.split(",")[1], "base64")
+  )
+  console.log(
+    `PASS depth parallax: ${depth.samples} checks, editor/runtime GPU parity, occlusion march, edges, depth view, scene depth for effects and masks, motion, hydration, export, both pipelines`
+  )
+  console.log(
+    `Depth media pass at 1080p (software adapter, median ms): ${JSON.stringify(depth.timing)}`
+  )
+  const model = await page.evaluate(() => window.checkModelLayer())
+  await Bun.write(
+    resolve(artifacts, "model-layer.png"),
+    Buffer.from(model.png.split(",")[1], "base64")
+  )
+  console.log(
+    `PASS 3D model: ${model.samples} checks, glTF import and fit, transform, camera shift, blend and opacity, exposure and tone mapping, material replacement and restore, exact scene depth for effects and depth masks, groups, custom .hdr lighting, preview/export parity, pose redraw, hydration, history, export`
+  )
+  const animation = await page.evaluate(() => window.checkModelAnimation())
+  console.log(
+    `PASS 3D animation: ${animation} checks, clip timing, default clips, clip-wide framing, animated depth, skinning, speed, pause, repeat modes, start, timeline seeding, save/reopen, export`
+  )
+  const svg = await page.evaluate(() => window.checkModelSvg())
+  console.log(
+    `PASS SVG to 3D: ${svg} checks, holes, bevel inside the outline, strokes, stacked paths, y-up, fill colors, text-only message, extrusion depth, materials, depth, save/reopen`
+  )
+  assert.deepEqual(unexpectedErrors(), [], "Browser or GPU errors occurred")
+  if (errors.length > 0)
+    console.log(
+      `Ignored ${errors.length} SwiftShader video frame import errors (Chrome cannot import decoded video frames into SwiftShader)`
+    )
+  console.log(
+    update
+      ? "Baseline capture complete. Review images before committing."
+      : "Composition baselines passed."
+  )
+} finally {
+  await browser?.close()
+  server.stop(true)
+}

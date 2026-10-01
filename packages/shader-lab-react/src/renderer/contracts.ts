@@ -1,6 +1,8 @@
+import { buildCompositionTree } from "./layer-hierarchy"
 import { createRuntimeClock } from "../runtime-clock"
 import { resolveEvaluatedLayers } from "../timeline"
 import type { ShaderLabConfig, ShaderLabLayerConfig } from "../types"
+import type { CompositionNode } from "./composition-tree"
 
 export interface RendererSize {
   height: number
@@ -14,9 +16,13 @@ export interface ProjectClock {
   time: number
 }
 
+export type RenderableLayerConfig = ShaderLabLayerConfig & {
+  kind: "source" | "effect"
+}
+
 export interface RendererFrame {
   clock: ProjectClock
-  layers: ShaderLabLayerConfig[]
+  layers: CompositionNode<RenderableLayerConfig>[]
   logicalSize: RendererSize
   outputSize: RendererSize
   pixelRatio: number
@@ -49,11 +55,14 @@ export function buildRendererFrame(
     config.layers,
     config.timeline.tracks,
     time
-  ).filter((layer) => layer.visible)
+  )
 
   return {
     clock: createRuntimeClock(config.timeline, time, delta),
-    layers,
+    layers: buildCompositionTree(
+      layers,
+      (layer) => layer as RenderableLayerConfig
+    ),
     logicalSize: options?.logicalSize ?? config.composition ?? viewportSize,
     outputSize: viewportSize,
     pixelRatio,

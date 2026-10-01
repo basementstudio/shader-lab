@@ -1,6 +1,7 @@
 import * as THREE from "three/webgpu"
 import type { RendererFrame, RuntimeRenderer } from "./contracts"
 import { PipelineManager } from "./pipeline-manager"
+import { reverseComposition } from "./composition-tree"
 
 export function browserSupportsWebGPU(): boolean {
   return typeof navigator !== "undefined" && "gpu" in navigator
@@ -60,7 +61,7 @@ export async function createWebGPURenderer(
       }
 
       pipeline.updateLogicalSize(frame.logicalSize)
-      pipeline.syncLayers([...frame.layers].reverse())
+      pipeline.syncLayers(reverseComposition(frame.layers))
       return pipeline.render(frame.clock.time, frame.clock.delta)
     },
 

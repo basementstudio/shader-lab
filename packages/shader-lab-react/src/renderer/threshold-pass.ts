@@ -1,8 +1,10 @@
+import { Color } from "three/webgpu"
 import {
   clamp,
   dot,
   float,
   fract,
+  mix,
   select,
   sin,
   smoothstep,
@@ -28,6 +30,8 @@ export class ThresholdPass extends PassNode {
   private readonly thresholdUniform: Node
   private readonly softnessUniform: Node
   private readonly noiseUniform: Node
+  private readonly darkColorUniform: Node
+  private readonly lightColorUniform: Node
   private readonly invertUniform: Node
   private readonly logicalWidthUniform: Node
   private readonly logicalHeightUniform: Node
@@ -38,6 +42,8 @@ export class ThresholdPass extends PassNode {
     this.softnessUniform = uniform(0.02)
     this.noiseUniform = uniform(0.08)
     this.invertUniform = uniform(0)
+    this.darkColorUniform = uniform(new Color("#000000"))
+    this.lightColorUniform = uniform(new Color("#ffffff"))
     this.logicalWidthUniform = uniform(1)
     this.logicalHeightUniform = uniform(1)
     this.rebuildEffectNode()
@@ -62,6 +68,12 @@ export class ThresholdPass extends PassNode {
         ? Math.max(0, Math.min(0.3, params.noise))
         : 0.08
     this.invertUniform.value = params.invert === true ? 1 : 0
+    ;(this.darkColorUniform.value as Color).set(
+      typeof params.darkColor === "string" ? params.darkColor : "#000000"
+    )
+    ;(this.lightColorUniform.value as Color).set(
+      typeof params.lightColor === "string" ? params.lightColor : "#ffffff"
+    )
   }
 
   protected override buildEffectNode(): Node {
@@ -92,6 +104,11 @@ export class ThresholdPass extends PassNode {
     const isInverted = this.invertUniform.greaterThan(float(0.5))
     const output = select(isInverted, float(1).sub(thresholded), thresholded)
 
-    return vec4(vec3(output, output, output), float(1))
+    // Recolor the existing threshold field in linear space, including its soft
+    // transitions and noise. Effect composition preserves the source coverage.
+    return vec4(
+      mix(this.darkColorUniform, this.lightColorUniform, output),
+      float(1)
+    )
   }
 }

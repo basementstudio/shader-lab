@@ -46,6 +46,8 @@ export function IconButton({
   const button = (
     <button
       aria-pressed={props["aria-pressed"] ?? selected ?? undefined}
+      data-ds="icon-button"
+      data-variant={variant ?? "default"}
       className={cn(
         iconButtonVariants({ labelled, selected, variant }),
         className

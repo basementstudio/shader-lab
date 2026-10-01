@@ -3,9 +3,17 @@ import {
   forgetStoredAssets,
   persistAssetBlob,
 } from "@/lib/editor/autosave/assets"
-import { getDefaultProjectAssets } from "@/lib/editor/default-project"
-import { inferFileAssetKind, isAudioFileName } from "@/lib/editor/media-file"
+import {
+  inferFileAssetKind,
+  isAudioFileName,
+  isSvgMediaSource,
+} from "@/lib/editor/media-file"
 import type { AssetKind, EditorAsset } from "@/types/editor"
+import {
+  MODEL_ANIMATION_AUTO,
+  modelSelectionDuration,
+  parseGltfClips,
+} from "@/lib/editor/model-animation"
 
 export interface AssetStoreState {
   assets: EditorAsset[]
@@ -13,7 +21,10 @@ export interface AssetStoreState {
 
 export interface AssetStoreActions {
   getAssetById: (id: string) => EditorAsset | null
-  loadAsset: (file: File) => Promise<EditorAsset>
+  loadAsset: (
+    file: File,
+    options?: { kind?: AssetKind }
+  ) => Promise<EditorAsset>
   removeAsset: (id: string) => void
   replaceAssets: (assets: EditorAsset[]) => void
 }
@@ -31,7 +42,7 @@ const ACCEPTED_TYPES = new Set([
   "video/quicktime",
   "model/gltf-binary",
   "model/gltf+json",
-  "model/obj",
+  "image/vnd.radiance",
   "application/octet-stream",
   "audio/mpeg",
   "audio/mp3",
@@ -49,8 +60,26 @@ const ACCEPTED_TYPES = new Set([
 
 const MAX_SIZE_BYTES = 100 * 1024 * 1024
 
-function validateFile(file: File): AssetKind {
-  const kind = inferFileAssetKind(file)
+function fallbackMimeType(kind: AssetKind, fileName: string): string {
+  if (kind === "environment") {
+    return "image/vnd.radiance"
+  }
+
+  if (kind === "model") {
+    return fileName.toLowerCase().endsWith(".gltf")
+      ? "model/gltf+json"
+      : "model/gltf-binary"
+  }
+
+  return ""
+}
+
+function validateFile(file: File, requested?: AssetKind): AssetKind {
+  const inferred = inferFileAssetKind(file)
+  const kind =
+    requested === "model" && inferred === "image" && isSvgMediaSource({ fileName: file.name, mimeType: file.type })
+      ? "model"
+      : inferred
   const mimeType = file.type.toLowerCase()
   const fileName = file.name.toLowerCase()
 
@@ -61,10 +90,11 @@ function validateFile(file: File): AssetKind {
       (kind === "video" && fileName.endsWith(".mov")) ||
       (kind === "audio" && isAudioFileName(fileName))
     ) &&
-      kind !== "model")
+      kind !== "model" &&
+      kind !== "environment")
   ) {
     throw new Error(
-      `Unsupported file type "${file.type || "unknown"}". Accepted: PNG, JPG, WebP, GIF, SVG, MP4, WebM, MOV, GLB, GLTF, OBJ, MP3, WAV, M4A, FLAC, OGG.`
+      `Unsupported file type "${file.type || "unknown"}". Accepted: PNG, JPG, WebP, GIF, SVG, MP4, WebM, MOV, GLB, GLTF, HDR, MP3, WAV, M4A, FLAC, OGG.`
     )
   }
 
@@ -157,10 +187,10 @@ function loadAudioMetadata(url: string): Promise<{ duration: number }> {
 }
 
 export const useAssetStore = create<AssetStore>((set, get) => ({
-  assets: getDefaultProjectAssets(),
+  assets: [],
 
-  async loadAsset(file) {
-    const kind = validateFile(file)
+  async loadAsset(file, options) {
+    const kind = validateFile(file, options?.kind)
     const url = URL.createObjectURL(file)
     const baseAsset = {
       createdAt: new Date().toISOString(),
@@ -168,7 +198,7 @@ export const useAssetStore = create<AssetStore>((set, get) => ({
       fileName: file.name,
       id: crypto.randomUUID(),
       kind,
-      mimeType: file.type,
+      mimeType: file.type || fallbackMimeType(kind, file.name),
       sizeBytes: file.size,
       source: "local" as const,
       status: "ready" as const,
@@ -194,6 +224,16 @@ export const useAssetStore = create<AssetStore>((set, get) => ({
         duration: metadata.duration,
         height: metadata.height,
         width: metadata.width,
+      }
+    } else if (kind === "model") {
+      const clips = parseGltfClips(await file.arrayBuffer())
+      const duration = modelSelectionDuration(MODEL_ANIMATION_AUTO, clips)
+
+      asset = {
+        ...baseAsset,
+        duration: duration > 0 ? duration : null,
+        height: null,
+        width: null,
       }
     } else if (kind === "audio") {
       const metadata = await loadAudioMetadata(url)

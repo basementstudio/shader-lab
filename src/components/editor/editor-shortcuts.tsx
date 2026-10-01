@@ -33,6 +33,21 @@ export function EditorShortcuts() {
     if (
       (event.metaKey || event.ctrlKey) &&
       !event.altKey &&
+      event.key.toLowerCase() === "g"
+    ) {
+      event.preventDefault()
+      const state = useLayerStore.getState()
+      if (event.shiftKey) {
+        for (const id of state.selectedLayerIds) state.ungroupLayer(id)
+      } else {
+        state.groupLayers(state.selectedLayerIds)
+      }
+      return
+    }
+
+    if (
+      (event.metaKey || event.ctrlKey) &&
+      !event.altKey &&
       event.key.toLowerCase() === "s"
     ) {
       event.preventDefault()

@@ -8,7 +8,7 @@ import type {
 } from "@/types/editor"
 import { getBindingKey } from "@/lib/editor/binding-key"
 import { isTextFontWeightAdjustable } from "@/lib/editor/text-fonts"
-import { isParameterAnimatable } from "@/lib/editor/parameter-schema"
+import { getAnimatableValueType } from "@/lib/editor/parameter-schema"
 import type { useTimelineStore } from "@/store/timeline-store"
 
 export const blendModeOptions = [
@@ -38,7 +38,10 @@ export const maskModeOptions = [
   { label: "Stencil", value: "stencil" },
 ] as const
 
+const COLLAPSED_PARAM_GROUPS = new Set(["Camera"])
+
 const COLLAPSIBLE_PARAM_GROUPS = new Set([
+  "Camera",
   "Effects",
   "Glyph",
   "Grid",
@@ -53,6 +56,7 @@ export const DEFAULT_PARAM_GROUP = "Settings"
 
 export type ParamGroup = {
   collapsible: boolean
+  defaultExpanded: boolean
   id: string
   label: string
   params: ParameterDefinition[]
@@ -94,6 +98,12 @@ export function toVec2Value(value: ParameterValue): [number, number] {
     : [0, 0]
 }
 
+export function toVec3Value(value: ParameterValue): [number, number, number] {
+  return Array.isArray(value) && value.length === 3
+    ? [value[0] ?? 0, value[1] ?? 0, value[2] ?? 0]
+    : [0, 0, 0]
+}
+
 export function toNumberValue(value: ParameterValue, fallback = 0): number {
   return typeof value === "number" ? value : fallback
 }
@@ -124,8 +134,29 @@ export function isParamVisible(
   definition: ParameterDefinition,
   params: Record<string, ParameterValue>,
   definitions: ParameterDefinition[],
-  layerType?: string
+  layerType?: string,
+  depth = 0
 ): boolean {
+  if (layerType === "pattern" && definition.key === "bgOpacity") {
+    const colorMode = resolveParamValue(params, definitions, "colorMode")
+    return colorMode === "source" || colorMode === "original"
+  }
+
+  if (
+    layerType === "annotations" &&
+    definition.key === "targetSnap" &&
+    resolveParamValue(params, definitions, "targetEnabled") !== true
+  ) {
+    return false
+  }
+
+  if (layerType === "shape" && definition.key === "color") {
+    return !(
+      resolveParamValue(params, definitions, "shape") === "svg" &&
+      resolveParamValue(params, definitions, "svgColorMode") !== "single"
+    )
+  }
+
   if (definition.visibleWhen) {
     const controllingValue = resolveParamValue(
       params,
@@ -137,6 +168,13 @@ export function isParamVisible(
       if (controllingValue !== definition.visibleWhen.equals) {
         return false
       }
+    } else if ("oneOf" in definition.visibleWhen) {
+      if (
+        controllingValue === undefined ||
+        !definition.visibleWhen.oneOf.includes(controllingValue as never)
+      ) {
+        return false
+      }
     } else if ("notEquals" in definition.visibleWhen) {
       if (controllingValue === definition.visibleWhen.notEquals) {
         return false
@@ -144,6 +182,18 @@ export function isParamVisible(
     } else if (
       typeof controllingValue !== "number" ||
       controllingValue < definition.visibleWhen.gte
+    ) {
+      return false
+    }
+
+    const controller = definitions.find(
+      (entry) => entry.key === definition.visibleWhen?.key
+    )
+
+    if (
+      controller &&
+      depth < 4 &&
+      !isParamVisible(controller, params, definitions, layerType, depth + 1)
     ) {
       return false
     }
@@ -176,6 +226,7 @@ export function groupVisibleParams(
 
     groups.set(id, {
       collapsible: COLLAPSIBLE_PARAM_GROUPS.has(label),
+      defaultExpanded: !COLLAPSED_PARAM_GROUPS.has(label),
       id,
       label,
       params: [param],
@@ -199,15 +250,15 @@ export function createParamTimelineBinding(
     return cached
   }
 
-  const binding: AnimatedPropertyBinding | null =
-    definition.type === "text" || !isParameterAnimatable(definition)
-      ? null
-      : {
-          key: definition.key,
-          kind: "param",
-          label: definition.label,
-          valueType: definition.type === "boolean" ? "boolean" : definition.type,
-        }
+  const valueType = getAnimatableValueType(definition)
+  const binding: AnimatedPropertyBinding | null = valueType
+    ? {
+        key: definition.key,
+        kind: "param",
+        label: definition.label,
+        valueType,
+      }
+    : null
 
   paramTimelineBindingCache.set(definition, binding)
   return binding

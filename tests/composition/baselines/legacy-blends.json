@@ -1,0 +1,1538 @@
+[
+  {
+    "implementation": "editor",
+    "mode": "normal",
+    "opacity": 0,
+    "rgba": [
+      0.20000000298023224,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "mode": "normal",
+    "opacity": 0.35,
+    "rgba": [
+      0.3050000071525574,
+      0.5475000143051147,
+      0.7599999308586121,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "mode": "normal",
+    "opacity": 1,
+    "rgba": [
+      0.5,
+      0.45000001788139343,
+      0.5,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "mode": "multiply",
+    "opacity": 0,
+    "rgba": [
+      0.20000000298023224,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "mode": "multiply",
+    "opacity": 0.35,
+    "rgba": [
+      0.19300000369548798,
+      0.5264999866485596,
+      0.7582499384880066,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "mode": "multiply",
+    "opacity": 1,
+    "rgba": [
+      0.18000000715255737,
+      0.39000001549720764,
+      0.4949999749660492,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "mode": "screen",
+    "opacity": 0,
+    "rgba": [
+      0.20000000298023224,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "mode": "screen",
+    "opacity": 0.35,
+    "rgba": [
+      0.31200000643730164,
+      0.6209999918937683,
+      0.9017499685287476,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "mode": "screen",
+    "opacity": 1,
+    "rgba": [
+      0.5200000405311584,
+      0.6600000262260437,
+      0.9049999713897705,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "mode": "overlay",
+    "opacity": 0,
+    "rgba": [
+      0.20000000298023224,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "mode": "overlay",
+    "opacity": 0.35,
+    "rgba": [
+      0.2840000092983246,
+      0.5720000267028809,
+      0.8859999179840088,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "mode": "overlay",
+    "opacity": 1,
+    "rgba": [
+      0.4399999976158142,
+      0.5200000405311584,
+      0.85999995470047,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "mode": "darken",
+    "opacity": 0,
+    "rgba": [
+      0.20000000298023224,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "mode": "darken",
+    "opacity": 0.35,
+    "rgba": [
+      0.20000000298023224,
+      0.5475000143051147,
+      0.7599999308586121,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "mode": "darken",
+    "opacity": 1,
+    "rgba": [
+      0.20000000298023224,
+      0.45000001788139343,
+      0.5,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "mode": "lighten",
+    "opacity": 0,
+    "rgba": [
+      0.20000000298023224,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "mode": "lighten",
+    "opacity": 0.35,
+    "rgba": [
+      0.3050000071525574,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "mode": "lighten",
+    "opacity": 1,
+    "rgba": [
+      0.5,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "mode": "color-dodge",
+    "opacity": 0,
+    "rgba": [
+      0.20000000298023224,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "mode": "color-dodge",
+    "opacity": 0.35,
+    "rgba": [
+      0.3400000035762787,
+      0.6449999809265137,
+      0.9174999594688416,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "mode": "color-dodge",
+    "opacity": 1,
+    "rgba": [
+      0.6000000238418579,
+      0.7285714745521545,
+      0.949999988079071,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "mode": "color-burn",
+    "opacity": 0,
+    "rgba": [
+      0.20000000298023224,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "mode": "color-burn",
+    "opacity": 0.35,
+    "rgba": [
+      0.16500000655651093,
+      0.4950000047683716,
+      0.7424999475479126,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "mode": "color-burn",
+    "opacity": 1,
+    "rgba": [
+      0.10000000149011612,
+      0.30000001192092896,
+      0.44999998807907104,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "mode": "hard-light",
+    "opacity": 0,
+    "rgba": [
+      0.20000000298023224,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "mode": "hard-light",
+    "opacity": 0.35,
+    "rgba": [
+      0.2840000092983246,
+      0.5720000267028809,
+      0.8859999179840088,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "mode": "hard-light",
+    "opacity": 1,
+    "rgba": [
+      0.4399999976158142,
+      0.5200000405311584,
+      0.85999995470047,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "mode": "soft-light",
+    "opacity": 0,
+    "rgba": [
+      0.20000000298023224,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "mode": "soft-light",
+    "opacity": 0.35,
+    "rgba": [
+      0.22595743834972382,
+      0.5877782702445984,
+      0.8931843042373657,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "mode": "soft-light",
+    "opacity": 1,
+    "rgba": [
+      0.274164080619812,
+      0.5650807023048401,
+      0.8805266618728638,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "mode": "difference",
+    "opacity": 0,
+    "rgba": [
+      0.20000000298023224,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "mode": "difference",
+    "opacity": 0.35,
+    "rgba": [
+      0.27000001072883606,
+      0.5475000143051147,
+      0.8824999332427979,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "mode": "difference",
+    "opacity": 1,
+    "rgba": [
+      0.4000000059604645,
+      0.45000001788139343,
+      0.8499999642372131,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "mode": "exclusion",
+    "opacity": 0,
+    "rgba": [
+      0.20000000298023224,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "mode": "exclusion",
+    "opacity": 0.35,
+    "rgba": [
+      0.2839999794960022,
+      0.5895000100135803,
+      0.8859999179840088,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "mode": "exclusion",
+    "opacity": 1,
+    "rgba": [
+      0.4399999678134918,
+      0.5700000524520874,
+      0.8600000143051147,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "mode": "hue",
+    "opacity": 0,
+    "rgba": [
+      0.20000000298023224,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "mode": "hue",
+    "opacity": 0.35,
+    "rgba": [
+      0.33033299446105957,
+      0.5728330016136169,
+      0.785332977771759,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "mode": "hue",
+    "opacity": 1,
+    "rgba": [
+      0.572380006313324,
+      0.522379994392395,
+      0.572380006313324,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "mode": "saturation",
+    "opacity": 0,
+    "rgba": [
+      0.20000000298023224,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "mode": "saturation",
+    "opacity": 0.35,
+    "rgba": [
+      0.20000000298023224,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "mode": "saturation",
+    "opacity": 1,
+    "rgba": [
+      0.19999998807907104,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "mode": "color",
+    "opacity": 0,
+    "rgba": [
+      0.20000000298023224,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "mode": "color",
+    "opacity": 0.35,
+    "rgba": [
+      0.33033299446105957,
+      0.5728330016136169,
+      0.785332977771759,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "mode": "color",
+    "opacity": 1,
+    "rgba": [
+      0.572380006313324,
+      0.522379994392395,
+      0.572380006313324,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "mode": "luminosity",
+    "opacity": 0,
+    "rgba": [
+      0.20000000298023224,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "mode": "luminosity",
+    "opacity": 0.35,
+    "rgba": [
+      0.17466700077056885,
+      0.5746670365333557,
+      0.8746669888496399,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "mode": "luminosity",
+    "opacity": 1,
+    "rgba": [
+      0.12761999666690826,
+      0.5276200175285339,
+      0.8276199698448181,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "source": "alpha",
+    "mode": "multiply",
+    "invert": false,
+    "rgba": [
+      0.10000000149011612,
+      0.30000001192092896,
+      0.44999998807907104,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "source": "alpha",
+    "mode": "multiply",
+    "invert": true,
+    "rgba": [
+      0.10000000149011612,
+      0.30000001192092896,
+      0.44999998807907104,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "source": "alpha",
+    "mode": "stencil",
+    "invert": false,
+    "rgba": [
+      0.20000000298023224,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "source": "alpha",
+    "mode": "stencil",
+    "invert": true,
+    "rgba": [
+      0.20000000298023224,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "source": "red",
+    "mode": "multiply",
+    "invert": false,
+    "rgba": [
+      0.1600000113248825,
+      0.48000001907348633,
+      0.7199999690055847,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "source": "red",
+    "mode": "multiply",
+    "invert": true,
+    "rgba": [
+      0.03999999910593033,
+      0.11999999731779099,
+      0.17999997735023499,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "source": "red",
+    "mode": "stencil",
+    "invert": false,
+    "rgba": [
+      0.20000000298023224,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "source": "red",
+    "mode": "stencil",
+    "invert": true,
+    "rgba": [
+      0,
+      0,
+      0,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "source": "green",
+    "mode": "multiply",
+    "invert": false,
+    "rgba": [
+      0.06000000238418579,
+      0.18000000715255737,
+      0.27000001072883606,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "source": "green",
+    "mode": "multiply",
+    "invert": true,
+    "rgba": [
+      0.14000000059604645,
+      0.42000001668930054,
+      0.6299999952316284,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "source": "green",
+    "mode": "stencil",
+    "invert": false,
+    "rgba": [
+      0,
+      0,
+      0,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "source": "green",
+    "mode": "stencil",
+    "invert": true,
+    "rgba": [
+      0.20000000298023224,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "source": "blue",
+    "mode": "multiply",
+    "invert": false,
+    "rgba": [
+      0.020000001415610313,
+      0.06000000238418579,
+      0.08999999612569809,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "source": "blue",
+    "mode": "multiply",
+    "invert": true,
+    "rgba": [
+      0.17999999225139618,
+      0.5400000214576721,
+      0.809999942779541,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "source": "blue",
+    "mode": "stencil",
+    "invert": false,
+    "rgba": [
+      0,
+      0,
+      0,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "source": "blue",
+    "mode": "stencil",
+    "invert": true,
+    "rgba": [
+      0.20000000298023224,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "source": "luminance",
+    "mode": "multiply",
+    "invert": false,
+    "rgba": [
+      0.07837200164794922,
+      0.23511601984500885,
+      0.3526740074157715,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "source": "luminance",
+    "mode": "multiply",
+    "invert": true,
+    "rgba": [
+      0.12162800133228302,
+      0.36488401889801025,
+      0.5473259687423706,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "source": "luminance",
+    "mode": "stencil",
+    "invert": false,
+    "rgba": [
+      0,
+      0,
+      0,
+      1
+    ]
+  },
+  {
+    "implementation": "editor",
+    "source": "luminance",
+    "mode": "stencil",
+    "invert": true,
+    "rgba": [
+      0.20000000298023224,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "mode": "normal",
+    "opacity": 0,
+    "rgba": [
+      0.20000000298023224,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "mode": "normal",
+    "opacity": 0.35,
+    "rgba": [
+      0.3050000071525574,
+      0.5475000143051147,
+      0.7599999308586121,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "mode": "normal",
+    "opacity": 1,
+    "rgba": [
+      0.5,
+      0.45000001788139343,
+      0.5,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "mode": "multiply",
+    "opacity": 0,
+    "rgba": [
+      0.20000000298023224,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "mode": "multiply",
+    "opacity": 0.35,
+    "rgba": [
+      0.19300000369548798,
+      0.5264999866485596,
+      0.7582499384880066,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "mode": "multiply",
+    "opacity": 1,
+    "rgba": [
+      0.18000000715255737,
+      0.39000001549720764,
+      0.4949999749660492,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "mode": "screen",
+    "opacity": 0,
+    "rgba": [
+      0.20000000298023224,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "mode": "screen",
+    "opacity": 0.35,
+    "rgba": [
+      0.31200000643730164,
+      0.6209999918937683,
+      0.9017499685287476,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "mode": "screen",
+    "opacity": 1,
+    "rgba": [
+      0.5200000405311584,
+      0.6600000262260437,
+      0.9049999713897705,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "mode": "overlay",
+    "opacity": 0,
+    "rgba": [
+      0.20000000298023224,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "mode": "overlay",
+    "opacity": 0.35,
+    "rgba": [
+      0.2840000092983246,
+      0.5720000267028809,
+      0.8859999179840088,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "mode": "overlay",
+    "opacity": 1,
+    "rgba": [
+      0.4399999976158142,
+      0.5200000405311584,
+      0.85999995470047,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "mode": "darken",
+    "opacity": 0,
+    "rgba": [
+      0.20000000298023224,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "mode": "darken",
+    "opacity": 0.35,
+    "rgba": [
+      0.20000000298023224,
+      0.5475000143051147,
+      0.7599999308586121,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "mode": "darken",
+    "opacity": 1,
+    "rgba": [
+      0.20000000298023224,
+      0.45000001788139343,
+      0.5,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "mode": "lighten",
+    "opacity": 0,
+    "rgba": [
+      0.20000000298023224,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "mode": "lighten",
+    "opacity": 0.35,
+    "rgba": [
+      0.3050000071525574,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "mode": "lighten",
+    "opacity": 1,
+    "rgba": [
+      0.5,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "mode": "color-dodge",
+    "opacity": 0,
+    "rgba": [
+      0.20000000298023224,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "mode": "color-dodge",
+    "opacity": 0.35,
+    "rgba": [
+      0.3400000035762787,
+      0.6449999809265137,
+      0.9174999594688416,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "mode": "color-dodge",
+    "opacity": 1,
+    "rgba": [
+      0.6000000238418579,
+      0.7285714745521545,
+      0.949999988079071,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "mode": "color-burn",
+    "opacity": 0,
+    "rgba": [
+      0.20000000298023224,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "mode": "color-burn",
+    "opacity": 0.35,
+    "rgba": [
+      0.16500000655651093,
+      0.4950000047683716,
+      0.7424999475479126,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "mode": "color-burn",
+    "opacity": 1,
+    "rgba": [
+      0.10000000149011612,
+      0.30000001192092896,
+      0.44999998807907104,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "mode": "hard-light",
+    "opacity": 0,
+    "rgba": [
+      0.20000000298023224,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "mode": "hard-light",
+    "opacity": 0.35,
+    "rgba": [
+      0.2840000092983246,
+      0.5720000267028809,
+      0.8859999179840088,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "mode": "hard-light",
+    "opacity": 1,
+    "rgba": [
+      0.4399999976158142,
+      0.5200000405311584,
+      0.85999995470047,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "mode": "soft-light",
+    "opacity": 0,
+    "rgba": [
+      0.20000000298023224,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "mode": "soft-light",
+    "opacity": 0.35,
+    "rgba": [
+      0.22595743834972382,
+      0.5877782702445984,
+      0.8931843042373657,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "mode": "soft-light",
+    "opacity": 1,
+    "rgba": [
+      0.274164080619812,
+      0.5650807023048401,
+      0.8805266618728638,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "mode": "difference",
+    "opacity": 0,
+    "rgba": [
+      0.20000000298023224,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "mode": "difference",
+    "opacity": 0.35,
+    "rgba": [
+      0.27000001072883606,
+      0.5475000143051147,
+      0.8824999332427979,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "mode": "difference",
+    "opacity": 1,
+    "rgba": [
+      0.4000000059604645,
+      0.45000001788139343,
+      0.8499999642372131,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "mode": "exclusion",
+    "opacity": 0,
+    "rgba": [
+      0.20000000298023224,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "mode": "exclusion",
+    "opacity": 0.35,
+    "rgba": [
+      0.2839999794960022,
+      0.5895000100135803,
+      0.8859999179840088,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "mode": "exclusion",
+    "opacity": 1,
+    "rgba": [
+      0.4399999678134918,
+      0.5700000524520874,
+      0.8600000143051147,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "mode": "hue",
+    "opacity": 0,
+    "rgba": [
+      0.20000000298023224,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "mode": "hue",
+    "opacity": 0.35,
+    "rgba": [
+      0.33033299446105957,
+      0.5728330016136169,
+      0.785332977771759,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "mode": "hue",
+    "opacity": 1,
+    "rgba": [
+      0.572380006313324,
+      0.522379994392395,
+      0.572380006313324,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "mode": "saturation",
+    "opacity": 0,
+    "rgba": [
+      0.20000000298023224,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "mode": "saturation",
+    "opacity": 0.35,
+    "rgba": [
+      0.20000000298023224,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "mode": "saturation",
+    "opacity": 1,
+    "rgba": [
+      0.19999998807907104,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "mode": "color",
+    "opacity": 0,
+    "rgba": [
+      0.20000000298023224,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "mode": "color",
+    "opacity": 0.35,
+    "rgba": [
+      0.33033299446105957,
+      0.5728330016136169,
+      0.785332977771759,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "mode": "color",
+    "opacity": 1,
+    "rgba": [
+      0.572380006313324,
+      0.522379994392395,
+      0.572380006313324,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "mode": "luminosity",
+    "opacity": 0,
+    "rgba": [
+      0.20000000298023224,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "mode": "luminosity",
+    "opacity": 0.35,
+    "rgba": [
+      0.17466700077056885,
+      0.5746670365333557,
+      0.8746669888496399,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "mode": "luminosity",
+    "opacity": 1,
+    "rgba": [
+      0.12761999666690826,
+      0.5276200175285339,
+      0.8276199698448181,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "source": "alpha",
+    "mode": "multiply",
+    "invert": false,
+    "rgba": [
+      0.10000000149011612,
+      0.30000001192092896,
+      0.44999998807907104,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "source": "alpha",
+    "mode": "multiply",
+    "invert": true,
+    "rgba": [
+      0.10000000149011612,
+      0.30000001192092896,
+      0.44999998807907104,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "source": "alpha",
+    "mode": "stencil",
+    "invert": false,
+    "rgba": [
+      0.20000000298023224,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "source": "alpha",
+    "mode": "stencil",
+    "invert": true,
+    "rgba": [
+      0.20000000298023224,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "source": "red",
+    "mode": "multiply",
+    "invert": false,
+    "rgba": [
+      0.1600000113248825,
+      0.48000001907348633,
+      0.7199999690055847,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "source": "red",
+    "mode": "multiply",
+    "invert": true,
+    "rgba": [
+      0.03999999910593033,
+      0.11999999731779099,
+      0.17999997735023499,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "source": "red",
+    "mode": "stencil",
+    "invert": false,
+    "rgba": [
+      0.20000000298023224,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "source": "red",
+    "mode": "stencil",
+    "invert": true,
+    "rgba": [
+      0,
+      0,
+      0,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "source": "green",
+    "mode": "multiply",
+    "invert": false,
+    "rgba": [
+      0.06000000238418579,
+      0.18000000715255737,
+      0.27000001072883606,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "source": "green",
+    "mode": "multiply",
+    "invert": true,
+    "rgba": [
+      0.14000000059604645,
+      0.42000001668930054,
+      0.6299999952316284,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "source": "green",
+    "mode": "stencil",
+    "invert": false,
+    "rgba": [
+      0,
+      0,
+      0,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "source": "green",
+    "mode": "stencil",
+    "invert": true,
+    "rgba": [
+      0.20000000298023224,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "source": "blue",
+    "mode": "multiply",
+    "invert": false,
+    "rgba": [
+      0.020000001415610313,
+      0.06000000238418579,
+      0.08999999612569809,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "source": "blue",
+    "mode": "multiply",
+    "invert": true,
+    "rgba": [
+      0.17999999225139618,
+      0.5400000214576721,
+      0.809999942779541,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "source": "blue",
+    "mode": "stencil",
+    "invert": false,
+    "rgba": [
+      0,
+      0,
+      0,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "source": "blue",
+    "mode": "stencil",
+    "invert": true,
+    "rgba": [
+      0.20000000298023224,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "source": "luminance",
+    "mode": "multiply",
+    "invert": false,
+    "rgba": [
+      0.07837200164794922,
+      0.23511601984500885,
+      0.3526740074157715,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "source": "luminance",
+    "mode": "multiply",
+    "invert": true,
+    "rgba": [
+      0.12162800133228302,
+      0.36488401889801025,
+      0.5473259687423706,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "source": "luminance",
+    "mode": "stencil",
+    "invert": false,
+    "rgba": [
+      0,
+      0,
+      0,
+      1
+    ]
+  },
+  {
+    "implementation": "runtime",
+    "source": "luminance",
+    "mode": "stencil",
+    "invert": true,
+    "rgba": [
+      0.20000000298023224,
+      0.6000000238418579,
+      0.8999999761581421,
+      1
+    ]
+  }
+]

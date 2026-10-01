@@ -1,5 +1,6 @@
 "use client"
 
+import { getDocumentSize } from "@/lib/editor/composition"
 import {
   CopyIcon,
   Cross2Icon,
@@ -61,12 +62,14 @@ import {
   buildShaderExportConfig,
   validateShaderExportSupport,
 } from "@/lib/editor/shader-export"
+import { disarmRemixDraft } from "@/lib/editor/remix-draft"
 import { generateShaderExportSnippet } from "@/lib/editor/shader-export-snippet"
 import {
   type AudioAnalysisStatus,
   selectAudioModulationInput,
 } from "@/store/audio-store"
 import { useDraftStore } from "@/store/draft-store"
+import { useRemixOriginStore } from "@/store/remix-origin-store"
 import {
   useAssetStore,
   useAudioStore,
@@ -217,7 +220,10 @@ export function EditorExportDialog({
   const outputSize = useEditorStore((state) => state.outputSize)
   const sceneConfig = useEditorStore((state) => state.sceneConfig)
   const liveCanvas = useEditorStore((state) => state.liveCanvas)
-  const compositionSize = outputSize
+  const compositionSize = useMemo(
+    () => getDocumentSize(sceneConfig, outputSize) ?? outputSize,
+    [sceneConfig, outputSize]
+  )
   const suggestedAspectPreset = useMemo(
     () => getSuggestedExportAspectPreset(sceneConfig),
     [sceneConfig]
@@ -855,7 +861,9 @@ export function EditorExportDialog({
       }
 
       const result = withAutosaveSuppressed(() => {
+        disarmRemixDraft()
         useDraftStore.getState().clearActiveDraft()
+        useRemixOriginStore.getState().clearRemixOrigin()
 
         return applyLabProjectFile(projectFile, useAssetStore.getState().assets)
       })
@@ -1898,7 +1906,9 @@ function buildRenderProjectState() {
   return {
     assets,
     audio: selectAudioModulationInput(useAudioStore.getState()),
-    compositionSize: editorState.outputSize,
+    compositionSize:
+      getDocumentSize(editorState.sceneConfig, editorState.outputSize) ??
+      editorState.outputSize,
     layers,
     sceneConfig: editorState.sceneConfig,
     timeline: {

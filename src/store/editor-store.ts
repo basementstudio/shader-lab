@@ -1,8 +1,6 @@
+import { getBlankSceneConfig } from "@/lib/editor/blank-project"
+import { resolveCompositionUpdate } from "@/lib/editor/composition"
 import { create } from "zustand"
-import {
-  getDefaultProjectComposition,
-  getDefaultProjectSceneConfig,
-} from "@/lib/editor/default-project"
 import { DEFAULT_CANVAS_SIZE } from "@/lib/editor/layers"
 import type { EditorRenderer } from "@/renderer/contracts"
 import type {
@@ -12,10 +10,8 @@ import type {
   SceneConfig,
   SidebarView,
   WebGPUStatus,
+  CompositionAspect,
 } from "@/types/editor"
-
-const DEFAULT_PROJECT_COMPOSITION = getDefaultProjectComposition()
-const DEFAULT_PROJECT_SCENE_CONFIG = getDefaultProjectSceneConfig()
 
 export interface EditorStoreState extends EditorStateSnapshot {
   activeFloatingPanelDrag:
@@ -88,6 +84,11 @@ export interface EditorStoreActions {
   toggleTimelinePanel: () => void
   toggleSidebar: (side: "left" | "right") => void
   updateSceneConfig: (updates: Partial<SceneConfig>) => void
+  setComposition: (updates: {
+    aspect?: CompositionAspect
+    width?: number
+    height?: number
+  }) => void
 }
 
 export type EditorStore = EditorStoreState & EditorStoreActions
@@ -121,10 +122,10 @@ export const useEditorStore = create<EditorStore>((set) => ({
   liveRenderer: null,
   liveCanvas: null,
   mobilePanel: "none",
-  outputSize: DEFAULT_PROJECT_COMPOSITION,
+  outputSize: { ...DEFAULT_CANVAS_SIZE },
   panOffset: { x: 0, y: 0 },
   renderScale: 1,
-  sceneConfig: DEFAULT_PROJECT_SCENE_CONFIG,
+  sceneConfig: getBlankSceneConfig(),
   sidebars: {
     left: true,
     right: true,
@@ -410,6 +411,12 @@ export const useEditorStore = create<EditorStore>((set) => ({
     set((state) => ({
       sceneConfig: { ...state.sceneConfig, ...updates },
     }))
+  },
+
+  setComposition: (updates) => {
+    set((state) =>
+      resolveCompositionUpdate(state.sceneConfig, state.outputSize, updates)
+    )
   },
 
   setLiveRenderer: (liveRenderer) => {

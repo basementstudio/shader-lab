@@ -37,6 +37,7 @@ export function GlassPanel({
   return (
     <div
       className={cn(glassPanelVariants({ variant, interactive }), className)}
+      data-ds={variant === "pill" ? "glass-pill" : "glass-panel"}
       {...props}
     >
       {children}

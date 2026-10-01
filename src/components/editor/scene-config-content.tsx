@@ -1,6 +1,11 @@
 "use client"
 
 import { useCallback } from "react"
+import {
+  hasSceneAdjustments,
+  neutralSceneAdjustments,
+} from "@/lib/editor/scene-adjustments"
+import { Button } from "@/components/ui/button"
 import { ChannelMixerMatrix } from "@/components/ui/channel-mixer-matrix"
 import { ColorPicker } from "@/components/ui/color-picker"
 import { ColorCurvesEditor } from "@/components/ui/color-curves"
@@ -17,10 +22,11 @@ import type {
   RenderScale,
   SceneConfig,
 } from "@/types/editor"
+import { getDocumentSize } from "@/lib/editor/composition"
 import { COMPOSITION_ASPECTS, DEFAULT_SCENE_CONFIG } from "@/types/editor"
 
 const ASPECT_LABELS: Partial<Record<string, string>> = {
-  screen: "Screen",
+  screen: "Screen (adaptive)",
   custom: "Custom",
 }
 
@@ -83,6 +89,9 @@ export function SceneConfigContent() {
   const updateSceneConfig = useEditorStore((state) => state.updateSceneConfig)
   const renderScale = useEditorStore((state) => state.renderScale)
   const setRenderScale = useEditorStore((state) => state.setRenderScale)
+  const setComposition = useEditorStore((state) => state.setComposition)
+  const outputSize = useEditorStore((state) => state.outputSize)
+  const documentSize = getDocumentSize(sceneConfig, outputSize)
 
   const handleUpdate = useCallback(
     <K extends keyof SceneConfig>(key: K, value: SceneConfig[K]) => {
@@ -99,51 +108,84 @@ export function SceneConfigContent() {
   )
 
   return (
-    <div className="flex min-h-0 max-h-[min(62vh,620px)] flex-col gap-0 overflow-x-hidden overflow-y-auto">
+    <div
+      className="flex min-h-0 max-h-[min(62vh,620px)] flex-col gap-0 overflow-x-hidden overflow-y-auto"
+      data-ds="panel-scroll"
+    >
+      <section
+        className="flex flex-col gap-2 px-4 py-3"
+        aria-label="Global color adjustments"
+      >
+        <Typography tone="secondary" variant="label">
+          {hasSceneAdjustments(sceneConfig)
+            ? "Global colors active"
+            : "Global colors neutral"}
+        </Typography>
+        <Typography tone="muted" variant="caption">
+          These adjustments affect the entire composition.
+        </Typography>
+        <Button
+          disabled={!hasSceneAdjustments(sceneConfig)}
+          onClick={() => updateSceneConfig(neutralSceneAdjustments())}
+          size="compact"
+          variant="secondary"
+        >
+          Reset all global colors
+        </Button>
+      </section>
       {/* Composition */}
       <Section title="Composition">
         <Row label="Aspect">
           <Select
             onValueChange={(value) =>
-              handleUpdate("compositionAspect", value as CompositionAspect)
+              setComposition({ aspect: value as CompositionAspect })
             }
             options={aspectOptions}
             value={sceneConfig.compositionAspect}
           />
         </Row>
-        {sceneConfig.compositionAspect === "custom" && (
-          <div className="flex items-center justify-end gap-1.5">
-            <NumberInput
-              className={inputClassName}
-              min={1}
-              onChange={(value) =>
-                handleUpdate("compositionWidth", Math.round(value))
-              }
-              parseValue={(value) => {
-                const nextValue = Number.parseInt(value, 10)
-                return Number.isFinite(nextValue) ? nextValue : null
-              }}
-              step={1}
-              value={sceneConfig.compositionWidth}
-            />
-            <Typography tone="muted" variant="monoXs">
-              :
-            </Typography>
-            <NumberInput
-              className={inputClassName}
-              min={1}
-              onChange={(value) =>
-                handleUpdate("compositionHeight", Math.round(value))
-              }
-              parseValue={(value) => {
-                const nextValue = Number.parseInt(value, 10)
-                return Number.isFinite(nextValue) ? nextValue : null
-              }}
-              step={1}
-              value={sceneConfig.compositionHeight}
-            />
-          </div>
+        {documentSize && (
+          <Row label="Size">
+            <div className="flex items-center gap-1.5">
+              <NumberInput
+                aria-label="Artboard width"
+                className={inputClassName}
+                min={1}
+                onChange={(value) =>
+                  setComposition({ width: Math.round(value) })
+                }
+                parseValue={(value) => {
+                  const nextValue = Number.parseInt(value, 10)
+                  return Number.isFinite(nextValue) ? nextValue : null
+                }}
+                step={1}
+                value={documentSize.width}
+              />
+              <Typography tone="muted" variant="monoXs">
+                ×
+              </Typography>
+              <NumberInput
+                aria-label="Artboard height"
+                className={inputClassName}
+                min={1}
+                onChange={(value) =>
+                  setComposition({ height: Math.round(value) })
+                }
+                parseValue={(value) => {
+                  const nextValue = Number.parseInt(value, 10)
+                  return Number.isFinite(nextValue) ? nextValue : null
+                }}
+                step={1}
+                value={documentSize.height}
+              />
+            </div>
+          </Row>
         )}
+        <Typography tone="muted" variant="caption">
+          {documentSize
+            ? "Fixed artboard: framing, masks and text stay put when the window changes. Exports use this size."
+            : "Follows the window. Older scenes keep this adaptive behavior."}
+        </Typography>
         <Row label="Preview">
           <Select
             onValueChange={(value) =>

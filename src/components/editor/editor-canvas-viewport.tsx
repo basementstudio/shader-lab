@@ -10,10 +10,31 @@ import {
   useState,
   useSyncExternalStore,
 } from "react"
+import { CellPaintOverlay } from "./cell-paint-overlay"
+import { AnnotationHandlesOverlay } from "./annotation-handles-overlay"
+import { MaskHandlesOverlay } from "./mask-handles-overlay"
+import { ModelGizmoOverlay } from "./model-gizmo-overlay"
+import { ShapeHandlesOverlay } from "./shape-handles-overlay"
+import { TextEditOverlay } from "./text-edit-overlay"
+import { TextHandlesOverlay } from "./text-handles-overlay"
 import { MadeByBasement } from "@/components/editor/made-by-basement"
 import { useMobileCanvasFit } from "@/components/editor/use-mobile-canvas-fit"
 import { useEditorRenderer } from "@/hooks/use-editor-renderer"
-import { getCompositionFrame } from "@/lib/editor/composition"
+import { PlusIcon, StackIcon } from "@radix-ui/react-icons"
+import { requestLayerPicker } from "@/components/editor/layer-picker"
+import { Button } from "@/components/ui/button"
+import { Typography } from "@/components/ui/typography"
+import { cn } from "@/lib/cn"
+import {
+  isAutosaveReady,
+  subscribeAutosaveReady,
+} from "@/lib/editor/autosave/suppress"
+import {
+  BLANK_BACKGROUNDS,
+  LEGACY_BLANK_BACKGROUNDS,
+} from "@/lib/editor/blank-project"
+import { isLightColor } from "@/lib/editor/color-luminance"
+import { getDocumentSize } from "@/lib/editor/composition"
 import { isEditableTarget } from "@/lib/editor/is-editable-target"
 import { inferFileAssetKind } from "@/lib/editor/media-file"
 import {
@@ -30,6 +51,8 @@ import { useAssetStore } from "@/store/asset-store"
 import { useEditorStore } from "@/store/editor-store"
 import { useLayerStore } from "@/store/layer-store"
 import { useTimelineStore } from "@/store/timeline-store"
+import { findTextLayerToEdit, useTextEditStore } from "@/store/text-edit-store"
+import { useThemeStore } from "@/store/theme-store"
 
 export function EditorCanvasViewport() {
   const { canvasRef, fallbackMessage, isReady, viewportRef } =
@@ -51,29 +74,39 @@ export function EditorCanvasViewport() {
   const sceneConfig = useEditorStore((state) => state.sceneConfig)
   const canvasSize = useEditorStore((state) => state.canvasSize)
 
-  const compositionOverlay = useMemo(() => {
-    if (canvasSize.width === 0 || canvasSize.height === 0) return null
-
-    const frame = getCompositionFrame(sceneConfig, canvasSize)
-
-    if (
-      frame.x === 0 &&
-      frame.y === 0 &&
-      frame.width === canvasSize.width &&
-      frame.height === canvasSize.height
-    ) {
-      return null
-    }
-
-    return {
-      heightPercent: (frame.height / canvasSize.height) * 100,
-      widthPercent: (frame.width / canvasSize.width) * 100,
-    }
-  }, [canvasSize, sceneConfig])
+  const outputSize = useEditorStore((state) => state.outputSize)
+  const fixedArtboard = useMemo(
+    () => getDocumentSize(sceneConfig, outputSize) !== null,
+    [sceneConfig, outputSize]
+  )
 
   const [isDragOver, setIsDragOver] = useState(false)
   const [isSpacePressed, setIsSpacePressed] = useState(false)
   const [isPointerPanning, setIsPointerPanning] = useState(false)
+  const isEmpty = useLayerStore((state) => state.layers.length === 0)
+  const theme = useThemeStore((state) => state.theme)
+  const autosaveReady = useSyncExternalStore(
+    subscribeAutosaveReady,
+    isAutosaveReady,
+    () => false
+  )
+
+  useEffect(() => {
+    if (!(isEmpty && autosaveReady)) {
+      return
+    }
+    const other = theme === "light" ? "dark" : "light"
+    const { sceneConfig: current, updateSceneConfig } =
+      useEditorStore.getState()
+    const background = current.backgroundColor.toLowerCase()
+    const isOtherDefault =
+      background === BLANK_BACKGROUNDS[other] ||
+      (theme === "light" &&
+        (LEGACY_BLANK_BACKGROUNDS as readonly string[]).includes(background))
+    if (isOtherDefault) {
+      updateSceneConfig({ backgroundColor: BLANK_BACKGROUNDS[theme] })
+    }
+  }, [autosaveReady, isEmpty, theme])
   const addLayer = useLayerStore((state) => state.addLayer)
   const setLayerAsset = useLayerStore((state) => state.setLayerAsset)
   const seedDurationFromMedia = useTimelineStore(
@@ -116,7 +149,7 @@ export function EditorCanvasViewport() {
 
       for (const file of files) {
         const kind = inferFileAssetKind(file)
-        if (kind === "image" || kind === "video") {
+        if (kind === "image" || kind === "video" || kind === "model") {
           try {
             const asset = await loadAsset(file)
             const layerId = addLayer(kind)
@@ -134,6 +167,14 @@ export function EditorCanvasViewport() {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === " " && !isEditableTarget(event.target)) {
+        if (
+          !(
+            event.target instanceof Element &&
+            event.target.closest("button, a[href], summary, [role='button']")
+          )
+        ) {
+          event.preventDefault()
+        }
         setIsSpacePressed(true)
       }
     }
@@ -320,6 +361,18 @@ export function EditorCanvasViewport() {
         style={{
           cursor: viewportCursor,
         }}
+        onDoubleClick={(event) => {
+          if (isSpacePressed || !isReady) return
+          const state = useLayerStore.getState()
+          const id = findTextLayerToEdit(state.layers, state.selectedLayerId)
+          if (!id) return
+          event.preventDefault()
+          if (state.selectedLayerId !== id) state.selectLayer(id)
+          const layer = state.layers.find((l) => l.id === id)
+          useTextEditStore
+            .getState()
+            .edit(id, typeof layer?.params.text === "string" ? layer.params.text : "")
+        }}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
@@ -341,22 +394,52 @@ export function EditorCanvasViewport() {
               transformOrigin: "center center",
             }}
           >
-            <canvas
-              data-editor-canvas="true"
-              ref={canvasRef}
-              className="absolute inset-0 h-full w-full [image-rendering:pixelated]"
-            />
-            {compositionOverlay && (
-              <div
-                aria-hidden="true"
-                className="pointer-events-none absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 border border-white/20"
-                style={{
-                  width: `${compositionOverlay.widthPercent}%`,
-                  height: `${compositionOverlay.heightPercent}%`,
-                  boxShadow: "0 0 0 9999px rgba(0, 0, 0, 0.55)",
-                }}
+            <div
+              data-artboard={fixedArtboard ? "fixed" : "screen"}
+              className={
+                fixedArtboard
+                  ? "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+                  : "absolute inset-0"
+              }
+              style={
+                fixedArtboard
+                  ? { width: canvasSize.width, height: canvasSize.height }
+                  : undefined
+              }
+            >
+              <canvas
+                data-editor-canvas="true"
+                ref={canvasRef}
+                className="absolute inset-0 h-full w-full [image-rendering:pixelated]"
               />
-            )}
+              <CellPaintOverlay
+                panning={isSpacePressed}
+                disabled={exportingPreview || !isReady || !!pendingSceneSlug}
+              />
+              <ModelGizmoOverlay
+                panning={isSpacePressed}
+                disabled={exportingPreview || !isReady || !!pendingSceneSlug}
+              />
+              <MaskHandlesOverlay
+                panning={isSpacePressed}
+                disabled={exportingPreview || !isReady || !!pendingSceneSlug}
+              />
+              <ShapeHandlesOverlay
+                panning={isSpacePressed}
+                disabled={exportingPreview || !isReady || !!pendingSceneSlug}
+              />
+              <TextHandlesOverlay
+                panning={isSpacePressed}
+                disabled={exportingPreview || !isReady || !!pendingSceneSlug}
+              />
+              <AnnotationHandlesOverlay
+                panning={isSpacePressed}
+                disabled={exportingPreview || !isReady || !!pendingSceneSlug}
+              />
+              <TextEditOverlay
+                disabled={exportingPreview || !isReady || !!pendingSceneSlug}
+              />
+            </div>
             {immersiveCanvas ? (
               <>
                 <div
@@ -374,8 +457,57 @@ export function EditorCanvasViewport() {
           </div>
         </div>
 
+        {isEmpty &&
+        isReady &&
+        !pendingSceneSlug &&
+        !immersiveCanvas &&
+        !exportingPreview ? (
+          <div
+            className={cn(
+              "pointer-events-none absolute inset-0 flex items-center justify-center p-6",
+              isLightColor(sceneConfig.backgroundColor)
+                ? "ds-on-paper"
+                : "ds-on-media"
+            )}
+          >
+            <div className="pointer-events-auto flex max-w-72 flex-col items-center gap-[var(--ds-space-4)] text-center">
+              <span className="inline-flex size-12 items-center justify-center rounded-toolbar bg-[var(--ds-color-surface-control)] text-[var(--ds-color-text-secondary)] shadow-[var(--ds-shadow-recessed)]">
+                <StackIcon height={20} width={20} />
+              </span>
+              <span className="flex flex-col gap-[var(--ds-space-1)]">
+                <Typography
+                  align="center"
+                  as="span"
+                  className="font-medium"
+                  variant="title"
+                >
+                  Start with a layer
+                </Typography>
+                <Typography
+                  align="center"
+                  as="span"
+                  className="text-balance"
+                  tone="secondary"
+                  variant="body"
+                >
+                  Add an effect or a source, or drop an image or video anywhere
+                  on the canvas.
+                </Typography>
+              </span>
+              <Button
+                onClick={requestLayerPicker}
+                size="compact"
+                variant="primary"
+              >
+                <PlusIcon height={14} width={14} />
+                Add layer
+              </Button>
+            </div>
+          </div>
+        ) : null}
+
         {isDragOver ? (
-          <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center border-2 border-dashed border-white/30 bg-black/30 backdrop-blur-[2px]">
+          <div className="ds-on-media pointer-events-none absolute inset-0 z-40 flex items-center justify-center border-2 border-dashed border-white/30 bg-black/30 backdrop-blur-[2px]">
             <span className="font-[var(--ds-font-sans)] text-xs text-white/70">
               Drop to add layer
             </span>
@@ -407,7 +539,7 @@ export function EditorCanvasViewport() {
 
       {/* Guarded: otherwise this sweeps forever on a dead renderer. */}
       {fallbackMessage || (isReady && !pendingSceneSlug) ? null : (
-        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-[var(--ds-color-surface-canvas,#050507)] p-6">
+        <div className="ds-on-media pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-[var(--ds-color-surface-canvas,#050507)] p-6">
           <div
             aria-hidden="true"
             className="relative h-[3px] w-[min(220px,32vw)] overflow-hidden rounded-full bg-white/12"

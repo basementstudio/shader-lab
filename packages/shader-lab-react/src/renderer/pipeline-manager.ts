@@ -1,3 +1,11 @@
+import type { RenderableLayerConfig } from "./contracts"
+import {
+  type CompositionNode,
+  flattenComposition,
+  isCompositionGroup,
+} from "./composition-tree"
+import { GroupPass } from "./group-pass"
+import { layerMaskSignature, normalizeLayerMask } from "./layer-mask"
 import { float, type TSLNode, texture as tslTexture, uv, vec2 } from "three/tsl"
 import * as THREE from "three/webgpu"
 import type { ShaderLabCompositeMode, ShaderLabLayerConfig } from "../types"
@@ -16,6 +24,7 @@ import { EdgeDetectPass } from "./edge-detect-pass"
 import { FlutedGlassPass } from "./fluted-glass-pass"
 import { FluidPass } from "./fluid-pass"
 import { GradientPass } from "./gradient-pass"
+import { ShapePass } from "./shape-pass"
 import { HalftonePass } from "./halftone-pass"
 import { InkPass } from "./ink-pass"
 import { LivePass } from "./live-pass"
@@ -29,10 +38,26 @@ import { PixelTrailPass } from "./pixel-trail-pass"
 import { PixelationPass } from "./pixelation-pass"
 import { PlotterPass } from "./plotter-pass"
 import { PosterizePass } from "./posterize-pass"
+import { PhotographicCellsPass } from "./photographic-cells-pass"
+import { DisplacedRingsPass } from "./displaced-rings-pass"
 import { SlicePass } from "./slice-pass"
 import { SmearPass } from "./smear-pass"
 import { TextPass } from "./text-pass"
 import { ThresholdPass } from "./threshold-pass"
+import { GradientMapPass } from "./gradient-map-pass"
+import { LumenPrintPass } from "./lumen-print-pass"
+import { GrainPass } from "./grain-pass"
+import { SignalRotPass } from "./signal-rot-pass"
+import { DotGridPass } from "./dot-grid-pass"
+import { ErosionPass } from "./erosion-pass"
+import { ReliefPass } from "./relief-pass"
+import { FlaresPass } from "./flares-pass"
+import { FocusBlurPass } from "./focus-blur-pass"
+import { GlassPass } from "./glass-pass"
+import { ConnectedDotsPass } from "./connected-dots-pass"
+import { PhotocopyPass } from "./photocopy-pass"
+import { OutlinePass } from "./outline-pass"
+import { AnnotationsPass } from "./annotations-pass"
 import { VoxelPass } from "./voxel-pass"
 
 type LayerPassNode =
@@ -50,6 +75,7 @@ type LayerPassNode =
   | FlutedGlassPass
   | FluidPass
   | GradientPass
+  | ShapePass
   | HalftonePass
   | InkPass
   | LivePass
@@ -66,6 +92,20 @@ type LayerPassNode =
   | SlicePass
   | SmearPass
   | ThresholdPass
+  | GradientMapPass
+  | LumenPrintPass
+  | GrainPass
+  | SignalRotPass
+  | DotGridPass
+  | ErosionPass
+  | ReliefPass
+  | FlaresPass
+  | FocusBlurPass
+  | GlassPass
+  | ConnectedDotsPass
+  | PhotocopyPass
+  | OutlinePass
+  | AnnotationsPass
   | TextPass
   | VoxelPass
 
@@ -108,6 +148,7 @@ function createLayerSignature(layer: ShaderLabLayerConfig): string {
       layer.maskConfig?.source ?? "luminance",
       layer.maskConfig?.mode ?? "multiply",
       layer.maskConfig?.invert ? "1" : "0",
+    layerMaskSignature(normalizeLayerMask(layer.mask)),
       typeof layer.params.sourceRevision === "number"
         ? String(layer.params.sourceRevision)
         : "0",
@@ -130,6 +171,8 @@ function createLayerSignature(layer: ShaderLabLayerConfig): string {
     layer.type,
     layer.asset?.kind ?? "no-asset",
     layer.asset?.src ?? "no-src",
+    layer.depthAsset?.src ?? "no-depth",
+    (layer.patternAssets ?? []).map((motif) => motif.src).join("|"),
     layer.visible ? "1" : "0",
     layer.opacity.toFixed(4),
     layer.hue.toFixed(4),
@@ -139,6 +182,7 @@ function createLayerSignature(layer: ShaderLabLayerConfig): string {
     layer.maskConfig?.source ?? "luminance",
     layer.maskConfig?.mode ?? "multiply",
     layer.maskConfig?.invert ? "1" : "0",
+    layerMaskSignature(normalizeLayerMask(layer.mask)),
     parameterValuesSignature(layer.params),
   ].join("|")
 }
@@ -204,6 +248,7 @@ export class PipelineManager {
     const blitUv = vec2(uv().x, float(1).sub(uv().y))
     this.blitInputNode = tslTexture(createPipelinePlaceholder(), blitUv)
     this.blitMaterial = new THREE.MeshBasicNodeMaterial()
+    this.blitMaterial.blending = THREE.NoBlending
     this.blitMaterial.colorNode = this.blitInputNode
     const blitMesh = new THREE.Mesh(
       new THREE.PlaneGeometry(2, 2),
@@ -213,8 +258,11 @@ export class PipelineManager {
     this.blitScene.add(blitMesh)
   }
 
-  syncLayers(layers: ShaderLabLayerConfig[]): void {
-    const incomingIds = new Set(layers.map((layer) => layer.id))
+  syncLayers(layers: CompositionNode<RenderableLayerConfig>[]): void {
+    const getId = (node: CompositionNode<RenderableLayerConfig>) =>
+      isCompositionGroup(node) ? node.id : node.id
+    const flattened = flattenComposition(layers, (node) => node.id)
+    const incomingIds = new Set(flattened.map(getId))
 
     for (const [layerId, pass] of this.passMap) {
       if (incomingIds.has(layerId)) {
@@ -229,33 +277,76 @@ export class PipelineManager {
       this.dirty = true
     }
 
-    const orderedPasses: LayerPassNode[] = []
+    for (const node of flattened) {
+      const layerId = getId(node)
+      const group = isCompositionGroup(node)
+      const signature = group
+        ? JSON.stringify([
+            node.visible,
+            node.opacity,
+            node.blendMode,
+            layerMaskSignature(normalizeLayerMask(node.mask)),
+          ])
+        : createLayerSignature(node)
+      let pass = this.passMap.get(layerId)
 
-    for (const layer of layers) {
-      const signature = createLayerSignature(layer)
-      let pass = this.passMap.get(layer.id)
+      if (pass && pass instanceof GroupPass !== group) {
+        pass.dispose()
+        this.passMap.delete(layerId)
+        this.layerSignatures.delete(layerId)
+        this.compilingPasses.delete(layerId)
+        this.compiledVersions.delete(layerId)
+        pass = undefined
+      }
 
+      const created = !pass
       if (!pass) {
-        pass = this.createPass(layer)
+        pass = group
+          ? new GroupPass(
+              layerId,
+              (child) => this.isActive(child),
+              (...args) => this.renderPass(...args)
+            )
+          : this.createPass(node)
         pass.resize(this.width, this.height)
         pass.updateLogicalSize(this.logicalWidth, this.logicalHeight)
-        this.passMap.set(layer.id, pass)
+        pass.updateMaskLogicalSize(this.logicalWidth, this.logicalHeight)
+        this.passMap.set(layerId, pass)
         this.dirty = true
       }
 
-      if (this.layerSignatures.get(layer.id) !== signature) {
+      if (this.layerSignatures.get(layerId) !== signature) {
         const versionBefore = pass.getMaterialVersion()
-        this.layerSignatures.set(layer.id, signature)
-        this.applyLayerState(pass, layer)
+        this.layerSignatures.set(layerId, signature)
+        if (group) {
+          pass.enabled = node.visible
+          pass.updateOpacity(clampUnit(node.opacity))
+          pass.updateBlendMode(node.blendMode)
+          pass.updateLayerMask(normalizeLayerMask(node.mask))
+          pass.flushColorNode()
+        } else {
+          this.applyLayerState(pass, node)
+        }
         this.dirty = true
 
-        if (pass.getMaterialVersion() !== versionBefore) {
+        if ((created && group) || pass.getMaterialVersion() !== versionBefore) {
           this.scheduleCompile(pass)
         }
       }
-
-      orderedPasses.push(pass)
     }
+
+    for (const node of flattened) {
+      if (!isCompositionGroup(node)) continue
+      const pass = this.passMap.get(node.id) as GroupPass
+      if (
+        pass.setChildren(
+          node.children.map((child) => this.passMap.get(getId(child))!)
+        )
+      ) {
+        this.dirty = true
+      }
+    }
+    const orderedPasses = layers.map((node) => this.passMap.get(getId(node))!)
 
     if (
       orderedPasses.length !== this.passes.length ||
@@ -267,12 +358,7 @@ export class PipelineManager {
   }
 
   render(time: number, delta: number): boolean {
-    const activePasses = this.passes.filter(
-      (pass) =>
-        pass.enabled &&
-        (!this.compilingPasses.has(pass.layerId) ||
-          this.compiledVersions.has(pass.layerId))
-    )
+    const activePasses = this.passes.filter((pass) => this.isActive(pass))
     const needsContinuousRender = activePasses.some((pass) =>
       pass.needsContinuousRender()
     )
@@ -293,9 +379,15 @@ export class PipelineManager {
 
     let readTarget = this.rtA
     let writeTarget = this.rtB
+    let sceneDepth: THREE.Texture | null = null
+    let inputChanged = this.dirty
 
     for (const pass of activePasses) {
-      pass.render(this.renderer, readTarget.texture, writeTarget, time, delta)
+      pass.setSceneDepth(sceneDepth)
+      pass.setInputChanged(inputChanged)
+      this.renderPass(pass, readTarget.texture, writeTarget, time, delta)
+      if (pass.needsContinuousRender()) inputChanged = true
+      sceneDepth = pass.getOutputSceneDepth()
       const previousRead = readTarget
       readTarget = writeTarget
       writeTarget = previousRead
@@ -313,12 +405,7 @@ export class PipelineManager {
     delta: number,
     inputTexture?: THREE.Texture
   ): THREE.Texture | null {
-    const activePasses = this.passes.filter(
-      (pass) =>
-        pass.enabled &&
-        (!this.compilingPasses.has(pass.layerId) ||
-          this.compiledVersions.has(pass.layerId))
-    )
+    const activePasses = this.passes.filter((pass) => this.isActive(pass))
     const needsContinuousRender = activePasses.some((pass) =>
       pass.needsContinuousRender()
     )
@@ -345,9 +432,15 @@ export class PipelineManager {
 
     let readTarget = this.rtA
     let writeTarget = this.rtB
+    let sceneDepth: THREE.Texture | null = null
+    let inputChanged = this.dirty || inputTexture !== undefined
 
     for (const pass of activePasses) {
-      pass.render(this.renderer, readTarget.texture, writeTarget, time, delta)
+      pass.setSceneDepth(sceneDepth)
+      pass.setInputChanged(inputChanged)
+      this.renderPass(pass, readTarget.texture, writeTarget, time, delta)
+      if (pass.needsContinuousRender()) inputChanged = true
+      sceneDepth = pass.getOutputSceneDepth()
       const previousRead = readTarget
       readTarget = writeTarget
       writeTarget = previousRead
@@ -392,6 +485,7 @@ export class PipelineManager {
 
     for (const pass of this.passMap.values()) {
       pass.updateLogicalSize(this.logicalWidth, this.logicalHeight)
+      pass.updateMaskLogicalSize(this.logicalWidth, this.logicalHeight)
     }
 
     this.dirty = true
@@ -413,6 +507,26 @@ export class PipelineManager {
     this.compiledVersions.clear()
   }
 
+  private isActive(pass: PassNode): boolean {
+    return (
+      pass.enabled &&
+      (!this.compilingPasses.has(pass.layerId) ||
+        this.compiledVersions.has(pass.layerId))
+    )
+  }
+
+  private renderPass(
+    pass: PassNode,
+    input: THREE.Texture,
+    output: THREE.WebGLRenderTarget,
+    time: number,
+    delta: number,
+    _timelineTime = time
+  ): boolean {
+    pass.render(this.renderer, input, output, time, delta)
+    return true
+  }
+
   private scheduleCompile(pass: LayerPassNode): void {
     const version = pass.getMaterialVersion()
     if (this.compiledVersions.get(pass.layerId) === version) {
@@ -427,11 +541,13 @@ export class PipelineManager {
     renderer
       .compileAsync(scene, camera)
       .then(() => {
+        if (this.passMap.get(pass.layerId) !== pass) return
         this.compilingPasses.delete(pass.layerId)
         this.compiledVersions.set(pass.layerId, pass.getMaterialVersion())
         this.dirty = true
       })
       .catch(() => {
+        if (this.passMap.get(pass.layerId) !== pass) return
         this.compilingPasses.delete(pass.layerId)
       })
   }
@@ -441,12 +557,34 @@ export class PipelineManager {
     layer: ShaderLabLayerConfig
   ): void {
     pass.enabled = layer.visible
+    if (
+      layer.type === "displaced-rings" ||
+      layer.type === "photographic-cells" ||
+      layer.type === "erosion" ||
+      layer.type === "flares" ||
+      layer.type === "focus-blur" ||
+      layer.type === "glass" ||
+      layer.type === "connected-dots" ||
+      layer.type === "plotter" ||
+      layer.type === "photocopy" ||
+      layer.type === "outline"
+    ) {
+      pass.updateCompositionRole("transform")
+    } else {
+      pass.updateCompositionRole(
+        layer.kind === "effect" ||
+          (layer.type === "custom-shader" && layer.params.effectMode === true)
+          ? "effect"
+          : "source"
+      )
+    }
     pass.updateOpacity(clampUnit(layer.opacity))
     pass.updateBlendMode(layer.blendMode)
     const compositeMode: ShaderLabCompositeMode =
       layer.compositeMode === "mask" ? "mask" : "filter"
     pass.updateCompositeMode(compositeMode)
     pass.updateMaskConfig(layer.maskConfig ?? DEFAULT_MASK_CONFIG)
+    pass.updateLayerMask(normalizeLayerMask(layer.mask))
     pass.updateLayerColorAdjustments(layer.hue, layer.saturation)
     pass.updateParams(layer.params)
     pass.flushColorNode()
@@ -470,6 +608,56 @@ export class PipelineManager {
       } else {
         pass.clearMedia()
       }
+
+      if (layer.depthAsset?.kind === "image") {
+        void pass
+          .setDepthMedia(layer.depthAsset.src)
+          .then(() => {
+            this.dirty = true
+          })
+          .catch((error) => {
+            this.onRuntimeError?.(
+              error instanceof Error
+                ? error.message
+                : "Failed to load depth map."
+            )
+            this.dirty = true
+          })
+      } else {
+        pass.clearDepthMedia()
+      }
+    }
+
+    if (pass instanceof ShapePass) {
+      void pass
+        .setSvg(
+          layer.params.shape === "svg" && layer.asset?.kind === "image"
+            ? layer.asset.src
+            : null
+        )
+        .then(() => {
+          this.dirty = true
+        })
+        .catch((error) => {
+          this.onRuntimeError?.(
+            error instanceof Error ? error.message : "Failed to load SVG shape."
+          )
+          this.dirty = true
+        })
+    }
+
+    if (pass instanceof PatternPass) {
+      void pass
+        .setMotifs((layer.patternAssets ?? []).map((motif) => motif.src))
+        .then(() => {
+          this.dirty = true
+        })
+        .catch((error) => {
+          this.onRuntimeError?.(
+            error instanceof Error ? error.message : "Failed to load motifs."
+          )
+          this.dirty = true
+        })
     }
 
     if (pass instanceof LivePass) {
@@ -540,8 +728,40 @@ export class PipelineManager {
           return new PosterizePass(layer.id)
         case "threshold":
           return new ThresholdPass(layer.id)
+        case "gradient-map":
+          return new GradientMapPass(layer.id)
+        case "lumen-print":
+          return new LumenPrintPass(layer.id)
+        case "grain":
+          return new GrainPass(layer.id)
+        case "signal-rot":
+          return new SignalRotPass(layer.id)
+        case "dot-grid":
+          return new DotGridPass(layer.id)
+        case "erosion":
+          return new ErosionPass(layer.id)
+        case "relief":
+          return new ReliefPass(layer.id)
+        case "flares":
+          return new FlaresPass(layer.id)
+        case "focus-blur":
+          return new FocusBlurPass(layer.id)
+        case "glass":
+          return new GlassPass(layer.id)
+        case "connected-dots":
+          return new ConnectedDotsPass(layer.id)
+        case "photocopy":
+          return new PhotocopyPass(layer.id)
+        case "outline":
+          return new OutlinePass(layer.id)
+        case "annotations":
+          return new AnnotationsPass(layer.id)
         case "pixel-sorting":
           return new PixelSortingPass(layer.id)
+        case "photographic-cells":
+          return new PhotographicCellsPass(layer.id)
+        case "displaced-rings":
+          return new DisplacedRingsPass(layer.id)
         case "slice":
           return new SlicePass(layer.id)
         case "smear":
@@ -560,6 +780,10 @@ export class PipelineManager {
 
     if (layer.kind === "source" && layer.type === "gradient") {
       return new GradientPass(layer.id)
+    }
+
+    if (layer.kind === "source" && layer.type === "shape") {
+      return new ShapePass(layer.id)
     }
 
     if (layer.kind === "source" && layer.type === "fluid") {

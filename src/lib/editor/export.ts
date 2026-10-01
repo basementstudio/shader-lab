@@ -744,7 +744,7 @@ async function prewarmExportFrame(
     bootstrapPasses: true,
   })
 
-  const maxWaitMs = 5_000
+  const maxWaitMs = 30_000
   const pollInterval = 10
   const startedAt = performance.now()
 

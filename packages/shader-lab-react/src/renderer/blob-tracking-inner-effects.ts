@@ -19,6 +19,7 @@ export const INNER_EFFECT_TYPES: readonly ShaderLabEffectLayerType[] = [
   "crt",
   "displacement-map",
   "dithering",
+  "dot-grid",
   "edge-detect",
   "fluted-glass",
   "halftone",

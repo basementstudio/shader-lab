@@ -17,3 +17,5 @@
 #   - Prevents merge conflicts caused by line ending differences
 
 * text=auto eol=lf
+*.hdr binary
+*.wasm binary

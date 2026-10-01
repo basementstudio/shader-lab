@@ -19,6 +19,8 @@ export function IconButtonLink({
   return (
     <Link
       className={cn(iconButtonVariants({ selected, variant }), className)}
+      data-ds="icon-button"
+      data-variant={variant ?? "default"}
       {...props}
     >
       {children}

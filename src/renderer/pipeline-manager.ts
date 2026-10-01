@@ -1,19 +1,36 @@
+import {
+  type CompositionNode,
+  flattenComposition,
+  isCompositionGroup,
+} from "./composition-tree"
+import { GroupPass } from "./group-pass"
+import { layerMaskSignature, normalizeLayerMask } from "./layer-mask"
 import { float, type TSLNode, texture as tslTexture, uv, vec2 } from "three/tsl"
 import * as THREE from "three/webgpu"
+import { getCompositionFrame } from "@/lib/editor/composition"
 import { isSvgMediaSource } from "@/lib/editor/media-file"
+import {
+  CUSTOM_MODEL_ENVIRONMENT,
+  resolveBundledEnvironmentUrl,
+} from "@/lib/editor/config/model-options"
 import { parameterValuesSignature } from "@/lib/editor/parameter-schema"
 import type { RenderableLayerPass } from "@/renderer/contracts"
 import { CustomShaderPass } from "@/renderer/custom-shader-pass"
 import { FluidPass } from "@/renderer/fluid-pass"
 import { GradientPass } from "@/renderer/gradient-pass"
+import { ShapePass } from "@/renderer/shape-pass"
 import {
+  clearMotifLoadFailure,
   describeCameraFailure,
   describeMediaLoadFailure,
+  describeModelLoadFailure,
+  describeMotifLoadFailure,
   setLayerMediaError,
 } from "@/renderer/layer-media-error"
 import { LivePass } from "@/renderer/live-pass"
 import { MagnifyLensPass } from "@/renderer/magnify-lens-pass"
 import { MediaPass } from "@/renderer/media-pass"
+import { ModelPass } from "@/renderer/model-pass"
 import {
   errorFingerprint,
   type LayerType,
@@ -23,6 +40,7 @@ import {
 } from "@/renderer/pass-failure"
 import type { PassNode } from "@/renderer/pass-node"
 import { createPassNode } from "@/renderer/pass-node-factory"
+import { MotifLoadError, PatternPass } from "@/renderer/pattern-pass"
 import { PixelTrailPass } from "@/renderer/pixel-trail-pass"
 import { ScenePostProcess } from "@/renderer/scene-post-process"
 import { TextPass } from "@/renderer/text-pass"
@@ -30,8 +48,28 @@ import type { EditorLayer, SceneConfig, Size } from "@/types/editor"
 
 type LayerPassNode = FluidPass | LivePass | MediaPass | PassNode
 
-// Editing the layer re-enables a dropped pass. See pass-failure.ts.
 const MAX_PASS_FAILURES = 3
+
+const STATIC_OUTPUT_LAYER_TYPES: ReadonlySet<string> = new Set([
+  "image",
+  "shape",
+  "gradient-map",
+  "lumen-print",
+  "grain",
+  "signal-rot",
+  "dot-grid",
+  "erosion",
+  "relief",
+  "flares",
+  "focus-blur",
+  "glass",
+  "connected-dots",
+  "photocopy",
+  "outline",
+  "plotter",
+  "photographic-cells",
+  "displaced-rings",
+])
 
 const RENDER_TARGET_OPTIONS = {
   depthBuffer: false,
@@ -78,6 +116,7 @@ function createLayerSignature(layer: RenderableLayerPass): string {
       layer.layer.maskConfig.source,
       layer.layer.maskConfig.mode,
       layer.layer.maskConfig.invert ? "1" : "0",
+    layerMaskSignature(normalizeLayerMask(layer.layer.mask)),
       typeof layer.params.sourceRevision === "number"
         ? String(layer.params.sourceRevision)
         : "0",
@@ -103,6 +142,13 @@ function createLayerSignature(layer: RenderableLayerPass): string {
     layer.layer.type,
     layer.asset?.id ?? "no-asset",
     layer.asset?.url ?? "no-url",
+    layer.depthAsset?.id ?? "no-depth",
+    layer.depthAsset?.url ?? "no-depth-url",
+    layer.environmentAsset?.id ?? "no-environment",
+    layer.environmentAsset?.url ?? "no-environment-url",
+    (layer.patternAssets ?? [])
+      .map((asset) => `${asset.id}@${asset.url}`)
+      .join("|"),
     layer.layer.visible ? "1" : "0",
     layer.layer.opacity.toFixed(4),
     layer.layer.hue.toFixed(4),
@@ -112,6 +158,7 @@ function createLayerSignature(layer: RenderableLayerPass): string {
     layer.layer.maskConfig.source,
     layer.layer.maskConfig.mode,
     layer.layer.maskConfig.invert ? "1" : "0",
+    layerMaskSignature(normalizeLayerMask(layer.layer.mask)),
     fluidInteractions?.length ?? 0,
     lastFluidInteraction
       ? `${lastFluidInteraction.time}:${lastFluidInteraction.x}:${lastFluidInteraction.y}:${lastFluidInteraction.dx}:${lastFluidInteraction.dy}`
@@ -134,11 +181,16 @@ export class PipelineManager {
   private layerSignatures = new Map<string, string>()
   private compilingPasses = new Set<string>()
   private compiledVersions = new Map<string, number>()
-  // Attributes compile and render failures to a layer type. See pass-failure.ts.
   private layerTypes = new Map<string, LayerType>()
   private passFailures = new Map<string, PassFailureState>()
   private readonly strictPassFailures: boolean
   private pendingMediaLoads = new Set<string>()
+  private reportedStrictFailures = new WeakSet<object>()
+  private mediaLoads = new Map<string, { key: string }>()
+  private mediaErrorSlots = new Map<
+    string,
+    { model: string | null; environment: string | null }
+  >()
   private cachedActivePasses: LayerPassNode[] = []
   private activePassesDirty = true
   private dirty = true
@@ -152,11 +204,15 @@ export class PipelineManager {
   private height: number
   private logicalWidth: number
   private logicalHeight: number
+  private sceneConfig: SceneConfig | null = null
   private readonly baseMaterial: THREE.MeshBasicMaterial
   private currentBackgroundColor = "#080808"
   private readonly postProcess: ScenePostProcess
   private rtA: THREE.WebGLRenderTarget
   private rtB: THREE.WebGLRenderTarget
+  private readonly staticPrefixTarget: THREE.WebGLRenderTarget
+  private staticPrefixLength = 0
+  private staticPrefixDepth: THREE.Texture | null = null
 
   constructor(
     renderer: THREE.WebGPURenderer,
@@ -190,6 +246,11 @@ export class PipelineManager {
       this.height,
       RENDER_TARGET_OPTIONS
     )
+    this.staticPrefixTarget = new THREE.WebGLRenderTarget(
+      this.width,
+      this.height,
+      RENDER_TARGET_OPTIONS
+    )
 
     this.postProcess = new ScenePostProcess()
 
@@ -198,6 +259,7 @@ export class PipelineManager {
     const blitUv = vec2(uv().x, float(1).sub(uv().y))
     this.blitInputNode = tslTexture(new THREE.Texture(), blitUv)
     this.blitMaterial = new THREE.MeshBasicNodeMaterial()
+    this.blitMaterial.blending = THREE.NoBlending
     this.blitMaterial.colorNode = this.blitInputNode
     const blitMesh = new THREE.Mesh(
       new THREE.PlaneGeometry(2, 2),
@@ -207,8 +269,11 @@ export class PipelineManager {
     this.blitScene.add(blitMesh)
   }
 
-  syncLayers(layers: RenderableLayerPass[]): void {
-    const incomingIds = new Set(layers.map((layer) => layer.layer.id))
+  syncLayers(layers: CompositionNode<RenderableLayerPass>[]): void {
+    const getId = (node: CompositionNode<RenderableLayerPass>) =>
+      isCompositionGroup(node) ? node.id : node.layer.id
+    const flattened = flattenComposition(layers, (node) => node.layer.id)
+    const incomingIds = new Set(flattened.map(getId))
 
     for (const [layerId, pass] of this.passMap) {
       if (incomingIds.has(layerId)) {
@@ -217,6 +282,7 @@ export class PipelineManager {
 
       pass.dispose()
       this.passMap.delete(layerId)
+      this.pendingMediaLoads.delete(layerId)
       this.layerSignatures.delete(layerId)
       this.compilingPasses.delete(layerId)
       this.compiledVersions.delete(layerId)
@@ -225,19 +291,41 @@ export class PipelineManager {
       this.markDirty()
     }
 
-    const orderedPasses: LayerPassNode[] = []
-
-    for (const renderableLayer of layers) {
-      const layerId = renderableLayer.layer.id
-      const signature = createLayerSignature(renderableLayer)
+    for (const node of flattened) {
+      const layerId = getId(node)
+      const group = isCompositionGroup(node)
+      const signature = group
+        ? JSON.stringify([
+            node.visible,
+            node.opacity,
+            node.blendMode,
+            layerMaskSignature(normalizeLayerMask(node.mask)),
+          ])
+        : createLayerSignature(node)
       let pass = this.passMap.get(layerId)
 
-      this.layerTypes.set(layerId, renderableLayer.layer.type)
-
+      if (pass && pass instanceof GroupPass !== group) {
+        pass.dispose()
+        this.passMap.delete(layerId)
+        this.pendingMediaLoads.delete(layerId)
+        this.layerSignatures.delete(layerId)
+        this.compilingPasses.delete(layerId)
+        this.compiledVersions.delete(layerId)
+        pass = undefined
+      }
+      this.layerTypes.set(layerId, group ? "group" : node.layer.type)
+      const created = !pass
       if (!pass) {
-        pass = this.createPass(renderableLayer.layer)
+        pass = group
+          ? new GroupPass(
+              layerId,
+              (child) => this.isActive(child),
+              (...args) => this.renderPass(...args)
+            )
+          : this.createPass(node.layer)
         pass.resize(this.width, this.height)
         pass.updateLogicalSize(this.logicalWidth, this.logicalHeight)
+        this.syncMaskFrame(pass)
         this.passMap.set(layerId, pass)
         this.markDirty()
       }
@@ -245,20 +333,36 @@ export class PipelineManager {
       if (this.layerSignatures.get(layerId) !== signature) {
         const versionBefore = pass.getMaterialVersion()
         this.layerSignatures.set(layerId, signature)
-        this.applyLayerState(pass, renderableLayer)
+        if (group) {
+          pass.enabled = node.visible
+          pass.updateOpacity(clampUnit(node.opacity))
+          pass.updateBlendMode(node.blendMode)
+          pass.updateLayerMask(normalizeLayerMask(node.mask))
+          pass.flushColorNode()
+        } else {
+          this.applyLayerState(pass, node)
+        }
         this.markDirty()
 
-        if (pass.getMaterialVersion() !== versionBefore) {
-          // Recover on a material rebuild, not on any signature change: keyframed
-          // and audio-driven values change the signature every frame, which would
-          // reset the failure count before it could ever throttle.
+        if ((created && group) || pass.getMaterialVersion() !== versionBefore) {
           this.clearPassFailure(layerId)
           this.scheduleCompile(pass)
         }
       }
-
-      orderedPasses.push(pass)
     }
+
+    for (const node of flattened) {
+      if (!isCompositionGroup(node)) continue
+      const pass = this.passMap.get(node.id) as GroupPass
+      if (
+        pass.setChildren(
+          node.children.map((child) => this.passMap.get(getId(child))!)
+        )
+      ) {
+        this.markDirty()
+      }
+    }
+    const orderedPasses = layers.map((node) => this.passMap.get(getId(node))!)
 
     if (
       orderedPasses.length !== this.passes.length ||
@@ -271,12 +375,8 @@ export class PipelineManager {
 
   render(time: number, delta: number, timelineTime = time): boolean {
     if (this.activePassesDirty) {
-      this.cachedActivePasses = this.passes.filter(
-        (pass) =>
-          pass.enabled &&
-          !this.isPassDisabled(pass.layerId) &&
-          (!this.compilingPasses.has(pass.layerId) ||
-            this.compiledVersions.has(pass.layerId))
+      this.cachedActivePasses = this.passes.filter((pass) =>
+        this.isActive(pass)
       )
       this.activePassesDirty = false
     }
@@ -291,60 +391,66 @@ export class PipelineManager {
     }
 
     if (activePasses.length === 0) {
+      this.staticPrefixLength = 0
       this.renderer.setRenderTarget(null)
       this.renderer.render(this.baseScene, this.baseCamera)
       this.dirty = false
       return true
     }
 
-    this.renderer.setRenderTarget(this.rtA)
-    this.renderer.render(this.baseScene, this.baseCamera)
+    const prefixLength = needsContinuousRender
+      ? this.countStaticPrefix(activePasses)
+      : 0
+    const reusePrefix =
+      !this.dirty &&
+      prefixLength > 0 &&
+      prefixLength === this.staticPrefixLength
 
     let readTarget = this.rtA
     let writeTarget = this.rtB
+    let sceneDepth: THREE.Texture | null = null
+    let startIndex = 0
+    let inputChanged = this.dirty
 
-    for (const pass of activePasses) {
-      try {
-        ;(
-          pass.render as (
-            renderer: THREE.WebGPURenderer,
-            inputTexture: THREE.Texture,
-            outputTarget: THREE.WebGLRenderTarget,
-            time: number,
-            delta: number,
-            timelineTime: number
-          ) => void
-        )(
-          this.renderer,
-          readTarget.texture,
-          writeTarget,
-          time,
-          delta,
-          timelineTime
-        )
-      } catch (error) {
-        // Exports must fail loudly: dropping a layer would ship a frame that
-        // looks fine but is wrong. Still report, so the abort is diagnosable.
-        if (this.strictPassFailures) {
-          reportPassFailure(
-            this.layerTypes.get(pass.layerId),
-            pass.layerId,
-            "pass-render",
-            error
-          )
-          throw error
-        }
+    if (reusePrefix) {
+      readTarget = this.staticPrefixTarget
+      writeTarget = this.rtA
+      sceneDepth = this.staticPrefixDepth
+      startIndex = prefixLength
+    } else {
+      this.staticPrefixLength = 0
+      this.renderer.setRenderTarget(this.rtA)
+      this.renderer.render(this.baseScene, this.baseCamera)
+    }
 
-        this.handlePassRenderFailure(pass.layerId, error)
-        // Skip the swap: the failed pass contributes nothing.
-        continue
+    for (let index = startIndex; index < activePasses.length; index += 1) {
+      const pass = activePasses[index] as LayerPassNode
+      pass.setSceneDepth(sceneDepth)
+      pass.setInputChanged(inputChanged)
+      const rendered = this.renderPass(
+        pass,
+        readTarget.texture,
+        writeTarget,
+        time,
+        delta,
+        timelineTime
+      )
+      if (pass.needsContinuousRender()) inputChanged = true
+      if (rendered) {
+        sceneDepth = pass.getOutputSceneDepth()
+        const previousRead = readTarget
+        readTarget = writeTarget
+        writeTarget =
+          previousRead === this.staticPrefixTarget ? this.rtB : previousRead
       }
 
-      this.passFailures.delete(pass.layerId)
-
-      const previousRead = readTarget
-      readTarget = writeTarget
-      writeTarget = previousRead
+      if (!reusePrefix && index === prefixLength - 1) {
+        this.blitInputNode.value = readTarget.texture
+        this.renderer.setRenderTarget(this.staticPrefixTarget)
+        this.renderer.render(this.blitScene, this.blitCamera)
+        this.staticPrefixLength = prefixLength
+        this.staticPrefixDepth = sceneDepth
+      }
     }
 
     if (this.postProcess.active) {
@@ -361,6 +467,24 @@ export class PipelineManager {
     return true
   }
 
+  private countStaticPrefix(activePasses: LayerPassNode[]): number {
+    let length = 0
+    for (const pass of activePasses) {
+      const type = this.layerTypes.get(pass.layerId)
+      if (
+        !(
+          (type && STATIC_OUTPUT_LAYER_TYPES.has(type)) ||
+          pass.hasStaticOutput()
+        ) ||
+        pass.needsContinuousRender()
+      ) {
+        break
+      }
+      length += 1
+    }
+    return length === activePasses.length ? 0 : length
+  }
+
   setPreviewFrozen(frozen: boolean): void {
     for (const pass of this.passMap.values()) {
       if (pass instanceof MediaPass) {
@@ -374,6 +498,7 @@ export class PipelineManager {
     this.height = Math.max(1, size.height)
     this.rtA.setSize(this.width, this.height)
     this.rtB.setSize(this.width, this.height)
+    this.staticPrefixTarget.setSize(this.width, this.height)
 
     for (const pass of this.passMap.values()) {
       pass.resize(this.width, this.height)
@@ -395,6 +520,7 @@ export class PipelineManager {
 
     for (const pass of this.passMap.values()) {
       pass.updateLogicalSize(this.logicalWidth, this.logicalHeight)
+      this.syncMaskFrame(pass)
     }
 
     this.markDirty()
@@ -410,12 +536,41 @@ export class PipelineManager {
     this.markDirty()
   }
 
+  private syncMaskFrame(pass: PassNode): void {
+    const frame = this.sceneConfig
+      ? getCompositionFrame(this.sceneConfig, {
+          height: this.logicalHeight,
+          width: this.logicalWidth,
+        })
+      : { height: this.logicalHeight, width: this.logicalWidth }
+    pass.updateMaskLogicalSize(
+      this.logicalWidth,
+      this.logicalHeight,
+      frame.width,
+      frame.height
+    )
+  }
+
   updateSceneConfig(config: SceneConfig): void {
+    const previous = this.sceneConfig
+    this.sceneConfig = config
     const postProcessChanged = this.postProcess.update(config)
     let passChanged = false
 
     for (const pass of this.passMap.values()) {
       passChanged = pass.updateSceneConfig(config) || passChanged
+    }
+
+    if (
+      !previous ||
+      previous.compositionAspect !== config.compositionAspect ||
+      previous.compositionWidth !== config.compositionWidth ||
+      previous.compositionHeight !== config.compositionHeight
+    ) {
+      for (const pass of this.passMap.values()) {
+        this.syncMaskFrame(pass)
+      }
+      passChanged = true
     }
 
     if (postProcessChanged || passChanged) {
@@ -456,6 +611,7 @@ export class PipelineManager {
   dispose(): void {
     this.rtA.dispose()
     this.rtB.dispose()
+    this.staticPrefixTarget.dispose()
     this.blitMaterial.dispose()
     this.postProcess.dispose()
 
@@ -475,15 +631,41 @@ export class PipelineManager {
     renderableLayer: RenderableLayerPass
   ): void {
     pass.enabled = renderableLayer.layer.visible
+    if (
+      renderableLayer.layer.type === "displaced-rings" ||
+      renderableLayer.layer.type === "photographic-cells" ||
+      renderableLayer.layer.type === "erosion" ||
+      renderableLayer.layer.type === "flares" ||
+      renderableLayer.layer.type === "focus-blur" ||
+      renderableLayer.layer.type === "glass" ||
+      renderableLayer.layer.type === "connected-dots" ||
+      renderableLayer.layer.type === "plotter" ||
+      renderableLayer.layer.type === "photocopy" ||
+      renderableLayer.layer.type === "outline"
+    ) {
+      pass.updateCompositionRole("transform")
+    } else {
+      pass.updateCompositionRole(
+        renderableLayer.layer.kind === "effect" ||
+          (renderableLayer.layer.type === "custom-shader" &&
+            renderableLayer.params.effectMode === true)
+          ? "effect"
+          : "source"
+      )
+    }
     pass.updateOpacity(clampUnit(renderableLayer.layer.opacity))
     pass.updateBlendMode(renderableLayer.layer.blendMode)
     pass.updateCompositeMode(renderableLayer.layer.compositeMode)
     pass.updateMaskConfig(renderableLayer.layer.maskConfig)
+    pass.updateLayerMask(normalizeLayerMask(renderableLayer.layer.mask))
     pass.updateLayerColorAdjustments(
       renderableLayer.layer.hue,
       renderableLayer.layer.saturation
     )
     pass.updateParams(renderableLayer.params)
+    if (pass instanceof ModelPass) {
+      void pass.whenCompiled().then(() => this.markDirty())
+    }
     if (
       pass instanceof FluidPass ||
       pass instanceof PixelTrailPass ||
@@ -514,10 +696,12 @@ export class PipelineManager {
             width: asset.width,
           })
           .then(() => {
+            if (this.passMap.get(pass.layerId) !== pass) return
             setLayerMediaError(pass.layerId, null)
             this.markDirty()
           })
           .catch(() => {
+            if (this.passMap.get(pass.layerId) !== pass) return
             setLayerMediaError(
               pass.layerId,
               describeMediaLoadFailure(asset.fileName)
@@ -525,12 +709,96 @@ export class PipelineManager {
             this.markDirty()
           })
           .finally(() => {
+            if (this.passMap.get(pass.layerId) !== pass) return
             this.pendingMediaLoads.delete(pass.layerId)
           })
       } else {
         this.pendingMediaLoads.delete(pass.layerId)
         pass.clearMedia()
       }
+
+      const depthAsset = renderableLayer.depthAsset
+      if (depthAsset?.kind === "image") {
+        const depthLoadId = `${pass.layerId}:depth`
+        this.pendingMediaLoads.add(depthLoadId)
+        void pass
+          .setDepthMedia({
+            height: depthAsset.height,
+            isSvg: isSvgMediaSource(depthAsset),
+            url: depthAsset.url,
+            width: depthAsset.width,
+          })
+          .then(() => {
+            this.markDirty()
+          })
+          .catch(() => {
+            setLayerMediaError(
+              pass.layerId,
+              describeMediaLoadFailure(depthAsset.fileName)
+            )
+            this.markDirty()
+          })
+          .finally(() => {
+            this.pendingMediaLoads.delete(depthLoadId)
+          })
+      } else {
+        this.pendingMediaLoads.delete(`${pass.layerId}:depth`)
+        pass.clearDepthMedia()
+      }
+    }
+
+    if (pass instanceof ModelPass) {
+      this.loadModelResources(pass, renderableLayer)
+    }
+
+    if (pass instanceof ShapePass) {
+      const asset = renderableLayer.asset
+      const svgUrl =
+        renderableLayer.params.shape === "svg" &&
+        asset?.kind === "image" &&
+        isSvgMediaSource(asset)
+          ? asset.url
+          : null
+      const svgLoadId = `${pass.layerId}:svg`
+      this.pendingMediaLoads.add(svgLoadId)
+      void pass
+        .setSvg(svgUrl)
+        .then(() => {
+          if (svgUrl) setLayerMediaError(pass.layerId, null)
+          this.markDirty()
+        })
+        .catch(() => {
+          setLayerMediaError(pass.layerId, describeMediaLoadFailure(asset?.fileName))
+          this.markDirty()
+        })
+        .finally(() => {
+          if (!pass.isSvgPending()) this.pendingMediaLoads.delete(svgLoadId)
+        })
+    }
+
+    if (pass instanceof PatternPass) {
+      const motifLoadId = `${pass.layerId}:motifs`
+      this.pendingMediaLoads.add(motifLoadId)
+      void pass
+        .setMotifs(
+          (renderableLayer.patternAssets ?? []).map((asset) => asset.url)
+        )
+        .then(() => {
+          clearMotifLoadFailure(pass.layerId)
+          this.markDirty()
+        })
+        .catch((cause: unknown) => {
+          setLayerMediaError(
+            pass.layerId,
+            describeMotifLoadFailure(
+              cause instanceof MotifLoadError ? cause.failed : 1
+            )
+          )
+          this.markDirty()
+        })
+        .finally(() => {
+          this.pendingMediaLoads.delete(motifLoadId)
+        })
     }
 
     if (pass instanceof LivePass) {
@@ -555,6 +823,162 @@ export class PipelineManager {
           })
       }
     }
+  }
+
+  private loadModelResources(
+    pass: ModelPass,
+    renderableLayer: RenderableLayerPass
+  ): void {
+    const asset = renderableLayer.asset
+
+    if (asset?.kind === "model") {
+      this.startMediaLoad(
+        pass.layerId,
+        "model",
+        asset.url,
+        () =>
+          pass.setModel({
+            format: isSvgMediaSource(asset) ? "svg" : "gltf",
+            url: asset.url,
+          }),
+        (cause) => describeModelLoadFailure(asset.fileName, cause)
+      )
+    } else {
+      this.mediaLoads.delete(`${pass.layerId}:model`)
+      this.pendingMediaLoads.delete(`${pass.layerId}:model`)
+      this.setMediaErrorSlot(pass.layerId, "model", null)
+      pass.clearModel()
+    }
+
+    const environmentAsset = renderableLayer.environmentAsset
+    const customRequested =
+      renderableLayer.params.environment === CUSTOM_MODEL_ENVIRONMENT
+    const customAsset =
+      customRequested && environmentAsset?.kind === "environment"
+        ? environmentAsset
+        : null
+    const environmentUrl = customAsset
+      ? customAsset.url
+      : resolveBundledEnvironmentUrl(renderableLayer.params.environment)
+    const missingCustom = customRequested && !customAsset
+    this.startMediaLoad(
+      pass.layerId,
+      "environment",
+      `${environmentUrl}|${missingCustom ? 1 : 0}`,
+      async () => {
+        await pass.setEnvironment(environmentUrl)
+        if (missingCustom) {
+          throw new Error("The custom environment is missing.")
+        }
+      },
+      () =>
+        describeMediaLoadFailure(
+          environmentAsset?.url === environmentUrl
+            ? environmentAsset.fileName
+            : "the environment"
+        )
+    )
+  }
+
+  private startMediaLoad(
+    layerId: string,
+    kind: "model" | "environment",
+    key: string,
+    load: () => Promise<void>,
+    describeFailure: (cause: unknown) => string
+  ): void {
+    const loadId = `${layerId}:${kind}`
+    if (this.mediaLoads.get(loadId)?.key === key) {
+      return
+    }
+
+    const entry = { key }
+    this.mediaLoads.set(loadId, entry)
+    this.pendingMediaLoads.add(loadId)
+    void load()
+      .then(() => {
+        if (this.mediaLoads.get(loadId) !== entry) return
+        this.setMediaErrorSlot(layerId, kind, null)
+        this.markDirty()
+      })
+      .catch((cause: unknown) => {
+        if (this.mediaLoads.get(loadId) !== entry) return
+        this.setMediaErrorSlot(layerId, kind, describeFailure(cause))
+        this.markDirty()
+      })
+      .finally(() => {
+        if (this.mediaLoads.get(loadId) !== entry) return
+        this.mediaLoads.delete(loadId)
+        this.pendingMediaLoads.delete(loadId)
+      })
+  }
+
+  private setMediaErrorSlot(
+    layerId: string,
+    kind: "model" | "environment",
+    message: string | null
+  ): void {
+    const slots = this.mediaErrorSlots.get(layerId) ?? {
+      model: null,
+      environment: null,
+    }
+    slots[kind] = message
+    this.mediaErrorSlots.set(layerId, slots)
+    setLayerMediaError(layerId, slots.model ?? slots.environment)
+  }
+
+  private isActive(pass: PassNode): boolean {
+    return (
+      pass.enabled &&
+      !this.isPassDisabled(pass.layerId) &&
+      (!this.compilingPasses.has(pass.layerId) ||
+        this.compiledVersions.has(pass.layerId))
+    )
+  }
+
+  private renderPass(
+    pass: PassNode,
+    input: THREE.Texture,
+    output: THREE.WebGLRenderTarget,
+    time: number,
+    delta: number,
+    timelineTime: number
+  ): boolean {
+    try {
+      ;(
+        pass.render as (
+          renderer: THREE.WebGPURenderer,
+          input: THREE.Texture,
+          output: THREE.WebGLRenderTarget,
+          time: number,
+          delta: number,
+          timelineTime: number
+        ) => void
+      )(this.renderer, input, output, time, delta, timelineTime)
+    } catch (error) {
+      if (this.strictPassFailures) {
+        const alreadyReported =
+          typeof error === "object" &&
+          error !== null &&
+          this.reportedStrictFailures.has(error)
+        if (!alreadyReported) {
+          if (typeof error === "object" && error !== null) {
+            this.reportedStrictFailures.add(error)
+          }
+          reportPassFailure(
+            this.layerTypes.get(pass.layerId),
+            pass.layerId,
+            "pass-render",
+            error
+          )
+        }
+        throw error
+      }
+      this.handlePassRenderFailure(pass.layerId, error)
+      return false
+    }
+    this.passFailures.delete(pass.layerId)
+    return true
   }
 
   private isPassDisabled(layerId: string): boolean {
@@ -606,12 +1030,13 @@ export class PipelineManager {
     renderer
       .compileAsync(scene, camera)
       .then(() => {
+        if (this.passMap.get(pass.layerId) !== pass) return
         this.compilingPasses.delete(pass.layerId)
         this.compiledVersions.set(pass.layerId, pass.getMaterialVersion())
         this.markDirty()
       })
       .catch((error: unknown) => {
-        // Keep the delete: dropping it wedges hasPendingCompilations().
+        if (this.passMap.get(pass.layerId) !== pass) return
         this.compilingPasses.delete(pass.layerId)
         reportPassFailure(
           this.layerTypes.get(pass.layerId),
@@ -627,6 +1052,10 @@ export class PipelineManager {
       return createPassNode(layer.id, layer.type)
     }
 
+    if (layer.kind === "model") {
+      return new ModelPass(layer.id, this.renderer)
+    }
+
     if (
       layer.kind === "source" &&
       (layer.type === "image" || layer.type === "video")
@@ -636,6 +1065,10 @@ export class PipelineManager {
 
     if (layer.kind === "source" && layer.type === "gradient") {
       return new GradientPass(layer.id)
+    }
+
+    if (layer.kind === "source" && layer.type === "shape") {
+      return new ShapePass(layer.id)
     }
 
     if (layer.kind === "source" && layer.type === "fluid") {

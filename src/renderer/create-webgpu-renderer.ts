@@ -3,6 +3,7 @@ import * as THREE from "three/webgpu"
 import { recordDeviceDiagnostics } from "@/lib/webgpu-diagnostics"
 import type { EditorRenderer, RendererFrame } from "@/renderer/contracts"
 import { PipelineManager } from "@/renderer/pipeline-manager"
+import { reverseComposition } from "@/renderer/composition-tree"
 import { browserSupportsWebGPU } from "@/renderer/webgpu-support"
 import type { Size } from "@/types/editor"
 
@@ -77,7 +78,7 @@ export async function createWebGPURenderer(
     pipeline.updateBackgroundColor(frame.sceneConfig.backgroundColor)
     pipeline.updateSceneConfig(frame.sceneConfig)
     pipeline.updateOutputCropAspectRatio(frame.cropAspectRatio)
-    pipeline.syncLayers([...frame.layers].reverse())
+    pipeline.syncLayers(reverseComposition(frame.layers))
     pipeline.render(
       frame.clock.time,
       frame.clock.delta,

@@ -17,13 +17,14 @@ export type ColorCurve = _ColorCurve
 export type ColorCurveChannelId = _ColorCurveChannelId
 export type SceneColorCurves = _SceneColorCurves
 
-export const LAYER_KINDS = ["source", "effect", "model"] as const
+export const LAYER_KINDS = ["source", "effect", "model", "group"] as const
 export type LayerKind = (typeof LAYER_KINDS)[number]
 
 export const SOURCE_LAYER_TYPES = [
   "image",
   "video",
   "gradient",
+  "shape",
   "text",
   "fluid",
   "pixel-trail",
@@ -34,6 +35,9 @@ export const SOURCE_LAYER_TYPES = [
 export type SourceLayerType = (typeof SOURCE_LAYER_TYPES)[number]
 
 export const EFFECT_LAYER_TYPES = [
+  "photographic-cells",
+  "displaced-rings",
+  "annotations",
   "ascii",
   "blob-tracking",
   "bloom",
@@ -45,6 +49,19 @@ export const EFFECT_LAYER_TYPES = [
   "plotter",
   "posterize",
   "threshold",
+  "gradient-map",
+  "lumen-print",
+  "grain",
+  "signal-rot",
+  "dot-grid",
+  "erosion",
+  "relief",
+  "flares",
+  "focus-blur",
+  "glass",
+  "connected-dots",
+  "photocopy",
+  "outline",
   "crt",
   "dithering",
   "halftone",
@@ -64,7 +81,11 @@ export type EffectLayerType = (typeof EFFECT_LAYER_TYPES)[number]
 export const MODEL_LAYER_TYPES = ["model"] as const
 export type ModelLayerType = (typeof MODEL_LAYER_TYPES)[number]
 
-export type LayerType = SourceLayerType | EffectLayerType | ModelLayerType
+export type LayerType =
+  | SourceLayerType
+  | EffectLayerType
+  | ModelLayerType
+  | "group"
 
 export const BLEND_MODES = [
   "normal",
@@ -120,7 +141,51 @@ export interface MaskConfig {
   source: MaskSource
 }
 
-export const ASSET_KINDS = ["image", "video", "model", "audio"] as const
+export const LAYER_MASK_SHAPES = [
+  "none",
+  "linear",
+  "radial",
+  "ellipse",
+  "rectangle",
+  "brush",
+  "depth",
+] as const
+export type LayerMaskShape = (typeof LAYER_MASK_SHAPES)[number]
+
+export const LAYER_MASK_SCOPES = ["effect", "content"] as const
+export type LayerMaskScope = (typeof LAYER_MASK_SCOPES)[number]
+
+export interface LayerMask {
+  shape: LayerMaskShape
+  scope: LayerMaskScope
+  enabled: boolean
+  invert: boolean
+  center: [number, number]
+  size: [number, number]
+  rotation: number
+  feather: number
+  paint: string
+}
+
+export const DEFAULT_LAYER_MASK: LayerMask = {
+  shape: "none",
+  scope: "effect",
+  enabled: true,
+  invert: false,
+  center: [0, 0],
+  size: [0.5, 0.5],
+  rotation: 0,
+  feather: 0.01,
+  paint: "",
+}
+
+export const ASSET_KINDS = [
+  "image",
+  "video",
+  "model",
+  "environment",
+  "audio",
+] as const
 export type AssetKind = (typeof ASSET_KINDS)[number]
 
 export type Vector2 = { x: number; y: number }
@@ -153,6 +218,9 @@ export type ParameterVisibilityCondition = {
     }
   | {
       notEquals: boolean | number | string
+    }
+  | {
+      oneOf: readonly (boolean | number | string)[]
     }
 )
 
@@ -203,7 +271,9 @@ export type TextParameterDefinition = ParameterDefinitionBase<
   "text",
   string
 > & {
+  interpolate?: "gradient"
   maxLength?: number
+  multiline?: boolean
 }
 
 export type Vec2ParameterDefinition = ParameterDefinitionBase<
@@ -213,6 +283,7 @@ export type Vec2ParameterDefinition = ParameterDefinitionBase<
   max?: number
   min?: number
   step?: number
+  ui?: "fields"
 }
 
 export type Vec3ParameterDefinition = ParameterDefinitionBase<
@@ -257,7 +328,11 @@ export const DEFAULT_MASK_CONFIG: MaskConfig = {
 }
 
 export interface BaseLayer {
+  parentId?: string | null
   assetId: string | null
+  depthAssetId?: string | null
+  environmentAssetId?: string | null
+  patternAssetIds?: string[]
   blendMode: BlendMode
   compositeMode: LayerCompositeMode
   expanded: boolean
@@ -266,6 +341,7 @@ export interface BaseLayer {
   fluidInteractionEvents?: FluidInteractionEvent[]
   kind: LayerKind
   locked: boolean
+  mask?: LayerMask | null
   maskConfig: MaskConfig
   name: string
   opacity: number
@@ -291,7 +367,12 @@ export interface ModelLayer extends BaseLayer {
   type: "model"
 }
 
-export type EditorLayer = SourceLayer | EffectLayer | ModelLayer
+export interface GroupLayer extends BaseLayer {
+  kind: "group"
+  type: "group"
+}
+
+export type EditorLayer = SourceLayer | EffectLayer | ModelLayer | GroupLayer
 
 export type AssetStatus = "idle" | "loading" | "ready" | "error"
 
@@ -321,7 +402,10 @@ export type LayerAnimatableProperty =
   | "hue"
   | "saturation"
   | "visible"
-export type AnimatableValueType = Exclude<ParameterType, "text"> | "boolean"
+export type AnimatableValueType =
+  | Exclude<ParameterType, "text">
+  | "boolean"
+  | "gradient"
 
 export type AnimatedPropertyBinding =
   | {
@@ -519,6 +603,8 @@ export interface EditorStateSnapshot {
 }
 
 export interface EditorHistorySnapshot {
+  sceneConfig: SceneConfig
+  selectedLayerIds?: string[]
   audio: EditorAudioSnapshot
   hoveredLayerId: string | null
   layers: EditorLayer[]

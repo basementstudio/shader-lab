@@ -3,10 +3,12 @@
 import {
   CameraIcon,
   CodeIcon,
+  CubeIcon,
   CursorArrowIcon,
   ImageIcon,
   MagicWandIcon,
   PlusIcon,
+  StarIcon,
   TextIcon,
   VideoIcon,
 } from "@radix-ui/react-icons"
@@ -27,12 +29,14 @@ import { IconButton } from "@/components/ui/icon-button"
 import { cn } from "@/lib/cn"
 import {
   getLayerCatalogEntry,
+  isNewLayerType,
   getLayerLabel,
   type LayerCatalogCategory,
   type LayerCatalogEntry,
 } from "@/lib/editor/config/layer-catalog"
 
 export type AddLayerAction =
+  | "annotations"
   | "ascii"
   | "blob-tracking"
   | "bloom"
@@ -47,18 +51,35 @@ export type AddLayerAction =
   | "fluted-glass"
   | "fluid"
   | "gradient"
+  | "gradient-map"
+  | "lumen-print"
+  | "grain"
+  | "signal-rot"
+  | "dot-grid"
+  | "erosion"
+  | "relief"
+  | "flares"
+  | "focus-blur"
+  | "glass"
+  | "connected-dots"
+  | "photocopy"
+  | "outline"
   | "halftone"
   | "image"
   | "ink"
   | "live"
   | "magnify-lens"
+  | "model"
   | "particle-grid"
   | "pixelation"
   | "pixel-trail"
   | "pattern"
+  | "shape"
   | "pixel-sorting"
   | "plotter"
   | "posterize"
+  | "photographic-cells"
+  | "displaced-rings"
   | "slice"
   | "smear"
   | "threshold"
@@ -95,53 +116,88 @@ const CATEGORY_OPTIONS: readonly {
 const SOURCE_ICONS: readonly { icon: ElementType; value: AddLayerAction }[] = [
   { icon: ImageIcon, value: "image" },
   { icon: VideoIcon, value: "video" },
+  { icon: CubeIcon, value: "model" },
   { icon: CameraIcon, value: "live" },
   { icon: TextIcon, value: "text" },
   { icon: CursorArrowIcon, value: "fluid" },
   { icon: CursorArrowIcon, value: "pixel-trail" },
   { icon: CursorArrowIcon, value: "magnify-lens" },
   { icon: MagicWandIcon, value: "gradient" },
+  { icon: StarIcon, value: "shape" },
   { icon: CodeIcon, value: "custom-shader" },
 ] as const
 
-const SOURCE_ITEMS: readonly SourceItem[] = SOURCE_ICONS.map(
+function newFirst<T extends { value: AddLayerAction }>(items: readonly T[]): T[] {
+  return [
+    ...items.filter((item) => isNewLayerType(item.value)),
+    ...items.filter((item) => !isNewLayerType(item.value)),
+  ]
+}
+
+function NewBadge({ className }: { className?: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={cn("ds-badge-new pointer-events-none shrink-0", className)}
+    >
+      <span>new</span>
+    </span>
+  )
+}
+
+const SOURCE_ITEMS: readonly SourceItem[] = newFirst(SOURCE_ICONS.map(
   ({ icon, value }) => ({
     icon,
     label: getLayerLabel(value),
     value,
   })
-)
+))
 
 const EFFECT_ORDER: readonly AddLayerAction[] = [
+  "photographic-cells",
+  "displaced-rings",
+  "annotations",
+  "outline",
   "ascii",
   "ink",
   "pattern",
   "crt",
   "dithering",
   "halftone",
+  "dot-grid",
+  "connected-dots",
+  "relief",
   "particle-grid",
   "pixelation",
   "voxel",
   "posterize",
   "threshold",
+  "gradient-map",
+  "lumen-print",
+  "grain",
+  "photocopy",
+  "flares",
+  "focus-blur",
+  "glass",
   "bloom",
   "plotter",
   "blob-tracking",
   "circuit-bent",
-  "directional-blur",
   "pixel-sorting",
   "slice",
+  "signal-rot",
+  "erosion",
   "edge-detect",
   "displacement-map",
   "chromatic-aberration",
-  "smear",
-  "fluted-glass",
 ] as const
 
-const EFFECT_ITEMS: readonly EffectItem[] = EFFECT_ORDER.map((value) => ({
-  ...getLayerCatalogEntry(value),
-  value,
-}))
+const EFFECT_ITEMS: readonly EffectItem[] = newFirst(
+  EFFECT_ORDER.map((value) => ({
+    ...getLayerCatalogEntry(value),
+    value,
+  }))
+)
 
 function LayerPickerInfoButton({
   description,
@@ -211,12 +267,12 @@ function EffectCard({
         />
       ) : null}
       <button
-        className="flex w-full origin-center cursor-pointer flex-col rounded-[10px] border border-white/6 bg-[rgb(255_255_255_/_0.02)] text-left transition-[transform,border-color,background-color,box-shadow] duration-[200ms] ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-white/14 hover:bg-[rgb(255_255_255_/_0.05)] hover:shadow-[0_10px_30px_rgb(0_0_0_/_0.18),inset_0_1px_0_rgb(255_255_255_/_0.04)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--ds-border-active)] focus-visible:outline-offset-2 active:scale-[0.97]"
+        className="flex w-full origin-center cursor-pointer flex-col rounded-[var(--ds-radius-picker-card)] border border-white/6 bg-[rgb(255_255_255_/_0.02)] text-left transition-[transform,border-color,background-color,box-shadow] duration-[200ms] ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-white/14 hover:bg-[rgb(255_255_255_/_0.05)] hover:shadow-[0_10px_30px_rgb(0_0_0_/_0.18),inset_0_1px_0_rgb(255_255_255_/_0.04)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--ds-border-active)] focus-visible:outline-offset-2 active:scale-[0.97]"
         onClick={() => onSelect(item.value)}
         type="button"
       >
         <div className="p-1">
-          <div className="relative aspect-[4/3] overflow-hidden rounded-[6px] border border-white/7 bg-[rgb(12_12_16_/_0.84)]">
+          <div className="relative aspect-[4/3] overflow-hidden rounded-[var(--ds-radius-picker-thumb)] bg-[rgb(12_12_16_/_0.84)]">
             {item.previewSrc ? (
               <Image
                 alt={item.label}
@@ -225,6 +281,9 @@ function EffectCard({
                 sizes="180px"
                 src={item.previewSrc}
               />
+            ) : null}
+            {isNewLayerType(item.value) ? (
+              <NewBadge className="absolute top-[var(--ds-space-badge-inset)] right-[var(--ds-space-badge-inset)]" />
             ) : null}
           </div>
         </div>
@@ -251,14 +310,26 @@ function SourceButton({
 
   return (
     <button
-      className="inline-flex h-7 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-white/8 bg-[rgb(255_255_255_/_0.03)] px-3 font-[var(--ds-font-sans)] text-[10px] text-[var(--ds-color-text-secondary)] leading-none transition-[transform,border-color,background-color,color] duration-[180ms] ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-white/14 hover:bg-[rgb(255_255_255_/_0.07)] hover:text-[var(--ds-color-text-primary)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--ds-border-active)] focus-visible:outline-offset-2 active:scale-[0.97]"
+      className="relative inline-flex h-7 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-white/8 bg-[rgb(255_255_255_/_0.03)] px-3 font-[var(--ds-font-sans)] text-[10px] text-[var(--ds-color-text-secondary)] leading-none transition-[transform,border-color,background-color,color] duration-[180ms] ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-white/14 hover:bg-[rgb(255_255_255_/_0.07)] hover:text-[var(--ds-color-text-primary)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--ds-border-active)] focus-visible:outline-offset-2 active:scale-[0.97]"
       onClick={() => onSelect(item.value)}
       type="button"
     >
       <Icon height={12} width={12} />
       {item.label}
+      {isNewLayerType(item.value) ? (
+        <span
+          aria-hidden="true"
+          className="ds-dot-new pointer-events-none absolute -top-0.5 -right-0.5"
+        />
+      ) : null}
     </button>
   )
+}
+
+export const OPEN_LAYER_PICKER_EVENT = "shader-lab:open-layer-picker"
+
+export function requestLayerPicker(): void {
+  window.dispatchEvent(new Event(OPEN_LAYER_PICKER_EVENT))
 }
 
 export function LayerPicker({ className, onSelect }: LayerPickerProps) {
@@ -383,6 +454,21 @@ export function LayerPicker({ className, onSelect }: LayerPickerProps) {
       previousFocusRef.current?.focus()
     }
   }, [open])
+
+  useEffect(() => {
+    const handleRequest = () => {
+      if (!triggerRef.current?.checkVisibility()) {
+        return
+      }
+      setCategory("all")
+      setTooltipWarm(false)
+      setOpen(true)
+    }
+
+    window.addEventListener(OPEN_LAYER_PICKER_EVENT, handleRequest)
+    return () =>
+      window.removeEventListener(OPEN_LAYER_PICKER_EVENT, handleRequest)
+  }, [])
 
   const handleSelect = useCallback(
     (action: AddLayerAction) => {

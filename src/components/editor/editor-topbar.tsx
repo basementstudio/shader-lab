@@ -16,6 +16,9 @@ import {
 import { AnimatePresence, motion } from "motion/react"
 import dynamic from "next/dynamic"
 import { useCallback, useEffect, useRef, useState } from "react"
+import { ProjectMenu } from "@/components/editor/project-menu"
+import { ThemeToggleButton } from "@/components/editor/theme-toggle-button"
+import { hasSceneAdjustments } from "@/lib/editor/scene-adjustments"
 import { AgentConnectPanel } from "@/components/editor/agent-connect-panel"
 import { FloatingDesktopPanel } from "@/components/editor/floating-desktop-panel"
 import { fitMobileCanvas } from "@/components/editor/use-mobile-canvas-fit"
@@ -57,12 +60,12 @@ const PublishDialog = dynamic(
 )
 
 const AuthMenu = dynamic(
-  () =>
-    import("@/components/community/auth-menu").then((mod) => mod.AuthMenu),
+  () => import("@/components/community/auth-menu").then((mod) => mod.AuthMenu),
   { ssr: false }
 )
 
-const loadCommunityModal = () => import("@/components/community/community-modal")
+const loadCommunityModal = () =>
+  import("@/components/community/community-modal")
 
 /* Shown while the community-modal chunk is downloading so the backdrop
  * appears on the first frame after click. Matches the modal's own scrim,
@@ -125,6 +128,9 @@ export function EditorTopBar({
   const immersiveCanvas = useEditorStore((state) => state.immersiveCanvas)
   const mobilePanel = useEditorStore((state) => state.mobilePanel)
   const rightSidebarVisible = useEditorStore((state) => state.sidebars.right)
+  const globalColorsActive = useEditorStore((state) =>
+    hasSceneAdjustments(state.sceneConfig)
+  )
   const sidebarView = useEditorStore((state) => state.sidebarView)
   const setSidebarView = useEditorStore((state) => state.setSidebarView)
   const zoom = useEditorStore((state) => state.zoom)
@@ -215,7 +221,6 @@ export function EditorTopBar({
         pendingBaseSnapshotRef.current = committedSnapshotRef.current
       }
 
-
       if (interactiveEditDepth > 0) {
         return
       }
@@ -288,6 +293,14 @@ export function EditorTopBar({
         }
 
         if (state.layers === previousState.layers) {
+          // Selection alone is not an undo step, but the next group operation
+          // should restore the selection the user actually grouped.
+          if (
+            !pendingBaseSnapshotRef.current &&
+            state.selectedLayerIds !== previousState.selectedLayerIds
+          ) {
+            syncHistorySnapshotRefs()
+          }
           return
         }
 
@@ -352,53 +365,79 @@ export function EditorTopBar({
       }
     )
 
-    const unsubscribeAudio = useAudioStore.subscribe(
+    const unsubscribeAudio = useAudioStore.subscribe((state, previousState) => {
+      if (applyingHistoryRef.current || isRestoringAutosave()) {
+        syncHistorySnapshotRefs()
+        return
+      }
+
+      if (
+        state.bands === previousState.bands &&
+        state.links === previousState.links &&
+        state.offsetSeconds === previousState.offsetSeconds &&
+        state.source === previousState.source
+      ) {
+        return
+      }
+
+      const layerState = useLayerStore.getState()
+      const timelineState = useTimelineStore.getState()
+      const previousSnapshot = buildEditorHistorySnapshotFromState(
+        layerState,
+        timelineState,
+        {
+          bands: previousState.bands,
+          links: previousState.links,
+          offsetSeconds: previousState.offsetSeconds,
+          source: previousState.source,
+        }
+      )
+      const nextSnapshot = buildEditorHistorySnapshotFromState(
+        layerState,
+        timelineState,
+        {
+          bands: state.bands,
+          links: state.links,
+          offsetSeconds: state.offsetSeconds,
+          source: state.source,
+        }
+      )
+
+      if (
+        getHistorySnapshotSignature(previousSnapshot) ===
+        getHistorySnapshotSignature(nextSnapshot)
+      ) {
+        return
+      }
+
+      scheduleHistoryCommit(nextSnapshot)
+    })
+
+    const unsubscribeEditor = useEditorStore.subscribe(
       (state, previousState) => {
+        if (state.sceneRevision !== previousState.sceneRevision) {
+          // A document replacement is a boundary, including any pending debounce.
+          if (historyTimerRef.current !== null) {
+            window.clearTimeout(historyTimerRef.current)
+            historyTimerRef.current = null
+          }
+          pendingBaseSnapshotRef.current = null
+          useHistoryStore.getState().clearHistory()
+          syncHistorySnapshotRefs()
+          return
+        }
         if (applyingHistoryRef.current || isRestoringAutosave()) {
           syncHistorySnapshotRefs()
           return
         }
-
+        if (state.sceneConfig === previousState.sceneConfig) return
+        const next = buildEditorHistorySnapshot()
         if (
-          state.bands === previousState.bands &&
-          state.links === previousState.links &&
-          state.offsetSeconds === previousState.offsetSeconds &&
-          state.source === previousState.source
+          getHistorySnapshotSignature(next) !==
+          getHistorySnapshotSignature(latestSnapshotRef.current)
         ) {
-          return
+          scheduleHistoryCommit(next)
         }
-
-        const layerState = useLayerStore.getState()
-        const timelineState = useTimelineStore.getState()
-        const previousSnapshot = buildEditorHistorySnapshotFromState(
-          layerState,
-          timelineState,
-          {
-            bands: previousState.bands,
-            links: previousState.links,
-            offsetSeconds: previousState.offsetSeconds,
-            source: previousState.source,
-          }
-        )
-        const nextSnapshot = buildEditorHistorySnapshotFromState(
-          layerState,
-          timelineState,
-          {
-            bands: state.bands,
-            links: state.links,
-            offsetSeconds: state.offsetSeconds,
-            source: state.source,
-          }
-        )
-
-        if (
-          getHistorySnapshotSignature(previousSnapshot) ===
-          getHistorySnapshotSignature(nextSnapshot)
-        ) {
-          return
-        }
-
-        scheduleHistoryCommit(nextSnapshot)
       }
     )
 
@@ -407,6 +446,7 @@ export function EditorTopBar({
       unsubscribeLayers()
       unsubscribeTimeline()
       unsubscribeAudio()
+      unsubscribeEditor()
 
       if (historyTimerRef.current !== null) {
         window.clearTimeout(historyTimerRef.current)
@@ -451,11 +491,13 @@ export function EditorTopBar({
       >
         {({ dragHandleProps }) => (
           <GlassPanel
-            className="flex min-h-11 w-auto items-center justify-between gap-[var(--ds-space-4)] px-[10px] py-[3px]"
+            className="flex min-h-11 w-auto items-center justify-between gap-[var(--ds-space-4)] rounded-toolbar px-bar"
+            data-toolbar=""
             variant="panel"
           >
             <IconButton
               aria-label="Drag"
+              tooltipDisabled
               className="h-7 w-7 cursor-grab text-[var(--ds-color-text-muted)] active:cursor-grabbing"
               tooltipSide="bottom"
               variant="ghost"
@@ -464,7 +506,9 @@ export function EditorTopBar({
               <DragHandleDots2Icon height={14} width={14} />
             </IconButton>
 
-            <div className="inline-flex items-center gap-0.5 rounded-[var(--ds-radius-bar)] border border-white/8 bg-black/25 p-[3px]">
+            <ProjectMenu />
+
+            <div className="inline-flex items-center gap-0.5 rounded-group border border-white/8 bg-black/25 p-bar-group">
               <IconButton
                 aria-label="Undo"
                 className="h-7 w-7 disabled:opacity-45"
@@ -530,6 +574,7 @@ export function EditorTopBar({
               </IconButton>
               <TopbarDivider className="mx-0.5" />
 
+              <ThemeToggleButton />
               {rightSidebarVisible ? (
                 <IconButton
                   aria-label={
@@ -549,8 +594,22 @@ export function EditorTopBar({
                   <GearIcon height={16} width={16} />
                 </IconButton>
               ) : null}
-
             </div>
+
+            {globalColorsActive ? (
+              <Button
+                aria-label="Global colors active"
+                className="h-7 whitespace-nowrap"
+                size="compact"
+                variant="secondary"
+                onClick={() => {
+                  useEditorStore.getState().setSidebarOpen("right", true)
+                  setSidebarView("scene")
+                }}
+              >
+                Global colors active
+              </Button>
+            ) : null}
 
             <div className="inline-flex items-center gap-1.5">
               <AnimatePresence initial={false}>
@@ -634,9 +693,10 @@ export function EditorTopBar({
       {mobileActionsOpen ? (
         <div className="pointer-events-none fixed right-0 bottom-[88px] left-0 z-45 flex justify-center px-3 min-[900px]:hidden">
           <GlassPanel
-            className="pointer-events-auto flex w-full max-w-[420px] flex-col gap-1.5 p-1.5"
+            className="pointer-events-auto flex w-full max-w-[420px] flex-col gap-1.5 rounded-toolbar p-bar"
             variant="panel"
           >
+            <ProjectMenu mobile />
             <div className="grid grid-cols-5 gap-1.5">
               <IconButton
                 aria-label="Undo"
@@ -692,7 +752,7 @@ export function EditorTopBar({
               </IconButton>
             </div>
 
-            <div className="grid grid-cols-5 gap-1.5">
+            <div className="grid grid-cols-4 gap-1.5">
               <IconButton
                 aria-label="Export"
                 className="size-full min-h-11 disabled:opacity-45"
@@ -727,8 +787,9 @@ export function EditorTopBar({
               >
                 <GitHubLogoIcon height={18} width={18} />
               </IconButtonLink>
+              <ThemeToggleButton mobile />
               {communityEnabled ? (
-                <span className="relative col-span-2 inline-flex">
+                <span className="relative col-span-4 inline-flex">
                   <ButtonLink
                     className="min-h-11 w-full gap-2"
                     href={COMMUNITY_PATH as Route}

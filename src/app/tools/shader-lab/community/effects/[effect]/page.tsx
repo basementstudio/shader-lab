@@ -1,7 +1,7 @@
 import type { Metadata, Route } from "next"
 import Image from "next/image"
 import Link from "next/link"
-import { notFound } from "next/navigation"
+import { notFound, permanentRedirect } from "next/navigation"
 import { Suspense } from "react"
 import { PublicSceneGrid } from "@/components/community/public-scene-grid"
 import { SceneTag } from "@/components/community/scene-tag"
@@ -12,7 +12,9 @@ import { isCommunityEnabled } from "@/lib/community/config"
 import { getPublicScenes } from "@/lib/community/public-scenes"
 import {
   COMMUNITY_EFFECT_TYPES,
+  DISCONTINUED_EFFECT_REPLACEMENT,
   isCommunityEffectType,
+  isDiscontinuedEffectType,
 } from "@/lib/community/scene-effect-filter"
 import {
   COMMUNITY_PATH,
@@ -35,11 +37,8 @@ type PageProps = { params: Promise<{ effect: string }> }
 
 function describeEffect(effect: EffectLayerType): string {
   const entry = getLayerCatalogEntry(effect)
-  const lead =
-    entry.description ??
-    `Apply the ${entry.label} effect to images, video, text, and 3D models.`
 
-  return `${lead} Use ${entry.label} free in your browser with Shader Lab, stack it with other effects, animate it on the timeline, and remix community scenes that use it.`
+  return entry.description ?? `The ${entry.label} effect in Shader Lab.`
 }
 
 export async function generateMetadata({
@@ -89,17 +88,21 @@ export default function EffectPage({ params }: PageProps) {
 
 function EffectSkeleton() {
   return (
-    <main className="mx-auto flex w-full max-w-[1180px] animate-pulse flex-col gap-[var(--ds-space-6)] px-4 py-10 sm:px-6">
-      <div className="h-7 w-24 rounded-[4px] bg-[var(--ds-color-surface-subtle)]" />
-      <div className="h-12 w-2/5 rounded-[4px] bg-[var(--ds-color-surface-subtle)]" />
-      <div className="h-5 w-3/5 rounded-[4px] bg-[var(--ds-color-surface-subtle)]" />
-      <div className="aspect-[16/10] w-full max-w-[720px] rounded-[12px] border border-[var(--ds-border-subtle)] bg-[var(--ds-color-surface-subtle)]" />
+    <main className="mx-auto flex w-full max-w-[1180px] animate-pulse flex-col px-4 pt-24 pb-16 sm:px-6">
+      <div className="grid grid-cols-1 gap-bar rounded-[var(--ds-radius-banner)] bg-[var(--ds-color-card)] p-bar min-[900px]:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)]">
+        <div className="min-h-[240px]" />
+        <div className="aspect-[16/10] w-full rounded-[var(--ds-radius-card)] bg-[var(--ds-color-media)]" />
+      </div>
     </main>
   )
 }
 
 async function EffectRoute({ params }: PageProps) {
   const { effect } = await params
+
+  if (isDiscontinuedEffectType(effect)) {
+    permanentRedirect(effectPagePath(DISCONTINUED_EFFECT_REPLACEMENT) as Route)
+  }
 
   if (!isCommunityEffectType(effect)) {
     notFound()
@@ -111,57 +114,57 @@ async function EffectRoute({ params }: PageProps) {
   )
 
   return (
-    <main className="mx-auto flex w-full max-w-[1180px] flex-col gap-[var(--ds-space-12)] px-4 py-10 sm:px-6">
-      <header className="flex flex-col items-start gap-[var(--ds-space-5)]">
-        <Link
-          className="text-[var(--ds-color-text-tertiary)] transition-colors hover:text-[var(--ds-color-text-primary)] type-mono-xs"
-          href={EFFECTS_PATH as Route}
-        >
-          ← All effects
-        </Link>
+    <main className="mx-auto flex w-full max-w-[1180px] flex-col gap-[var(--ds-space-16)] px-4 pt-24 pb-16 sm:px-6">
+      <header className="grid grid-cols-1 gap-bar rounded-[var(--ds-radius-banner)] bg-[var(--ds-color-card)] p-bar shadow-[var(--skin-card-shadow)] min-[900px]:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)]">
+        <div className="flex min-w-0 flex-col gap-[var(--ds-space-8)] p-[var(--ds-space-5)] sm:p-[var(--ds-space-6)]">
+          <div className="flex flex-1 flex-col justify-center gap-[var(--ds-space-3)]">
+            <Typography
+              as="h1"
+              className="text-balance [overflow-wrap:anywhere]"
+              variant="display"
+            >
+              {entry.label}
+              <span className="sr-only"> shader effect</span>
+            </Typography>
+            <Typography
+              as="p"
+              className="max-w-[520px] text-pretty leading-[1.6]"
+              tone="secondary"
+              variant="body"
+            >
+              {describeEffect(effect)}
+            </Typography>
+          </div>
 
-        <div className="flex flex-col gap-[var(--ds-space-3)]">
-          <Typography as="h1" className="text-balance" variant="display">
-            {entry.label} shader effect
-          </Typography>
-          <Typography
-            as="p"
-            className="max-w-[640px] text-pretty leading-[1.65]"
-            tone="secondary"
-            variant="title"
-          >
-            {describeEffect(effect)}
-          </Typography>
+          <div className="flex flex-wrap items-stretch gap-[var(--ds-space-2)]">
+            <ButtonLink href={EDITOR_PATH as Route} variant="primary">
+              Try it in the editor
+            </ButtonLink>
+            <ButtonLink
+              href={communityEffectPath(effect) as Route}
+              variant="secondary"
+            >
+              Filter the gallery
+            </ButtonLink>
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-stretch gap-[var(--ds-space-2)]">
-          <ButtonLink href={EDITOR_PATH as Route} variant="primary">
-            Try it in the editor
-          </ButtonLink>
-          <ButtonLink
-            href={communityEffectPath(effect) as Route}
-            variant="ghost"
-          >
-            Filter the gallery
-          </ButtonLink>
-        </div>
-
-        {entry.previewSrc ? (
-          <figure className="relative m-0 aspect-[16/10] w-full max-w-[720px] overflow-hidden rounded-[12px] border border-[var(--ds-border-subtle)] bg-[var(--ds-color-surface-subtle)]">
+        <figure className="relative m-0 aspect-[16/10] w-full overflow-hidden rounded-[var(--ds-radius-card)] bg-[var(--ds-color-media)]">
+          {entry.previewSrc ? (
             <Image
               alt={`${entry.label} effect example`}
               className="object-cover"
               fill
               priority
-              sizes="(max-width: 780px) 100vw, 720px"
+              sizes="(max-width: 900px) 100vw, 680px"
               src={entry.previewSrc}
             />
-          </figure>
-        ) : null}
+          ) : null}
+        </figure>
       </header>
 
-      <section className="flex flex-col gap-[var(--ds-space-6)]">
-        <Typography as="h2" variant="heading">
+      <section className="flex flex-col gap-[var(--ds-space-5)]">
+        <Typography as="h2" className="px-[var(--ds-space-1)]" variant="heading">
           Scenes using {entry.label}
         </Typography>
         <Suspense fallback={null}>
@@ -171,15 +174,15 @@ async function EffectRoute({ params }: PageProps) {
 
       <nav
         aria-label="Other effects"
-        className="flex flex-col gap-[var(--ds-space-4)]"
+        className="flex flex-col gap-[var(--ds-space-5)] rounded-[var(--ds-radius-banner)] bg-[var(--ds-color-card)] p-[var(--ds-space-6)] shadow-[var(--skin-card-shadow)]"
       >
         <Typography as="h2" variant="heading">
           Other effects
         </Typography>
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-[var(--ds-space-1_5)]">
           {otherEffects.map((other) => (
             <Link
-              className="rounded-[var(--ds-radius-control)] transition-opacity duration-160 hover:opacity-75"
+              className="rounded-[var(--ds-radius-pill)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ds-color-accent)]"
               href={effectPagePath(other) as Route}
               key={other}
             >

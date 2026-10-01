@@ -1,6 +1,10 @@
 "use client"
 
 import {
+  getMaskParameterDefinitions,
+  isMaskParamKey,
+} from "@/lib/editor/mask-animation"
+import {
   CaretDownIcon,
   CaretUpIcon,
   CircleIcon,
@@ -183,9 +187,21 @@ function getPropertyId(binding: AnimatedPropertyBinding): string {
 function getVisibleParams(layer: EditorLayer): ParameterDefinition[] {
   const definition = getLayerDefinition(layer.type)
 
-  return definition.params.filter((entry) =>
-    isParamVisible(entry, layer.params, [...definition.params], layer.type)
+  return definition.params.filter(
+    (entry) =>
+      (entry.type === "text" && entry.interpolate === "gradient") ||
+      isParamVisible(entry, layer.params, [...definition.params], layer.type)
   )
+}
+
+function propertyColor(definition: ParameterDefinition): string {
+  if (isMaskParamKey(definition.key)) {
+    return "#7FD1AE"
+  }
+
+  return definition.type === "color" || definition.type === "text"
+    ? "#FF8CAB"
+    : "#B697FF"
 }
 
 function buildTimelineProperties(
@@ -218,7 +234,12 @@ function buildTimelineProperties(
     }
   )
 
-  for (const definition of getVisibleParams(layer)) {
+  const maskDefinitions =
+    layer.mask?.enabled && layer.mask.shape !== "none"
+      ? getMaskParameterDefinitions(layer.mask.shape)
+      : []
+
+  for (const definition of [...getVisibleParams(layer), ...maskDefinitions]) {
     const binding = createParamBinding(layer, definition.key)
 
     if (!binding) {
@@ -229,7 +250,7 @@ function buildTimelineProperties(
     properties.push({
       audioLink: findAudioLink(audioLinks, layer.id, binding),
       binding,
-      color: definition.type === "color" ? "#FF8CAB" : "#B697FF",
+      color: propertyColor(definition),
       id,
       kind: "param",
       label: definition.label,
@@ -1314,12 +1335,13 @@ export function EditorTimelineOverlay() {
           }
         >
           <GlassPanel
-            className="pointer-events-auto flex h-full max-h-inherit w-full flex-col overflow-hidden"
+            className="pointer-events-auto flex h-full max-h-inherit w-full flex-col overflow-hidden rounded-toolbar"
+            data-toolbar=""
             variant="panel"
           >
             <div
               className={cn(
-                "border-b border-[var(--ds-border-divider)] p-2 transition-[border-color] duration-160 ease-[var(--ease-out-cubic)]",
+                "border-b border-[var(--ds-border-divider)] p-bar transition-[border-color] duration-160 ease-[var(--ease-out-cubic)]",
                 !timelinePanelOpen && "border-b-transparent"
               )}
             >

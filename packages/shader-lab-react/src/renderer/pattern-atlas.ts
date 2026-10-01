@@ -131,3 +131,61 @@ export async function buildPatternAtlas(
 
   return texture
 }
+
+export const MAX_PATTERN_MOTIFS = 10
+const MOTIF_FALLBACK_SIZE = 512
+
+export function loadMotifImage(url: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new Image()
+    image.crossOrigin = "anonymous"
+    image.decoding = "async"
+    image.onload = () => resolve(image)
+    image.onerror = () => reject(new Error(`Unable to load pattern motif: ${url}`))
+    image.src = url
+  })
+}
+
+export function buildMotifAtlas(
+  images: readonly HTMLImageElement[],
+  cellPx = 16,
+): THREE.CanvasTexture {
+  const cellSize = Math.max(4, Math.round(cellPx))
+  const canvas = document.createElement("canvas")
+  canvas.width = Math.max(1, images.length) * cellSize
+  canvas.height = cellSize
+
+  const context = canvas.getContext("2d")
+
+  if (!context) {
+    throw new Error("Unable to create 2D context for pattern atlas")
+  }
+
+  context.clearRect(0, 0, canvas.width, canvas.height)
+  context.imageSmoothingEnabled = true
+  context.imageSmoothingQuality = "high"
+
+  for (const [index, image] of images.entries()) {
+    const width = image.naturalWidth || MOTIF_FALLBACK_SIZE
+    const height = image.naturalHeight || MOTIF_FALLBACK_SIZE
+    const aspect = width / Math.max(height, 1)
+    const drawWidth = aspect >= 1 ? cellSize : cellSize * aspect
+    const drawHeight = aspect >= 1 ? cellSize / Math.max(aspect, 0.0001) : cellSize
+    const x = index * cellSize + (cellSize - drawWidth) * 0.5
+    const y = (cellSize - drawHeight) * 0.5
+
+    context.drawImage(image, x, y, drawWidth, drawHeight)
+  }
+
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.colorSpace = THREE.SRGBColorSpace
+  texture.flipY = false
+  texture.generateMipmaps = false
+  texture.magFilter = THREE.NearestFilter
+  texture.minFilter = THREE.NearestFilter
+  texture.wrapS = THREE.ClampToEdgeWrapping
+  texture.wrapT = THREE.ClampToEdgeWrapping
+  texture.needsUpdate = true
+
+  return texture
+}

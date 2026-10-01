@@ -189,7 +189,8 @@ export function DraftSaveMount() {
           }
         >
           <GlassPanel
-            className="pointer-events-auto flex items-center gap-[var(--ds-space-2)] py-1.5 pr-1.5 pl-3"
+            className="pointer-events-auto flex items-center gap-[var(--ds-space-2)] rounded-toolbar p-bar pl-3"
+            data-toolbar=""
             variant="panel"
           >
             <Typography

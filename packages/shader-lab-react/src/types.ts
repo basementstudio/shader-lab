@@ -5,7 +5,7 @@ export type ShaderLabParameterValue =
   | [number, number]
   | [number, number, number]
 
-export type ShaderLabLayerKind = "effect" | "source"
+export type ShaderLabLayerKind = "effect" | "source" | "group"
 
 export type ShaderLabSourceLayerType =
   | "custom-shader"
@@ -15,10 +15,14 @@ export type ShaderLabSourceLayerType =
   | "live"
   | "magnify-lens"
   | "pixel-trail"
+  | "shape"
   | "text"
   | "video"
 
 export type ShaderLabEffectLayerType =
+  | "photographic-cells"
+  | "displaced-rings"
+  | "annotations"
   | "ascii"
   | "blob-tracking"
   | "bloom"
@@ -41,9 +45,23 @@ export type ShaderLabEffectLayerType =
   | "slice"
   | "smear"
   | "threshold"
+  | "gradient-map"
+  | "lumen-print"
+  | "grain"
+  | "signal-rot"
+  | "dot-grid"
+  | "erosion"
+  | "relief"
+  | "flares"
+  | "focus-blur"
+  | "glass"
+  | "connected-dots"
+  | "photocopy"
+  | "outline"
   | "voxel"
 
 export type ShaderLabLayerType =
+  | "group"
   | ShaderLabEffectLayerType
   | ShaderLabSourceLayerType
 
@@ -79,6 +97,28 @@ export interface ShaderLabMaskConfig {
   invert: boolean
   mode: ShaderLabMaskMode
   source: ShaderLabMaskSource
+}
+
+export type ShaderLabLayerMaskShape =
+  | "none"
+  | "depth"
+  | "linear"
+  | "radial"
+  | "ellipse"
+  | "rectangle"
+  | "brush"
+export type ShaderLabLayerMaskScope = "effect" | "content"
+
+export interface ShaderLabLayerMask {
+  shape: ShaderLabLayerMaskShape
+  scope?: ShaderLabLayerMaskScope
+  enabled?: boolean
+  invert?: boolean
+  center?: [number, number]
+  size?: [number, number]
+  rotation?: number
+  feather?: number
+  paint?: string
 }
 
 export type ShaderLabAssetSource =
@@ -129,7 +169,14 @@ export type ShaderLabAnimatedPropertyBinding =
       key: string
       kind: "param"
       label: string
-      valueType: "boolean" | "color" | "number" | "select" | "vec2" | "vec3"
+      valueType:
+        | "boolean"
+        | "color"
+        | "gradient"
+        | "number"
+        | "select"
+        | "vec2"
+        | "vec3"
     }
 
 export interface ShaderLabTimelineKeyframe {
@@ -156,10 +203,14 @@ export interface ShaderLabTimelineConfig {
 }
 
 export interface ShaderLabLayerConfig {
+  parentId?: string | null
   asset?: ShaderLabAssetSource
+  depthAsset?: Extract<ShaderLabAssetSource, { kind: "image" }>
+  patternAssets?: Extract<ShaderLabAssetSource, { kind: "image" }>[]
   blendMode: ShaderLabBlendMode
   compositeMode: ShaderLabCompositeMode
   maskConfig?: ShaderLabMaskConfig
+  mask?: ShaderLabLayerMask | null
   hue: number
   id: string
   kind: ShaderLabLayerKind

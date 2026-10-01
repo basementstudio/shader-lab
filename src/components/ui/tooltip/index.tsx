@@ -50,6 +50,7 @@ export function HoverTooltip({
           sideOffset={sideOffset}
         >
           <Tooltip.Popup
+            data-ds="tooltip"
             className={cn(
               "pointer-events-none max-w-[220px] rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-panel)] bg-[rgb(16_16_20_/_0.96)] px-2.5 py-1.5 font-[var(--ds-font-mono)] text-[10px] leading-[1.35] text-[var(--ds-color-text-secondary)] shadow-[var(--ds-shadow-panel-dark)] backdrop-blur-[20px] transition-[opacity,transform] duration-140 ease-[var(--ease-out-cubic)] data-[closed]:opacity-0 data-[starting-style]:scale-[0.96] data-[starting-style]:opacity-0 data-[ending-style]:scale-[0.96] data-[ending-style]:opacity-0",
               className

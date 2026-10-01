@@ -1,6 +1,7 @@
 import * as THREE from "three/webgpu"
 import type { RendererFrame, RendererSize } from "./contracts"
 import { PipelineManager } from "./pipeline-manager"
+import { reverseComposition } from "./composition-tree"
 
 export interface HeadlessRenderer {
   dispose(): void
@@ -79,7 +80,7 @@ export function createHeadlessRenderer(
       }
 
       pipeline.updateLogicalSize(frame.logicalSize)
-      pipeline.syncLayers([...frame.layers].reverse())
+      pipeline.syncLayers(reverseComposition(frame.layers))
 
       if (ownsRenderer) {
         return pipeline.renderToTexture(

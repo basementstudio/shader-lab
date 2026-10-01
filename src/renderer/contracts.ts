@@ -1,10 +1,16 @@
+import { buildCompositionTree } from "./layer-hierarchy"
 import {
   applyAudioModulation,
   type AudioModulationInput,
 } from "@/lib/editor/audio/links"
+import {
+  applyMaskOverrides,
+  stripMaskParams,
+} from "@/lib/editor/mask-animation"
 import { cloneParameterValues } from "@/lib/editor/parameter-schema"
 import { evaluateTimelineForLayers } from "@/lib/editor/timeline/evaluate"
 import { createProjectClock } from "@/renderer/project-clock"
+import type { CompositionNode } from "@/renderer/composition-tree"
 import type {
   EditorAsset,
   EditorLayer,
@@ -25,14 +31,17 @@ export interface ProjectClock {
 
 export interface RenderableLayerPass {
   asset: EditorAsset | null
+  depthAsset: EditorAsset | null
+  environmentAsset: EditorAsset | null
   layer: EditorLayer
   params: LayerParameterValues
+  patternAssets?: EditorAsset[]
 }
 
 export interface RendererFrame {
   clock: ProjectClock
   cropAspectRatio: number | null
-  layers: RenderableLayerPass[]
+  layers: CompositionNode<RenderableLayerPass>[]
   logicalSize: Size
   outputSize: Size
   pixelRatio: number
@@ -105,44 +114,64 @@ export function buildRendererFrame(
     evaluatedLayers.map((state) => [state.layerId, state])
   )
 
-  const layers = input.layers
-    .filter((layer) => layer.visible)
-    .map((layer) => {
-      const evaluation = evaluatedById.get(layer.id)
-      const params = evaluation
-        ? { ...getCachedClone(layer.params), ...evaluation.params }
-        : getCachedClone(layer.params)
+  const layers = input.layers.map((layer) => {
+    const evaluation = evaluatedById.get(layer.id)
+    const params = evaluation
+      ? stripMaskParams({ ...getCachedClone(layer.params), ...evaluation.params })
+      : getCachedClone(layer.params)
+    const mask =
+      evaluation && layer.mask
+        ? applyMaskOverrides(layer.mask, evaluation.params)
+        : layer.mask
 
-      return {
-        asset: layer.assetId ? (assetById.get(layer.assetId) ?? null) : null,
-        layer: {
-          ...layer,
-          hue:
-            typeof evaluation?.properties.hue === "number"
-              ? evaluation.properties.hue
-              : layer.hue,
-          opacity:
-            typeof evaluation?.properties.opacity === "number"
-              ? evaluation.properties.opacity
-              : layer.opacity,
-          saturation:
-            typeof evaluation?.properties.saturation === "number"
-              ? evaluation.properties.saturation
-              : layer.saturation,
-          visible:
-            typeof evaluation?.properties.visible === "boolean"
-              ? evaluation.properties.visible
-              : layer.visible,
-        },
-        params,
-      }
-    })
-    .filter((entry) => entry.layer.visible)
+    return {
+      asset: layer.assetId ? (assetById.get(layer.assetId) ?? null) : null,
+      depthAsset: layer.depthAssetId
+        ? (assetById.get(layer.depthAssetId) ?? null)
+        : null,
+      environmentAsset: layer.environmentAssetId
+        ? (assetById.get(layer.environmentAssetId) ?? null)
+        : null,
+      ...(layer.patternAssetIds
+        ? {
+            patternAssets: layer.patternAssetIds.flatMap((id) => {
+              const asset = assetById.get(id)
+              return asset ? [asset] : []
+            }),
+          }
+        : {}),
+      layer: {
+        ...layer,
+        ...(mask !== layer.mask ? { mask } : {}),
+        hue:
+          typeof evaluation?.properties.hue === "number"
+            ? evaluation.properties.hue
+            : layer.hue,
+        opacity:
+          typeof evaluation?.properties.opacity === "number"
+            ? evaluation.properties.opacity
+            : layer.opacity,
+        saturation:
+          typeof evaluation?.properties.saturation === "number"
+            ? evaluation.properties.saturation
+            : layer.saturation,
+        visible:
+          typeof evaluation?.properties.visible === "boolean"
+            ? evaluation.properties.visible
+            : layer.visible,
+      },
+      params,
+    }
+  })
 
+  const entryById = new Map(layers.map((entry) => [entry.layer.id, entry]))
   return {
     clock: createProjectClock(input.timeline, input.delta, input.clockTime),
     cropAspectRatio: input.cropAspectRatio ?? null,
-    layers,
+    layers: buildCompositionTree(
+      layers.map((entry) => entry.layer),
+      (layer) => entryById.get(layer.id)!
+    ),
     logicalSize: input.logicalSize ?? input.viewportSize,
     outputSize: input.outputSize,
     pixelRatio: input.pixelRatio,

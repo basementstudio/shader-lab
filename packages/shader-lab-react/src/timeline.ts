@@ -1,4 +1,5 @@
 import { evaluateCubicBezier } from "./easings"
+import { interpolateGradientMapStops } from "./renderer/color-map-lut"
 import type {
   ShaderLabAnimatedPropertyBinding,
   ShaderLabKeyframeEasing,
@@ -95,12 +96,17 @@ function interpolateValue(
   to: ShaderLabParameterValue,
   progress: number,
   easing: ShaderLabKeyframeEasing,
+  valueType: ShaderLabAnimatedPropertyBinding["valueType"],
 ): ShaderLabParameterValue {
   if (easing.type === "step") {
     return cloneParameterValue(from)
   }
 
   const eased = resolveEasing(progress, easing)
+
+  if (valueType === "gradient" && typeof from === "string" && typeof to === "string") {
+    return interpolateGradientMapStops(from, to, eased)
+  }
 
   if (typeof from === "number" && typeof to === "number") {
     return lerp(from, to, eased)
@@ -184,6 +190,7 @@ function evaluateTrackAtTime(
       nextKeyframe.value,
       progress,
       easing,
+      track.binding.valueType,
     )
   }
 
@@ -273,8 +280,50 @@ export function resolveEvaluatedLayers(
       }
     }
 
+    const params: Record<string, ShaderLabParameterValue> = {
+      ...layer.params,
+    }
+    let mask = layer.mask
+
+    for (const [key, value] of Object.entries(evaluated.params)) {
+      if (!key.startsWith("mask.")) {
+        params[key] = value
+        continue
+      }
+
+      if (!mask) {
+        continue
+      }
+
+      const field = key.slice(5)
+      if (
+        (field === "center" || field === "size") &&
+        Array.isArray(value) &&
+        value.length === 2 &&
+        typeof value[0] === "number" &&
+        typeof value[1] === "number"
+      ) {
+        mask = { ...mask, [field]: [value[0], value[1]] }
+      } else if (
+        (field === "rotation" || field === "feather") &&
+        typeof value === "number"
+      ) {
+        mask = { ...mask, [field]: value }
+      } else if (
+        (field === "near" || field === "far") &&
+        typeof value === "number"
+      ) {
+        const size = mask.size ?? [0, 1]
+        mask = {
+          ...mask,
+          size: field === "near" ? [value, size[1]] : [size[0], value],
+        }
+      }
+    }
+
     return {
       ...layer,
+      ...(mask !== layer.mask ? { mask } : {}),
       hue:
         typeof evaluated.properties.hue === "number"
           ? evaluated.properties.hue
@@ -283,10 +332,7 @@ export function resolveEvaluatedLayers(
         typeof evaluated.properties.opacity === "number"
           ? evaluated.properties.opacity
           : layer.opacity,
-      params: {
-        ...layer.params,
-        ...evaluated.params,
-      },
+      params,
       saturation:
         typeof evaluated.properties.saturation === "number"
           ? evaluated.properties.saturation

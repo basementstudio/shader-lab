@@ -1,3 +1,11 @@
+import {
+  getDocumentSize,
+  normalizeCompositionForDocument,
+} from "@/lib/editor/composition"
+import { modelMaterialDefaults } from "@/lib/editor/config/model-options"
+import { CURRENT_PROJECT_FILE_VERSION } from "./project-version"
+import { validateLayerHierarchy } from "@/renderer/layer-hierarchy"
+import { MISSING_DEPTH_ERROR_PREFIX } from "@/renderer/layer-media-error"
 import { z } from "zod"
 import { useAssetStore } from "@/store/asset-store"
 import { useAudioStore } from "@/store/audio-store"
@@ -35,6 +43,8 @@ import {
   MASK_MODES,
   MASK_SOURCES,
   SOURCE_LAYER_TYPES,
+  LAYER_MASK_SCOPES,
+  LAYER_MASK_SHAPES,
 } from "@/types/editor"
 
 export interface LabProjectFile extends ProjectPresetConfig {
@@ -76,6 +86,18 @@ export function collectReferencedAssetIds(input: {
     if (layer.assetId) {
       referenced.add(layer.assetId)
     }
+
+    if (layer.depthAssetId) {
+      referenced.add(layer.depthAssetId)
+    }
+
+    if (layer.environmentAssetId) {
+      referenced.add(layer.environmentAssetId)
+    }
+
+    for (const assetId of layer.patternAssetIds ?? []) {
+      referenced.add(assetId)
+    }
   }
 
   if (input.audioSource?.kind === "asset") {
@@ -91,9 +113,40 @@ export function buildPublishableProjectFile(
   const audioSource = file.audio?.source ?? null
   const audioLayerId =
     audioSource?.kind === "video-layer" ? audioSource.layerId : null
-  const layers = file.layers.filter(
-    (layer) => layer.visible || layer.id === audioLayerId
+  const layersById = new Map(file.layers.map((layer) => [layer.id, layer]))
+  const isHiddenByAncestor = (layer: (typeof file.layers)[number]) => {
+    const seen = new Set<string>()
+    let parentId = layer.parentId ?? null
+    while (parentId && !seen.has(parentId)) {
+      seen.add(parentId)
+      const parent = layersById.get(parentId)
+      if (!parent) {
+        return false
+      }
+      if (!parent.visible) {
+        return true
+      }
+      parentId = parent.parentId ?? null
+    }
+    return false
+  }
+  const keptLayers = file.layers.filter((layer) =>
+    layer.id === audioLayerId
+      ? true
+      : layer.visible && !isHiddenByAncestor(layer)
   )
+  const keptLayerIds = new Set(keptLayers.map((layer) => layer.id))
+  const layers = keptLayers.map((layer) => {
+    const detached =
+      layer.parentId && !keptLayerIds.has(layer.parentId)
+        ? { ...layer, parentId: null }
+        : layer
+    return layer.id === audioLayerId &&
+      layer.visible &&
+      isHiddenByAncestor(layer)
+      ? { ...detached, visible: false }
+      : detached
+  })
 
   if (layers.length === file.layers.length) {
     return file
@@ -120,7 +173,9 @@ export function buildPublishableProjectFile(
         : null,
     timeline: {
       ...file.timeline,
-      tracks: file.timeline.tracks.filter((track) => keptIds.has(track.layerId)),
+      tracks: file.timeline.tracks.filter((track) =>
+        keptIds.has(track.layerId)
+      ),
     },
   }
 }
@@ -141,7 +196,10 @@ export function buildLabProjectFile(): LabProjectFile {
       .filter((asset) => referenced.has(asset.id))
       .map(toAssetReference),
     audio,
-    composition: structuredClone(editorState.outputSize),
+    composition: structuredClone(
+      getDocumentSize(editorState.sceneConfig, editorState.outputSize) ??
+        editorState.outputSize
+    ),
     exportedAt: new Date().toISOString(),
     format: "shader-lab",
     layers: structuredClone(layerState.layers),
@@ -220,8 +278,24 @@ const maskConfigSchema = z.looseObject({
   source: z.enum(MASK_SOURCES),
 })
 
+const layerMaskSchema = z.looseObject({
+  shape: z.enum(LAYER_MASK_SHAPES),
+  scope: z.enum(LAYER_MASK_SCOPES),
+  enabled: z.boolean(),
+  invert: z.boolean(),
+  center: z.tuple([z.number(), z.number()]),
+  size: z.tuple([z.number(), z.number()]),
+  rotation: z.number(),
+  feather: z.number(),
+  paint: z.string(),
+})
+
 const baseLayerShape = {
+  parentId: z.string().nullable().optional(),
   assetId: z.string().nullable(),
+  depthAssetId: z.string().nullable().optional(),
+  environmentAssetId: z.string().nullable().optional(),
+  patternAssetIds: z.array(z.string()).optional(),
   blendMode: z.enum(BLEND_MODES),
   compositeMode: z.enum(LAYER_COMPOSITE_MODES),
   expanded: z.boolean(),
@@ -229,6 +303,7 @@ const baseLayerShape = {
   hue: z.number(),
   id: z.string(),
   locked: z.boolean(),
+  mask: layerMaskSchema.nullable().optional(),
   maskConfig: maskConfigSchema.optional(),
   name: z.string(),
   opacity: z.number(),
@@ -239,6 +314,12 @@ const baseLayerShape = {
 }
 
 const layerSchema = z.discriminatedUnion("kind", [
+  z.looseObject({
+    ...baseLayerShape,
+    kind: z.literal("group"),
+    type: z.literal("group"),
+    compositeMode: z.literal("filter"),
+  }),
   z.looseObject({
     ...baseLayerShape,
     kind: z.literal("effect"),
@@ -308,7 +389,7 @@ const projectAudioSchema = z.looseObject({
   source: z.looseObject({ kind: z.string() }).nullable().optional(),
 })
 
-export const CURRENT_PROJECT_FILE_VERSION = 6
+export { CURRENT_PROJECT_FILE_VERSION } from "./project-version"
 
 const labProjectFileSchema = z.looseObject({
   assets: z.array(assetReferenceSchema),
@@ -389,6 +470,13 @@ export function parseLabProjectFileValue(parsed: unknown): LabProjectFile {
     throw toParseError(result.error.issues)
   }
 
+  validateLayerHierarchy(result.data.layers)
+  if (
+    result.data.version < 7 &&
+    result.data.layers.some((layer) => layer.kind === "group" || layer.parentId)
+  ) {
+    throw new Error("Groups require project version 7 or later.")
+  }
   return structuredClone(result.data) as unknown as LabProjectFile
 }
 
@@ -447,13 +535,12 @@ export function applyLabProjectFile(
   projectFile: LabProjectFile,
   currentAssets: EditorAsset[]
 ): { missingAssetCount: number; missingAudioSource: boolean } {
+  validateLayerHierarchy(projectFile.layers)
   const existingIds = new Set(currentAssets.map((asset) => asset.id))
   const remoteAssets = collectRemoteAssets(projectFile.assets, existingIds)
 
   if (remoteAssets.length > 0) {
-    useAssetStore
-      .getState()
-      .replaceAssets([...currentAssets, ...remoteAssets])
+    useAssetStore.getState().replaceAssets([...currentAssets, ...remoteAssets])
   }
 
   const assetIds = new Set([
@@ -498,12 +585,15 @@ export function applyLabProjectFile(
 
   const editorStore = useEditorStore.getState()
   if (projectFile.version >= 2 && projectFile.sceneConfig) {
-    editorStore.updateSceneConfig(
-      normalizeSceneConfig(projectFile.sceneConfig as Partial<SceneConfig>)
-    )
     editorStore.setOutputSize(
       projectFile.composition.width,
       projectFile.composition.height
+    )
+    editorStore.updateSceneConfig(
+      normalizeCompositionForDocument(
+        normalizeSceneConfig(projectFile.sceneConfig as Partial<SceneConfig>),
+        projectFile.composition
+      )
     )
   } else {
     editorStore.updateSceneConfig(DEFAULT_SCENE_CONFIG)
@@ -512,8 +602,10 @@ export function applyLabProjectFile(
   editorStore.noteSceneReplaced()
 
   return {
-    missingAssetCount: nextLayers.filter((layer) =>
-      Boolean(layer.assetId && layer.runtimeError)
+    missingAssetCount: nextLayers.filter(
+      (layer) =>
+        Boolean(layer.assetId && layer.runtimeError) ||
+        Boolean(layer.runtimeError?.startsWith("Missing motif:"))
     ).length,
     missingAudioSource: !isAudioSourceResolvable(
       audioSnapshot.source,
@@ -531,9 +623,6 @@ export interface ViewerProjectState {
   timeline: TimelineStateSnapshot
 }
 
-/* A plain snapshot of a lab file for read-only playback (public scene
- * pages). Mirrors applyLabProjectFile without touching the editor's
- * global stores. */
 export function buildViewerProjectState(
   projectFile: LabProjectFile
 ): ViewerProjectState {
@@ -552,7 +641,10 @@ export function buildViewerProjectState(
     layers,
     sceneConfig:
       projectFile.version >= 2 && projectFile.sceneConfig
-        ? normalizeSceneConfig(projectFile.sceneConfig as Partial<SceneConfig>)
+        ? normalizeCompositionForDocument(
+            normalizeSceneConfig(projectFile.sceneConfig as Partial<SceneConfig>),
+            projectFile.composition
+          )
         : DEFAULT_SCENE_CONFIG,
     timeline: {
       currentTime: 0,
@@ -574,7 +666,7 @@ function normalizeSceneConfig(sceneConfig: Partial<SceneConfig>): SceneConfig {
     typeof sceneConfig.quantizeEnabled === "boolean"
       ? sceneConfig.quantizeEnabled
       : typeof sceneConfig.quantizeLevels === "number" &&
-          sceneConfig.quantizeLevels !== DEFAULT_SCENE_CONFIG.quantizeLevels
+        sceneConfig.quantizeLevels !== DEFAULT_SCENE_CONFIG.quantizeLevels
 
   return {
     ...DEFAULT_SCENE_CONFIG,
@@ -603,20 +695,70 @@ export function migrateLayerParams(
 ): LayerParameterValues {
   const params: LayerParameterValues = { ...layer.params }
 
+  if (layer.type === "displaced-rings") {
+    const previousDefaults: LayerParameterValues = {
+      shape: "rings",
+      count: 8,
+      radius: 0.9,
+      offset: [0.045, 0],
+      rotationStep: 12,
+      gap: 0.04,
+    }
+    for (const [key, value] of Object.entries(previousDefaults)) {
+      if (params[key] === undefined) params[key] = value
+    }
+  }
+
+  if (layer.type === "photographic-cells") {
+    const previousDefaults: LayerParameterValues = {
+      mode: "cells",
+      outlineMode: "every-cell",
+      selection: "light",
+      threshold: 0.35,
+      size: 0.1,
+      irregularity: 0.35,
+      gap: 0.08,
+      outline: 0,
+      outlineColor: "#e8e5dc",
+    }
+    for (const [key, value] of Object.entries(previousDefaults)) {
+      if (params[key] === undefined) params[key] = value
+    }
+  }
+
+  if (layer.type === "text" && params.backgroundAlpha === undefined) {
+    params.backgroundAlpha = 1
+  }
+
+  if (
+    (layer.type === "image" || layer.type === "video") &&
+    params.transparentBounds === undefined
+  ) {
+    params.transparentBounds = false
+  }
+
+  if (layer.type === "blob-tracking" && params.frameStyle === undefined) {
+    params.frameStyle = params.showOutline === false ? "none" : "outline"
+  }
+
+  if (layer.type === "blob-tracking" && params.squareShapes === undefined) {
+    params.squareShapes = false
+  }
+
   if (layer.type === "ascii" && typeof params.fontWeight === "string") {
     params.fontWeight = LEGACY_ASCII_FONT_WEIGHTS[params.fontWeight] ?? 400
   }
 
-  // v6 flipped blob-tracking `sensitivity` so higher means more sensitive;
-  // before that it was fed straight in as a luma threshold. The flip landed on
-  // main as v5 while this branch had already published scenes stamped 5 for an
-  // unrelated change, so it has to reach those too.
   if (
     version < 6 &&
     layer.type === "blob-tracking" &&
     typeof params.sensitivity === "number"
   ) {
     params.sensitivity = 1 - params.sensitivity
+  }
+
+  if (layer.type === "model" && params.materialMetalness === undefined) {
+    params.materialMetalness = modelMaterialDefaults(params.material)?.metalness ?? 1
   }
 
   for (const parameter of getLayerDefinition(layer.type).params) {
@@ -635,12 +777,44 @@ function hydrateImportedLayer(
   version: number
 ): EditorLayer {
   const params = migrateLayerParams(layer, version)
+  const depthRef = layer.depthAssetId
+    ? assetRefById.get(layer.depthAssetId)
+    : undefined
+  const depthApplies = layer.type === "image"
+  const depthResolved = Boolean(
+    layer.depthAssetId && assetIds.has(layer.depthAssetId)
+  )
+  const depthIsImage = !depthRef || depthRef.kind === "image"
+  const depthAssetId =
+    depthApplies && depthIsImage ? (layer.depthAssetId ?? null) : null
+  const depthFileName = depthRef?.fileName ?? "unknown file"
+  const depthErrorDetail = depthResolved ? " is not an image" : ""
+  const depthError =
+    layer.depthAssetId && depthApplies && !(depthResolved && depthIsImage)
+      ? `${MISSING_DEPTH_ERROR_PREFIX}: ${depthFileName}${depthErrorDetail}`
+      : null
+  const missingMotifId = layer.patternAssetIds?.find((id) => !assetIds.has(id))
+  const linkedAssets =
+    layer.depthAssetId !== undefined ? { depthAssetId } : {}
 
   if (!(layer.assetId && !assetIds.has(layer.assetId))) {
+    const environmentError =
+      layer.environmentAssetId && !assetIds.has(layer.environmentAssetId)
+        ? `Missing environment: ${assetRefById.get(layer.environmentAssetId)?.fileName ?? "unknown file"}`
+        : null
+    const motifError = missingMotifId
+      ? `Missing motif: ${assetRefById.get(missingMotifId)?.fileName ?? "unknown file"}`
+      : null
     return {
       ...layer,
+      ...linkedAssets,
       params,
-      runtimeError: layer.runtimeError ?? null,
+      runtimeError:
+        depthError ??
+        environmentError ??
+        motifError ??
+        layer.runtimeError ??
+        null,
     }
   }
 
@@ -648,6 +822,7 @@ function hydrateImportedLayer(
 
   return {
     ...layer,
+    ...linkedAssets,
     params,
     runtimeError: assetRef
       ? `Missing asset: ${assetRef.fileName}`

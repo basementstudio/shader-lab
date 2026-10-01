@@ -4,6 +4,7 @@ declare module "three/webgpu" {
   import type {
     Box3,
     Camera,
+    Color,
     ColorRepresentation,
     Material,
     Scene,
@@ -47,6 +48,8 @@ declare module "three/webgpu" {
     // biome-ignore lint/suspicious/noExplicitAny: compute node type from Fn().compute() is opaque
     computeAsync(computeNodes: any): Promise<void>
     clear(): void
+    getClearAlpha(): number
+    getClearColor(target: Color): Color
     copyTextureToTexture(
       srcTexture: Texture,
       dstTexture: Texture,

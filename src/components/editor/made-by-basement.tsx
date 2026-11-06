@@ -30,17 +30,29 @@ export function MadeByBasement() {
   }
 
   return (
-    <Link
-      aria-label="Made by basement"
-      className="fixed right-4 bottom-4 z-10 hidden cursor-pointer items-center gap-1.5 text-[var(--ds-color-text-muted)] transition-colors duration-160 hover:text-[var(--ds-color-text-primary)] min-[900px]:inline-flex"
-      href="https://basement.studio"
-      rel="noreferrer"
-      target="_blank"
-    >
-      <Typography as="span" tone="inherit" variant="monoXs">
-        made by
-      </Typography>
-      <BasementWordmark />
-    </Link>
+    <div className="fixed bottom-4 left-4 z-10 hidden flex-col items-start gap-1 text-[var(--ds-color-text-muted)] min-[900px]:inline-flex min-[1280px]:flex-row min-[1280px]:items-baseline min-[1280px]:gap-3">
+      <Link
+        className="cursor-pointer transition-colors duration-160 hover:text-[var(--ds-color-text-primary)]"
+        href="https://lab.alembic.space/"
+        rel="noreferrer"
+        target="_blank"
+      >
+        <Typography as="span" tone="inherit" variant="monoXs">
+          inspired by alembic
+        </Typography>
+      </Link>
+      <Link
+        aria-label="Made by basement"
+        className="inline-flex cursor-pointer items-baseline gap-1.5 transition-colors duration-160 hover:text-[var(--ds-color-text-primary)]"
+        href="https://basement.studio"
+        rel="noreferrer"
+        target="_blank"
+      >
+        <Typography as="span" tone="inherit" variant="monoXs">
+          made by
+        </Typography>
+        <BasementWordmark />
+      </Link>
+    </div>
   )
 }

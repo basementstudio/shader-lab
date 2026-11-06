@@ -2,19 +2,17 @@ import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { Suspense } from "react"
 import { CommunityHero } from "@/components/community/community-hero"
+import { CommunityScenesBrowser } from "@/components/community/community-scenes-browser"
+import { SceneGridSkeleton } from "@/components/community/public-scene-grid"
 import { SCENES_ANCHOR_ID } from "@/components/community/scenes-anchor"
-import { PublicSceneGrid } from "@/components/community/public-scene-grid"
-import { PublicSceneEffectFilter } from "@/components/community/public-scene-effect-filter"
 import { APP_BASE_URL, APP_OG_IMAGES } from "@/lib/app"
 import { isCommunityEnabled } from "@/lib/community/config"
 import { getHeroScene, getPublicScenes } from "@/lib/community/public-scenes"
-import { getCommunityEffectSelection } from "@/lib/community/scene-effect-filter"
 import {
   COMMUNITY_PATH,
   EDITOR_PATH,
   scenePagePath,
 } from "@/lib/community/scene-links"
-import { getLayerLabel } from "@/lib/editor/config/layer-catalog"
 import { PageJsonLd } from "@/lib/structured-data/page-json-ld"
 import { generateBreadcrumbSchema } from "@/lib/structured-data/schemas/breadcrumb"
 import { generateCollectionPageSchema } from "@/lib/structured-data/schemas/collection"
@@ -37,11 +35,7 @@ export const metadata: Metadata = {
   title: "Community",
 }
 
-type PageProps = {
-  searchParams: Promise<Record<string, string | string[] | undefined>>
-}
-
-export default function CommunityPage({ searchParams }: PageProps) {
+export default function CommunityPage() {
   if (!isCommunityEnabled()) {
     notFound()
   }
@@ -57,7 +51,7 @@ export default function CommunityPage({ searchParams }: PageProps) {
         id={SCENES_ANCHOR_ID}
       >
         <Suspense fallback={<CommunityScenesSkeleton />}>
-          <CommunityScenes searchParams={searchParams} />
+          <CommunityScenes />
         </Suspense>
       </main>
     </>
@@ -68,16 +62,8 @@ async function CommunityHeroSection() {
   return <CommunityHero hero={await getHeroScene()} title={TITLE} />
 }
 
-async function CommunityScenes({ searchParams }: PageProps) {
-  const effects = getCommunityEffectSelection((await searchParams).effect)
-  const page = await getPublicScenes(effects)
-  let emptyLabel = "No scenes published yet."
-
-  if (effects.length === 1) {
-    emptyLabel = `No scenes using ${getLayerLabel(effects[0]!)} published yet.`
-  } else if (effects.length > 1) {
-    emptyLabel = "No scenes use all selected effects yet."
-  }
+async function CommunityScenes() {
+  const page = await getPublicScenes()
 
   return (
     <section className="flex flex-col gap-[var(--ds-space-6)]">
@@ -98,19 +84,13 @@ async function CommunityScenes({ searchParams }: PageProps) {
           ]),
         ]}
       />
-      <PublicSceneEffectFilter effects={effects} />
-
-      <PublicSceneGrid
-        emptyLabel={emptyLabel}
+      <CommunityScenesBrowser
         initialNextCursor={page.nextCursor}
         initialScenes={page.scenes}
-        effects={effects}
       />
     </section>
   )
 }
-
-const COMMUNITY_SKELETON_KEYS = ["one", "two", "three", "four", "five", "six"]
 
 function CommunityScenesSkeleton() {
   return (
@@ -119,14 +99,7 @@ function CommunityScenesSkeleton() {
       className="flex animate-pulse flex-col gap-[var(--ds-space-6)]"
     >
       <div className="h-9 w-full rounded-group bg-[var(--ds-color-surface-control)]" />
-      <div className="grid grid-cols-1 gap-[var(--ds-space-5)] min-[640px]:grid-cols-2 min-[1000px]:grid-cols-3">
-        {COMMUNITY_SKELETON_KEYS.map((key) => (
-          <div
-            className="aspect-[16/11] rounded-scene-card bg-[var(--ds-color-card)]"
-            key={key}
-          />
-        ))}
-      </div>
+      <SceneGridSkeleton />
     </section>
   )
 }

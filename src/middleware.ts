@@ -140,5 +140,5 @@ function rewriteToSceneMarkdown(
 // so route protection cannot apply to it regardless. The community matcher
 // exists only for the markdown twins — auth logic never runs on those paths.
 export const config = {
-  matcher: ["/auth/callback", "/tools/shader-lab/community/:path*"],
+  matcher: ["/auth/callback", "/tools/shader-lab/community/:path+"],
 }

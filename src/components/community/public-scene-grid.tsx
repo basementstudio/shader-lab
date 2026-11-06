@@ -22,19 +22,33 @@ export function PublicSceneGrid({
   author?: string | null
   emptyLabel?: string
   initialNextCursor: string | null
-  initialScenes: CommunitySceneSummary[]
+  initialScenes: CommunitySceneSummary[] | null
   showAuthor?: boolean
   sort?: SceneSort
   effects?: readonly EffectLayerType[]
 }) {
   const { error, hasMore, loadMore, loading, scenes } = useScenePages({
     author: author ?? null,
-    initial: { nextCursor: initialNextCursor, scenes: initialScenes },
+    initial: initialScenes
+      ? { nextCursor: initialNextCursor, scenes: initialScenes }
+      : null,
     sort,
     effects,
   })
 
   const shown = scenes ?? initialScenes
+
+  if (shown === null) {
+    if (error) {
+      return (
+        <Typography as="p" tone="secondary" variant="body">
+          Could not load scenes.
+        </Typography>
+      )
+    }
+
+    return <SceneGridSkeleton />
+  }
 
   if (shown.length === 0) {
     return (
@@ -65,5 +79,20 @@ export function PublicSceneGrid({
         total={shown.length}
       />
     </>
+  )
+}
+
+const SKELETON_KEYS = ["one", "two", "three", "four", "five", "six"]
+
+export function SceneGridSkeleton() {
+  return (
+    <div aria-hidden="true" className={`${SCENE_GRID_CLASS_NAME} animate-pulse`}>
+      {SKELETON_KEYS.map((key) => (
+        <div
+          className="aspect-[16/11] rounded-scene-card bg-[var(--ds-color-card)]"
+          key={key}
+        />
+      ))}
+    </div>
   )
 }

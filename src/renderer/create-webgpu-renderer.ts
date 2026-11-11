@@ -4,7 +4,10 @@ import { recordDeviceDiagnostics } from "@/lib/webgpu-diagnostics"
 import type { EditorRenderer, RendererFrame } from "@/renderer/contracts"
 import { PipelineManager } from "@/renderer/pipeline-manager"
 import { reverseComposition } from "@/renderer/composition-tree"
-import { browserSupportsWebGPU } from "@/renderer/webgpu-support"
+import {
+  assertRendererSupported,
+  browserSupportsWebGPU,
+} from "@/renderer/webgpu-support"
 import type { Size } from "@/types/editor"
 
 export { browserSupportsWebGPU }
@@ -45,6 +48,10 @@ export async function createWebGPURenderer(
   canvas: HTMLCanvasElement,
   options: CreateRendererOptions = {}
 ): Promise<EditorRenderer> {
+  // Fail with a typed error before three can fall back to a null WebGL2
+  // context (SHADER-LAB-J).
+  await assertRendererSupported()
+
   const renderer = new THREE.WebGPURenderer({
     alpha: false,
     antialias: false,

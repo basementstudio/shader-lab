@@ -10,7 +10,10 @@ import { withCellPaintPreview } from "@/store/cell-paint-store"
 import { buildRendererFrame, type EditorRenderer } from "@/renderer/contracts"
 import { fitDocumentToViewport, getDocumentSize } from "@/lib/editor/composition"
 import { errorFingerprint } from "@/renderer/pass-failure"
-import { browserSupportsWebGPU } from "@/renderer/webgpu-support"
+import {
+  browserSupportsWebGPU,
+  RendererUnsupportedError,
+} from "@/renderer/webgpu-support"
 import { useAssetStore } from "@/store/asset-store"
 import { selectAudioModulationInput, useAudioStore } from "@/store/audio-store"
 import { useEditorStore } from "@/store/editor-store"
@@ -463,11 +466,26 @@ export function useEditorRenderer() {
             ? error.message
             : "Renderer initialization failed."
 
-        useEditorStore.getState().setWebGPUStatus("error", message)
-        setFallbackMessage(message)
         // Terminal: without this the 20s deadline still fires a second, bogus
         // "boot timed out" on top of the real failure.
         boot.settleDeadline()
+
+        if (error instanceof RendererUnsupportedError) {
+          // No usable GPU backend: show the unsupported state, but keep a
+          // signal so we can track how many visitors hit it.
+          useEditorStore.getState().setWebGPUStatus("unsupported", message)
+          setFallbackMessage(message)
+          Sentry.setContext("gpu", gpuSnapshot())
+          Sentry.captureMessage("Renderer unsupported: no GPU backend", {
+            extra: { ...error.support },
+            level: "warning",
+            tags: { surface: "webgpu-unsupported" },
+          })
+          return
+        }
+
+        useEditorStore.getState().setWebGPUStatus("error", message)
+        setFallbackMessage(message)
         Sentry.captureException(error, { tags: { surface: "webgpu-init" } })
       }
     }

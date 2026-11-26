@@ -2,20 +2,22 @@ import { readdir, readFile, writeFile } from "node:fs/promises"
 
 const DIST_DIR = new URL("../dist/", import.meta.url)
 
-const JS_IMPORT_PATTERN =
+const RELATIVE_IMPORT_PATTERN =
   /(from\s+["'])(\.\.?\/[^"']+)(["'])|(import\s*\(\s*["'])(\.\.?\/[^"']+)(["']\s*\))/g
 
-async function collectJsFiles(directoryUrl) {
+async function collectEsmFiles(directoryUrl) {
   const entries = await readdir(directoryUrl, { withFileTypes: true })
   const files = await Promise.all(
     entries.map(async (entry) => {
       const nextUrl = new URL(`${entry.name}${entry.isDirectory() ? "/" : ""}`, directoryUrl)
 
       if (entry.isDirectory()) {
-        return collectJsFiles(nextUrl)
+        return collectEsmFiles(nextUrl)
       }
 
-      return entry.name.endsWith(".js") ? [nextUrl] : []
+      return entry.name.endsWith(".js") || entry.name.endsWith(".d.ts")
+        ? [nextUrl]
+        : []
     }),
   )
 
@@ -28,7 +30,7 @@ function withJsExtension(specifier) {
 
 function rewriteSpecifiers(source) {
   return source.replace(
-    JS_IMPORT_PATTERN,
+    RELATIVE_IMPORT_PATTERN,
     (match, fromPrefix, fromSpecifier, fromSuffix, importPrefix, importSpecifier, importSuffix) => {
       if (fromSpecifier) {
         return `${fromPrefix}${withJsExtension(fromSpecifier)}${fromSuffix}`
@@ -43,7 +45,7 @@ function rewriteSpecifiers(source) {
   )
 }
 
-const files = await collectJsFiles(DIST_DIR)
+const files = await collectEsmFiles(DIST_DIR)
 
 await Promise.all(
   files.map(async (fileUrl) => {
